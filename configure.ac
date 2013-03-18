@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.69])
+AC_PREREQ([2.68])
 AC_INIT([libbim], [0.0.1], [])
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([src/mesh.cpp])
@@ -19,7 +19,7 @@ AC_CHECK_LIB([mpi], [MPI_Init])
 AC_CHECK_LIB([dmumps], [dmumps_c])
 
 # Checks for header files.
-AC_CHECK_HEADER(dmumps.h, ,AC_MSG_ERROR([dmumps.h not found.]))
+AC_CHECK_HEADER(dmumps_c.h, ,AC_MSG_ERROR([dmumps_c.h not found.]))
 
 AC_LANG_POP([C++])
 
