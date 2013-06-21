@@ -1,0 +1,136 @@
+*************
+  ADVDIFFTS
+*************
+
+  Created by Carlo de Falco on 23/10/05.
+ *
+   Copyright (C) 2005  Carlo de Falco ( carlo@mate.polimi.it )
+ this program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ *
+ this program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ *
+ You should have received a copy of the GNU General Public License
+ along with MNME2D; if not, write to the Free Software
+ Foundation, Inc.,\n 59 Temple Place, Suite 330, Boston, MA  02111-1307
+         USA
+ *
+
+
+
+This is an example of solving in parallel
+a linear time-dependent PDE with exponentially
+fitted finite elements on an unstructured triangular mesh.
+It is based on the PETSc Library and the metis mesh-partitioning tool.
+
+***********************
+CONTENTS:
+
+1) Quick start
+2) Description and options
+3) Files
+
+************************
+1) QUICK START
+
+a) To install and use this program
+you will need the following software
+installed:
+
+- PETSc 2.3.0 
+available from 
+http://www-unix.mcs.anl.gov/petsc
+
+- Metis 4.0
+available from
+http://www-users.cs.umn.edu/~karypis/metis
+
+- GNU make
+availaibe from
+http://www.gnu.org
+
+An implementation of the MPI message passing library
+will be needed to build PETSc.
+To run and postprocess the included
+examples, you will allso need
+to have matlab installed on your
+system.
+
+b) Define the following variables
+in the environment or in the makefile:
+
+PETSC_DIR, PETSC_ARCH (see petsc documentation)
+MATLAB                full path to the matlab executable
+METIS                 full path to the directory containing
+                      METIS stand-alone executables (partnmesh etc.)
+
+c) Run the following commands
+
+make advdiffts  - to build the advdiffts binary
+make examples   - to define the test problem data,
+                  build the mesh and partition it
+                  with METIS
+make runexample - to run the included test example
+                  on 2 processors.
+
+************************
+2) DESCRIPTION AND OPTIONS
+
+The advdiffts program solves an Advection-Diffusion
+equation of the form:
+
+$$
+
+\frac{\partial u}{\partial t} - 
+\epsilon ( \triangle u - u \frac{\nabla V}{\epsilon} ) = 0
+
+$$ 
+
+with homogeneous Dirichlet boundary conditions on the
+boundary of the spatial doain $ \Omega $ and initial
+conditions $ u(x,y,0) = u_0 $.
+
+The spatial domain and its partitioned triangulation, 
+the initial data, the potential field $V$ are
+read by the program fro a set of ascii files:
+p    - nodes of the mesh and node partitioning
+t    - connectivity and element partitioning
+bcs  - list of boundary nodes
+data - potential, initial condition
+
+The time step for ode solver, the maximum number of time steps,
+the time stepping algorithm (euler, backward euler or crank-nicholson),
+the coefficient epsilon are read from the following
+command line options:
+
+-deltat
+-maxts
+-ts_type
+-epsilon
+
+run the program with the -help option for more information
+on these and other options.
+All mpi and PETSc command-line options can also be used,
+a typical command for calling advdiffts would look like:
+
+mpirun -np 2 -nolocal advdiffts -prefix nproc2/ -ts_type beuler -epsilon 1e-6 -maxts 100 -deltat 0.1 -preload false
+
+************************
+3) FILES
+
+The files included in this archive are
+
+advdiffts.c     - c source code of the advdiff program
+buildexamples.m,
+buildmesh_metis.m,
+plotseries.m    - matlab scripts to create the input data
+                  and mesh for the examples and to plot the results
+makefile        - makefile to build the program and the examples
+README          - this file
+LICENSE         - a copy of the GNU GPL license under wich this
+                  program is released 
