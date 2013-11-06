@@ -250,7 +250,7 @@ void bimu_bernoulli (double x, double &bp, double &bn)
       double fn = 1.0;
       double df = 1.0;
       double segno = 1.0;
-      while (abs (df) > 1.0e-16)
+      while (fabs (df) > 1.0e-16)
         {
           jj += 1.0;
           segno = -segno;

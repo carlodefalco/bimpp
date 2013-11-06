@@ -38,6 +38,7 @@ class mesh
   int nnodes, nelements, nfaces;
 
   void read (std::string filename);
+  //void read_octave (std::string filename);
   void write (std::string filename);
 
   mesh (std::string filename) {read (filename);}
