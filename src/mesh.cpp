@@ -18,24 +18,29 @@
 //
 //  author: Carlo de Falco     <cdf _AT_ users.sourceforge.net>
 
+/*! \file mesh.cpp
+  \brief Classes and methods for managing tetrahedral meshes.
+*/
+
 #include <mesh.h>
 #include <iostream>
 #include <fstream>
 #include <new>
 #include <cstring>             
 
-//#include <octave/config.h>        
-#include <octave/oct.h>        
-#include <octave/ov.h>         
-#include <octave/octave.h>     
-#include <octave/parse.h>      
-#include <octave/toplev.h>     
-#include <octave/load-save.h>  
-#include <octave/oct-map.h>    
-                               
-                               
+//namespace bim
+//{
 
-
+mesh::~mesh ()
+{
+  delete [] p_data;
+  delete [] t_data;
+  delete [] e_data;
+  delete [] shp_data;
+  delete [] shg_data;
+  delete [] wjacdet_data;
+  delete [] volume_data;
+};
 
 void mesh::read (std::string filename)
 {
@@ -62,114 +67,6 @@ void mesh::read (std::string filename)
   fin.close ();
 };
 
-/*
-void mesh::read_octave (std::string filename)
-{
-
-  load_save_format format = LS_UNKNOWN;
-  string_vector argv (1);
-  install_types ();  
-  argv(2) = "t";
-  argv(1) = "e";
-  argv(0) = "p";
-  bool list_only = false;
-  bool verbose = false;
-  oct_mach_info::float_format flt_fmt = oct_mach_info::flt_fmt_unknown;
-  bool swap = false;
-  bool use_zlib = false;
-  octave_scalar_map m;
-
-  format = get_file_format (filename, filename, use_zlib);
-
-  if (format == LS_HDF5)
-    {
-      hdf5_ifstream hdf5_file (filename.c_str ());
-      if (hdf5_file.file_id >= 0)
-        {
-          m = do_load (hdf5_file, filename, format,
-                       flt_fmt, list_only, swap, verbose,
-                       argv, 0, 3, 1);
-          
-          hdf5_file.close ();
-        }
-      else
-        std::cout << "error opening file " << filename << std::endl;
-    }
-  else if (format != LS_UNKNOWN)
-    {
-      if (use_zlib)
-        {
-          gzifstream file (filename.c_str (), mode);
-          if (file)
-            {
-              if (format == LS_BINARY)
-                {
-                  if (read_binary_file_header (file, swap, flt_fmt) < 0)
-                    {
-                      if (file) file.close ();
-                      std::cout << "error opening file " << filename << std::endl;
-                    }
-                }
-              else if (format == LS_MAT5_BINARY
-                       || format == LS_MAT7_BINARY)
-                {
-                  if (read_mat5_binary_file_header (file, swap, false, filename) < 0)
-                    {
-                      if (file) file.close ();
-                      std::cout << "error opening file " << filename << std::endl;
-                    }
-                }
-              
-              retval = do_load (file, filename, format,
-                                flt_fmt, list_only, swap, verbose,
-                                argv, 0, 3, 1);
-              
-              file.close ();
-            }
-          else
-            std::cout << "error opening file " << filename << std::endl;
-        }
-      else     
-        {
-          std::ifstream file (fname.c_str (), mode);
-              
-          if (file)
-            {
-              if (format == LS_BINARY)
-                {
-                  if (read_binary_file_header (file, swap, flt_fmt) < 0)
-                    {
-                      if (file) file.close ();
-                      return retval;
-                    }
-                }
-              else if (format == LS_MAT5_BINARY
-                       || format == LS_MAT7_BINARY)
-                {
-                  if (read_mat5_binary_file_header (file, swap, false, orig_fname) < 0)
-                    {
-                      if (file) file.close ();
-                      return retval;
-                    }
-                }
-
-              retval = do_load (file, orig_fname, format,
-                                flt_fmt, list_only, swap, verbose,
-                                argv, i, argc, nargout);
-              
-              file.close ();
-            }
-          else
-            error ("load: unable to open input file '%s'",
-                   orig_fname.c_str ());
-        }
-    }
-}
-
-return retval;
-}
-
-*/
 
 void mesh::write (std::string filename)
 {
@@ -303,3 +200,4 @@ std::ostream & operator<< (std::ostream &stream, mesh &msh)
 
   return stream;
 }
+//}

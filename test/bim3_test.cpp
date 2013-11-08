@@ -4,7 +4,7 @@
   the terms of the GNU/GPL licence v3
 */
 
-#include <sparse.h>
+#include <bim_sparse.h>
 #include <mesh.h>
 #include <operators.h>
 #include <mumps_class.h>

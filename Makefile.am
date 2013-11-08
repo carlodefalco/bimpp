@@ -1,2 +1,3 @@
-SUBDIRS = src test data
+ACLOCAL_AMFLAGS = -I m4
+SUBDIRS = src data test
 dist_doc_DATA = README COPYING

@@ -14,41 +14,57 @@
 #define JOB_SOLVE 3
 #define JOB_END  -2
 
-#include <sparse.h>
+#include <bim_sparse.h>
 #include <dmumps_c.h>
+
+//using namespace bim;
 
 /// Wrapper class around the MUMPS linear solver.
 class mumps
 {
- public :
+private :
+  bool verbose;
+
+public :
   DMUMPS_STRUC_C id;
   
   /// Init the (serial) mumps solver instance.
-  void init ();
+  void 
+    init ();
 
   /// Default constructor.
-  mumps () {init ();};
+  mumps (bool verbose_ = false) : verbose (verbose_) 
+    {init ();};
 
   /// Set-up the matrix structure.
-  void set_lhs_structure (int n, std::vector<int> &ir, std::vector<int> &jc);
+  void 
+    set_lhs_structure (int n, 
+                       std::vector<int> &ir, 
+                       std::vector<int> &jc);
 
   /// Perform the analysis.
-  void analyze ();
+  void 
+    analyze ();
 
   /// Set matrix entries.
-  void set_lhs_data (std::vector<double> &xa);
+  void 
+    set_lhs_data (std::vector<double> &xa);
 
   /// Set the rhs.
-  void set_rhs (std::vector<double> &rhs);
+  void 
+    set_rhs (std::vector<double> &rhs);
 
   /// Perform the factorization.
-  void factorize ();
+  void 
+    factorize ();
 
   /// Perform the back-substitution.
-  void solve ();
+  void 
+    solve ();
 
   /// Cleanup memory.
-  void cleanup ();
+  void 
+    cleanup ();
 };
 
 

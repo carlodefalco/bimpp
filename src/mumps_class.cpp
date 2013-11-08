@@ -7,7 +7,8 @@
 
 #include <mumps_class.h>
 
-void mumps::init ()
+void 
+mumps::init ()
 {
   id.job =  JOB_INIT;
   id.par =   1;                      // host working
@@ -17,21 +18,31 @@ void mumps::init ()
   dmumps_c (&id);
   
   // streams    
-  id.icntl[0] =   -1; // Output stream for error messages
-  id.icntl[1] =   -1; // Output stream for diagnostic messages
-  id.icntl[2] =   -1; // Output stream for global information
-  id.icntl[3] =    0; // Level of printing 
+  int mult = verbose ? 1 : -1;
+  id.icntl[0] = mult * 6; // Output stream for error messages
+  id.icntl[1] = mult * 6; // Output stream for diagnostic messages
+  id.icntl[2] = mult * 6; // Output stream for global information
+  id.icntl[3] = mult * 3; // Level of printing 
 
   // Matrix input format
   id.icntl[4]  =   0; 
   id.icntl[17] =   0; 
 
   // ordering
-  id.icntl[6] =  0; // metis (5), or pord (4), or AMD (0), AMF (2), QAMD (6)	  
+  id.icntl[6] =  3; // scotch (3), or pord (4), or metis (5), or AMD (0), AMF (2), QAMD (6), AUTO (7)
+
+  // space for fill-in
+  id.icntl[13] = 25;
+  id.icntl[22] = 2048;
+
+  // iterative refinement
+  id.icntl[9] = 25;
 }
 
 
-void mumps::set_lhs_structure (int n, std::vector<int> &ir, std::vector<int> &jc)
+void
+mumps::set_lhs_structure 
+(int n, std::vector<int> &ir, std::vector<int> &jc)
 {
   id.n  = n;
   id.nz = ir.size ();
