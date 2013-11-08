@@ -1,3 +1,14 @@
+BIMLIB = ../src/libbim.la 
+AM_CPPFLAGS =  -I$(top_srcdir)/src  @OCTAVE_COMPILE_FLAGS@ @MUMPS_CPPFLAGS@ 
+AM_LDFLAGS = @OCTAVE_LINK_FLAGS@ @MUMPS_LDFLAGS@ 
+AUTOMAKE_OPTIONS = nostdinc
+
 check_PROGRAMS = sparse_test bim3_test
-sparse_test_SOURCES = $(top_srcdir)/src/sparse.h $(top_srcdir)/src/sparse.cpp $(top_srcdir)/src/mumps_class.h $(top_srcdir)/src/mumps_class.cpp sparse_test.cpp $(top_srcdir)/src/mesh.h $(top_srcdir)/src/mesh.cpp $(top_srcdir)/src/operators.h $(top_srcdir)/src/operators.cpp 
-bim3_test_SOURCES = $(top_srcdir)/src/sparse.h $(top_srcdir)/src/sparse.cpp $(top_srcdir)/src/mumps_class.h $(top_srcdir)/src/mumps_class.cpp bim3_test.cpp $(top_srcdir)/src/mesh.h $(top_srcdir)/src/mesh.cpp $(top_srcdir)/src/operators.h $(top_srcdir)/src/operators.cpp 
+
+sparse_test_SOURCES = sparse_test.cpp
+sparse_test_LDADD = $(BIMLIB)
+
+bim3_test_SOURCES = bim3_test.cpp
+bim3_test_LDADD = $(BIMLIB)
+
+TESTS = sparse_test bim3_test

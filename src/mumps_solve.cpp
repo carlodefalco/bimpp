@@ -13,7 +13,7 @@ void mumps_solve (sparse_matrix &lhs, std::vector<double> &rhs, const std::vecto
   std::vector<double> lrhs;
   lrhs.resize (cols.size ());
 
-  for (int i = 0; i < cols.size (); ++i)
+  for (size_t i = 0; i < cols.size (); ++i)
     lrhs[i] = rhs[cols[i]];
 
   std::vector<int> ir, jc;
@@ -36,7 +36,7 @@ void mumps_solve (sparse_matrix &lhs, std::vector<double> &rhs, const std::vecto
   
   mumps_solver.cleanup ();
 
-  for (int i = 0; i < lrhs.size (); ++i)
+  for (size_t i = 0; i < lrhs.size (); ++i)
     rhs[cols[i]] = lrhs[i];
 
 }

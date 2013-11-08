@@ -1,11 +1,15 @@
+AM_CPPFLAGS = -I$(top_srcdir)/src 
+AUTOMAKE_OPTIONS = nostdinc
 
-include_HEADERS = mesh.h sparse.h operators.h mumps_class.h mumps_solve.h
 lib_LTLIBRARIES = libbim.la
-libbim_la_SOURCES = mesh.cpp sparse.cpp operators.cpp mumps_class.cpp mumps_solve.cpp
-libbim_la_LIBADD = @OCTAVE_LINK_ADD@ mesh.o sparse.o mesh.o operators.o mumps_class.o mumps_solve.o libmesh.a
+include_HEADERS = mesh.h bim_sparse.h operators.h mumps_class.h mumps_solve.h
+libbim_la_SOURCES = mesh.cpp bim_sparse.cpp operators.cpp mumps_class.cpp mumps_solve.cpp
+libbim_la_LDFLAGS = @OCTAVE_LINK_FLAGS@ @MUMPS_LDFLAGS@
+libbim_la_CPPFLAGS = $(AM_CPPFLAGS) @OCTAVE_COMPILE_FLAGS@ @MUMPS_CPPFLAGS@ 
+libbim_la_LIBADD = @OCTAVE_LINK_ADD@ @MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@ $(LDADD) 
 
-#libbim_a_LDFLAGS = @OCTAVE_LINK_FLAGS@ 
-libbim_la_CPPFLAGS = @OCTAVE_COMPILE_FLAGS@ $(AM_CPPFLAGS)
+
+
 
 
 
