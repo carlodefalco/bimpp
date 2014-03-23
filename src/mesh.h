@@ -27,6 +27,7 @@
 #define HAVE_MESH_H 1
 
 #include <string>
+#include <cstring>
 
 //namespace bim
 //{
@@ -36,118 +37,169 @@ class mesh
 
 protected:
 
-  /// Points array.
+  /// Points.
   double *p_data;
-  /// Elements (tetrahedra)  array.
+
+  /// Elements (tetrahedra).
   int    *t_data;
-  /// Boundary faces array.
+
+  /// Boundary faces.
   int    *e_data;
 
-  double *shp_data,      //!< Shape function values array.
-         *shg_data,      //!< Shape function gradients values array.
-         *wjacdet_data,  //!< weighted Jacobian det values array.
-         *volume_data;   //!< Tetrahedra volume values array.
 
+  double *shp_data, //!< Shape function values.
+    *shg_data,      //!< Shape function gradients.
+    *wjacdet_data,  //!< Weighted determinant of map Jacobian.
+    *volume_data;   //!< Volume of tetrahedra.
+  
   mesh () { };
   
 public:
   
   int nnodes,    //!< Number of mesh nodes.
-      nelements, //!< Number of mesh tetrahedra.
-      nfaces;    //!< Number of (boundary?) faces
+    nelements,   //!< Number of mesh tetrahedra.
+    nfaces;      //!< Number of (boundary?) faces
 
   void read (std::string filename); //!< Reads a mesh file.
   void write (std::string filename); //!< Writes a mesh file.
 
-  mesh (std::string filename) :  p_data (NULL),
+  mesh (std::string filename) : 
+    p_data (NULL),
     t_data (NULL),
     e_data (NULL),
     shp_data (NULL),
     shg_data (NULL),
     wjacdet_data (NULL),
     volume_data (NULL)
-      {read (filename);} //!< Build a mesh by reading from file.
+  {read (filename);} //!< Build a mesh by reading from file.
 
-  virtual ~mesh ();     //!< Destructor (frees the pointer members).
+  virtual ~mesh ();     //!< Destructor (frees the pointer members)
 
   void precompute_properties (); //!< Cache some mesh properties 
-                                 //! required by the discrete operator constructors
-                                 //! (shape functions, volumes, etc.).
+                                 //! required by the discrete 
+                                 //! operator constructors
+                                 //! (shape functions, 
+                                 //! volumes, etc.)
 
   /// i-th coordinate of a node.
-  double inline 
-    &p (int idir, int inode) 
-    {return (*(p_data+idir+3*inode));}; 
+  inline double&
+  p (int idir, int inode) 
+  {return (*(p_data+idir+3*inode));}; 
 
-  /// i-th node of a tetrahedra.
-  int inline 
-    &t (int inode, int iel) 
-    {return (*(t_data+inode+5*iel));};
+  /// i-th node of a tetrahedron.
+  inline int& 
+  t (int inode, int iel) 
+  {return (*(t_data+inode+5*iel));};
 
   /// i-th boundary face
-  int inline 
-    &e (int ient, int ifc) 
-    {return (*(e_data+ient+10*ifc));};
+  inline int&
+  e (int ient, int ifc) 
+  {return (*(e_data+ient+10*ifc));};
 
   /// i-th coordinate of a node (const version).
-  const double inline 
-    &p (int idir, int inode) const 
-    {return (*(p_data+idir+3*inode));};
+  inline const double&
+  p (int idir, int inode) const 
+  {return (*(p_data+idir+3*inode));};
   
   /// i-th node of a tetrahedra (const version).
-  const int inline 
-    &t (int inode, int iel) const 
-    {return (*(t_data+inode+5*iel));};
+  inline const int&
+  t (int inode, int iel) const 
+  {return (*(t_data+inode+5*iel));};
   
   /// i-th boundary face (const version).
-  const int inline 
-    &e (int ient, int ifc) const 
-    {return (*(e_data+ient+10*ifc));};
+  inline const int& 
+  e (int ient, int ifc) const 
+  {return (*(e_data+ient+10*ifc));};
 
   /// node value of a node shape function.
-  double inline 
-    &shp (int inode, int jnode) 
-    {return (*(shp_data+inode+4*jnode));};
+  inline double&  
+  shp (int inode, int jnode) 
+  {return (*(shp_data+inode+4*jnode));};
   
-  /// value of node shape function gradient component on an element.
-  double inline 
-    &shg (int idir, int inode, int iel) 
-    {return (*(shg_data+idir+3*(inode+(4*iel))));};
+  /// value of node shape function gradient component on an element
+  inline double&
+  shg (int idir, int inode, int iel) 
+  {return (*(shg_data+idir+3*(inode+(4*iel))));};
   
-  /// determinant of the jacobian of a shape function on an element.
-  double inline 
-    &wjacdet (int inode, int iel) 
-    {return (*(wjacdet_data+inode+4*iel));};
+  /// determinant of the jacobian of a shape function on an element
+  inline double&
+  wjacdet (int inode, int iel) 
+  {return (*(wjacdet_data+inode+4*iel));};
   
   /// volume of an element.
-  double inline 
-    &volume (int iel) 
-    {return (*(volume_data+iel));};
-
+  inline double&
+  volume (int iel) 
+  {return (*(volume_data+iel));};
 
   /// node value of a node shape function.
-  const double inline 
-    &shp (int inode, int jnode) const 
-    {return (*(shp_data+inode+4*jnode));};
+  inline const double&
+  shp (int inode, int jnode) const 
+  {return (*(shp_data+inode+4*jnode));};
   
-  /// value of node shape function gradient component on an element.
-  const double inline 
-    &shg (int idir, int inode, int iel) const 
-    {return (*(shg_data+idir+3*(inode+(4*iel))));};
+  /// value of node shape function gradient component on an element
+  inline const double&
+  shg (int idir, int inode, int iel) const 
+  {return (*(shg_data+idir+3*(inode+(4*iel))));};
   
-  /// determinant of the jacobian of a shape function on an element.
-  const double inline 
-    &wjacdet (int inode, int iel) const 
-    {return (*(wjacdet_data+inode+4*iel));};
+  /// determinant of the jacobian of a shape function on an element
+  inline const double&
+  wjacdet (int inode, int iel) const 
+  {return (*(wjacdet_data+inode+4*iel));};
   
   /// volume of an element.
-  const double inline 
-    &volume (int iel) const 
-    {return (*(volume_data+iel));};
+  inline const double&
+  volume (int iel) const 
+  {return (*(volume_data+iel));};
 
   /// mesh textual output.
   friend std::ostream &operator<< (std::ostream &, mesh &);
+
+  //!< cache for data of a single element.
+  friend class element_data;
+  
+  class element_data
+  {
+
+  public:
+
+    union
+    {
+      double dbuffer[45]; 
+      struct 
+      {
+        double p[12];
+        double shg[12];
+        double shp[16];
+        double wjacdet[4];
+        double volume;
+      };
+    };
+
+    union
+    {
+      int ibuffer[6]; 
+      struct 
+      {
+        int iel;
+        int t[5];
+      };
+    };
+    
+
+    const mesh& m;
+    element_data (const mesh& _m)
+      : m(_m) 
+    {
+      memcpy (shp, m.shp_data, 16 * sizeof (double));
+    };
+
+    void
+    update (int iel_);
+    
+  };
+
 };
+
 
 //}
 

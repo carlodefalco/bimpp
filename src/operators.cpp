@@ -18,6 +18,9 @@
 //
 //  author: Carlo de Falco     <cdf _AT_ users.sourceforge.net>
 
+/*! \file operators.cpp
+  \brief Functions to build the discrete version of differential operators.
+*/
 #include <operators.h>
 #include <cstring>
 
@@ -40,8 +43,8 @@ bim3a_structure (const mesh& msh, sparse_matrix& SG)
 };
 
 void 
-bim3a_rhs  
-(const mesh& msh, const std::vector<double>& ecoeff, 
+bim3a_rhs 
+(mesh& msh, const std::vector<double>& ecoeff, 
  const std::vector<double>& ncoeff, std::vector<double>& b)
 {
   b.resize (msh.nnodes);
@@ -54,89 +57,69 @@ bim3a_rhs
 };
 
 void 
-bim3a_reaction  
-(const mesh& msh, const std::vector<double>& ecoeff, 
+bim3a_reaction 
+(mesh& msh, const std::vector<double>& ecoeff, 
  const std::vector<double>& ncoeff, sparse_matrix& A)
 {
   if (A.size () < size_t (msh.nnodes))
     A.resize (msh.nnodes);
-  
-  int iel, inode;
+ 
+  int iel, inode[4];
+  double Lloc[16], nloc[4] = {0.0, 0.0, 0.0, 0.0}, *mesh_local;
+
 
   for (iel = 0; iel < msh.nelements; ++iel)
-    for (inode = 0; inode < 4; ++inode)
-      {
-        int ig = msh.t (inode, iel);
-        
-        if (ig >= msh.nnodes)
-          std::cout << " out of bounds" << std::endl;
-        
-        A[ig][ig] += ncoeff[ig] * ecoeff[iel] * msh.volume (iel) / 4.0;
-      }
-};
-  
-void
-bim3a_local_laplacian (const mesh& msh, 
-                       const int iel, 
-                       const double acoeff, 
-                       double SG[16])
-{
-  int inode, jnode, idir;
-  double ishg, jshg;
-#define sgloc(i, j) (SG[i + 4*j])
-    
-  for (inode = 0; inode < 4; ++inode)
-    for (jnode = 0; jnode < 4; ++jnode)
-      {
-        for (idir = 0; idir < 3; ++idir)
-          {
-            ishg = msh.shg (idir, inode, iel);
-            jshg = msh.shg (idir, jnode, iel);
-            sgloc(inode, jnode) += ishg * jshg *  acoeff * msh.volume (iel);
-          }
-      }
-#undef sgloc
+    {
+      for (int ii = 0; ii < 4; ++ii)
+	   {
+	     inode[ii] = msh.t (ii, iel);
+	     nloc[ii] = ncoeff[inode[ii]];
+	   }
+
+      memset (Lloc, 0, 16 * sizeof (double));
+      bim3a_local_reaction (&(msh.shp(0, 0)), 
+			    &(msh.wjacdet(0, iel)),
+			    ecoeff[iel],
+                nloc, Lloc);
+
+      for (int ii = 0; ii < 4; ++ii)
+	     A[inode[ii]][inode[ii]] += Lloc[5*ii];
+
+    }
 };
 
 void 
-bim3a_laplacian (const mesh& msh, 
+bim3a_laplacian (mesh& msh, 
                  const std::vector<double>& acoeff, 
                  sparse_matrix& SG)
 {
-    
+ 
   if (SG.size () < size_t (msh.nnodes))
     SG.resize (msh.nnodes);
 
-  double epsilonareak;  
-  int iel, inode, jnode, 
-    idir, ig, jg;
+  double Lloc[16]; 
+  int iel, inode[4];
 
   for (iel = 0; iel < msh.nelements; ++iel)
-    {      
-      epsilonareak = acoeff[iel] * msh.volume (iel);
-  
-      // Compute local laplacian matrix and assemble into global matrix
-      for (inode = 0; inode < 4; ++inode)
-        for (jnode = 0; jnode < 4; ++jnode)
-          {
-            ig = msh.t (inode, iel);
-            jg = msh.t (jnode, iel);
+    { 
+      for (int ii = 0; ii < 4; ++ii)
+        inode[ii] = msh.t (ii, iel);
+      
+       
+      memset (Lloc, 0, 16 * sizeof (double));
+      bim3a_local_laplacian (&(msh.shg(0, 0, iel)), 
+                             msh.volume (iel),
+                             acoeff[iel],
+                             Lloc);
 
-            if (ig >= msh.nnodes || jg >= msh.nnodes)
-              std::cout << " out of bounds" << std::endl;
-
-            for (idir = 0; idir < 3; ++idir)
-              {
-                double ishg = msh.shg (idir, inode, iel);
-                double jshg = msh.shg (idir, jnode, iel);
-                SG[ig][jg] += ishg * jshg * epsilonareak;
-              }
-          }
+      for (int ii = 0; ii < 4; ++ii)
+        for (int jj = 0; jj < 4; ++jj)
+          SG[inode[ii]][inode[jj]] += Lloc[ii + 4 * jj];
     }
 };
 
 void
-bim3a_advection_diffusion (const mesh& msh, 
+bim3a_advection_diffusion (mesh& msh, 
                            const std::vector<double>& acoeff, 
                            const std::vector<double>& v, 
                            sparse_matrix& SG)
@@ -144,182 +127,36 @@ bim3a_advection_diffusion (const mesh& msh,
 
   if (SG.size () < size_t (msh.nnodes))
     SG.resize (msh.nnodes);
-    
-  double Lloc[4][4], Sloc[4][4];
-  double epsilonareak;
-  double 
-    bm12, bm13, bm14, bm23, bm24, bm34,
-    bp12, bp13, bp14, bp23, bp24, bp34;
-
-  int ginode[4][4], gjnode[4][4];
-  double vloc[4];
-
-  int iel, inode, jnode, idir, ig, jg;
+ 
+  double Lloc[16], vloc[4]; 
+  int iel, inode[4];
 
   for (iel = 0; iel < msh.nelements; ++iel)
-    {
-      for (inode = 0; inode < 4; ++inode)
-        for (jnode = 0; jnode < 4; ++jnode)
-          Lloc[inode][jnode] = 0.0;
+    { 
+      for (int ii = 0; ii < 4; ++ii)
+        {
+          inode[ii] = msh.t (ii, iel);
+          vloc[ii] = v[inode[ii]];
+        }
       
-      epsilonareak = acoeff[iel] * msh.volume (iel);
-  
-      // Compute local laplacian matrix
-      for (inode = 0; inode < 4; ++inode)
-        for (jnode = 0; jnode < 4; ++jnode)
-          {
-            ginode[inode][jnode] = msh.t (inode, iel);
-            gjnode[inode][jnode] = msh.t (jnode, iel);
+       
+      memset (Lloc, 0, 16 * sizeof (double));
+      bim3a_local_laplacian (&(msh.shg(0, 0, iel)), 
+                             msh.volume (iel),
+                             acoeff[iel],
+                             Lloc);
 
-            if (ginode[inode][jnode] >= msh.nnodes 
-                || gjnode[inode][jnode] >= msh.nnodes)
-              std::cout << " out of bounds" << std::endl;
+      bim3a_local_advection (vloc, 1.0, 1.0, Lloc);
 
-            for (idir = 0; idir < 3; ++idir)
-              Lloc[inode][jnode] += msh.shg (idir, inode, iel) * 
-                msh.shg (idir, jnode, iel) * epsilonareak;
-          }
-
-
-      for (inode = 0; inode < 4; ++inode)
-        vloc[inode] = v[msh.t (inode, iel)];
-        
-      bimu_bernoulli (vloc[1]-vloc[0], bp12, bm12);
-      bimu_bernoulli (vloc[2]-vloc[0], bp13, bm13);
-      bimu_bernoulli (vloc[3]-vloc[0], bp14, bm14);
-      bimu_bernoulli (vloc[2]-vloc[1], bp23, bm23);
-      bimu_bernoulli (vloc[3]-vloc[1], bp24, bm24);
-      bimu_bernoulli (vloc[3]-vloc[2], bp34, bm34);
-
-      bp12 *= Lloc[0][1];
-      bm12 *= Lloc[0][1];
-      bp13 *= Lloc[0][2];
-      bm13 *= Lloc[0][2];
-      bp14 *= Lloc[0][3];
-      bm14 *= Lloc[0][3];
-      bp23 *= Lloc[1][2];
-      bm23 *= Lloc[1][2];
-      bp24 *= Lloc[1][3];
-      bm24 *= Lloc[1][3];
-      bp34 *= Lloc[2][3];
-      bm34 *= Lloc[2][3];
-        
-      /*
-        ## Sloc=[...
-        ##        -bm12-bm13-bm14,bp12            ,bp13           ,bp14     
-        ##        bm12           ,-bp12-bm23-bm24 ,bp23           ,bp24
-        ##        bm13           ,bm23            ,-bp13-bp23-bm34,bp34
-        ##        bm14           ,bm24            ,bm34           ,-bp14-bp24-bp34...
-        ##       ];
-      */
-      
-      Sloc[0][0] = -bm12-bm13-bm14;
-      Sloc[0][1] = bp12;
-      Sloc[0][2] = bp13;
-      Sloc[0][3] = bp14;
-
-      Sloc[1][0] = bm12;
-      Sloc[1][1] = -bp12-bm23-bm24; 
-      Sloc[1][2] = bp23;
-      Sloc[1][3] = bp24;
-
-      Sloc[2][0] = bm13;
-      Sloc[2][1] = bm23;
-      Sloc[2][2] = -bp13-bp23-bm34;
-      Sloc[2][3] = bp34;
-  
-      Sloc[3][0] = bm14;
-      Sloc[3][1] = bm24;
-      Sloc[3][2] = bm34;
-      Sloc[3][3] = -bp14-bp24-bp34;
-
-      // assemble global matrix
-      for (inode = 0; inode < 4; ++inode)
-        for (jnode = 0; jnode < 4; ++jnode)
-          {
-            ig = ginode[inode][jnode];
-            jg = gjnode[inode][jnode];
-                     
-            SG[ig][jg] += Sloc[inode][jnode];            
-          }
+      for (int ii = 0; ii < 4; ++ii)
+        for (int jj = 0; jj < 4; ++jj)
+          SG[inode[ii]][inode[jj]] += Lloc[ii + 4 * jj];
     }
 };
 
 
 void
-bim3a_osc_local_laplacian (const mesh& msh, const int iel, 
-                           const double acoeff, double *Lloc)
-{
-  int inode, idir;
-  double A[12] = {0}, Ann[4]= {0}, AidotAj[6]={0}, r[12] = {0};
-  double vol = msh.volume (iel);
-  double epsilonareak  = acoeff / vol / 48.0;  
-
-  for (inode = 0; inode < 4; ++inode)
-    {
-      A[0 + 4 * inode] = 3.0 * vol * msh.shg (0, inode, iel);
-      A[1 + 4 * inode] = 3.0 * vol * msh.shg (1, inode, iel);
-      A[2 + 4 * inode] = 3.0 * vol * msh.shg (2, inode, iel);
-
-      Ann[inode] = pow (A[0 + 4 * inode], 2) +
-        pow (A[1 + 4 * inode], 2) + 
-        pow (A[2 + 4 * inode], 2);
-
-      memset (&(r[3*inode]), 0, 3*sizeof(double));
-    }
-  memset (&(AidotAj[0]), 0, 6 * sizeof(double));
-
-  for (idir = 0; idir < 3; ++idir) 
-    {
-      r[0]  += (msh.p(idir, msh.t (2 , iel)) - msh.p(idir, msh.t (0 , iel))) * 
-        (msh.p(idir, msh.t (2 , iel)) - msh.p(idir, msh.t (1 , iel))); //rik dot rjk 
-      r[1]  += (msh.p(idir, msh.t (3 , iel)) - msh.p(idir, msh.t (0 , iel))) * 
-        (msh.p(idir, msh.t (3 , iel)) - msh.p(idir, msh.t (1 , iel))); //ril dot rjl 
-      r[2]  += (msh.p(idir, msh.t (1 , iel)) - msh.p(idir, msh.t (0 , iel))) * 
-        (msh.p(idir, msh.t (1 , iel)) - msh.p(idir, msh.t (2 , iel))); //rij dot rkj 
-      r[3]  += (msh.p(idir, msh.t (3 , iel)) - msh.p(idir, msh.t (0 , iel))) * 
-        (msh.p(idir, msh.t (3 , iel)) - msh.p(idir, msh.t (2 , iel))); //ril dot rkl 
-      r[4]  += (msh.p(idir, msh.t (1 , iel)) - msh.p(idir, msh.t (0 , iel))) * 
-        (msh.p(idir, msh.t (1 , iel)) - msh.p(idir, msh.t (3 , iel))); //rij dot rlj 
-      r[5]  += (msh.p(idir, msh.t (2 , iel)) - msh.p(idir, msh.t (0 , iel))) * 
-        (msh.p(idir, msh.t (2 , iel)) - msh.p(idir, msh.t (3 , iel))); //rik dot rlk 
-      r[6]  += (msh.p(idir, msh.t (0 , iel)) - msh.p(idir, msh.t (1 , iel))) * 
-        (msh.p(idir, msh.t (0 , iel)) - msh.p(idir, msh.t (2 , iel))); //rji dot rki 
-      r[7]  += (msh.p(idir, msh.t (3 , iel)) - msh.p(idir, msh.t (1 , iel))) * 
-        (msh.p(idir, msh.t (3 , iel)) - msh.p(idir, msh.t (2 , iel))); //rjl dot rkl 
-      r[8]  += (msh.p(idir, msh.t (0 , iel)) - msh.p(idir, msh.t (1 , iel))) * 
-        (msh.p(idir, msh.t (0 , iel)) - msh.p(idir, msh.t (3 , iel))); //rji dot rli 
-      r[9]  += (msh.p(idir, msh.t (2 , iel)) - msh.p(idir, msh.t (1 , iel))) * 
-        (msh.p(idir, msh.t (2 , iel)) - msh.p(idir, msh.t (3 , iel))); //rjk dot rlk 
-      r[10] += (msh.p(idir, msh.t (0 , iel)) - msh.p(idir, msh.t (2 , iel))) * 
-        (msh.p(idir, msh.t (0 , iel)) - msh.p(idir, msh.t (3 , iel))); //rki dot rli 
-      r[11] += (msh.p(idir, msh.t (1 , iel)) - msh.p(idir, msh.t (2 , iel))) * 
-        (msh.p(idir, msh.t (1 , iel)) - msh.p(idir, msh.t (3 , iel))); //rkj dot rlj 
-
-      AidotAj[0] += A[idir + 4 * 2] * A[idir + 4 * 3]; // Ak dot Al
-      AidotAj[1] += A[idir + 4 * 1] * A[idir + 4 * 3]; // Aj dot Al
-      AidotAj[2] += A[idir + 4 * 1] * A[idir + 4 * 2]; // Aj dot Ak
-      AidotAj[3] += A[idir + 4 * 0] * A[idir + 4 * 3]; // Ai dot Al
-      AidotAj[4] += A[idir + 4 * 0] * A[idir + 4 * 2]; // Ai dot Ak
-      AidotAj[5] += A[idir + 4 * 0] * A[idir + 4 * 1]; // Ai dot Aj
-    }
-
-  Lloc[0 + 4 * 1] = Lloc[1 + 4 * 0] = - epsilonareak * (2.0 * r[0]  * r[1]  + AidotAj[0] * (r[0]  * r[0]  / Ann[3] + r[1]  * r[1]  / Ann[2]));
-  Lloc[0 + 4 * 2] = Lloc[2 + 4 * 0] = - epsilonareak * (2.0 * r[2]  * r[3]  + AidotAj[1] * (r[2]  * r[2]  / Ann[3] + r[3]  * r[3]  / Ann[1]));
-  Lloc[0 + 4 * 3] = Lloc[3 + 4 * 0] = - epsilonareak * (2.0 * r[4]  * r[5]  + AidotAj[2] * (r[4]  * r[4]  / Ann[2] + r[5]  * r[5]  / Ann[1]));
-  Lloc[1 + 4 * 2] = Lloc[2 + 4 * 1] = - epsilonareak * (2.0 * r[6]  * r[7]  + AidotAj[3] * (r[6]  * r[6]  / Ann[3] + r[7]  * r[7]  / Ann[0]));
-  Lloc[1 + 4 * 3] = Lloc[3 + 4 * 1] = - epsilonareak * (2.0 * r[8]  * r[9]  + AidotAj[4] * (r[8]  * r[8]  / Ann[2] + r[9]  * r[9]  / Ann[0]));
-  Lloc[2 + 4 * 3] = Lloc[3 + 4 * 2] = - epsilonareak * (2.0 * r[10] * r[11] + AidotAj[5] * (r[10] * r[10] / Ann[1] + r[11] * r[11] / Ann[0]));
-  Lloc[0 + 4 * 0] = - Lloc[0 + 4 * 1] - Lloc[0 + 4 * 2] - Lloc[0 + 4 * 3];
-  Lloc[1 + 4 * 1] = - Lloc[1 + 4 * 0] - Lloc[1 + 4 * 2] - Lloc[1 + 4 * 3];
-  Lloc[2 + 4 * 2] = - Lloc[2 + 4 * 0] - Lloc[2 + 4 * 1] - Lloc[2 + 4 * 3];
-  Lloc[3 + 4 * 3] = - Lloc[3 + 4 * 0] - Lloc[3 + 4 * 1] - Lloc[3 + 4 * 2];
-
-};
-
-
-void
-bim3a_osc_laplacian (const mesh& msh, 
+bim3a_osc_laplacian (mesh& msh, 
                      const std::vector<double>& acoeff, 
                      sparse_matrix& SG)
 {
@@ -327,55 +164,38 @@ bim3a_osc_laplacian (const mesh& msh,
   if (SG.size () < size_t (msh.nnodes))
     SG.resize (msh.nnodes);
 
-  double Lloc[16];
-  int iel, inode, jnode;
+  double Lloc[16], p[12];
+  int iel, elnodes[4];
+
 
   for (iel = 0; iel < msh.nelements; ++iel)
-    {      
-       
-      // Compute local laplacian matrix and assemble into global matrix
-      memset (Lloc, 0, 16*sizeof(double));
-      bim3a_osc_local_laplacian (msh,  iel, acoeff[iel], Lloc);
+    { 
+      for (int ii = 0; ii < 4; ++ii)
+        {
+          elnodes[ii] = msh.t (ii, iel);
+          p[3 * ii] = msh.p (0, elnodes[ii]);
+          p[3 * ii + 1] = msh.p (1, elnodes[ii]);
+          p[3 * ii + 2] = msh.p (2, elnodes[ii]);
+        }
+ 
+      // Compute local laplacian matrix 
+      // and assemble into global matrix
+      memset (Lloc, 0, 16 * sizeof (double));
+      bim3a_osc_local_laplacian (&(msh.shg(0, 0, iel)), 
+                                 p, msh.volume (iel),
+                                 acoeff[iel], Lloc);
 
-      for (inode = 0; inode < 4; ++inode)
-        for (jnode = 0; jnode < 4; ++jnode)
+      for (int ii = 0; ii < 4; ++ii)
+        for (int jj = 0; jj < 4; ++jj)
           {
-            int ig = msh.t (inode, iel);
-            int jg = msh.t (jnode, iel);
-
-            if (ig >= msh.nnodes || jg >= msh.nnodes)
-              std::cout << " out of bounds" << std::endl;
-
-            SG[ig][jg] += Lloc[inode + 4 * jnode];
+            SG[elnodes[ii]][elnodes[jj]] += Lloc[ii + 4 * jj];
           }
     }
-      
+ 
 };
 
 void
-bim3a_osc_local_advection_diffusion (const mesh& msh, const int iel, 
-                                     const double acoeff, double *Sloc)
-{    
-  // int ginode[16], gjnode[16];
-  // int iel, inode, jnode, idir, ig, jg;
-
-  // double vloc[4] = {0}, 
-  //   bm[6]= {0}, 
-  //     bp[6]= {0}
-  //     Lloc = {0};
-
-  // double 
-  //   Sloc [16] = {0},       
-  //   A[12] = {0}, 
-  //     Ann[4] = {0}, 
-  //       AidotAj[6] = {0}, 
-  //         r[12];
-
-  //   double epsilonareak;  
-};
-
-void
-bim3a_osc_advection_diffusion (const mesh& msh, 
+bim3a_osc_advection_diffusion (mesh& msh, 
                                const std::vector<double>& acoeff, 
                                const std::vector<double>& v, 
                                sparse_matrix& SG)
@@ -383,146 +203,252 @@ bim3a_osc_advection_diffusion (const mesh& msh,
 
   if (SG.size () < size_t (msh.nnodes))
     SG.resize (msh.nnodes);
-    
-  int ginode[4][4], gjnode[4][4];
-  int iel, inode, jnode, idir, ig, jg;
+ 
+  double Lloc[16], p[12], vloc[4];
+  int iel, elnodes[4];
 
-  double vloc[4], bm[6], bp[6], Lloc[4][4], Sloc[4][4], 
-    A[3][4], Ann[4], AidotAj[6], r[12];
-  double epsilonareak;  
 
   for (iel = 0; iel < msh.nelements; ++iel)
-    {      
-      epsilonareak = acoeff[iel] / msh.volume (iel) / 4.8e1;
-        
-      for (inode = 0; inode < 4; ++inode)
+    { 
+      for (int ii = 0; ii < 4; ++ii)
         {
-          Lloc[inode][0] = 0;
-          Lloc[inode][1] = 0;
-          Lloc[inode][2] = 0;
-          Lloc[inode][3] = 0;
-          A[0][inode] = 3 * msh.volume (iel) * msh.shg (0, inode, iel);
-          A[1][inode] = 3 * msh.volume (iel) * msh.shg (1, inode, iel);
-          A[2][inode] = 3 * msh.volume (iel) * msh.shg (2, inode, iel);
-          Ann[inode] = A[0][inode] * A[0][inode] + 
-            A[1][inode] * A[1][inode] + 
-            A[2][inode] * A[2][inode];
-          r[3 * inode] = r[3 * inode + 1] = r[3 * inode + 2] = 0.0; 
-          vloc[inode] = v[msh.t (inode, iel)];
+          elnodes[ii] = msh.t (ii, iel);
+          p[3 * ii] = msh.p (0, elnodes[ii]);
+          p[3 * ii + 1] = msh.p (1, elnodes[ii]);
+          p[3 * ii + 2] = msh.p (2, elnodes[ii]);
+          vloc[ii] = v[elnodes[ii]];
         }
-      AidotAj[0] = AidotAj[1] = AidotAj[2] = AidotAj[3] = AidotAj[4] = AidotAj[5] = 0.0; 
-      //bm[0] = bm[1] = bm[2] = bm[3] = bm[4] = bm[5] = 0.0; 
-      //bp[0] = bp[1] = bp[2] = bp[3] = bp[4] = bp[5] = 0.0; 
-
-      for (idir = 0; idir < 3; ++idir) 
-        {
-          r[0]  += (msh.p(idir, msh.t (2 , iel)) - msh.p(idir, msh.t (0 , iel))) *
-            (msh.p(idir, msh.t (2 , iel)) - msh.p(idir, msh.t (1 , iel))); //rik dot rjk
-          r[1]  += (msh.p(idir, msh.t (3 , iel)) - msh.p(idir, msh.t (0 , iel))) *
-            (msh.p(idir, msh.t (3 , iel)) - msh.p(idir, msh.t (1 , iel))); //ril dot rjl
-          r[2]  += (msh.p(idir, msh.t (1 , iel)) - msh.p(idir, msh.t (0 , iel))) *
-            (msh.p(idir, msh.t (1 , iel)) - msh.p(idir, msh.t (2 , iel))); //rij dot rkj
-          r[3]  += (msh.p(idir, msh.t (3 , iel)) - msh.p(idir, msh.t (0 , iel))) *
-            (msh.p(idir, msh.t (3 , iel)) - msh.p(idir, msh.t (2 , iel))); //ril dot rkl
-          r[4]  += (msh.p(idir, msh.t (1 , iel)) - msh.p(idir, msh.t (0 , iel))) *
-            (msh.p(idir, msh.t (1 , iel)) - msh.p(idir, msh.t (3 , iel))); //rij dot rlj
-          r[5]  += (msh.p(idir, msh.t (2 , iel)) - msh.p(idir, msh.t (0 , iel))) *
-            (msh.p(idir, msh.t (2 , iel)) - msh.p(idir, msh.t (3 , iel))); //rik dot rlk
-          r[6]  += (msh.p(idir, msh.t (0 , iel)) - msh.p(idir, msh.t (1 , iel))) *
-            (msh.p(idir, msh.t (0 , iel)) - msh.p(idir, msh.t (2 , iel))); //rji dot rki
-          r[7]  += (msh.p(idir, msh.t (3 , iel)) - msh.p(idir, msh.t (1 , iel))) *
-            (msh.p(idir, msh.t (3 , iel)) - msh.p(idir, msh.t (2 , iel))); //rjl dot rkl
-          r[8]  += (msh.p(idir, msh.t (0 , iel)) - msh.p(idir, msh.t (1 , iel))) *
-            (msh.p(idir, msh.t (0 , iel)) - msh.p(idir, msh.t (3 , iel))); //rji dot rli
-          r[9]  += (msh.p(idir, msh.t (2 , iel)) - msh.p(idir, msh.t (1 , iel))) *
-            (msh.p(idir, msh.t (2 , iel)) - msh.p(idir, msh.t (3 , iel))); //rjk dot rlk
-          r[10] += (msh.p(idir, msh.t (0 , iel)) - msh.p(idir, msh.t (2 , iel))) *
-            (msh.p(idir, msh.t (0 , iel)) - msh.p(idir, msh.t (3 , iel))); //rki dot rli
-          r[11] += (msh.p(idir, msh.t (1 , iel)) - msh.p(idir, msh.t (2 , iel))) *
-            (msh.p(idir, msh.t (1 , iel)) - msh.p(idir, msh.t (3 , iel))); //rkj dot rlj
-          AidotAj[0] += A[idir][2] * A[idir][3]; // Ak dot Al
-          AidotAj[1] += A[idir][1] * A[idir][3]; // Aj dot Al
-          AidotAj[2] += A[idir][1] * A[idir][2]; // Aj dot Ak
-          AidotAj[3] += A[idir][0] * A[idir][3]; // Ai dot Al
-          AidotAj[4] += A[idir][0] * A[idir][2]; // Ai dot Ak
-          AidotAj[5] += A[idir][0] * A[idir][1]; // Ai dot Aj
-        }
-
-
-      Lloc[0][1] =  - epsilonareak * (2.0 * r[0]  * r[1]  + AidotAj[0] * (r[0]  * r[0]  / Ann[3] + r[1]  * r[1]  / Ann[2]));
-      Lloc[0][2] =  - epsilonareak * (2.0 * r[2]  * r[3]  + AidotAj[1] * (r[2]  * r[2]  / Ann[3] + r[3]  * r[3]  / Ann[1]));
-      Lloc[0][3] =  - epsilonareak * (2.0 * r[4]  * r[5]  + AidotAj[2] * (r[4]  * r[4]  / Ann[2] + r[5]  * r[5]  / Ann[1]));
-      Lloc[1][2] =  - epsilonareak * (2.0 * r[6]  * r[7]  + AidotAj[3] * (r[6]  * r[6]  / Ann[3] + r[7]  * r[7]  / Ann[0]));
-      Lloc[1][3] =  - epsilonareak * (2.0 * r[8]  * r[9]  + AidotAj[4] * (r[8]  * r[8]  / Ann[2] + r[9]  * r[9]  / Ann[0]));
-      Lloc[2][3] =  - epsilonareak * (2.0 * r[10] * r[11] + AidotAj[5] * (r[10] * r[10] / Ann[1] + r[11] * r[11] / Ann[0]));
-      //Lloc[1][0] = Lloc[0][1];
-      //Lloc[2][0] = Lloc[0][2];
-      //Lloc[3][0] = Lloc[0][3];
-      //Lloc[2][1] = Lloc[1][2];
-      //Lloc[3][1] = Lloc[1][3];
-      //Lloc[3][2] = Lloc[2][3];
-      Lloc[0][0] = - Lloc[0][1] - Lloc[0][2] - Lloc[0][3];
-      Lloc[1][1] = - Lloc[1][0] - Lloc[1][2] - Lloc[1][3];
-      Lloc[2][2] = - Lloc[2][0] - Lloc[2][1] - Lloc[2][3];
-      Lloc[3][3] = - Lloc[3][0] - Lloc[3][1] - Lloc[3][2];
-  
-      bimu_bernoulli (vloc[1]-vloc[0], bp[0], bm[0]);
-      bimu_bernoulli (vloc[2]-vloc[0], bp[1], bm[1]);
-      bimu_bernoulli (vloc[3]-vloc[0], bp[2], bm[2]);
-      bimu_bernoulli (vloc[2]-vloc[1], bp[3], bm[3]);
-      bimu_bernoulli (vloc[3]-vloc[1], bp[4], bm[4]);
-      bimu_bernoulli (vloc[3]-vloc[2], bp[5], bm[5]);
-
-      bp[0] *= Lloc[0][1];        bm[0] *= Lloc[0][1];
-      bp[1] *= Lloc[0][2];        bm[1] *= Lloc[0][2];
-      bp[2] *= Lloc[0][3];        bm[2] *= Lloc[0][3];
-      bp[3] *= Lloc[1][2];        bm[3] *= Lloc[1][2];
-      bp[4] *= Lloc[1][3];        bm[4] *= Lloc[1][3];
-      bp[5] *= Lloc[2][3];        bm[5] *= Lloc[2][3];
-        
-      /*
-        ## Sloc=[-bm0-bm1-bm2,bp0          ,bp1          ,bp2
-        ##       bm0         ,-bp0-bm3-bm4 ,bp3          ,bp4
-        ##       bm1         ,bm3          ,-bp1-bp3-bm5 ,bp5
-        ##       bm2         ,bm4          ,bm5          ,-bp2-bp4-bp5 ];
-      */
+ 
+      // Compute local laplacian matrix 
+      // and assemble into global matrix
+      memset (Lloc, 0, 16 * sizeof (double));
+      bim3a_osc_local_laplacian (&(msh.shg(0, 0, iel)), 
+                                 p, msh.volume (iel),
+                                 acoeff[iel], Lloc);
+      bim3a_local_advection (vloc, 1.0, 1.0, Lloc);
       
-      Sloc[0][0] = -bm[0] -bm[1] -bm[2];
-      Sloc[0][1] = bp[0];
-      Sloc[0][2] = bp[1];
-      Sloc[0][3] = bp[2];
+      for (int ii = 0; ii < 4; ++ii)
+        for (int jj = 0; jj < 4; ++jj)
+          SG[elnodes[ii]][elnodes[jj]] += Lloc[ii + 4 * jj];
 
-      Sloc[1][0] = bm[0];
-      Sloc[1][1] = -bp[0] -bm[3] -bm[4]; 
-      Sloc[1][2] = bp[3];
-      Sloc[1][3] = bp[4];
-
-      Sloc[2][0] = bm[1];
-      Sloc[2][1] = bm[3];
-      Sloc[2][2] = -bp[1] -bp[3] -bm[5];
-      Sloc[2][3] = bp[5];
-  
-      Sloc[3][0] = bm[2];
-      Sloc[3][1] = bm[4];
-      Sloc[3][2] = bm[5];
-      Sloc[3][3] = -bp[2] -bp[4] -bp[5];
-
-      // assemble global matrix
-      for (inode = 0; inode < 4; ++inode)
-        for (jnode = 0; jnode < 4; ++jnode)
-          {
-            ig = ginode[inode][jnode];
-            jg = gjnode[inode][jnode];
-                     
-            SG[ig][jg] += Sloc[inode][jnode];            
-          }
     }
-      
-  //std::cout << std::endl;
-  //std::cout << " ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ " << std::endl;
-  //std::cout << " bim3a_osc_advection_diffusion(...): " << std::endl;
-  //std::cout << " TO DO ! " << std::endl;
-  //std::cout << " ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ " << std::endl;
+ 
+};
+ 
+void
+bim3a_local_advection (const double vloc[4], 
+                       const double a,
+                       const double epsilon,
+                       double lloc[16])
+{
+  if (epsilon != 1.0)
+    for (double *ii = lloc; ii < lloc+16; ++ii)
+      *(ii) *= epsilon;
+
+  double bm, bp;
+  for (double *ii = lloc; ii < lloc+16; ii+=5)
+    *(ii) =  0.0;
+  
+  for (int ii = 0; ii < 3; ++ii)
+    for (int jj = ii + 1; jj < 4; ++jj)
+      {        
+        bimu_bernoulli (a * (vloc[jj] - vloc[ii]), bp, bm);
+        lloc[ii + 4 * jj] *= bp;
+        lloc[jj + 4 * ii] *= bm;
+        lloc[5 * jj] -= lloc[ii + 4 * jj]; 
+        lloc[5 * ii] -= lloc[jj + 4 * ii];
+      }
+};
+
+void
+bim3a_local_advection_jacobian (const double vloc[4], 
+                                const double d[4],
+                                const double a,
+                                const double epsilon,
+                                double lloc[16])
+{
+  if (epsilon != 1.0)
+    for (double *ii = lloc; ii < lloc+16; ++ii)
+      *(ii) *= epsilon;
+
+  double bkip, bikp, tmp;
+  for (double *ii = lloc; ii < lloc+16; ii+=5)
+    *(ii) =  0.0;
+  
+  for (int ii = 0; ii < 3; ++ii)
+    for (int kk = ii + 1; kk < 4; ++kk)
+      {        
+        bimu_bernoulli_derivative (a * (vloc[kk] - vloc[ii]), bkip, bikp);
+        tmp =  a * (bikp * d[ii] + bkip * d[kk]);
+        lloc[ii + 4 * kk] *= tmp;
+        lloc[kk + 4 * ii] *= tmp;
+        lloc[5 * kk] -= lloc[ii + 4 * kk]; 
+        lloc[5 * ii] -= lloc[kk + 4 * ii];
+      }
+};
+
+void
+bim3a_local_laplacian (const double shg[12],
+                       const double vol, 
+                       const double acf, 
+                       double Lloc[16])
+{
+ 
+  for (int dir = 0; dir < 3; ++dir)
+    for (int ii = 0; ii < 4; ++ii)
+      for (int jj = 0; jj < 3; ++jj)
+    {
+      Lloc[ii + 4*jj] += acf * vol * 
+        shg[dir + 3 * ii] * shg[dir + 3 * jj];
+    }
+};
+
+void
+bim3a_osc_local_laplacian (const double shg[12],
+                           const double pts[12],
+                           const double volume, 
+                           const double acoeff, 
+                           double Lloc[16])
+{
+  int inode, idir;
+  double A[12] = {0}, Ann[4]= {0}, AidotAj[6]={0}, r[12] = {0};
+  double epsilonareak  = acoeff / volume / 48.0; 
+
+  for (inode = 0; inode < 4; ++inode)
+    for (idir = 0; idir < 3; ++idir)
+    {
+      A[idir + 3 * inode] = 3.0 * volume * shg[idir + 3 * inode];
+      Ann[inode] += (A[idir + 3 * inode] * A[idir + 3 * inode]);
+    }
+
+  memset (AidotAj, 0.0, 6 * sizeof (double));
+  memset (r, 0.0, 12 * sizeof (double));
+
+  for (idir = 0; idir < 3; ++idir) 
+    {
+      r[0]  +=                  //rik dot rjk 
+        (pts[idir + 3 * 2] - pts[idir + 3 * 0]) *
+        (pts[idir + 3 * 2] - pts[idir + 3 * 1]); 
+      r[1]  +=                  //ril dot rjl 
+        (pts[idir + 3 * 3] - pts[idir + 3 * 0]) *
+        (pts[idir + 3 * 3] - pts[idir + 3 * 1]); 
+      r[2]  +=                  //rij dot rkj 
+        (pts[idir + 3 * 1] - pts[idir + 3 * 0]) *
+        (pts[idir + 3 * 1] - pts[idir + 3 * 2]); 
+      r[3]  +=                  //ril dot rkl 
+        (pts[idir + 3 * 3] - pts[idir + 3 * 0]) *
+        (pts[idir + 3 * 3] - pts[idir + 3 * 2]); 
+      r[4]  +=                  //rij dot rlj 
+        (pts[idir + 3 * 1] - pts[idir + 3 * 0]) *
+        (pts[idir + 3 * 1] - pts[idir + 3 * 3]); 
+      r[5]  +=                  //rik dot rlk 
+        (pts[idir + 3 * 2] - pts[idir + 3 * 0]) *
+        (pts[idir + 3 * 2] - pts[idir + 3 * 3]); 
+      r[6]  +=                  //rji dot rki 
+        (pts[idir + 3 * 0] - pts[idir + 3 * 1]) *
+        (pts[idir + 3 * 0] - pts[idir + 3 * 2]); 
+      r[7]  +=                  //rjl dot rkl 
+        (pts[idir + 3 * 3] - pts[idir + 3 * 1]) *
+        (pts[idir + 3 * 3] - pts[idir + 3 * 2]); 
+      r[8]  +=                  //rji dot rli 
+        (pts[idir + 3 * 0] - pts[idir + 3 * 1]) *
+        (pts[idir + 3 * 0] - pts[idir + 3 * 3]); 
+      r[9]  +=                  //rjk dot rlk 
+        (pts[idir + 3 * 2] - pts[idir + 3 * 1]) *
+        (pts[idir + 3 * 2] - pts[idir + 3 * 3]); 
+      r[10] +=                  //rki dot rli 
+        (pts[idir + 3 * 0] - pts[idir + 3 * 2]) *
+        (pts[idir + 3 * 0] - pts[idir + 3 * 3]); 
+      r[11] +=                  //rkj dot rlj 
+        (pts[idir + 3 * 1] - pts[idir + 3 * 2]) *
+        (pts[idir + 3 * 1] - pts[idir + 3 * 3]); 
+
+      AidotAj[0] += A[idir + 3 * 2] // Ak dot Al
+                  * A[idir + 3 * 3]; 
+ 
+      AidotAj[1] += A[idir + 3 * 1] // Aj dot Al
+                  * A[idir + 3 * 3]; 
+ 
+      AidotAj[2] += A[idir + 3 * 1] // Aj dot Ak
+                  * A[idir + 3 * 2]; 
+ 
+      AidotAj[3] += A[idir + 3 * 0] // Ai dot Al
+                  * A[idir + 3 * 3]; 
+ 
+      AidotAj[4] += A[idir + 3 * 0] // Ai dot Ak
+                  * A[idir + 3 * 2]; 
+ 
+      AidotAj[5] += A[idir + 3 * 0] // Ai dot Aj
+                  * A[idir + 3 * 1]; 
+    }
+
+  double tmp;
+
+  tmp = - epsilonareak * (2.0 * r[0] * r[1] + AidotAj[0] *
+      (r[0]  * r[0]  / Ann[3] + r[1] * r[1]  / Ann[2]));
+  Lloc[0 + 4 * 1] += tmp;
+  Lloc[1 + 4 * 0] += tmp;
+  Lloc[0 + 4 * 0] -= tmp;
+  Lloc[1 + 4 * 1] -= tmp;
+
+  tmp = - epsilonareak * (2.0 * r[2] * r[3] + AidotAj[1] *
+      (r[2]  * r[2]  / Ann[3] + r[3] * r[3]  / Ann[1]));
+  Lloc[0 + 4 * 2] += tmp;
+  Lloc[2 + 4 * 0] += tmp;
+  Lloc[0 + 4 * 0] -= tmp;
+  Lloc[2 + 4 * 2] -= tmp;
+
+  tmp = - epsilonareak * (2.0 * r[4] * r[5] + AidotAj[2] *
+      (r[4]  * r[4]  / Ann[2] + r[5] * r[5]  / Ann[1]));
+  Lloc[0 + 4 * 3] += tmp;
+  Lloc[3 + 4 * 0] += tmp;
+  Lloc[0 + 4 * 0] -= tmp;
+  Lloc[3 + 4 * 3] -= tmp;
+
+  tmp = - epsilonareak * (2.0 * r[6] * r[7] + AidotAj[3] *
+      (r[6]  * r[6]  / Ann[3] + r[7] * r[7]  / Ann[0]));
+  Lloc[1 + 4 * 2] += tmp;
+  Lloc[2 + 4 * 1] += tmp;
+  Lloc[1 + 4 * 1] -= tmp;
+  Lloc[2 + 4 * 2] -= tmp;
+
+
+  tmp = - epsilonareak * (2.0 * r[8] * r[9] + AidotAj[4] *
+      (r[8]  * r[8]  / Ann[2] + r[9] * r[9]  / Ann[0]));
+  Lloc[1 + 4 * 3] += tmp;
+  Lloc[3 + 4 * 1] += tmp;
+  Lloc[1 + 4 * 1] -= tmp;
+  Lloc[3 + 4 * 3] -= tmp;
+
+  tmp = - epsilonareak * (2.0 * r[10] * r[11] + AidotAj[5] *
+      (r[10] * r[10] / Ann[1] + r[11] * r[11] / Ann[0]));
+  Lloc[2 + 4 * 3] += tmp;
+  Lloc[3 + 4 * 2] += tmp; 
+  Lloc[2 + 4 * 2] -= tmp;
+  Lloc[3 + 4 * 3] -= tmp; 
+
+};
+
+void
+bim3a_local_reaction (const double shp[16],
+                      const double wjacdet[4],    
+                      const double e,
+                      const double n[4], 
+                      double Lloc[16])
+{
+  for (int ii = 0; ii < 4; ++ii)
+    Lloc[5*ii] += n[ii] * e * wjacdet[ii];
+};
+
+void 
+bim3a_local_rhs (const double shp[16],
+                 const double wjacdet[4],
+                 const double e,
+                 const double n[4], 
+                 double bLoc[4])
+{
+  for (int ii = 0; ii < 4; ++ii)
+    bLoc[ii] += n[ii] * e * wjacdet[ii];
 };
 
 void 
@@ -533,7 +459,7 @@ bimu_bernoulli (double x, double &bp, double &bn)
 
   bp  = 0.0;
   bn  = 0.0;
-  
+ 
   //  X=0
   if (x == 0.0)
     {
@@ -541,7 +467,7 @@ bimu_bernoulli (double x, double &bp, double &bn)
       bn = 1.0;
       return;
     }
-  
+ 
   // ASYMPTOTICS
   if (ax > 80.0)
     {
@@ -557,7 +483,7 @@ bimu_bernoulli (double x, double &bp, double &bn)
         }
       return;
     }
-  
+ 
   // INTERMEDIATE VALUES
   if (ax <= 80 &&  ax > xlim)
     {
@@ -588,4 +514,45 @@ bimu_bernoulli (double x, double &bp, double &bn)
     }
  
 };
+
+void 
+bimu_bernoulli_derivative (double x, double &bpp, double &bnp)
+{
+  const double xlim = 1.0e-5;
+  double ax  = fabs (x);
+
+  double bp  = 0.0;
+  double bn  = 0.0;
+  bimu_bernoulli (x, bp, bn);
+
+  bpp  = 0.0;
+  bnp  = 0.0;
+ 
+  //  X=0
+  if (x == 0.0)
+    {
+      bpp = -.5;
+      bnp =  .5;
+      return;
+    }
+  
+  // INTERMEDIATE VALUES
+  if (ax > xlim)
+    {
+      bpp = (bp / x) * (1 - bn);
+      bnp = - (bn / x) * (1 - bp);
+      return;
+    }
+
+  // SMALL VALUES
+  if (ax <= xlim &&  ax != 0.0)
+    {
+      bpp = -.5 + x / 6.0 - pow (x, 3) / 180.0;
+      bnp =  .5 + x / 6.0 - pow (x, 3) / 180.0;
+      return;
+    }
+ 
+};
+
+
 //}
