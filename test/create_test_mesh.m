@@ -1,4 +1,4 @@
-#!/usr/bin/env octave -q 
+#!/usr/bin/env octave 
 pkg load bim
 
 xx = linspace (0,8,120);

@@ -12,6 +12,7 @@
 #include <vector>
 #include <iostream>
 #include <iomanip>
+#include <cassert>
 
 //namespace bim 
 //{
@@ -169,7 +170,7 @@ void sparse_matrix_template<T>::aij_update (std::vector<double> &a, const std::v
 
 }
 
-typedef  sparse_matrix_template<double>    double_sparse_matrix;
+typedef  sparse_matrix_template<double> double_sparse_matrix;
 typedef  sparse_matrix_template<double*> double_p_sparse_matrix;
 
 /// Sparse row-oriented double* matrix.
@@ -199,9 +200,29 @@ public :
   void
   reset ();
 
+  /// Sums the addendum matrix onto the base matrix. Generates entries if necessary
+  template<class T>
+  sparse_matrix& 
+    operator+= (T &adm);
+
 };
 
+template<class T>
+sparse_matrix&
+sparse_matrix::operator+= (T &adm)
+{
+
+  assert (this->rows () == adm.rows ());
+  assert (this->cols () == adm.cols ());
   
+  col_iterator jj;
+  for (size_t ii = 0; ii < adm.size (); ++ii)
+    if (adm[ii].size ())
+      for (jj  = adm[ii].begin (); jj != adm[ii].end (); ++jj)
+	(*this)[ii][jj->first] += adm.col_val (jj);
+        
+}
+
 //}; // end namespace
 
 #endif
