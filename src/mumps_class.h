@@ -3,6 +3,9 @@
   This software is distributed under the terms 
   the terms of the GNU/GPL licence v3
 */
+/*! \file mumps_class.h
+  \brief wrapper for mumps data.
+*/
 
 #ifndef HAVE_MUMPS_CLASS_H
 #define HAVE_MUMPS_CLASS_H 1
@@ -24,47 +27,48 @@ class mumps
 {
 private :
   bool verbose;
+  int  icntl23;
 
 public :
   DMUMPS_STRUC_C id;
   
   /// Init the (serial) mumps solver instance.
   void 
-    init ();
+  init ();
 
   /// Default constructor.
-  mumps (bool verbose_ = false) : verbose (verbose_) 
-    {init ();};
+  mumps (bool verbose_ = false, int icntl23_ = 0) : verbose (verbose_), icntl23 (icntl23_) 
+  {init ();};
 
   /// Set-up the matrix structure.
   void 
-    set_lhs_structure (int n, 
-                       std::vector<int> &ir, 
-                       std::vector<int> &jc);
+  set_lhs_structure (int n, 
+                     std::vector<int> &ir, 
+                     std::vector<int> &jc);
 
   /// Perform the analysis.
-  void 
-    analyze ();
+  int 
+  analyze ();
 
   /// Set matrix entries.
   void 
-    set_lhs_data (std::vector<double> &xa);
+  set_lhs_data (std::vector<double> &xa);
 
   /// Set the rhs.
   void 
-    set_rhs (std::vector<double> &rhs);
+  set_rhs (std::vector<double> &rhs);
 
   /// Perform the factorization.
-  void 
-    factorize ();
+  int 
+  factorize ();
 
   /// Perform the back-substitution.
-  void 
-    solve ();
+  int 
+  solve ();
 
   /// Cleanup memory.
   void 
-    cleanup ();
+  cleanup ();
 };
 
 

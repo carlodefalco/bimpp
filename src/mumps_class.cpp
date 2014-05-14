@@ -3,6 +3,9 @@
   This software is distributed under the terms 
   the terms of the GNU/GPL licence v3
 */
+/*! \file mumps_class.cpp
+  \brief wrapper for mumps data.
+*/
 
 
 #include <mumps_class.h>
@@ -29,11 +32,11 @@ mumps::init ()
   id.icntl[17] =   0; 
 
   // ordering
-  id.icntl[6] =  3; // scotch (3), or pord (4), or metis (5), or AMD (0), AMF (2), QAMD (6), AUTO (7)
+  id.icntl[6] =  7; // scotch (3), or pord (4), or metis (5), or AMD (0), AMF (2), QAMD (6), AUTO (7)
 
-  // space for fill-in
-  id.icntl[13] = 25;
-  id.icntl[22] = 2048;
+  // space for fill-in ---
+  id.icntl[13] = 300;
+  id.icntl[22] = (icntl23 > 0) ? icntl23 : 0;
 
   // iterative refinement
   id.icntl[9] = 25;
@@ -51,19 +54,23 @@ mumps::set_lhs_structure
   id.jcn = &*jc.begin ();
 }
 
-void mumps::analyze ()
+int 
+mumps::analyze ()
 {
   id.job = JOB_ANALYZE;
   dmumps_c (&id);
+  return id.info[0];
 }
 
-void mumps::set_lhs_data (std::vector<double> &xa)
+void 
+mumps::set_lhs_data (std::vector<double> &xa)
 {
   // Define LHS entries
   id.a   = &*xa.begin ();
 }
 
-void mumps::set_rhs (std::vector<double> &rhs)
+void 
+mumps::set_rhs (std::vector<double> &rhs)
 {
   // Define RHS 
   id.rhs  =  &*rhs.begin ();
@@ -71,19 +78,24 @@ void mumps::set_rhs (std::vector<double> &rhs)
   id.lrhs =  rhs.size ();
 }
 
-void mumps::factorize ()
+int 
+mumps::factorize ()
 {
   id.job = JOB_FACTORIZE;
   dmumps_c (&id);
+  return id.info[0];
 }
 
-void mumps::solve ()
+int 
+mumps::solve ()
 {
   id.job = JOB_SOLVE;
   dmumps_c (&id);
+  return id.info[0];
 }
 
-void mumps::cleanup ()
+void 
+mumps::cleanup ()
 {
   // clean up
   id.job =  JOB_END; 
