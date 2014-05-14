@@ -9,6 +9,10 @@
 
 #include <bim_sparse.h>
 
+/*! \file mumps_solve.h
+  \brief wrapper function for a complete linear system solution.
+*/
+
 //using namespace bim;
 
 void mumps_solve (sparse_matrix &lhs, std::vector<double> &rhs, 

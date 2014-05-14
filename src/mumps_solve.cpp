@@ -4,6 +4,10 @@
   the terms of the GNU/GPL licence v3
 */
 
+/*! \file mumps_solve.cpp
+  \brief wrapper function for a complete linear system solution.
+*/
+
 #include <mumps_solve.h>
 #include <mumps_class.h>
 
