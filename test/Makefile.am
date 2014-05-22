@@ -1,4 +1,4 @@
-BIMLIB = ../src/libbim.la 
+BIMLIB = ../src/libbim.la ../src/libbimmumps.la
 AM_CPPFLAGS =  -I$(top_srcdir)/src  @OCTAVE_COMPILE_FLAGS@ @MUMPS_CPPFLAGS@ 
 AM_LDFLAGS = @OCTAVE_LINK_FLAGS@ @MUMPS_LDFLAGS@ 
 AUTOMAKE_OPTIONS = nostdinc
