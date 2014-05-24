@@ -137,6 +137,22 @@ bim3a_local_laplacian (const double shg[12],
                        double Lloc[16]);
 
 /// Compute the elemental contribution to the global 
+/// stiffness matrix (FEM) with anisotropic diffusion, and add it to the exit buffer
+void
+bim3a_local_laplacian_anisotropic (const double shg[12],
+		               const double volume,
+                       const double epsilon[9], 
+                       double Lloc[16]);
+
+/// Compute the elemental contribution to the global 
+/// stiffness matrix (FEM) with diagonal anisotropic diffusion, and add it to the exit buffer
+void
+bim3a_local_laplacian_anisotropic_diag (const double shg[12],
+		               const double volume,
+                       const double epsilon[3], 
+                       double Lloc[16]);
+
+/// Compute the elemental contribution to the global 
 /// stiffness matrix (OSC method), and add it to the exit buffer
 void
 bim3a_osc_local_laplacian (const double shg[12],

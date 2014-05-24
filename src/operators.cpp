@@ -23,7 +23,7 @@
 */
 #include <operators.h>
 #include <cstring>
-
+#include <stdlib.h>
 //namespace bim
 //{
 
@@ -100,6 +100,11 @@ bim3a_laplacian (mesh& msh,
   double Lloc[16]; 
   int iel, inode[4];
 
+  double adim = (double)acoeff.size()/msh.nelements;
+  int flag = 0;
+  if (adim==1) flag=1;
+  else if (adim==3) flag=3;
+  else if (adim==9) flag=9;
   for (iel = 0; iel < msh.nelements; ++iel)
     { 
       for (int ii = 0; ii < 4; ++ii)
@@ -107,17 +112,31 @@ bim3a_laplacian (mesh& msh,
       
        
       memset (Lloc, 0, 16 * sizeof (double));
-      bim3a_local_laplacian (&(msh.shg(0, 0, iel)), 
+      switch(flag)
+      {
+           case 1: bim3a_local_laplacian (&(msh.shg(0, 0, iel)), 
                              msh.volume (iel),
                              acoeff[iel],
                              Lloc);
-
+                   break;
+           case 3: bim3a_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)), 
+                             msh.volume (iel),
+                             &acoeff[iel*3],
+                             Lloc);
+                   break;   
+           case 9: bim3a_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)), 
+                             msh.volume (iel),
+                             &acoeff[iel*9],
+                             Lloc);
+                   break;
+           default:  std::cerr<<"bim3a_laplacian: coefficient acoeff has wrong dimension"<<std::endl;
+                     exit(-1);
+      }
       for (int ii = 0; ii < 4; ++ii)
         for (int jj = 0; jj < 4; ++jj)
           SG[inode[ii]][inode[jj]] += Lloc[ii + 4 * jj];
     }
 };
-
 void
 bim3a_advection_diffusion (mesh& msh, 
                            const std::vector<double>& acoeff, 
@@ -131,6 +150,11 @@ bim3a_advection_diffusion (mesh& msh,
   double Lloc[16], vloc[4]; 
   int iel, inode[4];
 
+  double adim = (double)acoeff.size()/msh.nelements;
+  int flag = 0;
+  if (adim==1) flag=1;
+  else if (adim==3) flag=3;
+  else if (adim==9) flag=9;
   for (iel = 0; iel < msh.nelements; ++iel)
     { 
       for (int ii = 0; ii < 4; ++ii)
@@ -141,10 +165,26 @@ bim3a_advection_diffusion (mesh& msh,
       
        
       memset (Lloc, 0, 16 * sizeof (double));
-      bim3a_local_laplacian (&(msh.shg(0, 0, iel)), 
+      switch(flag)
+      {
+           case 1: bim3a_local_laplacian (&(msh.shg(0, 0, iel)), 
                              msh.volume (iel),
                              acoeff[iel],
                              Lloc);
+                   break;
+           case 3: bim3a_local_laplacian_anisotropic_diag (&(msh.shg(0, 0, iel)), 
+                             msh.volume (iel),
+                             &acoeff[iel*3],
+                             Lloc);
+                   break;   
+           case 9: bim3a_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)), 
+                             msh.volume (iel),
+                             &acoeff[iel*9],
+                             Lloc);
+                   break;
+           default:  std::cerr<<"bim3a_advection_diffusion: coefficient acoeff has wrong dimension"<<std::endl;
+                     exit(-1);
+      }
 
       bim3a_local_advection (vloc, 1.0, 1.0, Lloc);
 
@@ -153,7 +193,6 @@ bim3a_advection_diffusion (mesh& msh,
           SG[inode[ii]][inode[jj]] += Lloc[ii + 4 * jj];
     }
 };
-
 
 void
 bim3a_osc_laplacian (mesh& msh, 
@@ -287,6 +326,7 @@ bim3a_local_advection_jacobian (const double vloc[4],
       }
 };
 
+
 void
 bim3a_local_laplacian (const double shg[12],
                        const double vol, 
@@ -296,12 +336,44 @@ bim3a_local_laplacian (const double shg[12],
  
   for (int dir = 0; dir < 3; ++dir)
     for (int ii = 0; ii < 4; ++ii)
-      for (int jj = 0; jj < 3; ++jj)
+      for (int jj = 0; jj < 4; ++jj)
     {
       Lloc[ii + 4*jj] += acf * vol * 
         shg[dir + 3 * ii] * shg[dir + 3 * jj];
     }
 };
+
+void
+bim3a_local_laplacian_anisotropic (const double shg[12],
+                       const double vol, 
+                       const double acf[9], 
+                       double Lloc[16])
+{ 
+ for (int idir=0; idir < 3;++idir)
+  for (int jdir = 0; jdir < 3; ++jdir)
+    for (int ii = 0; ii < 4; ++ii)
+      for (int jj = 0; jj < 4; ++jj)
+    {
+      Lloc[ii + 4*jj] += acf[idir+3*jdir] * vol * 
+        shg[idir + 3 * ii] * shg[jdir + 3 * jj];
+    }
+};
+
+void
+bim3a_local_laplacian_anisotropic_diag (const double shg[12],
+                       const double vol, 
+                       const double acf[3], 
+                       double Lloc[16])
+{ 
+ for (int dir=0; dir < 3;++dir)
+    for (int ii = 0; ii < 4; ++ii)
+      for (int jj = 0; jj < 4; ++jj)
+    {
+      Lloc[ii + 4*jj] += acf[dir] * vol * 
+        shg[dir + 3 * ii] * shg[dir + 3 * jj];
+    }
+};
+
 
 void
 bim3a_osc_local_laplacian (const double shg[12],
