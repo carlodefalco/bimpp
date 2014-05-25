@@ -87,6 +87,12 @@ bim3a_advection_diffusion (mesh& msh,
                            const std::vector<double>& phi, 
                            sparse_matrix& A);
 
+/// Assemple the stiffness matrix of a FEM advection problem with upwind stabilisation.
+void
+bim3a_advection_upwind(mesh &msh,
+                          const std::vector<double>& v,
+                          sparse_matrix& UP);
+
 /// Assemble the stiffness matrix of a FEM diffusion problem (by the Orthogonal Subdomain Collocation method).
 void 
 bim3a_osc_laplacian (mesh& msh, 
