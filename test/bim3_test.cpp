@@ -47,22 +47,26 @@ int main (void)
      
       std::vector<double> dcoeff (msh.nelements*3,1.0); //diagonal diffusion tensor
       
+			std::vector<double> bcoeff (msh.nelements*3,1.0);
+
       //std::cout<<"make laplacian"<<std::endl;
       //bim3a_laplacian(msh,ecoeff,M);
       
       //std::cout<<"make advection-diffusion"<<std::endl;
-      //bim3a_advection_diffusion (msh, dcoeff, v, M);
+      //bim3a_advection_diffusion (msh, ecoeff, v, M);
 
-      std::vector<double> bcoeff (msh.nelements*3,1.0);
-      std::cout<<"make advection with upwind stabilisation"<<std::endl;
-      bim3a_advection_upwind(msh,bcoeff,M);
+			std::cout<<"make advection-diffusion with anisotropic diffusion"<<std::endl;
+			bim3a_advection_diffusion_anisotropic(msh, acoeff,v,M);
+
+      //std::cout<<"make advection with upwind stabilisation"<<std::endl;
+      //bim3a_advection_upwind(msh,bcoeff,M);
       
       bim3a_reaction (msh, ecoeff, ncoeff, M);
       bim3a_rhs (msh, ecoeff, ncoeff, b);
       
 
       std::cout << "export stiffness matrix. nnodes = " << msh.nnodes << std::endl;      
-      std::ofstream fout ("UP2.m");
+      std::ofstream fout ("SG.m");
       fout << M;
       fout.close ();
     }

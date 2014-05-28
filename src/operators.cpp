@@ -99,12 +99,7 @@ bim3a_laplacian (mesh& msh,
 
   double Lloc[16]; 
   int iel, inode[4];
-
-  double adim = (double)acoeff.size()/msh.nelements;
-  int flag = 0;
-  if (adim==1) flag=1;
-  else if (adim==3) flag=3;
-  else if (adim==9) flag=9;
+  
   for (iel = 0; iel < msh.nelements; ++iel)
     { 
       for (int ii = 0; ii < 4; ++ii)
@@ -112,31 +107,59 @@ bim3a_laplacian (mesh& msh,
       
        
       memset (Lloc, 0, 16 * sizeof (double));
-      switch(flag)
-      {
-           case 1: bim3a_local_laplacian (&(msh.shg(0, 0, iel)), 
+      bim3a_local_laplacian (&(msh.shg(0, 0, iel)), 
                              msh.volume (iel),
                              acoeff[iel],
                              Lloc);
-                   break;
-           case 3: bim3a_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)), 
-                             msh.volume (iel),
-                             &acoeff[iel*3],
-                             Lloc);
-                   break;   
-           case 9: bim3a_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)), 
-                             msh.volume (iel),
-                             &acoeff[iel*9],
-                             Lloc);
-                   break;
-           default:  std::cerr<<"bim3a_laplacian: coefficient acoeff has wrong dimension"<<std::endl;
-                     exit(-1);
-      }
+     
       for (int ii = 0; ii < 4; ++ii)
         for (int jj = 0; jj < 4; ++jj)
           SG[inode[ii]][inode[jj]] += Lloc[ii + 4 * jj];
     }
 };
+
+void 
+bim3a_laplacian_anisotropic (mesh& msh, 
+                 const std::vector<double>& acoeff, 
+                 sparse_matrix& SG)
+{
+ 
+  if (SG.size () < size_t (msh.nnodes))
+    SG.resize (msh.nnodes);
+
+  double Lloc[16]; 
+  int iel, inode[4];
+
+  double adim = (double)acoeff.size()/msh.nelements;
+  for (iel = 0; iel < msh.nelements; ++iel)
+    { 
+      for (int ii = 0; ii < 4; ++ii)
+        inode[ii] = msh.t (ii, iel);
+             
+      memset (Lloc, 0, 16 * sizeof (double));
+
+      if(adim==3) 
+				bim3a_local_laplacian_anisotropic_diag (&(msh.shg(0, 0, iel)), 
+                             msh.volume (iel),
+                             &acoeff[iel*3],
+                             Lloc);
+      else if (adim==9)  
+      	bim3a_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)), 
+                             msh.volume (iel),
+                             &acoeff[iel*9],
+                             Lloc);
+      else
+				{
+					std::cerr<<"bim3a_laplacian_anisotropic: coefficient acoeff has wrong dimension"<<std::endl;
+        	exit(-1);
+      	}
+      
+			for (int ii = 0; ii < 4; ++ii)
+        for (int jj = 0; jj < 4; ++jj)
+          SG[inode[ii]][inode[jj]] += Lloc[ii + 4 * jj];
+    }
+};
+
 void
 bim3a_advection_diffusion (mesh& msh, 
                            const std::vector<double>& acoeff, 
@@ -150,11 +173,6 @@ bim3a_advection_diffusion (mesh& msh,
   double Lloc[16], vloc[4]; 
   int iel, inode[4];
 
-  double adim = (double)acoeff.size()/msh.nelements;
-  int flag = 0;
-  if (adim==1) flag=1;
-  else if (adim==3) flag=3;
-  else if (adim==9) flag=9;
   for (iel = 0; iel < msh.nelements; ++iel)
     { 
       for (int ii = 0; ii < 4; ++ii)
@@ -165,26 +183,59 @@ bim3a_advection_diffusion (mesh& msh,
       
        
       memset (Lloc, 0, 16 * sizeof (double));
-      switch(flag)
-      {
-           case 1: bim3a_local_laplacian (&(msh.shg(0, 0, iel)), 
+      bim3a_local_laplacian (&(msh.shg(0, 0, iel)), 
                              msh.volume (iel),
                              acoeff[iel],
                              Lloc);
-                   break;
-           case 3: bim3a_local_laplacian_anisotropic_diag (&(msh.shg(0, 0, iel)), 
+
+      bim3a_local_advection (vloc, 1.0, 1.0, Lloc);
+
+      for (int ii = 0; ii < 4; ++ii)
+        for (int jj = 0; jj < 4; ++jj)
+          SG[inode[ii]][inode[jj]] += Lloc[ii + 4 * jj];
+    }
+};
+
+void
+bim3a_advection_diffusion_anisotropic (mesh& msh, 
+                           const std::vector<double>& acoeff, 
+                           const std::vector<double>& v, 
+                           sparse_matrix& SG)
+{
+
+  if (SG.size () < size_t (msh.nnodes))
+    SG.resize (msh.nnodes);
+ 
+  double Lloc[16], vloc[4]; 
+  int iel, inode[4];
+
+  double adim = (double)acoeff.size()/msh.nelements;
+  
+  for (iel = 0; iel < msh.nelements; ++iel)
+    { 
+      for (int ii = 0; ii < 4; ++ii)
+        {
+          inode[ii] = msh.t (ii, iel);
+          vloc[ii] = v[inode[ii]];
+        }
+      
+      memset (Lloc, 0, 16 * sizeof (double));
+      if (adim==3)
+				bim3a_local_laplacian_anisotropic_diag (&(msh.shg(0, 0, iel)), 
                              msh.volume (iel),
                              &acoeff[iel*3],
                              Lloc);
-                   break;   
-           case 9: bim3a_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)), 
+   
+			else if (adim==9)
+				bim3a_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)), 
                              msh.volume (iel),
                              &acoeff[iel*9],
                              Lloc);
-                   break;
-           default:  std::cerr<<"bim3a_advection_diffusion: coefficient acoeff has wrong dimension"<<std::endl;
-                     exit(-1);
-      }
+      else 
+				{
+					std::cerr<<"bim3a_advection_diffusion: coefficient acoeff has wrong dimension"<<std::endl;
+					exit(-1);
+     		}	
 
       bim3a_local_advection (vloc, 1.0, 1.0, Lloc);
 
@@ -205,82 +256,82 @@ bim3a_advection_upwind(mesh &msh,
  
   	double Lloc[16];
   	int iel, inode[4];
+
   	for (iel = 0; iel < msh.nelements; ++iel)
     	{ 
-      		for (int ii = 0; ii < 4; ++ii)
+      	for (int ii = 0; ii < 4; ++ii)
         	{
-          		inode[ii] = msh.t (ii, iel);
+          	inode[ii] = msh.t (ii, iel);
         	}
       
-       
-      		memset (Lloc, 0, 16 * sizeof (double));
-      		bim3a_local_laplacian(&(msh.shg(0, 0, iel)), 
-                             msh.volume (iel),
-                             1.0,
-                             Lloc);
+    		memset (Lloc, 0, 16 * sizeof (double));
+    		bim3a_local_laplacian(&(msh.shg(0, 0, iel)), 
+                           msh.volume (iel),
+                           1.0,
+                           Lloc);
 
-	      
-		double x[4],y[4],z[4]; 
-		double vnodes[6]; //v12,v13,v14,v23,v24,v34;
-		for(int i=0;i<4;++i) 
-		{
-			x[i]=msh.p(0,inode[i]);
-			y[i]=msh.p(1,inode[i]);
-			z[i]=msh.p(2,inode[i]);	
-		}	
-	
-		if (v.size()==1)
-		{
-			for(int i=0;i<6;++i)vnodes[i]=0;			
-		}
-		else if (v.size()==3*msh.nelements)
-		{
-			int node=0;
-			for(int i=0;i<3;++i)
-				for(int j=i+1;j<4;++j){
-					vnodes[node]=v[iel*3]*(x[j]-x[i])+v[iel*3+1]*(y[j]-y[i])+v[iel*3+2]*(z[j]-z[i]);
-					++node;
-				}
-		}
-		else if (v.size()==4*msh.nelements)
-		{
-			double vloc[4];
-			int node=0;
-			for(int i=0;i<4;++i) vloc[i]=v[inode[i]];
-			for(int i=0;i<3;++i)
-				for(int j=i+1;j<4;++j){
-					vnodes[node]=vloc[j]-vloc[i];
-					++node;
-				}
-		}
-		else
-		{
-			std::cerr<<"bim3a_advection_upwind: parameter v has wrong dimension";
-			exit(-1);
-		}
-		
-		double bp[6];
-		double bm[6];
-		for(int i=0;i<6;++i)
-		{
-			bp[i]=-(vnodes[i]-fabs(vnodes[i]))/2;
-       			bm[i]=(vnodes[i]+fabs(vnodes[i]))/2;
-		}
-		int node=0;
-		for(int ii=0;ii<3;++ii)
-			for(int jj=ii+1;jj<4;++jj)
-			{	
-				Lloc[ii+4*jj]*=bp[node];
-       				Lloc[jj+4*ii]*=bm[node];
-       				Lloc[5*jj]-=Lloc[ii+4*jj];
-       				Lloc[5*ii]-=Lloc[jj+4*ii];
-				++node;       			
-			}
-		
-		for (int ii = 0; ii < 4; ++ii)
-		        for (int jj = 0; jj < 4; ++jj)
-				UP[inode[ii]][inode[jj]] += Lloc[ii + 4 * jj];
-    }
+				double x[4],y[4],z[4]; 
+				double vnodes[6]; //v12,v13,v14,v23,v24,v34;
+				for(int i=0;i<4;++i) 
+					{
+						x[i]=msh.p(0,inode[i]);
+						y[i]=msh.p(1,inode[i]);
+						z[i]=msh.p(2,inode[i]);	
+					}	
+
+				if (v.size()==1)
+					for(int i=0;i<6;++i)vnodes[i]=0;			
+
+				else if (v.size()==3*msh.nelements)
+					{
+						int node=0;
+						for(int i=0;i<3;++i)
+							for(int j=i+1;j<4;++j){
+								vnodes[node]=v[iel*3]*(x[j]-x[i])+v[iel*3+1]*(y[j]-y[i])+v[iel*3+2]*(z[j]-z[i]);
+								++node;
+							}
+					}
+				else if (v.size()==4*msh.nelements)
+					{ 
+						double vloc[4];
+						int node=0;
+						for(int i=0;i<4;++i) 
+							vloc[i]=v[inode[i]];
+						for(int i=0;i<3;++i)
+							for(int j=i+1;j<4;++j)
+								{
+									vnodes[node]=vloc[j]-vloc[i];
+									++node;
+								}
+					}
+				else
+					{
+						std::cerr<<"bim3a_advection_upwind: parameter v has wrong dimension";
+						exit(-1);
+					} 
+
+				double bp[6];
+				double bm[6];
+				for(int i=0;i<6;++i)
+					{
+						bp[i]=-(vnodes[i]-fabs(vnodes[i]))/2;
+					 	bm[i]=(vnodes[i]+fabs(vnodes[i]))/2;
+					}  
+				int node=0;
+				for(int ii=0;ii<3;++ii)
+					for(int jj=ii+1;jj<4;++jj)
+						{	
+							Lloc[ii+4*jj]*=bp[node];
+					 		Lloc[jj+4*ii]*=bm[node];
+					 		Lloc[5*jj]-=Lloc[ii+4*jj];
+					 		Lloc[5*ii]-=Lloc[jj+4*ii];
+							++node;       			
+						} 
+
+				for (int ii = 0; ii < 4; ++ii)
+					for (int jj = 0; jj < 4; ++jj)
+						UP[inode[ii]][inode[jj]] += Lloc[ii + 4 * jj];
+    	}
 };
 
 void
