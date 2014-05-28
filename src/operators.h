@@ -80,9 +80,22 @@ bim3a_laplacian (mesh& msh,
                  const std::vector<double>& epsilon, 
                  sparse_matrix& A);
 
+/// Assemble the stiffness matrix of a FEM diffusion problem with anisotropic diffusion.
+void 
+bim3a_laplacian_anisotropic (mesh& msh, 
+                 const std::vector<double>& epsilon, 
+                 sparse_matrix& A);
+
 /// Assemble the stiffness matrix of a FEM advection-diffusion problem.
 void 
 bim3a_advection_diffusion (mesh& msh, 
+                           const std::vector<double>& epsilon, 
+                           const std::vector<double>& phi, 
+                           sparse_matrix& A);
+
+/// Assemble the stiffness matrix of a FEM advection-diffusion problem with anisotropic diffusion.
+void 
+bim3a_advection_diffusion_anisotropic (mesh& msh, 
                            const std::vector<double>& epsilon, 
                            const std::vector<double>& phi, 
                            sparse_matrix& A);
