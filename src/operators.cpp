@@ -24,6 +24,7 @@
 #include <operators.h>
 #include <cstring>
 #include <stdlib.h>
+#include <algorithm>
 //namespace bim
 //{
 
@@ -233,7 +234,7 @@ bim3a_advection_diffusion_anisotropic (mesh& msh,
                              Lloc);
       else 
 				{
-					std::cerr<<"bim3a_advection_diffusion: coefficient acoeff has wrong dimension"<<std::endl;
+					std::cerr<<"bim3a_advection_diffusion_anisotropic: coefficient acoeff has wrong dimension"<<std::endl;
 					exit(-1);
      		}	
 
@@ -663,6 +664,20 @@ bim3a_local_rhs (const double shp[16],
     bLoc[ii] += n[ii] * e * wjacdet[ii];
 };
 
+void
+bim3a_boundary_nodes(mesh& msh, const std::vector<int>& sidelist, std::vector<int>& bnodes)
+{
+	bnodes.clear();
+	for(int i=0;i<msh.nfaces;++i)
+		if (find(sidelist.begin(),sidelist.end(),msh.e(9,i))!=sidelist.end())
+			{
+				for(int j=0; j<3;++j)
+					if(find(bnodes.begin(),bnodes.end(), msh.e(j,i))==bnodes.end())					
+						bnodes.push_back(msh.e(j,i));
+			}
+	sort(bnodes.begin(),bnodes.end());
+}
+
 void 
 bimu_bernoulli (double x, double &bp, double &bn)
 {
@@ -767,4 +782,36 @@ bimu_bernoulli_derivative (double x, double &bpp, double &bnp)
 };
 
 
+void
+bim3a_dirichletBC(sparse_matrix& M, std::vector<double>& b, const std::vector<int>& bnodes, const std::vector<double>& vnodes)
+{
+	for(int it=0;it<bnodes.size();++it)
+		{
+			int i=bnodes[it];
+			M[i][i]=1;
+			b[i]=vnodes[it];
+			for (int j=0; j<i;++j)
+				{
+					M[i][j]=0;
+					if (b[i]==0)
+						M[j][i]=0;
+					else
+						{
+							b[j]-=M[j][i]*b[i];
+							M[j][i]=0;
+						}
+				}						
+			for (int j=i+1;j<M[i].size();++j)
+				{
+					M[i][j]=0;
+					if (b[i]==0)
+						M[j][i]=0;
+					else
+						{
+							b[j]-=M[j][i]*b[i];
+							M[j][i]=0;
+						}									
+				}
+		}
+}
 //}

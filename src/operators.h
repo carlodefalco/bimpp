@@ -198,7 +198,20 @@ bim3a_local_rhs (const double shp[16],
                  const double coeffn[4], 
                  double bLoc[4]);
 
+/// Find nodes in sidelist boundary
+void
+bim3a_boundary_nodes(mesh& msh,
+										 const std::vector<int>& sidelist,
+										 std::vector<int>& bnodes);
 
+
+/// Set Dirichlet border condition
+void
+bim3a_dirichletBC(sparse_matrix& M, 
+									std::vector<double>& b,
+									const std::vector<int>& bnodes,
+									const std::vector<double>& vnodes);
 //}
+
 
 #endif
