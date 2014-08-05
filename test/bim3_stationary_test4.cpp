@@ -120,15 +120,15 @@ int main (void)
       fout << std::endl;
 			
 			double norm=0;
-			double normexact=0;
+			//double normexact=0;
       for (int k = 0; k < rhs.size (); ++k)
 				{
 	      	fout << rhs[k] << "  " << exactsolution[k]<< std::endl;
 					norm+=(exactsolution[k]-rhs[k])*(exactsolution[k]-rhs[k]);
-					normexact+=(exactsolution[k])*(exactsolution[k]);
+					//normexact+=(exactsolution[k])*(exactsolution[k]);
 				}
       fout.close ();
-			std::cout<<"Error: "<<norm<<std::endl<<normexact<<std::endl;
+			std::cout<<"Error: "<<norm<<std::endl;
 			assert(norm < 10^-1);
     }
 
