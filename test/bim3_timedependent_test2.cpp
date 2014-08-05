@@ -42,8 +42,8 @@ int main (void)
 	std::vector<double> vnodes_start, vnodes;
 
 	std::vector<double> uold;
-	double dt=0.1;
-	int T=10;
+	double dt=0.2;
+	int T=5;
   for (int t=1;t<=T;++t)
 		{
 			if (rank == 0)

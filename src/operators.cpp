@@ -25,6 +25,7 @@
 #include <cstring>
 #include <stdlib.h>
 #include <algorithm>
+#include <cmath>
 //namespace bim
 //{
 
@@ -375,6 +376,45 @@ bim3a_osc_laplacian (mesh& msh,
 };
 
 void
+bim3a_osc_laplacian_anisotropic (mesh& msh, 
+                     const std::vector<double>& acoeff, 
+                     sparse_matrix& SG)
+{
+
+  if (SG.size () < size_t (msh.nnodes))
+    SG.resize (msh.nnodes);
+
+  double Lloc[16], p[12];
+  int iel, elnodes[4];
+
+
+  for (iel = 0; iel < msh.nelements; ++iel)
+    { 
+      for (int ii = 0; ii < 4; ++ii)
+        {
+          elnodes[ii] = msh.t (ii, iel);
+          p[3 * ii] = msh.p (0, elnodes[ii]);
+          p[3 * ii + 1] = msh.p (1, elnodes[ii]);
+          p[3 * ii + 2] = msh.p (2, elnodes[ii]);
+        }
+ 
+      // Compute local laplacian matrix 
+      // and assemble into global matrix
+      memset (Lloc, 0, 16 * sizeof (double));
+      bim3a_osc_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)), 
+                                 p, msh.volume (iel),
+                                 &acoeff[3*iel], Lloc);
+
+      for (int ii = 0; ii < 4; ++ii)
+        for (int jj = 0; jj < 4; ++jj)
+          {
+            SG[elnodes[ii]][elnodes[jj]] += Lloc[ii + 4 * jj];
+          }
+    }
+ 
+};
+
+void
 bim3a_osc_advection_diffusion (mesh& msh, 
                                const std::vector<double>& acoeff, 
                                const std::vector<double>& v, 
@@ -415,6 +455,47 @@ bim3a_osc_advection_diffusion (mesh& msh,
  
 };
  
+void
+bim3a_osc_advection_diffusion_anisotropic (mesh& msh, 
+                               const std::vector<double>& acoeff, 
+                               const std::vector<double>& v, 
+                               sparse_matrix& SG)
+{
+
+  if (SG.size () < size_t (msh.nnodes))
+    SG.resize (msh.nnodes);
+ 
+  double Lloc[16], p[12], vloc[4];
+  int iel, elnodes[4];
+
+
+  for (iel = 0; iel < msh.nelements; ++iel)
+    { 
+      for (int ii = 0; ii < 4; ++ii)
+        {
+          elnodes[ii] = msh.t (ii, iel);
+          p[3 * ii] = msh.p (0, elnodes[ii]);
+          p[3 * ii + 1] = msh.p (1, elnodes[ii]);
+          p[3 * ii + 2] = msh.p (2, elnodes[ii]);
+          vloc[ii] = v[elnodes[ii]];
+        }
+ 
+      // Compute local laplacian matrix 
+      // and assemble into global matrix
+      memset (Lloc, 0, 16 * sizeof (double));
+      bim3a_osc_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)), 
+                                 p, msh.volume (iel),
+                                 &acoeff[3*iel], Lloc);
+      bim3a_local_advection (vloc, 1.0, 1.0, Lloc);
+      
+      for (int ii = 0; ii < 4; ++ii)
+        for (int jj = 0; jj < 4; ++jj)
+          SG[elnodes[ii]][elnodes[jj]] += Lloc[ii + 4 * jj];
+
+    }
+ 
+};
+
 void
 bim3a_local_advection (const double vloc[4], 
                        const double a,
@@ -576,6 +657,7 @@ bim3a_osc_local_laplacian (const double shg[12],
         (pts[idir + 3 * 1] - pts[idir + 3 * 2]) *
         (pts[idir + 3 * 1] - pts[idir + 3 * 3]); 
 
+
       AidotAj[0] += A[idir + 3 * 2] // Ak dot Al
                   * A[idir + 3 * 3]; 
  
@@ -593,6 +675,147 @@ bim3a_osc_local_laplacian (const double shg[12],
  
       AidotAj[5] += A[idir + 3 * 0] // Ai dot Aj
                   * A[idir + 3 * 1]; 
+    }
+
+  double tmp;
+
+  tmp = - epsilonareak * (2.0 * r[0] * r[1] + AidotAj[0] *
+      (r[0]  * r[0]  / Ann[3] + r[1] * r[1]  / Ann[2]));
+  Lloc[0 + 4 * 1] += tmp;
+  Lloc[1 + 4 * 0] += tmp;
+  Lloc[0 + 4 * 0] -= tmp;
+  Lloc[1 + 4 * 1] -= tmp;
+
+  tmp = - epsilonareak * (2.0 * r[2] * r[3] + AidotAj[1] *
+      (r[2]  * r[2]  / Ann[3] + r[3] * r[3]  / Ann[1]));
+  Lloc[0 + 4 * 2] += tmp;
+  Lloc[2 + 4 * 0] += tmp;
+  Lloc[0 + 4 * 0] -= tmp;
+  Lloc[2 + 4 * 2] -= tmp;
+
+  tmp = - epsilonareak * (2.0 * r[4] * r[5] + AidotAj[2] *
+      (r[4]  * r[4]  / Ann[2] + r[5] * r[5]  / Ann[1]));
+  Lloc[0 + 4 * 3] += tmp;
+  Lloc[3 + 4 * 0] += tmp;
+  Lloc[0 + 4 * 0] -= tmp;
+  Lloc[3 + 4 * 3] -= tmp;
+
+  tmp = - epsilonareak * (2.0 * r[6] * r[7] + AidotAj[3] *
+      (r[6]  * r[6]  / Ann[3] + r[7] * r[7]  / Ann[0]));
+  Lloc[1 + 4 * 2] += tmp;
+  Lloc[2 + 4 * 1] += tmp;
+  Lloc[1 + 4 * 1] -= tmp;
+  Lloc[2 + 4 * 2] -= tmp;
+
+
+  tmp = - epsilonareak * (2.0 * r[8] * r[9] + AidotAj[4] *
+      (r[8]  * r[8]  / Ann[2] + r[9] * r[9]  / Ann[0]));
+  Lloc[1 + 4 * 3] += tmp;
+  Lloc[3 + 4 * 1] += tmp;
+  Lloc[1 + 4 * 1] -= tmp;
+  Lloc[3 + 4 * 3] -= tmp;
+
+  tmp = - epsilonareak * (2.0 * r[10] * r[11] + AidotAj[5] *
+      (r[10] * r[10] / Ann[1] + r[11] * r[11] / Ann[0]));
+  Lloc[2 + 4 * 3] += tmp;
+  Lloc[3 + 4 * 2] += tmp; 
+  Lloc[2 + 4 * 2] -= tmp;
+  Lloc[3 + 4 * 3] -= tmp; 
+
+};
+
+void
+bim3a_osc_local_laplacian_anisotropic (const double shg[12],
+                           const double pts[12],
+                           const double volume, 
+                           const double acoeff[3], 
+                           double Lloc[16])
+{
+  int inode, idir;
+  double A[12] = {0}, Ann[4]= {0}, AidotAj[6]={0}, r[12] = {0}, dcoeff[3]={0};
+  double d=cbrt(acoeff[0]*acoeff[1]*acoeff[2]);
+	double epsilonareak  = d / volume / 48.0;
+
+  for (inode = 0; inode < 4; ++inode)
+    for (idir = 0; idir < 3; ++idir)
+    {
+      A[idir + 3 * inode] = 3.0 * volume * shg[idir + 3 * inode];
+      Ann[inode] += (A[idir + 3 * inode] * A[idir + 3 * inode]);
+			dcoeff[idir]=sqrt(d/acoeff[idir]);
+    }
+
+  memset (AidotAj, 0.0, 6 * sizeof (double));
+  memset (r, 0.0, 12 * sizeof (double));
+
+  for (idir = 0; idir < 3; ++idir) 
+    {		
+			r[0]  +=                  //rik dot rjk 
+				dcoeff[idir]*dcoeff[idir]*     
+				(pts[idir + 3 * 2] - pts[idir + 3 * 0]) *
+        (pts[idir + 3 * 2] - pts[idir + 3 * 1]); 
+      r[1]  +=                  //ril dot rjl 
+				dcoeff[idir]*dcoeff[idir]*      
+				(pts[idir + 3 * 3] - pts[idir + 3 * 0]) *
+        (pts[idir + 3 * 3] - pts[idir + 3 * 1]); 
+      r[2]  +=                  //rij dot rkj 
+				dcoeff[idir]*dcoeff[idir]*
+				(pts[idir + 3 * 1] - pts[idir + 3 * 0]) *
+        (pts[idir + 3 * 1] - pts[idir + 3 * 2]); 
+      r[3]  +=                  //ril dot rkl 
+				dcoeff[idir]*dcoeff[idir]*
+        (pts[idir + 3 * 3] - pts[idir + 3 * 0]) *
+        (pts[idir + 3 * 3] - pts[idir + 3 * 2]); 
+      r[4]  +=                  //rij dot rlj 
+				dcoeff[idir]*dcoeff[idir]*
+        (pts[idir + 3 * 1] - pts[idir + 3 * 0]) *
+        (pts[idir + 3 * 1] - pts[idir + 3 * 3]); 
+      r[5]  +=                  //rik dot rlk 
+				dcoeff[idir]*dcoeff[idir]*
+        (pts[idir + 3 * 2] - pts[idir + 3 * 0]) *
+        (pts[idir + 3 * 2] - pts[idir + 3 * 3]); 
+      r[6]  +=                  //rji dot rki 
+				dcoeff[idir]*dcoeff[idir]*
+        (pts[idir + 3 * 0] - pts[idir + 3 * 1]) *
+        (pts[idir + 3 * 0] - pts[idir + 3 * 2]); 
+      r[7]  +=                  //rjl dot rkl 
+				dcoeff[idir]*dcoeff[idir]*
+        (pts[idir + 3 * 3] - pts[idir + 3 * 1]) *
+        (pts[idir + 3 * 3] - pts[idir + 3 * 2]); 
+      r[8]  +=                  //rji dot rli 
+				dcoeff[idir]*dcoeff[idir]*
+        (pts[idir + 3 * 0] - pts[idir + 3 * 1]) *
+        (pts[idir + 3 * 0] - pts[idir + 3 * 3]); 
+      r[9]  +=                  //rjk dot rlk 
+				dcoeff[idir]*dcoeff[idir]*
+        (pts[idir + 3 * 2] - pts[idir + 3 * 1]) *
+        (pts[idir + 3 * 2] - pts[idir + 3 * 3]); 
+      r[10] +=                  //rki dot rli 
+				dcoeff[idir]*dcoeff[idir]*
+        (pts[idir + 3 * 0] - pts[idir + 3 * 2]) *
+        (pts[idir + 3 * 0] - pts[idir + 3 * 3]); 
+      r[11] +=                  //rkj dot rlj 
+				dcoeff[idir]*dcoeff[idir]*
+        (pts[idir + 3 * 1] - pts[idir + 3 * 2]) *
+        (pts[idir + 3 * 1] - pts[idir + 3 * 3]);      
+
+      AidotAj[0] += A[idir + 3 * 2] // Ak dot Al
+                  * A[idir + 3 * 3]; 
+ 
+      AidotAj[1] += A[idir + 3 * 1] // Aj dot Al
+                  * A[idir + 3 * 3]; 
+ 
+      AidotAj[2] += A[idir + 3 * 1] // Aj dot Ak
+                  * A[idir + 3 * 2]; 
+ 
+      AidotAj[3] += A[idir + 3 * 0] // Ai dot Al
+                  * A[idir + 3 * 3]; 
+ 
+      AidotAj[4] += A[idir + 3 * 0] // Ai dot Ak
+                  * A[idir + 3 * 2]; 
+ 
+      AidotAj[5] += A[idir + 3 * 0] // Ai dot Aj
+                  * A[idir + 3 * 1]; 
+			
     }
 
   double tmp;
@@ -793,24 +1016,14 @@ bim3a_dirichletBC(sparse_matrix& M, std::vector<double>& b, const std::vector<in
 			for (int j=0; j<i;++j)
 				{
 					M[i][j]=0;
-					if (b[i]==0)
-						M[j][i]=0;
-					else
-						{
-							b[j]-=M[j][i]*b[i];
-							M[j][i]=0;
-						}
+					b[j]-=M[j][i]*b[i];
+					M[j][i]=0;
 				}						
 			for (int j=i+1;j<M[i].size();++j)
 				{
 					M[i][j]=0;
-					if (b[i]==0)
-						M[j][i]=0;
-					else
-						{
-							b[j]-=M[j][i]*b[i];
-							M[j][i]=0;
-						}									
+					b[j]-=M[j][i]*b[i];
+					M[j][i]=0;						
 				}
 		}
 }

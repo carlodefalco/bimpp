@@ -112,10 +112,25 @@ bim3a_osc_laplacian (mesh& msh,
                      const std::vector<double>& epsilon, 
                      sparse_matrix& A);
 
+/// Assemble the stiffness matrix of a FEM diffusion problem 
+/// with anisotropic diffusion(by the Orthogonal Subdomain Collocation method).
+void 
+bim3a_osc_laplacian_anisotropic (mesh& msh, 
+                     const std::vector<double>& epsilon, 
+                     sparse_matrix& A);
+
 /// Assemble the stiffness matrix of a FEM advection-diffusion 
 /// problem (by the Orthogonal Subdomain Collocation method).
 void 
 bim3a_osc_advection_diffusion (mesh& msh, 
+                               const std::vector<double>& epsilon,
+                               const std::vector<double>& phi, 
+                               sparse_matrix& A);
+
+/// Assemble the stiffness matrix of a FEM advection-diffusion 
+/// problem with anisotropic diffusion (by the Orthogonal Subdomain Collocation method).
+void 
+bim3a_osc_advection_diffusion_anisotropic (mesh& msh, 
                                const std::vector<double>& epsilon,
                                const std::vector<double>& phi, 
                                sparse_matrix& A);
@@ -178,6 +193,15 @@ bim3a_osc_local_laplacian (const double shg[12],
                            const double p[12],
                            const double volume,
                            const double epsilon, 
+                           double Lloc[16]);
+
+/// Compute the elemental contribution to the global 
+/// stiffness matrix (OSC method) with diagonal anisotropic diffusion, and add it to the exit buffer
+void
+bim3a_osc_local_laplacian_anisotropic (const double shg[12],
+                           const double p[12],
+                           const double volume,
+                           const double epsilon[3], 
                            double Lloc[16]);
 
 /// Compute the elemental contribution to the global mass matrix 
