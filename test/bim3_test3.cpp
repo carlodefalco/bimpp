@@ -1,8 +1,3 @@
-/*
-  Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
-  the terms of the GNU/GPL licence v3
-*/
 
 #include <bim_sparse.h>
 #include <mesh.h>

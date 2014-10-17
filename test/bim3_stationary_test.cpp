@@ -1,10 +1,4 @@
 /*
-  Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
-  the terms of the GNU/GPL licence v3
-*/
-
-/*
 	Problem:	-nabla(u)=g
 						u=1-x^2-y^2-z^2 on border
 						g=6
@@ -31,7 +25,6 @@ int main (void)
 	std::vector<double> rhs;
 	std::vector<int>    ir, jc;
 	std::vector<double> xa;
-	p_sparse_matrix     llhs;
   std::vector<double> exactsolution;
   if (rank == 0)
     {  
@@ -126,7 +119,7 @@ int main (void)
 				}
       fout.close ();
 			std::cout<<"Error: "<<norm<<std::endl;
-			assert(norm < 10^-2);
+			assert(norm < 10e-2);
     }
 
 	mumps_solver.cleanup ();

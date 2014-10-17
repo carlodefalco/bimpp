@@ -20,7 +20,7 @@ int main (void)
     
   if (rank == 0)
     {  
-      std::cout << "\n\n*****\ntest 1\n*****\n";
+			std::cout << "\n\n*****\ntest 1\n*****\n";
       
       std::cout << "read mesh" << std::endl;
       mesh msh (std::string("mesh_in.msh"));
