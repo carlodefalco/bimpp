@@ -1,8 +1,3 @@
-/*
-  Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
-  the terms of the GNU/GPL licence v3
-*/
 
 /*
 	Problem:	-Dnabla(u)=g
@@ -19,7 +14,7 @@
 #include <mumps_class.h>
 #include <mpi.h>
 #include <fstream>
-  
+#include <assert.h>
 int main (void)
 {
 
@@ -132,7 +127,7 @@ int main (void)
 				}
       fout.close ();
 			std::cout<<"Error: "<<norm<<std::endl;
-			assert(norm < 10^-2);
+			assert(norm < 10e-2);
     }
 
 	mumps_solver.cleanup ();

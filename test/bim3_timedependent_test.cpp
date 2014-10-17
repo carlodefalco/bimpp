@@ -1,8 +1,3 @@
-/*
-  Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
-  the terms of the GNU/GPL licence v3
-*/
 
 /*
 	Problem:	du/dt-nabla(u)=g
@@ -42,6 +37,8 @@ int main (void)
 	std::vector<double> uold;
 	double dt=1;
 	int T=5;
+	char nomefile[]="Solution_TimeTest1.txt";
+	std::ofstream fout (nomefile);
   for (int t=1;t<=T;++t)
 		{
 			if (rank == 0)
@@ -123,7 +120,10 @@ int main (void)
 								
 						bim3a_dirichletBC(lhs_new,rhs_new,bnodes,vnodes);
 			
-						lhs_new.aij(xa,ir,jc,1);
+						if(t == 1)
+							lhs_new.aij(xa,ir,jc,1);
+						else
+							lhs_new.aij_update(xa,ir,jc,1);
 			
 						for(int i=0;i<exactsolution.size();++i)
 							{
@@ -151,14 +151,13 @@ int main (void)
   
   		if (rank == 0)
     		{
-					char nomefile[50];
-					sprintf(nomefile,"Solution_TD1_%02d",t);
+					//sprintf(nomefile,"Solution_TD1_%02d.txt",t);
 					if(t==1) 
-						std::cout <<"\nResult of Time Dependent Test\n\nIteration 1 will be written in " << nomefile <<".txt\n";
-					else 
-						std::cout << "\nIteration " << t <<" will be written in " << nomefile <<".txt\n";
-      		std::ofstream fout (nomefile);
-      		fout << std::endl;
+						std::cout <<"\nResult of Time Dependent Test\nwill be written in " << nomefile <<std::endl;
+					 
+					std::cout << "\nIteration " << t <<std::endl;
+      		
+					fout << "Iteration " << t <<std::endl;
 					double norm=0;
 					//double normexact=0;
       		for (int k = 0; k < rhs_new.size (); ++k)
@@ -168,13 +167,12 @@ int main (void)
 							//normexact+=(exactsolution[k])*(exactsolution[k]);
 							uold[k]=rhs_new[k];
 						}
-      		fout.close ();
+      		fout << std::endl;
 					std::cout<<"Error: "<<norm<<std::endl;
     		}
-
 			mumps_solver.cleanup ();
-
 		}
+	fout.close ();
 	MPI::Finalize();
   return (0);
 }
