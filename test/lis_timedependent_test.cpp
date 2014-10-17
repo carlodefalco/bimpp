@@ -219,19 +219,14 @@ LIS_INT main(LIS_INT argc, char* argv[])
 			row=(LIS_INT *)malloc((n+1)*sizeof(LIS_INT));
 			col=(LIS_INT *)malloc(nnz*sizeof(LIS_INT));
 			value=(LIS_SCALAR *)malloc(nnz*sizeof(LIS_SCALAR));
-			
-			//std::cout<<"rank: "<<rank<<" nnz: "<<nnz<<" n: "<<n<<" is: "<<is<<" ie: "<<ie<<" is_r: "<<is_r<<" ie_r: "<<ie_r<<" gn: "<<gn<<std::endl;
 			 
 			counter=0;
 			counter_R=0;
 			
 			for(int i=is;i<ie;i++)
 				{
-					//std::cout<<counter<<std::endl;
 					col[counter]=jc[i];
-					//std::cout<<"2"<<std::endl;
 					value[counter]=xa[i];
-					//std::cout<<"3"<<std::endl;
 					counter++;
 				}
 			
@@ -248,7 +243,6 @@ LIS_INT main(LIS_INT argc, char* argv[])
 			lis_matrix_set_size(A,n,0);
 			lis_matrix_set_csr(nnz,row,col,value,A);
 
-			//if(rank==0) std::cout<<"Assemble Matrix"<<std::endl;
 			LIS_INT error=lis_matrix_assemble(A);
 			if(rank==0) std::cout<<"Matrix Assembled"<<std::endl;
 	
@@ -264,12 +258,11 @@ LIS_INT main(LIS_INT argc, char* argv[])
 			lis_vector_create(LIS_COMM_WORLD, &x);
 		 	
 			lis_vector_duplicate(b, &x);
-		 	//if(rank==0) std::cout<<"Begin solving"<<std::endl;
+		 	
 			lis_solver_create(&solver);
-			//if(rank==0) std::cout<<"1"<<std::endl;
 			lis_solver_set_optionC(solver);
-			//if(rank==0) std::cout<<"2"<<std::endl;
 			lis_solve(A, b, x, solver);
+
 		 	if(rank==0) std::cout<<"System iteration solved"<<std::endl;
 		
 			lis_solver_get_iter(solver, &iter);
@@ -330,9 +323,8 @@ LIS_INT main(LIS_INT argc, char* argv[])
 						}
 				  
 					std::cout<<"Error: "<<norm<<std::endl<<std::endl;
-					assert(norm < 10^-2);
 				}
-			//lis_vector_print(x);
+			
 			lis_solver_destroy(solver);
 			lis_matrix_destroy(A);
   		lis_vector_destroy(b);
@@ -340,9 +332,6 @@ LIS_INT main(LIS_INT argc, char* argv[])
 		}
 	fout_sol.close ();
   
-  
-  
-	
   lis_finalize();
  
   return 0;

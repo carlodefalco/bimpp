@@ -54,27 +54,47 @@ AC_ARG_WITH([blas-lapack],
 
 
 
-AC_ARG_WITH([lis-home],
+
+
+AC_ARG_WITH([lislibrary],
+						[AS_HELP_STRING([--without-lislibrary],
+						[Disable lis library])],
+						[],
+						[with_lislibrary=yes])
+
+AS_IF([test "x$with_lislibrary" != xno],
+			[
+				AC_ARG_WITH([lis-home],
 						[AS_HELP_STRING([--with-lis-home=DIR],
 						[Select the directory where LIS is installed.])],
 						[LIS_HOME=$withval],
 						[LIS_HOME=/opt/lis/1.4.60])
 
-LIS_CPPFLAGS="-DUSE_MPI -I$LIS_HOME/include"
-LIS_LDFLAGS="-L$LIS_HOME/lib"
-LIS_LIB="-llis"
+						LIS_CPPFLAGS="-DUSE_MPI -I$LIS_HOME/include"
+						LIS_LDFLAGS="-L$LIS_HOME/lib"
+						LIS_LIB="-llis"
 
-save_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$LIS_CPPFLAGS $CPPFLAGS"
+						save_CPPFLAGS=$CPPFLAGS
+						CPPFLAGS="$LIS_CPPFLAGS $CPPFLAGS"
 
-AC_CHECK_HEADER(lis.h, ,AC_MSG_ERROR([lis.h not found. I cowardly refuse to continue.]))
+						AC_CHECK_HEADER(lis.h, ,AC_MSG_ERROR([lis.h not found. I cowardly refuse to continue.]))
 
-save_LIBS=$LIBS
-save_LDFLAGS=$LDFLAGS
-LDFLAGS="$LIS_LDFLAGS $LDFLAGS"
-LIBS="$LIS_LIB $LIBS"
+						save_LIBS=$LIBS
+						save_LDFLAGS=$LDFLAGS
+						LDFLAGS="$LIS_LDFLAGS $LDFLAGS"
+						LIBS="$LIS_LIB $LIBS"
+				AC_CHECK_LIB([lis],[lis_initialize],
+					[AC_SUBST(LIS_CPPFLAGS, "$LIS_CPPFLAGS")
+					 AC_SUBST(LIS_LDFLAGS, "$LIS_LDFLAGS")
+					 AC_SUBST(LIS_LIB, "$LIS_LIB")
+					 AC_DEFINE([HAVE_LIS],[1],[Define if you have lis library])
+					 AC_MSG_NOTICE([It seems I am able to link LIS properly. Yuppee!!.])
+					],
+					[AC_MSG_ERROR([It seems I am not able to link LIS properly, --without-lislibrary to disable.])])])
 
-AC_CHECK_LIB([lis], [lis_initialize], [AC_MSG_NOTICE([It seems I am able to link LIS properly. Yuppee!!.])],[AC_MSG_ERROR([It seems I am not able to link LIS properly. I cowardly refuse to continue.])])
+AM_CONDITIONAL([HAVE_LIS],test x$with_lislibrary = xyes)
+
+#AC_CHECK_LIB([lis], [lis_initialize], [AC_MSG_NOTICE([It seems I am able to link LIS properly. Yuppee!!.])],[AC_MSG_ERROR([It seems I am not able to link LIS properly. I cowardly refuse to continue.])])
 
 LIBS=$save_LIBS
 CPPFLAGS=$save_CPPFLAGS
@@ -119,9 +139,9 @@ AC_SUBST(MUMPS_LDFLAGS, "$MUMPS_LDFLAGS")
 AC_SUBST(MUMPS_LIBS, "$MUMPS_LIBS")
 AC_SUBST(MUMPS_EXTRA_LIBS, "$MUMPS_EXTRA_LIBS")
 AC_SUBST(BLAS_LIB, "$BLAS_LIB")
-AC_SUBST(LIS_CPPFLAGS, "$LIS_CPPFLAGS")
-AC_SUBST(LIS_LDFLAGS, "$LIS_LDFLAGS")
-AC_SUBST(LIS_LIB, "$LIS_LIB")
+#AC_SUBST(LIS_CPPFLAGS, "$LIS_CPPFLAGS")
+#AC_SUBST(LIS_LDFLAGS, "$LIS_LDFLAGS")
+#AC_SUBST(LIS_LIB, "$LIS_LIB")
 
 AC_LANG_POP([C++])
 
