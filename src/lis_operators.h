@@ -1,0 +1,37 @@
+#ifndef HAVE_LIS_OPERATOR_H
+#define HAVE_LIS_OPERATOR_H 1
+#include <lis.h>
+#include <bim_sparse.h>
+
+struct Linear_Solver_Option
+{
+	char* pre_options;
+	int pre_iter;
+	char* std_options;
+	char tolerance[100];
+};
+
+void
+lis_matrix_parallelization(sparse_matrix& sp, 
+													 sparse_matrix& sp_loc);
+
+void
+lis_vector_parallelization(std::vector<double>& v,
+													 std::vector<double>& v_loc);
+
+void
+lis_vector_unification(LIS_VECTOR& v_loc,
+											 std::vector<double>& v,
+											 int vsize,
+											 int istart,	
+											 int iend);
+
+void
+lis_solve_system(sparse_matrix& lhs, 
+								 std::vector<double>& rhs, 
+								 std::vector<double>& sol,
+								 LIS_INT& iter, 
+								 double& time, 
+								 int nnodes,
+								 Linear_Solver_Option& option);
+#endif
