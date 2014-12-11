@@ -45,11 +45,13 @@ bim3a_structure (const mesh& msh, sparse_matrix& SG)
 };
 
 void 
-bim3a_rhs 
-(mesh& msh, const std::vector<double>& ecoeff, 
- const std::vector<double>& ncoeff, std::vector<double>& b)
+bim3a_rhs (mesh& msh, 
+					 const std::vector<double>& ecoeff, 
+ 					 const std::vector<double>& ncoeff, 
+					 std::vector<double>& b)
 {
-  b.resize (msh.nnodes);
+  if (b.size () < size_t (msh.nnodes))
+    b.resize (msh.nnodes);
   for (int iel = 0; iel < msh.nelements; ++iel)
     for (int inode = 0; inode < 4; ++inode)
       {
@@ -59,8 +61,7 @@ bim3a_rhs
 };
 
 void 
-bim3a_reaction 
-(mesh& msh, const std::vector<double>& ecoeff, 
+bim3a_reaction (mesh& msh, const std::vector<double>& ecoeff, 
  const std::vector<double>& ncoeff, sparse_matrix& A)
 {
   if (A.size () < size_t (msh.nnodes))
@@ -1008,23 +1009,79 @@ bimu_bernoulli_derivative (double x, double &bpp, double &bnp)
 void
 bim3a_dirichletBC(sparse_matrix& M, std::vector<double>& b, const std::vector<int>& bnodes, const std::vector<double>& vnodes)
 {
+	sparse_matrix::col_iterator j;
 	for(int it=0;it<bnodes.size();++it)
 		{
 			int i=bnodes[it];
-			M[i][i]=1;
+			M[i][i]=0;
 			b[i]=vnodes[it];
-			for (int j=0; j<i;++j)
+			if(M[i].size())			
+				for(j=M[i].begin();j!=M[i].end();++j)
+					{
+						int jj=M.col_idx(j);
+						M[i][jj]=0;
+						b[jj]-=M[jj][i]*b[i];
+						M[jj][i]=0;	
+					}
+			M[i][i]=1;	
+		}
+}					
+
+void
+bim3a_pde_gradient(mesh& msh, const std::vector<double>& u, std::vector<double>& g)
+{
+	int iel;
+	g.clear();
+	g.resize(msh.nelements*3);
+	for(iel=0;iel<msh.nelements;++iel)
+		for(int inode=0;inode<4;++inode)
+			{
+				g[iel*3+0]+=msh.shg(0,inode,iel)*u[msh.t(inode,iel)];
+				g[iel*3+1]+=msh.shg(1,inode,iel)*u[msh.t(inode,iel)];
+				g[iel*3+2]+=msh.shg(2,inode,iel)*u[msh.t(inode,iel)];
+			}
+}
+
+void
+bim3a_norm(mesh& msh, const std::vector<double>& v, double& norm, normType type)
+{
+	if(type==Inf)
+		{
+			norm=0;
+			for(int i=0;i<v.size();++i)
 				{
-					M[i][j]=0;
-					b[j]-=M[j][i]*b[i];
-					M[j][i]=0;
-				}						
-			for (int j=i+1;j<M[i].size();++j)
-				{
-					M[i][j]=0;
-					b[j]-=M[j][i]*b[i];
-					M[j][i]=0;						
+					double temp=fabs(v[i]);
+					if(norm < temp)
+						norm=temp;
 				}
 		}
+	else if(type==L2 || type==H1)
+		{
+			norm=0;
+			std::vector<double> ecoeff(msh.nelements,1.0);
+			std::vector<double> ncoeff(msh.nnodes,1.0);
+			sparse_matrix M;
+			bim3a_reaction(msh,ecoeff,ncoeff,M);
+			if(type==H1)
+				bim3a_laplacian(msh,ecoeff,M);
+			std::vector<double> temp;
+			bim3a_matrix_vector_product(M,v,temp);
+			for(int i=0;i<v.size();++i)
+				norm+=v[i]*temp[i];
+			norm=sqrt(norm);
+		}
 }
+
+
+void
+bim3a_matrix_vector_product(sparse_matrix& M,	const std::vector<double>& x, std::vector<double>& y)
+{
+	sparse_matrix::col_iterator j;
+	y.resize(x.size());
+		for (int i=0;i<M.size();++i)
+			if(M[i].size())			
+				for(j=M[i].begin();j!=M[i].end();++j)
+					y[i]+=M.col_val(j)*x[M.col_idx(j)];			
+}	
+
 //}

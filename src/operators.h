@@ -28,6 +28,7 @@
 #include <mesh.h>
 #include <bim_sparse.h>
 #include <cmath>
+#include <mpi.h>
 
 //namespace bim
 //{
@@ -54,6 +55,9 @@ public:
   /// 
   const double& operator() (const int ii) { return (*v)[ii]; };
 };
+
+/// Enumeration to specificate type of norm
+enum normType {Inf,L2,H1};
 
 /// Allocate the structure for a FEM matrix over the mesh msh.
 void 
@@ -235,6 +239,26 @@ bim3a_dirichletBC(sparse_matrix& M,
 									std::vector<double>& b,
 									const std::vector<int>& bnodes,
 									const std::vector<double>& vnodes);
+
+/// Compute the gradient of a piecewise function
+void
+bim3a_pde_gradient(mesh& msh,
+									 const std::vector<double>& u,
+									 std::vector<double>& g);
+
+/// Compute the (Inf,L2,H1) norm of a piecewise function
+void
+bim3a_norm(mesh& msh,
+					 const std::vector<double>& v,
+					 double& norm,
+					 normType type);
+
+/// Compute matrix-vector product
+void
+bim3a_matrix_vector_product(sparse_matrix& M,
+														const std::vector<double>& x,
+														std::vector<double>& y);
+
 //}
 
 

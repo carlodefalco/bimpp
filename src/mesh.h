@@ -52,7 +52,7 @@ protected:
     *wjacdet_data,  //!< Weighted determinant of map Jacobian.
     *volume_data;   //!< Volume of tetrahedra.
   
-  mesh () { };
+  
   
 public:
   
@@ -63,7 +63,16 @@ public:
   void read (std::string filename); //!< Reads a mesh file.
   void write (std::string filename); //!< Writes a mesh file.
 
-  mesh (std::string filename) : 
+	mesh () :
+		p_data (NULL),
+    t_data (NULL),
+    e_data (NULL),
+    shp_data (NULL),
+    shg_data (NULL),
+    wjacdet_data (NULL),
+    volume_data (NULL) { };	
+  
+	mesh (std::string filename) : 
     p_data (NULL),
     t_data (NULL),
     e_data (NULL),

@@ -1,0 +1,79 @@
+
+/*
+	Problem:	-div(|grad(u)|^(p-2) grad(u))=f
+						u=1/q*(0.5^q-[(x-0.5)^2+(y-0.5)^2+(z-0.5)^2)]^(q/2) on border
+						f=3
+						
+
+	Exact Solution:	u=1/q*(0.5^q-[(x-0.5)^2+(y-0.5)^2+(z-0.5)^2)]^(q/2)
+*/
+
+#include <stdio.h>
+#include "lis_config.h"
+#include "lis.h"
+
+#include <bim_sparse.h>
+#include <mesh.h>
+#include <operators.h>
+#include <lis_operators.h>
+#include <nonlinear_solvers.h>
+#include <nonlinear_operators.h>
+#include <nonlinear_examples.h>
+#include <fstream>
+#include <stdlib.h>
+#include <cmath>
+
+//#include <mpi.h> 
+LIS_INT main(LIS_INT argc, char* argv[])
+{
+
+	int rank;
+	int size;
+	
+	lis_initialize(&argc, &argv);
+	
+	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+	MPI_Comm_size(MPI_COMM_WORLD,&size);
+	
+	std::vector<double> sol,exactsolution,uold;
+
+	//std::ofstream fout;
+
+	equation eq;
+
+	Inexact_Newton_Option option;
+	option.maxIter=100;
+	option.minRes=10e-10;
+	option.tol=10e-10;
+	option.forcing=0.5;
+	option.type=Inf;
+
+	Inexact_Newton_Status status;
+	Stream_Option stream={2,"Solution_Equation.txt"};
+	Linear_Solver_Option lis_option={"",0,"-conv_cond 1 -i cg","-tol 0.5"};
+	ForcingCostant forcing;
+	
+	if(rank==0)
+		{
+			std::cout << "\n\n*****\nTest: Non Linear Equation\n*****\n";
+			
+			exactsolution.resize(1);
+			exactsolution[0]=sqrt(2);
+			uold.resize(1);
+			uold[0]=0;
+			eq.import(exactsolution);
+			if(stream.verbosity>=1)
+				std::cout << "\nResult of Non Linear Test \nwill be written in "<<stream.filename<<std::endl<<std::endl;
+		}			
+	
+	status=inexact_newton<equation,ForcingCostant,LIS>(eq,uold,sol,forcing,lis_option,option,stream);
+	if(rank==0)
+		{
+			std::cout<<"Solution: "<<sol[0]<<std::endl;
+			std::cout<<"Error: "<<fabs(sol[0]-exactsolution[0])<<std::endl;
+		}
+  lis_finalize();
+ 
+  return 0;
+}
+

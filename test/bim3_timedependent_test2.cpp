@@ -23,6 +23,8 @@ int main (void)
   int rank = MPI::COMM_WORLD.Get_rank ();
   int size = MPI::COMM_WORLD.Get_size ();
     
+	mesh msh;	
+	
 	sparse_matrix       lhs;
 	sparse_matrix				lhs_new;
 	std::vector<double> rhs1;
@@ -51,7 +53,7 @@ int main (void)
 							std::cout << "\n\n*****\nTime Dependent Test 2\n*****\n";
       
 				      std::cout << "read mesh" << std::endl;
-				      mesh msh (std::string("mesh_in_cube.msh"));
+				      msh.read (std::string("mesh_in_cube.msh"));
 
 				      std::cout << "export mesh" << std::endl;
 				      msh.write (std::string("mesh_out_cube.m"));
