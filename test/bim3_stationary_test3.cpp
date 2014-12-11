@@ -37,15 +37,10 @@ int main (void)
       std::cout << "read mesh" << std::endl;
       mesh msh (std::string("mesh_in_cube.msh"));
 
-      std::cout << "export mesh" << std::endl;
-      msh.write (std::string("mesh_out_cube.m"));
-      
-      std::cout << "compute mesh props" << std::endl;
+			std::cout << "compute mesh props" << std::endl;
       msh.precompute_properties ();
       
-      std::cout << "assemble stiffness matrix. nnodes = " << msh.nnodes << std::endl;      
-      
-			bim3a_structure (msh, lhs);
+      bim3a_structure (msh, lhs);
       std::vector<double> dcoeff (msh.nelements*3, 1.0); //anisotropic diffusion coefficient
 			for(int k=0;k<msh.nelements;++k)
 				{			
@@ -71,10 +66,6 @@ int main (void)
 			std::vector<double> nodecoeff (msh.nnodes,1.0);
       bim3a_reaction (msh, ecoeff, nodecoeff, lhs);
       bim3a_rhs (msh, ecoeff, ncoeff, rhs);
-			std::cout << "export stiffness matrix. nnodes = " << msh.nnodes << std::endl;      
-      std::ofstream fout ("SG.m");
-      fout << lhs;
-      fout.close ();
 			
 			std::vector<int> sidelist;
 			sidelist.push_back(1);
@@ -129,12 +120,12 @@ int main (void)
       fout << std::endl;
 			
 			double norm=0;
-			//double normexact=0;
+			double temp=0;
       for (int k = 0; k < rhs.size (); ++k)
 				{
 	      	fout << rhs[k] << "  " << exactsolution[k]<< std::endl;
-					norm+=(exactsolution[k]-rhs[k])*(exactsolution[k]-rhs[k]);
-					//normexact+=(exactsolution[k])*(exactsolution[k]);
+					temp=fabs(exactsolution[k]-rhs[k]);
+					if(temp > norm) norm=temp;
 				}
       fout.close ();
 			std::cout<<"Error: "<<norm<<std::endl;

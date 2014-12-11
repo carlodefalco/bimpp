@@ -34,7 +34,7 @@ int main (void)
       mesh msh (std::string("mesh_in_cube.msh"));
 
       std::cout << "export mesh" << std::endl;
-      msh.write (std::string("mesh_out_cube.m"));
+      //msh.write (std::string("mesh_out_cube.m"));
       
       std::cout << "compute mesh props" << std::endl;
       msh.precompute_properties ();
@@ -75,6 +75,7 @@ int main (void)
 					vnodes[i]=1-msh.p(0,bnodes[i])*msh.p(0,bnodes[i])-msh.p(1,bnodes[i])*msh.p(1,bnodes[i])
 										-msh.p(2,bnodes[i])*msh.p(2,bnodes[i]);
 				}
+			
 			bim3a_dirichletBC(lhs,rhs,bnodes,vnodes);
 			
 			lhs.aij(xa,ir,jc,1);
