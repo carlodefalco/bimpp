@@ -41,16 +41,16 @@ LIS_INT main(LIS_INT argc, char* argv[])
 
 	equation eq;
 
-	Inexact_Newton_Option option;
+	inexact_newton_option option;
 	option.maxIter=100;
 	option.minRes=10e-10;
 	option.tol=10e-10;
 	option.forcing=0.5;
 	option.type=Inf;
 
-	Inexact_Newton_Status status;
-	Stream_Option stream={2,"Solution_Equation.txt"};
-	Linear_Solver_Option lis_option={"",0,"-conv_cond 1 -i cg","-tol 0.5"};
+	inexact_newton_status status;
+	stream_option stream={2,"Solution_Equation.txt"};
+	linear_solver_option lis_option={"-tol 0.5","","-conv_cond 1 -i cg"};
 	ForcingCostant forcing;
 	
 	if(rank==0)

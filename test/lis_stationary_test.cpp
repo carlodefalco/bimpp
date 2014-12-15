@@ -37,7 +37,7 @@ LIS_INT main(LIS_INT argc, char* argv[])
 	std::vector<double> rhs,rhs_loc;
 	
   std::vector<double> exactsolution,sol;
-	Linear_Solver_Option option={"",0,""};
+	linear_solver_option option={"","",""};
   if (rank == 0)
     {  
       std::cout << "\n\n*****\nLis Test: Stationary Problem\n*****\n";

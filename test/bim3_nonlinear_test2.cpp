@@ -45,13 +45,13 @@ LIS_INT main(LIS_INT argc, char* argv[])
 	
 	plaplacian plap;
 	
-	Backtracking_Inexact_Newton_Option option={100,10e-10, 10e-10, 0.5,10e-4,0.1,0.5,0,L2};
+	backtracking_inexact_newton_option option={100,10e-10, 10e-10, 0.5,10e-4,0.1,0.5,0,L2};
 	
-	Stream_Option stream={2,"Lis_Solution_NonLinear.txt"};
-	Linear_Solver_Option lis_option={"",0,"-conv_cond 1 -i cg","-tol 0.5"};
+	stream_option stream={2,"Lis_Solution_NonLinear.txt"};
+	linear_solver_option lis_option={"-tol 0.5","","-conv_cond 1 -i cg"};
 	ForcingType1 forcing={0.9};
 
-	Inexact_Newton_Status status;
+	inexact_newton_status status;
 
 	double p=3;
 	double q=p/(p-1);

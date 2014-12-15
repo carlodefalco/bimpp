@@ -3,12 +3,11 @@
 #include <lis.h>
 #include <bim_sparse.h>
 
-struct Linear_Solver_Option
+struct linear_solver_option
 {
-	char* pre_options;
-	int pre_iter;
-	char* std_options;
-	char tolerance[100];
+	char* tolerance;
+	char* maxit;
+	char* other_opt;
 };
 
 void
@@ -33,5 +32,5 @@ lis_solve_system(sparse_matrix& lhs,
 								 LIS_INT& iter, 
 								 double& time, 
 								 int nnodes,
-								 Linear_Solver_Option& option);
+								 linear_solver_option& option);
 #endif

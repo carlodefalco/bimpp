@@ -10,13 +10,13 @@
 enum SolverType {MUMPS,LIS};
 
 template <typename P, typename FT, SolverType ST>
-Inexact_Newton_Status inexact_newton(P& problem,
+inexact_newton_status inexact_newton(P& problem,
 										std::vector<double>& ustart,
 										std::vector<double>& sol,
 										FT& forcing,
-										Linear_Solver_Option lis_option={"",0,"-conv_cond 1 -i cg","-tol 0.5"},
-										Inexact_Newton_Option option={100,10e-10,10e-10,10e-10,Inf},
-										const Stream_Option stream={2,"output.txt"})
+										linear_solver_option lis_option={"-tol 0.5","","-conv_cond 1 -i cg"},
+										inexact_newton_option option={100,10e-10,10e-10,10e-10,Inf},
+										const stream_option stream={2,"output.txt"})
 {
 	std::ofstream fout;
 	
@@ -133,6 +133,7 @@ Inexact_Newton_Status inexact_newton(P& problem,
 			MPI_Bcast(&stepNorm,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
 			MPI_Bcast(&resNorm,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
 			MPI_Bcast(&option.forcing,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
+			lis_option.tolerance=new char[100];
 			sprintf(lis_option.tolerance,"-tol %f", option.forcing);
 		}
 		while(it<=option.maxIter && resNorm>option.minRes && stepNorm>option.tol);
@@ -154,13 +155,13 @@ Inexact_Newton_Status inexact_newton(P& problem,
 };
 
 template <typename P, typename FT, SolverType ST>
-Inexact_Newton_Status backtracking_inexact_newton(P& problem,
+inexact_newton_status backtracking_inexact_newton(P& problem,
 										std::vector<double>& ustart,
 										std::vector<double>& sol,
 										FT& forcing,
-										Linear_Solver_Option lis_option={"",0,"-conv_cond 1 -i cg","-tol 0.5"},
-										Backtracking_Inexact_Newton_Option option={100,10e-10,10e-10,10e-10,10e-4,0.1,0.5,0,Inf},
-										const Stream_Option stream={2,"output.txt"})
+										linear_solver_option lis_option={"-tol 0.5","","-conv_cond 1 -i cg"},
+										backtracking_inexact_newton_option option={100,10e-10,10e-10,10e-10,10e-4,0.1,0.5,0,L2},
+										const stream_option stream={2,"output.txt"})
 {
 	std::ofstream fout;
 	
@@ -274,9 +275,6 @@ Inexact_Newton_Status backtracking_inexact_newton(P& problem,
 					
 					while(fnewNorm>(1-option.t*(1-option.forcing))*foldNorm)
 						{
-							bool flag=fnewNorm>(1-option.t*(1-option.forcing))*foldNorm;
-							std::cout<<flag<<std::endl;
-	
 							std::vector<double> temp;
 							double tempNorm=0;
 							
@@ -324,6 +322,7 @@ Inexact_Newton_Status backtracking_inexact_newton(P& problem,
 			MPI_Bcast(&stepNorm,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
 			MPI_Bcast(&resNorm,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
 			MPI_Bcast(&option.forcing,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
+			lis_option.tolerance=new char[100];
 			sprintf(lis_option.tolerance,"-tol %f", option.forcing);
 			
 		}
