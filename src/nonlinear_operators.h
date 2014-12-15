@@ -3,7 +3,7 @@
 #include <bim_sparse.h>
 #include <operators.h>
 
-struct Inexact_Newton_Option
+struct inexact_newton_option
 {
 	int maxIter; //Max number of Iteration
 
@@ -15,7 +15,7 @@ struct Inexact_Newton_Option
 	
 };
 
-struct Backtracking_Inexact_Newton_Option
+struct backtracking_inexact_newton_option
 {
 	
 	int maxIter; //Max number of Iteration
@@ -34,41 +34,18 @@ struct Backtracking_Inexact_Newton_Option
 	///compute theta that minimizing over [theta_min, theta_max] the quadratic function f(theta)
 	///for which f(0)=g(0), f'(0)=g'(0) and f(1)=g(1) where g(theta)=||F(x_k+theta*du_k||^2
 	void
-	theta_choice(double a, double b, double c)
-	{
-		double f_theta,f_min,f_max;
-		std::cout<<"a "<<a<<std::endl;
-		std::cout<<"b "<<b<<std::endl;
-		theta=-b/(2*a);
-		f_theta=a*theta*theta+b*theta+c;
-		f_min=a*theta_min*theta_min+b*theta_min+c;
-		f_max=a*theta_min*theta_min+b*theta_min+c;
-		if(theta > theta_max || theta < theta_min)
-			if(f_min < f_max)
-				theta=theta_min;
-			else
-				theta=theta_max;		
-		else
-			if(f_theta <= f_min )
-				if(f_theta >= f_max)
-					theta=theta_max;
-			else
-				if(f_min <= f_max)
-					theta=theta_min;
-				else
-					theta=theta_max;
-	}
+	theta_choice(double a, double b, double c);
 };
 
 
-struct Inexact_Newton_Status
+struct inexact_newton_status
 {
 	int iteration; //Number of Iterations when Newton Method finished
 	double residual; //Residual of function when Newton Method finished
 	bool converged; //Flag is true when residual is less then minRes or the norm of difference between two iterations is less then tol
 };
 
-struct Stream_Option
+struct stream_option
 {
 	int verbosity; 
 	char* filename;

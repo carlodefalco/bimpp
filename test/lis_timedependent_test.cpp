@@ -45,7 +45,7 @@ LIS_INT main(LIS_INT argc, char* argv[])
 	double dt=1;
 	int T=10;
 
-	Linear_Solver_Option option={"",0,""};
+	linear_solver_option option={"","",""};
 
 	std::ofstream fout_sol ("Lis_Solution_TimeTest.txt");
 

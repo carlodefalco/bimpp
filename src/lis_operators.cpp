@@ -171,7 +171,7 @@ lis_vector_unification(LIS_VECTOR& v_loc,
 }
 
 void
-lis_solve_system(sparse_matrix& lhs, std::vector<double>& rhs, std::vector<double>& sol, LIS_INT& iter, double& time, int nnodes, Linear_Solver_Option& option)
+lis_solve_system(sparse_matrix& lhs, std::vector<double>& rhs, std::vector<double>& sol, LIS_INT& iter, double& time, int nnodes, linear_solver_option& option)
 {
 	int rank,size;
 	
@@ -231,10 +231,11 @@ lis_solve_system(sparse_matrix& lhs, std::vector<double>& rhs, std::vector<doubl
  	
   lis_vector_duplicate(b, &x);
   lis_solver_create(&solver);
-	
-	lis_solver_set_option(option.std_options,solver);
+
 	lis_solver_set_option(option.tolerance,solver);
-	
+	lis_solver_set_option(option.maxit,solver);
+	lis_solver_set_option(option.other_opt,solver);
+
   lis_solve(A, b, x, solver);
  	//if(rank==0) std::cout<<"System solved"<<std::endl;
   
