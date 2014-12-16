@@ -14,7 +14,7 @@ class plaplacian{
 		mesh msh;
 
 		plaplacian (){};
-		~plaplacian(){};
+		~plaplacian()=default;
 
 		void read_mesh(const std::string mesh_name)
 			{
@@ -35,10 +35,10 @@ class plaplacian{
 				bnodes=bn;
 			}
 		//compute left hand side and right and side of p-laplacian valued in u
-		void operator()(sparse_matrix& lhs, std::vector<double>& rhs,const std::vector<double>& u);
+		void operator()(sparse_matrix& lhs, std::vector<double>& rhs, const std::vector<double>& u);
 		
 		//compute functional in u
-		void operator()(std::vector<double>& f,const std::vector<double>& u);
+		void operator()(std::vector<double>& f, const std::vector<double>& u);
 
 		//get the exact solution of the problem
 		void get_solution(std::vector<double>& sol);
@@ -51,15 +51,15 @@ class equation{
 		mesh msh;		
 	
 		equation(){};
-		~equation(){};
+		~equation()=default;
 
 		void import(const std::vector<double> esol)
 			{
 				exactsol=esol;
 			}
 		
-		void operator()(sparse_matrix& lhs, std::vector<double>& rhs, std::vector<double>& u);
-		void operator()(std::vector<double>& f, std::vector<double>& u);
+		void operator()(sparse_matrix& lhs, std::vector<double>& rhs, const std::vector<double>& u);
+		void operator()(std::vector<double>& f, const std::vector<double>& u);
 		void get_solution(std::vector<double>& sol);
 };
 #endif

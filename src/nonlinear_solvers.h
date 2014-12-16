@@ -149,6 +149,8 @@ inexact_newton_status inexact_newton(P& problem,
 		if(rank==0 && stream.verbosity>=1)
 			fout.close();
 
+		delete [] lis_option.tolerance;
+
 		bool converged(it<=option.maxIter);
 		sol=ustart;
 		return {it,resNorm,converged};
@@ -339,6 +341,8 @@ inexact_newton_status backtracking_inexact_newton(P& problem,
 		if(rank==0 && stream.verbosity>=1)
 			fout.close();
 
+		delete [] lis_option.tolerance;		
+	
 		bool converged(it<=option.maxIter);
 		sol=ustart;
 		return {it,resNorm,converged};
