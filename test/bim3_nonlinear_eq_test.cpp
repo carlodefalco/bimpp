@@ -1,17 +1,13 @@
 
 /*
-	Problem:	-div(|grad(u)|^(p-2) grad(u))=f
-						u=1/q*(0.5^q-[(x-0.5)^2+(y-0.5)^2+(z-0.5)^2)]^(q/2) on border
-						f=3
+	Problem:	x^2-2=0
 						
-
-	Exact Solution:	u=1/q*(0.5^q-[(x-0.5)^2+(y-0.5)^2+(z-0.5)^2)]^(q/2)
+	Exact Solution:	x=sqrt(2)
 */
 
 #include <stdio.h>
 #include "lis_config.h"
 #include "lis.h"
-
 #include <bim_sparse.h>
 #include <mesh.h>
 #include <operators.h>
@@ -23,10 +19,8 @@
 #include <stdlib.h>
 #include <cmath>
 
-//#include <mpi.h> 
 LIS_INT main(LIS_INT argc, char* argv[])
 {
-
 	int rank;
 	int size;
 	
@@ -36,8 +30,6 @@ LIS_INT main(LIS_INT argc, char* argv[])
 	MPI_Comm_size(MPI_COMM_WORLD,&size);
 	
 	std::vector<double> sol,exactsolution,uold;
-
-	//std::ofstream fout;
 
 	equation eq;
 
