@@ -113,7 +113,7 @@ AC_ARG_WITH([mumps-extra-libs],
             [MUMPS_EXTRA_LIBS=$withval],
             [MUMPS_EXTRA_LIBS=" -lptesmumps -lesmumps \
              -lscotch -lptscotch -lscotcherr -lptscotcherr -lscalapack-openmpi $BLAS_LIB \
-              -lmpi_f90 -lmpi_f77 -lmpi -lm -lgfortran -lgfortranbegin"])
+              -lmpi_f90 -lmpi_f77 -lmpi -lm"])
 
 
 save_CPPFLAGS=$CPPFLAGS
