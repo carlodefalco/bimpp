@@ -10,23 +10,25 @@
 #include <mumps_class.h>
 #include <mpi.h>
 #include <fstream>
-  
-int main (void)
+#include <bim_config.h>
+
+int main (int argc, char **argv)
 {
 
-  MPI::Init ();
-  int rank = MPI::COMM_WORLD.Get_rank ();
-  int size = MPI::COMM_WORLD.Get_size ();
+  MPI_Init (&argc, &argv);
+  int rank, size;
+  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+  MPI_Comm_size (MPI_COMM_WORLD, &size);
     
   if (rank == 0)
     {  
-			std::cout << "\n\n*****\ntest 1\n*****\n";
+      std::cout << "\n\n*****\ntest 1\n*****\n";
       
       std::cout << "read mesh" << std::endl;
-      mesh msh (std::string("mesh_in.msh"));
+      mesh msh (data_dir + std::string ("mesh_in.msh"));
 
       std::cout << "export mesh" << std::endl;
-      msh.write (std::string("mesh_out.m"));
+      msh.write (std::string ("mesh_out.m"));
       
       std::cout << "compute mesh props" << std::endl;
       msh.precompute_properties ();
@@ -71,6 +73,6 @@ int main (void)
       fout.close ();
     }
   
-  MPI::Finalize();
+  MPI_Finalize ();
   return (0);
 }

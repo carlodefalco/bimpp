@@ -1,7 +1,7 @@
 # -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.68])
+AC_PREREQ([2.69])
 AC_CONFIG_MACRO_DIR([m4])
 AC_INIT([libbim], [0.0.1], [])
 AC_CONFIG_SRCDIR([src/mesh.cpp])
@@ -57,44 +57,41 @@ AC_ARG_WITH([blas-lapack],
 
 
 AC_ARG_WITH([lislibrary],
-						[AS_HELP_STRING([--without-lislibrary],
-						[Disable lis library])],
-						[],
-						[with_lislibrary=yes])
+	    [AS_HELP_STRING([--without-lislibrary],
+            [Disable lis library])],
+            [],
+	    [with_lislibrary=yes])
 
 AS_IF([test "x$with_lislibrary" != xno],
-			[
-				AC_ARG_WITH([lis-home],
-						[AS_HELP_STRING([--with-lis-home=DIR],
-						[Select the directory where LIS is installed.])],
-						[LIS_HOME=$withval],
-						[LIS_HOME=/opt/lis/1.4.60])
+      [
+       AC_ARG_WITH([lis-home],
+       [AS_HELP_STRING([--with-lis-home=DIR],
+       [Select the directory where LIS is installed.])],
+       [LIS_HOME=$withval],
+       [LIS_HOME=/opt/lis/1.4.60])
 
-						LIS_CPPFLAGS="-DUSE_MPI -I$LIS_HOME/include"
-						LIS_LDFLAGS="-L$LIS_HOME/lib"
-						LIS_LIB="-llis"
+       LIS_CPPFLAGS="-DUSE_MPI -I$LIS_HOME/include"
+       LIS_LDFLAGS="-L$LIS_HOME/lib"
+       LIS_LIB="-llis"
+       save_CPPFLAGS=$CPPFLAGS
+       CPPFLAGS="$LIS_CPPFLAGS $CPPFLAGS"
 
-						save_CPPFLAGS=$CPPFLAGS
-						CPPFLAGS="$LIS_CPPFLAGS $CPPFLAGS"
+       AC_CHECK_HEADER(lis.h, ,AC_MSG_ERROR([lis.h not found. I cowardly refuse to continue.]))
 
-						AC_CHECK_HEADER(lis.h, ,AC_MSG_ERROR([lis.h not found. I cowardly refuse to continue.]))
-
-						save_LIBS=$LIBS
-						save_LDFLAGS=$LDFLAGS
-						LDFLAGS="$LIS_LDFLAGS $LDFLAGS"
-						LIBS="$LIS_LIB $LIBS"
-				AC_CHECK_LIB([lis],[lis_initialize],
-					[AC_SUBST(LIS_CPPFLAGS, "$LIS_CPPFLAGS")
-					 AC_SUBST(LIS_LDFLAGS, "$LIS_LDFLAGS")
-					 AC_SUBST(LIS_LIB, "$LIS_LIB")
-					 AC_DEFINE([HAVE_LIS],[1],[Define if you have lis library])
-					 AC_MSG_NOTICE([It seems I am able to link LIS properly. Yuppee!!.])
-					],
-					[AC_MSG_ERROR([It seems I am not able to link LIS properly, --without-lislibrary to disable.])])])
+       save_LIBS=$LIBS
+       save_LDFLAGS=$LDFLAGS
+       LDFLAGS="$LIS_LDFLAGS $LDFLAGS"
+       LIBS="$LIS_LIB $LIBS"
+       AC_CHECK_LIB([lis],[lis_initialize],
+       [AC_SUBST(LIS_CPPFLAGS, "$LIS_CPPFLAGS")
+       AC_SUBST(LIS_LDFLAGS, "$LIS_LDFLAGS")
+       AC_SUBST(LIS_LIB, "$LIS_LIB")
+       AC_DEFINE([HAVE_LIS],[1],[Define if you have lis library])
+       AC_MSG_NOTICE([It seems I am able to link LIS properly. Yuppee!!.])
+      ],
+     [AC_MSG_ERROR([It seems I am not able to link LIS properly, --without-lislibrary to disable.])])])
 
 AM_CONDITIONAL([HAVE_LIS],test x$with_lislibrary = xyes)
-
-#AC_CHECK_LIB([lis], [lis_initialize], [AC_MSG_NOTICE([It seems I am able to link LIS properly. Yuppee!!.])],[AC_MSG_ERROR([It seems I am not able to link LIS properly. I cowardly refuse to continue.])])
 
 LIBS=$save_LIBS
 CPPFLAGS=$save_CPPFLAGS
@@ -116,7 +113,7 @@ AC_ARG_WITH([mumps-extra-libs],
             [MUMPS_EXTRA_LIBS=$withval],
             [MUMPS_EXTRA_LIBS=" -lptesmumps -lesmumps \
              -lscotch -lptscotch -lscotcherr -lptscotcherr -lscalapack-openmpi $BLAS_LIB \
-              -lmpi_f90 -lmpi_f77 -lmpi -lm -L/usr/lib/gcc/x86_64-linux-gnu/4.7 -lgfortran -lgfortranbegin"])
+              -lmpi_f90 -lmpi_f77 -lmpi -lm -lgfortran -lgfortranbegin"])
 
 
 save_CPPFLAGS=$CPPFLAGS
@@ -182,5 +179,6 @@ fi
 AC_CONFIG_FILES([Makefile
                  src/Makefile
                  data/Makefile     
-                 test/Makefile])
+                 test/Makefile
+                 src/bim_config.h])
 AC_OUTPUT

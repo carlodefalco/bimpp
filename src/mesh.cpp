@@ -42,30 +42,39 @@ mesh::~mesh ()
   delete [] volume_data;
 };
 
-void mesh::read (std::string filename)
+int mesh::read (std::string filename)
 {
+  int retval = 0;
   std::ifstream fin (filename.c_str ());
-  if (! fin) std::cout << "error opening file " 
-                       << filename << std::endl;
-  
-  fin >> nnodes >> nelements >> nfaces;
-  p_data = new (std::nothrow) double[3*nnodes];
-  t_data = new (std::nothrow) int[5*nelements];
-  e_data = new (std::nothrow) int[10*nfaces];
+  if (! fin)
+    {
+      std::cout << "error opening file " 
+                << filename << std::endl;
+      retval = -1;
+    }
+  else
+    {
+      fin >> nnodes >> nelements >> nfaces;
+      p_data = new (std::nothrow) double[3*nnodes];
+      t_data = new (std::nothrow) int[5*nelements];
+      e_data = new (std::nothrow) int[10*nfaces];
 
-  for (int ii = 0; ii < nnodes; ++ii)
-    for (int kk = 0; kk < 3; ++kk)
-      fin >> p (kk, ii);
+      for (int ii = 0; ii < nnodes; ++ii)
+        for (int kk = 0; kk < 3; ++kk)
+          fin >> p (kk, ii);
 
-  for (int ii = 0; ii < nelements; ++ii)
-    for (int kk = 0; kk < 5; ++kk)
-      fin >> t (kk, ii);
+      for (int ii = 0; ii < nelements; ++ii)
+        for (int kk = 0; kk < 5; ++kk)
+          fin >> t (kk, ii);
 
-  for (int ii = 0; ii < nfaces; ++ii)
-    for (int kk = 0; kk < 10; ++kk)
-      fin >> e (kk, ii);
+      for (int ii = 0; ii < nfaces; ++ii)
+        for (int kk = 0; kk < 10; ++kk)
+          fin >> e (kk, ii);
 
-  fin.close ();
+      fin.close ();
+      retval = 0;
+    }
+  return retval;
 };
 
 

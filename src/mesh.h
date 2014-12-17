@@ -28,6 +28,8 @@
 
 #include <string>
 #include <cstring>
+#include <cstdlib>
+#include <iostream>
 
 //namespace bim
 //{
@@ -60,11 +62,11 @@ public:
     nelements,   //!< Number of mesh tetrahedra.
     nfaces;      //!< Number of (boundary?) faces
 
-  void read (std::string filename); //!< Reads a mesh file.
+  int read (std::string filename); //!< Reads a mesh file.
   void write (std::string filename); //!< Writes a mesh file.
 
-	mesh () :
-		p_data (NULL),
+  mesh () :
+    p_data (NULL),
     t_data (NULL),
     e_data (NULL),
     shp_data (NULL),
@@ -72,7 +74,7 @@ public:
     wjacdet_data (NULL),
     volume_data (NULL) { };	
   
-	mesh (std::string filename) : 
+  mesh (std::string filename) : 
     p_data (NULL),
     t_data (NULL),
     e_data (NULL),
@@ -80,7 +82,13 @@ public:
     shg_data (NULL),
     wjacdet_data (NULL),
     volume_data (NULL)
-  {read (filename);} //!< Build a mesh by reading from file.
+  {
+    if (! read (filename) == 0) //!< Build a mesh by reading from file.
+      {
+        std::cerr << "could not initialize mesh" << std::endl;
+        exit (-1);
+      }
+  } 
 
   virtual ~mesh ();     //!< Destructor (frees the pointer members)
 

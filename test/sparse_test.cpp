@@ -5,7 +5,6 @@
 */
 
 #include <bim_sparse.h>
-#include <mesh.h>
 #include <operators.h>
 #include <mumps_class.h>
 #include <mpi.h>
@@ -161,6 +160,6 @@ int main (int argc, char **argv)
 
   mumps_solver.cleanup ();
   
-  MPI::Finalize();
+  MPI_Finalize ();
   return (0);
 }
