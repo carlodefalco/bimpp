@@ -6,13 +6,14 @@
 #include <mpi.h>
 #include <fstream>
   
-int main (void)
+int main (int argc, char **argv)
 {
 
-  MPI::Init ();
-  int rank = MPI::COMM_WORLD.Get_rank ();
-  int size = MPI::COMM_WORLD.Get_size ();
-    
+  MPI_Init (&argc, &argv);
+  int rank, size;
+  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+  MPI_Comm_size (MPI_COMM_WORLD, &size);
+  
   if (rank == 0)
     {  
       std::cout << "\n\n*****\ntest 4: Advection with Upwind Stabilisation\n*****\n";
@@ -49,6 +50,6 @@ int main (void)
       fout.close ();
     }
   
-  MPI::Finalize();
+  MPI_Finalize ();
   return (0);
 }
