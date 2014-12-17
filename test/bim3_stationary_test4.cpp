@@ -15,6 +15,7 @@
 #include <fstream>
 #include <cmath>
 #include <assert.h>
+#include <bim_config.h>
 
 int main (int argc, char **argv)
 {
@@ -34,7 +35,7 @@ int main (int argc, char **argv)
       std::cout << "\n\n*****\nStationary Test 4\n*****\n";
 			      
       std::cout << "read mesh" << std::endl;
-      mesh msh (std::string("mesh_in_cube2.msh"));
+      mesh msh (data_dir + std::string("mesh_in_cube2.msh"));
 
       std::cout << "export mesh" << std::endl;
       msh.write (std::string("mesh_out_cube2.m"));

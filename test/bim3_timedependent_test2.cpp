@@ -15,7 +15,8 @@
 #include <mpi.h>
 #include <fstream>
 #include <cmath>
-  
+#include <bim_config.h>
+
 int main (int argc, char **argv)
 {
 
@@ -54,7 +55,7 @@ int main (int argc, char **argv)
               std::cout << "\n\n*****\nTime Dependent Test 2\n*****\n";
       
               std::cout << "read mesh" << std::endl;
-              msh.read (std::string("mesh_in_cube.msh"));
+              msh.read (data_dir + std::string("mesh_in_cube.msh"));
 
               std::cout << "export mesh" << std::endl;
               msh.write (std::string("mesh_out_cube.m"));

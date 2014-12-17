@@ -11,7 +11,8 @@
 #include <mumps_class.h>
 #include <mpi.h>
 #include <fstream>
-  
+#include <bim_config.h>
+ 
 int main (int argc, char **argv)
 {
 
@@ -30,7 +31,7 @@ int main (int argc, char **argv)
       std::cout << "\n\n*****\nStationary Test\n*****\n";
       
       std::cout << "read mesh" << std::endl;
-      mesh msh (std::string ("mesh_in_cube.msh"));
+      mesh msh (data_dir + std::string ("mesh_in_cube.msh"));
 
       std::cout << "export mesh" << std::endl;
       //msh.write (std::string("mesh_out_cube.m"));

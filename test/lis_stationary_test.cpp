@@ -17,6 +17,7 @@
 #include <lis_operators.h>
 #include <fstream>
 #include <stdlib.h>
+#include <bim_config.h>
 
 LIS_INT main(LIS_INT argc, char* argv[])
 {
@@ -43,7 +44,7 @@ LIS_INT main(LIS_INT argc, char* argv[])
       std::cout << "\n\n*****\nLis Test: Stationary Problem\n*****\n";
       
       std::cout << "read mesh" << std::endl;
-      mesh msh (std::string("mesh_in_cube.msh"));
+      mesh msh (data_dir + std::string("mesh_in_cube.msh"));
       
       std::cout << "compute mesh props" << std::endl;
       msh.precompute_properties ();

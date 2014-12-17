@@ -17,6 +17,7 @@
 #include <lis_operators.h>
 #include <fstream>
 #include <stdlib.h>
+#include <bim_config.h>
 
 LIS_INT main(LIS_INT argc, char* argv[])
 {
@@ -54,7 +55,7 @@ LIS_INT main(LIS_INT argc, char* argv[])
 			std::cout << "\n\n*****\nLis test: Time Dependent Problem\n*****\n";
 
 		  std::cout << "read mesh" << std::endl;
-		  mesh msh(std::string("mesh_in_cube.msh"));
+		  mesh msh(data_dir + std::string("mesh_in_cube.msh"));
 
 		  std::cout << "compute mesh props" << std::endl;
 		  msh.precompute_properties ();
@@ -147,13 +148,12 @@ LIS_INT main(LIS_INT argc, char* argv[])
 				  fout_sol << std::endl;
 					fout_sol << "Time Iteration: "<<t<<std::endl;
 					double norm=0;
-					//double normexact=0;
+					
 				  for (int i = 0; i < sol.size (); ++i)
 						{
 					
 					  	fout_sol << sol[i] << "  " << exactsolution[i]<< std::endl;
 							norm+=(exactsolution[i]-sol[i])*(exactsolution[i]-sol[i]);
-							//normexact+=(exactsolution[k])*(exactsolution[k]);
 							uold[i]=sol[i];
 						}
 				  
