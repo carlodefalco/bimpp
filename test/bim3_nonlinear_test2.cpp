@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include "lis_config.h"
 #include "lis.h"
-
 #include <bim_sparse.h>
 #include <mesh.h>
 #include <operators.h>
@@ -22,6 +21,7 @@
 #include <fstream>
 #include <stdlib.h>
 #include <cmath>
+#include <bim_config.h>
 
 LIS_INT main(LIS_INT argc, char* argv[])
 {
@@ -63,7 +63,7 @@ LIS_INT main(LIS_INT argc, char* argv[])
 		{
 			std::cout << "\n\n*****\nLis test: Non Linear Problem\n*****\n";
 						
-			plap.read_mesh("mesh_in_cube.msh");
+			plap.read_mesh(data_dir + "mesh_in_cube.msh");
 			int nnodes=plap.msh.nnodes;
 	
 			exactsolution.resize (nnodes);

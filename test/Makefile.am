@@ -15,7 +15,8 @@ check_PROGRAMS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 bim3_sta
 
 if HAVE_LIS
   check_PROGRAMS += lis_test1 lis_stationary_test lis_timedependent_test \
-                    bim3_nonlinear_test bim3_nonlinear_eq_test bim3_nonlinear_test2
+                    bim3_nonlinear_test bim3_nonlinear_eq_test bim3_nonlinear_test2 \
+                    bim3_nonlinear_test3 bim3_nonlinear_test4
 endif
 sparse_test_SOURCES = sparse_test.cpp
 CLEANFILES += 
@@ -85,6 +86,12 @@ if HAVE_LIS
   bim3_nonlinear_test2_SOURCES = bim3_nonlinear_test2.cpp
   bim3_nonlinear_test2_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMMUMPSLIB)
 
+  bim3_nonlinear_test3_SOURCES = bim3_nonlinear_test3.cpp
+  bim3_nonlinear_test3_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMMUMPSLIB)
+
+  bim3_nonlinear_test4_SOURCES = bim3_nonlinear_test4.cpp
+  bim3_nonlinear_test4_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMMUMPSLIB)
+
 endif
 
 TESTS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
@@ -95,5 +102,6 @@ TESTS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
 
 if HAVE_LIS
   TESTS+=lis_test1 lis_stationary_test lis_timedependent_test \
-         bim3_nonlinear_eq_test bim3_nonlinear_test  bim3_nonlinear_test2
+         bim3_nonlinear_eq_test bim3_nonlinear_test  bim3_nonlinear_test2 \
+         bim3_nonlinear_test3 bim3_nonlinear_test4
 endif
