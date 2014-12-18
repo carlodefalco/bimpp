@@ -33,8 +33,6 @@ template <typename P, typename FT, SolverType ST>
   std::vector<double> rhs, du, res; 
   sparse_matrix lhs_loc;
   std::vector<double> rhs_loc;
-  // std::vector<double> exactsolution;
-  //problem.get_solution(exactsolution);
 
   int rank,size;
 	
