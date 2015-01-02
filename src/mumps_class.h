@@ -19,11 +19,12 @@
 
 #include <bim_sparse.h>
 #include <dmumps_c.h>
+#include "linear_solver.h"
 
 //using namespace bim;
 
 /// Wrapper class around the MUMPS linear solver.
-class mumps
+class mumps: public linear_solver
 {
 private :
   bool verbose;

@@ -1,7 +1,8 @@
 AM_CPPFLAGS = -I$(top_srcdir)/src 
 AUTOMAKE_OPTIONS = nostdinc
 
-BIMXXHEADERS = mesh.h operators.h bim_sparse.h mumps_class.h mumps_solve.h lis_operators.h nonlinear_operators.h nonlinear_solvers.h nonlinear_examples.h
+BIMXXHEADERS = mesh.h operators.h bim_sparse.h linear_solver.h mumps_class.h mumps_solve.h lis_operators.h \
+nonlinear_operators.h nonlinear_solvers.h nonlinear_examples.h
 BIMXXSRC = mesh.cpp operators.cpp bim_sparse.cpp nonlinear_operators.cpp nonlinear_examples.cpp
 BIMXXMUMPSSRC = mumps_class.cpp mumps_solve.cpp
 BIMXXLISSRC = lis_operators.cpp 
