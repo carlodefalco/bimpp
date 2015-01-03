@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 Carlo de Falco
+  Copyright (C) 2011, 2015 Carlo de Falco
   This software is distributed under the terms 
   the terms of the GNU/GPL licence v3
 */
@@ -38,8 +38,10 @@ public :
   init ();
 
   /// Default constructor.
-  mumps (bool verbose_ = false, int icntl23_ = 0) : verbose (verbose_), icntl23 (icntl23_) 
-  {init ();};
+  mumps (bool verbose_ = false, int icntl23_ = 0) :
+    verbose (verbose_), icntl23 (icntl23_),
+    linear_solver ("MUMPS", "direct")
+  { init (); };
 
   /// Set-up the matrix structure.
   void 

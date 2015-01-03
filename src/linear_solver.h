@@ -10,8 +10,19 @@
 #ifndef HAVE_LINEAR_SOLVER_H
 #define HAVE_LINEAR_SOLVER_H 1
 
+#include <string>
+
 class linear_solver
 {
+private :
+
+  const std::string name, type;
+
+protected :
+
+  linear_solver (const char *name_, const char *type_) :
+    name (name_), type (type_) { }; 
+    
 public :
 
   /// Set-up the matrix structure.
@@ -80,6 +91,15 @@ public :
   /// After invoking this method the object should not be used anymore.
   virtual void 
   cleanup () { };
+
+  /// Return the name of the specific implementation.
+  const std::string&
+  solver_name () { return name; }
+
+  /// Return the type (either "iterative" or "direct")
+  /// of the specific implementation.
+  const std::string&
+  solver_type () { return type; }
 
 };
 
