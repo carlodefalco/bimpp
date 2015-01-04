@@ -1,16 +1,16 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 /*
-  Problem:      du/dt-div(D(grad(u)-grad(v)*u))=g
-  u=(1-x^2-y^2-z^2)*exp(-t) on border
-  g=(11+x^2+y^2+z^2-2x-2y-2z)*exp(-t)
-  D=diag(1.0,2.0,3.0)
-  v=[1.0,0.5,1/3]
+  Problem:         du/dt-div(D(grad(u)-grad(v)*u)) = g
+                   u = (1-x^2-y^2-z^2) * exp (- t) on border
+                   g = (11+x^2+y^2+z^2-2x-2y-2z) * exp(- t)
+                   D = diag (1.0, 2.0, 3.0)
+                   v = [1.0, 0.5, 1/3]
 
-  Exact Solution:       u=(1-x^2-y^2-z^2)*exp(-t)
+  Exact Solution:  u = (1-x^2-y^2-z^2) * exp (- t)
 */
 
 #include <bim_sparse.h>
@@ -30,7 +30,7 @@ int main (int argc, char **argv)
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   mesh msh;
-  
+
   sparse_matrix       lhs;
   sparse_matrix       lhs_new;
   std::vector<double> rhs1;
@@ -45,57 +45,64 @@ int main (int argc, char **argv)
   std::vector<double> vnodes_start, vnodes;
 
   std::vector<double> uold;
-  double dt=0.2;
-  int T=5;
-  char nomefile[]="Solution_TimeTest3_osc.txt";
+  double dt = 0.2;
+  int T = 5;
+  char nomefile[] = "Solution_TimeTest3_osc.txt";
   std::ofstream fout (nomefile);
 
   for (int t = 1; t <= T; ++t)
     {
       if (rank == 0)
-        {  
+        {
           if (t == 1)
             {
               std::cout << "\n\n*****\nTime Dependent Test 3 (OSC)\n*****\n";
-      
+
               std::cout << "read mesh" << std::endl;
-              msh.read (data_dir + std::string("mesh_in_cube.msh"));
+              msh.read (data_dir + std::string ("mesh_in_cube.msh"));
 
               std::cout << "compute mesh props" << std::endl;
               msh.precompute_properties ();
 
               bim3a_structure (msh, lhs);
-              std::vector<double> ecoeff (msh.nelements, 1.0); 
-              std::vector<double> dcoeff (msh.nelements*3, 1.0);//anisotropic diffusion coefficients
-	      std::vector<double> v (msh.nnodes, 0.0);
-              std::vector<double> ncoeff (msh.nnodes, 1/dt);
-              std::vector<double> nodecoeff1 (msh.nnodes, 1/dt);
+              std::vector<double> ecoeff (msh.nelements, 1.0);
+              std::vector<double> dcoeff (msh.nelements * 3, 1.0);//anisotropic diffusion coefficients
+              std::vector<double> v (msh.nnodes, 0.0);
+              std::vector<double> ncoeff (msh.nnodes, 1 / dt);
+              std::vector<double> nodecoeff1 (msh.nnodes, 1 / dt);
               std::vector<double> nodecoeff2 (msh.nnodes, 0.0);
 
-	      for (int i = 0; i < msh.nelements; ++i)
+              for (int i = 0; i < msh.nelements; ++i)
                 {
-                  dcoeff[0+3*i]=1.0;
-                  dcoeff[1+3*i]=2.0;
-                  dcoeff[2+3*i]=3.0;
+                  dcoeff[0 + 3 * i] = 1.0;
+                  dcoeff[1 + 3 * i] = 2.0;
+                  dcoeff[2 + 3 * i] = 3.0;
                 }
-             
-              for (int i=0; i < msh.nnodes;++i)
+
+              for (int i = 0; i < msh.nnodes; ++i)
                 {
-		  v[i]=msh.p(0,i)+0.5*msh.p(1,i)+msh.p(2,i)/3.0;
-		  nodecoeff2[i]=12-1+msh.p(0,i)*msh.p(0,i)+msh.p(1,i)*msh.p(1,i)+msh.p(2,i)*msh.p(2,i)-2*msh.p(0,i)-2*msh.p(1,i)-2.0*msh.p(2,i);
-		}               
+                  v[i] = msh.p (0, i) + 0.5 * msh.p (1, i) + msh.p (2, i) / 3.0;
+                  nodecoeff2[i] = 12.0 - 1.0 + msh.p (0, i) * msh.p (0, i)
+                                             + msh.p (1, i) * msh.p (1, i)
+                                             + msh.p (2, i) * msh.p (2, i)
+                                             - 2.0 * msh.p (0, i)
+                                             - 2.0 * msh.p (1, i)
+                                             - 2.0 * msh.p (2, i);
+                }
 
               bim3a_osc_advection_diffusion_anisotropic (msh, dcoeff, v, lhs);
               bim3a_reaction (msh, ecoeff, ncoeff, lhs);
 
               bim3a_rhs (msh, ecoeff, nodecoeff1, rhs1);
               bim3a_rhs (msh, ecoeff, nodecoeff2, rhs2);
-                                                        
+
               uold = std::vector<double> (msh.nnodes, 0.0);
 
               for (int i = 0; i < msh.nnodes; ++i)
                 {
-                  uold[i]=1-msh.p(0,i)*msh.p(0,i)-msh.p(1,i)*msh.p(1,i)-msh.p(2,i)*msh.p(2,i);
+                  uold[i] = 1.0 - msh.p (0, i) * msh.p (0, i)
+                                - msh.p (1, i) * msh.p (1, i)
+                                - msh.p (2, i) * msh.p (2, i);
                 }
 
               std::vector<int> sidelist;
@@ -111,8 +118,10 @@ int main (int argc, char **argv)
               vnodes.resize (bnodes.size ());
 
               for (int i = 0; i < vnodes.size (); ++i)
-                {       
-                  vnodes_start[i]=1-msh.p(0,bnodes[i])*msh.p(0,bnodes[i])-msh.p(1,bnodes[i])*msh.p(1,bnodes[i])-msh.p(2,bnodes[i])*msh.p(2,bnodes[i]);
+                {
+                  vnodes_start[i] = 1.0 - msh.p (0, bnodes[i]) * msh.p (0, bnodes[i])
+                                        - msh.p (1, bnodes[i]) * msh.p (1, bnodes[i])
+                                        - msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
                 }
 
               exactsolution_start.resize (msh.nnodes);
@@ -120,32 +129,34 @@ int main (int argc, char **argv)
 
               for(int i = 0;i < exactsolution_start.size (); ++i)
                 {
-                  exactsolution_start[i]=1-msh.p(0,i)*msh.p(0,i)-msh.p(1,i)*msh.p(1,i)-msh.p(2,i)*msh.p(2,i);
+                  exactsolution_start[i] = 1.0 - msh.p (0, i) * msh.p (0, i)
+                                               - msh.p (1, i) * msh.p (1, i)
+                                               - msh.p (2, i) * msh.p (2, i);
                 }
             }
 
           rhs_new.resize (rhs1.size ());
-          lhs_new=lhs;
+          lhs_new = lhs;
 
           for (int i = 0; i < rhs_new.size (); ++i)
             {
-              rhs_new[i]=rhs2[i]*exp(-t*dt)+rhs1[i]*uold[i];
+              rhs_new[i] = rhs2[i] * exp(- t * dt) + rhs1[i] * uold[i];
             }
           for (int i = 0; i < vnodes.size (); ++i)
-            {   
-              vnodes[i]=vnodes_start[i]*exp(-t*dt);
+            {
+              vnodes[i] = vnodes_start[i] * exp (- t * dt);
             }
 
           bim3a_dirichletBC (lhs_new, rhs_new, bnodes, vnodes);
 
-          if(t == 1)
+          if (t == 1)
             lhs_new.aij (xa, ir, jc, 1);
           else
-            lhs_new.aij_update(xa, ir, jc, 1);
+            lhs_new.aij_update (xa, ir, jc, 1);
 
           for (int i = 0; i < exactsolution.size (); ++i)
             {
-              exactsolution[i]=exactsolution_start[i]*exp(-t*dt);
+              exactsolution[i] = exactsolution_start[i] * exp (- t * dt);
             }
         }
 
@@ -168,38 +179,39 @@ int main (int argc, char **argv)
 
       if (rank == 0)
         {
-          if(t==1) 
-            std::cout <<"\nResult of Time Dependent Test\nwill be written in " << nomefile <<std::endl;
+          if (t == 1)
+            std::cout << "\nResult of Time Dependent Test"
+                      << "\nwill be written in " << nomefile << std::endl;
 
-          std::cout << "\nIteration " << t <<std::endl;
-          fout << "\nIteration " << t <<std::endl;
-                
-	  double norm = 0;
-	  std::vector<double> delta (rhs_new.size ());
+          std::cout << "\nIteration " << t << std::endl;
+          fout << "\nIteration " << t << std::endl;
 
-	  for (int k = 0; k < rhs_new.size (); ++k)
-	    {
-	      uold[k]=rhs_new[k];
-	      fout << rhs_new[k] << "  " << exactsolution[k]<< std::endl;
-	      delta[k]=exactsolution[k]-rhs_new[k];
-	    }
+          double norm = 0;
+          std::vector<double> delta (rhs_new.size ());
 
-	  fout.close ();
+          for (int k = 0; k < rhs_new.size (); ++k)
+            {
+              uold[k] = rhs_new[k];
+              fout << rhs_new[k] << "  " << exactsolution[k] << std::endl;
+              delta[k] = exactsolution[k] - rhs_new[k];
+            }
 
-	  bim3a_norm (msh, delta, norm, Inf);
-	  std::cout << "Error: " << norm << std::endl;
+          fout.close ();
 
-	  if (norm > 10e-3)
-	    {
-	      std::cerr << "The error is bigger than tolerance" << std::endl;
-	      exit(-1);
-	    }
+          bim3a_norm (msh, delta, norm, Inf);
+          std::cout << "Error: " << norm << std::endl;
+
+          if (norm > 10e-3)
+            {
+              std::cerr << "The error is bigger than tolerance" << std::endl;
+              exit(-1);
+            }
         }
 
       mumps_solver.cleanup ();
 
     }
-  fout.close();
+  fout.close ();
   MPI_Finalize ();
 
   return (0);

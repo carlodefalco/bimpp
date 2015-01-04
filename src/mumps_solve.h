@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 
@@ -15,7 +15,7 @@
 
 //using namespace bim;
 
-void mumps_solve (sparse_matrix &lhs, std::vector<double> &rhs, 
+void mumps_solve (sparse_matrix &lhs, std::vector<double> &rhs,
                   const std::vector<int> &rows, const std::vector<int> &cols);
 
 #endif

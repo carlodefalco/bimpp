@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 
@@ -10,7 +10,7 @@
 #include <bim_sparse.h>
 #include <operators.h>
 
-class plaplacian{
+class plaplacian {
  private:
   double p;
   std::vector<double> exactsol; //exact solution
@@ -19,21 +19,21 @@ class plaplacian{
   std::vector<int> bnodes; //Diriclhet boundary nodes
  public:
   mesh msh;
-  
+
   plaplacian (){};
-  ~plaplacian() = default;
-  
+  ~plaplacian () = default;
+
   void read_mesh (const std::string mesh_name)
   {
     msh.read (mesh_name);
     msh.precompute_properties ();
   }
-  
-  void import(const double pp,
-	      const std::vector<double>& esol, 
-	      const std::vector<double>& ff, 
-	      const std::vector<double>& bc,
-	      const std::vector<int>& bn)
+
+  void import (const double pp,
+               const std::vector<double>& esol,
+               const std::vector<double>& ff,
+               const std::vector<double>& bc,
+               const std::vector<int>& bn)
   {
     p = pp;
     exactsol = esol;
@@ -43,35 +43,35 @@ class plaplacian{
   }
 
   //compute left hand side and right and side of p-laplacian valued in u
-  void operator()(sparse_matrix& lhs, 
-		  std::vector<double>& rhs,
-		  const std::vector<double>& u);
-  
+  void operator() (sparse_matrix& lhs,
+                   std::vector<double>& rhs,
+                   const std::vector<double>& u);
+
   //compute functional in u
-  void operator()(std::vector<double>& f, const std::vector<double>& u);
-  
+  void operator() (std::vector<double>& f, const std::vector<double>& u);
+
   //get the exact solution of the problem
-  void get_solution(std::vector<double>& sol);
+  void get_solution (std::vector<double>& sol);
 };
 
-class equation{
+class equation {
  private:
   std::vector<double> exactsol;
  public:
-  mesh msh;		
-  
-  equation(){};
-  ~equation() = default;
-  
-  void import(const std::vector<double> esol)
+  mesh msh;
+
+  equation (){};
+  ~equation () = default;
+
+  void import (const std::vector<double> esol)
   {
     exactsol = esol;
   }
-  
-  void operator()(sparse_matrix& lhs,
-		  std::vector<double>& rhs,
-		  const std::vector<double>& u);
-  void operator()(std::vector<double>& f, const std::vector<double>& u);
-  void get_solution(std::vector<double>& sol);
+
+  void operator() (sparse_matrix& lhs,
+                   std::vector<double>& rhs,
+                   const std::vector<double>& u);
+  void operator() (std::vector<double>& f, const std::vector<double>& u);
+  void get_solution (std::vector<double>& sol);
 };
 #endif

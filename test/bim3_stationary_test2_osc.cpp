@@ -1,15 +1,15 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 /*
-  Problem:	-Dnabla(u)=g
-  u=1-2*x^2-2*y^2-z^2 on border
-  g=6
-  D=diag(0.5,0.5,1)
+  Problem:         -Dnabla(u)=g
+                   u = 1-2*x^2-2*y^2-z^2 on border
+                   g = 6
+                   D = diag (0.5, 0.5, 1)
 
-  Exact Solution:	u=1-2*x^2-2*y^2-z^2
+  Exact Solution:  u = 1-2*x^2-2*y^2-z^2
 */
 
 #include <bim_sparse.h>
@@ -22,11 +22,10 @@
 
 int main (int argc, char **argv)
 {
-
   MPI_Init (&argc, &argv);
   int rank, size;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-  MPI_Comm_size (MPI_COMM_WORLD, &size);    
+  MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   mesh msh;
 
@@ -36,26 +35,26 @@ int main (int argc, char **argv)
   std::vector<double> xa;
   std::vector<double> exactsolution;
   if (rank == 0)
-    {  
+    {
       std::cout << "\n\n*****\nStationary Test 2 (OSC)\n*****\n";
 
       std::cout << "read mesh" << std::endl;
-      msh.read (data_dir + std::string("mesh_in_cube.msh"));
+      msh.read (data_dir + std::string ("mesh_in_cube.msh"));
 
       std::cout << "compute mesh props" << std::endl;
       msh.precompute_properties ();
 
       bim3a_structure (msh, lhs);
-      std::vector<double> dcoeff (msh.nelements*3, 1.0); //anisotropic diffusion coefficient
+      std::vector<double> dcoeff (msh.nelements * 3, 1.0); //anisotropic diffusion coefficient
       std::vector<double> ecoeff (msh.nelements, 1.0);
       std::vector<double> v (msh.nnodes, 0.0);
       std::vector<double> ncoeff (msh.nnodes, 6.0);
 
       for(int k = 0; k < msh.nelements; ++k)
-        {			
-          dcoeff[0+3*k]=0.5;
-          dcoeff[1+3*k]=0.5;
-          dcoeff[2+3*k]=1.0;
+        {
+          dcoeff[0 + 3 * k] = 0.5;
+          dcoeff[1 + 3 * k] = 0.5;
+          dcoeff[2 + 3 * k] = 1.0;
         }
 
       bim3a_osc_advection_diffusion_anisotropic (msh, dcoeff, v, lhs);
@@ -77,7 +76,9 @@ int main (int argc, char **argv)
 
       for(int i = 0;i < vnodes.size (); ++i)
         {
-          vnodes[i]=1-2*msh.p(0,bnodes[i])*msh.p(0,bnodes[i])-2*msh.p(1,bnodes[i])*msh.p(1,bnodes[i])-msh.p(2,bnodes[i])*msh.p(2,bnodes[i]);
+          vnodes[i] = 1 - 2 * msh.p (0, bnodes[i]) * msh.p (0, bnodes[i])
+                        - 2 * msh.p (1, bnodes[i]) * msh.p (1, bnodes[i])
+                        - msh.p (2, bnodes[i]) * msh.p(2, bnodes[i]);
         }
 
       bim3a_dirichletBC (lhs, rhs, bnodes, vnodes);
@@ -87,7 +88,9 @@ int main (int argc, char **argv)
       exactsolution.resize (msh.nnodes);
       for(int i = 0; i < exactsolution.size (); ++i)
         {
-          exactsolution[i]=1-2*msh.p(0,i)*msh.p(0,i)-2*msh.p(1,i)*msh.p(1,i)-msh.p(2,i)*msh.p(2,i);
+          exactsolution[i] = 1 - 2 * msh.p (0, i) * msh.p (0, i)
+                               - 2 * msh.p (1, i) * msh.p (1, i)
+                               - msh.p (2, i) * msh.p (2, i);
         }
     }
 
@@ -113,14 +116,14 @@ int main (int argc, char **argv)
       std::cout << "\nResult of Stationary Test \nwill be written in solution2_OSC.txt\n";
       std::ofstream fout ("solution2_OSC.txt");
       fout << std::endl;
-			
+
       double norm = 0;
       std::vector<double> delta (rhs.size ());
 
       for (int k = 0; k < rhs.size (); ++k)
         {
           fout << rhs[k] << "  " << exactsolution[k]<< std::endl;
-          delta[k]=exactsolution[k]-rhs[k];
+          delta[k] = exactsolution[k] - rhs[k];
         }
       fout.close ();
 

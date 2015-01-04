@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 /*! \file mumps_class.cpp
@@ -10,26 +10,26 @@
 
 #include <mumps_class.h>
 
-void 
+void
 mumps::init ()
 {
   id.job =  JOB_INIT;
   id.par =   1;                      // host working
   id.sym =   0;                      // non symmetric
   id.comm_fortran = F77_COMM_WORLD;  // MPI_COMM_WORLD
-  
+
   dmumps_c (&id);
-  
-  // streams    
+
+  // streams
   int mult = verbose ? 1 : -1;
   id.icntl[0] = mult * 6; // Output stream for error messages
   id.icntl[1] = mult * 6; // Output stream for diagnostic messages
   id.icntl[2] = mult * 6; // Output stream for global information
-  id.icntl[3] = mult * 3; // Level of printing 
+  id.icntl[3] = mult * 3; // Level of printing
 
   // Matrix input format
-  id.icntl[4]  =   0; 
-  id.icntl[17] =   0; 
+  id.icntl[4]  =   0;
+  id.icntl[17] =   0;
 
   // ordering
   id.icntl[6] =  7; // scotch (3), or pord (4), or metis (5), or AMD (0), AMF (2), QAMD (6), AUTO (7)
@@ -44,17 +44,17 @@ mumps::init ()
 
 
 void
-mumps::set_lhs_structure 
+mumps::set_lhs_structure
 (int n, std::vector<int> &ir, std::vector<int> &jc)
 {
   id.n  = n;
   id.nz = ir.size ();
-  
+
   id.irn = &*ir.begin ();
   id.jcn = &*jc.begin ();
 }
 
-int 
+int
 mumps::analyze ()
 {
   id.job = JOB_ANALYZE;
@@ -62,23 +62,23 @@ mumps::analyze ()
   return id.info[0];
 }
 
-void 
+void
 mumps::set_lhs_data (std::vector<double> &xa)
 {
   // Define LHS entries
   id.a   = &*xa.begin ();
 }
 
-void 
+void
 mumps::set_rhs (std::vector<double> &rhs)
 {
-  // Define RHS 
+  // Define RHS
   id.rhs  =  &*rhs.begin ();
   id.nrhs =  1;
   id.lrhs =  rhs.size ();
 }
 
-int 
+int
 mumps::factorize ()
 {
   id.job = JOB_FACTORIZE;
@@ -86,7 +86,7 @@ mumps::factorize ()
   return id.info[0];
 }
 
-int 
+int
 mumps::solve ()
 {
   id.job = JOB_SOLVE;
@@ -94,13 +94,10 @@ mumps::solve ()
   return id.info[0];
 }
 
-void 
+void
 mumps::cleanup ()
 {
   // clean up
-  id.job =  JOB_END; 
+  id.job =  JOB_END;
   dmumps_c (&id);
 }
-
-
-

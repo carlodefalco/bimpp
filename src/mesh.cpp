@@ -1,7 +1,7 @@
 // Copyright (C) 2004-2011  Carlo de Falco
 //
 // This file is part of:
-//     secs3d - A 3-D Drift--Diffusion Semiconductor Device Simulator 
+//     secs3d - A 3-D Drift--Diffusion Semiconductor Device Simulator
 //
 //  secs3d is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include <iostream>
 #include <fstream>
 #include <new>
-#include <cstring>             
+#include <cstring>
 
 //namespace bim
 //{
@@ -48,7 +48,7 @@ int mesh::read (std::string filename)
   std::ifstream fin (filename.c_str ());
   if (! fin)
     {
-      std::cout << "error opening file " 
+      std::cout << "error opening file "
                 << filename << std::endl;
       retval = -1;
     }
@@ -89,8 +89,8 @@ void mesh::write (std::string filename)
 
 void mesh::precompute_properties ()
 {
-     
-  double weight[4]    = {.25, .25, .25, .25};  
+
+  double weight[4]    = {.25, .25, .25, .25};
   double Nb2, Nb3, Nb4, detJ, Kkvolume;
 
   shp_data     = new (std::nothrow) double[4*4];
@@ -116,15 +116,15 @@ void mesh::precompute_properties ()
         shp (inode, jnode) = 1.0;
       else
         shp (inode, jnode) = 0.0;
-  
+
   //std::cout << "start element loop" << std::endl;
 
-  for (int iel = 0; iel < nelements; ++iel)    
+  for (int iel = 0; iel < nelements; ++iel)
     {
       //std::cout << "element number " << iel << std::endl;
       double x1, x2, x3, x4, y1, y2, y3, y4, z1, z2, z3, z4;
-        
-      x1 = p (0, t (0, iel));      
+
+      x1 = p (0, t (0, iel));
       y1 = p (1, t (0, iel));
       z1 = p (2, t (0, iel));
       x2 = p (0, t (1, iel));
@@ -136,12 +136,12 @@ void mesh::precompute_properties ()
       x4 = p (0, t (3, iel));
       y4 = p (1, t (3, iel));
       z4 = p (2, t (3, iel));
-    
+
       Nb2 = y1 * (z3-z4) + y3 * (z4-z1) + y4 * (z1-z3);
       Nb3 = y1 * (z4-z2) + y2 * (z1-z4) + y4 * (z2-z1);
       Nb4 = y1 * (z2-z3) + y2 * (z3-z1) + y3 * (z1-z2);
 
-      // Determinant of the Jacobian of the 
+      // Determinant of the Jacobian of the
       // transformation from the base tetrahedron
       // to the tetrahedron K
       detJ = (x2-x1) * Nb2 + (x3-x1) * Nb3 + (x4-x1) * Nb4;
@@ -152,7 +152,7 @@ void mesh::precompute_properties ()
 
       for (int inode = 0; inode < 4; ++inode)
         wjacdet (inode, iel) = Kkvolume * weight[inode] * detJ;
-      
+
       volume (iel) = Kkvolume * detJ;
 
       //std::cout << "\tcomputed wjacdet = " << wjacdet (0, iel) << std::endl;
@@ -162,38 +162,38 @@ void mesh::precompute_properties ()
       // second index represents the shape function
       // third index represents the tetrahedron number
       shg (0, 0, iel) = (y2 * (z4-z3) + y3 * (z2-z4) 
-                         + y4 * (z3-z2)) / detJ; 
+                         + y4 * (z3-z2)) / detJ;
       shg (1, 0, iel) = (x2 * (z3-z4) + x3 * (z4-z2) 
                          + x4 * (z2-z3)) / detJ;
       shg (2, 0, iel) = (x2 * (y4-y3) + x3 * (y2-y4) 
                          + x4 * (y3-y2)) / detJ;
-    
+
       shg (0, 1, iel) = Nb2 / detJ;
       shg (1, 1, iel) = (x1 * (z4-z3) + x3 * (z1-z4) 
                          + x4 * (z3-z1)) / detJ;
       shg (2, 1, iel) = (x1 * (y3-y4) + x3 * (y4-y1) 
                          + x4 * (y1-y3)) / detJ;
-    
+
       shg (0, 2, iel) = Nb3 / detJ;
       shg (1, 2, iel) = (x1 * (z2-z4) + x2 * (z4-z1) 
                          + x4 * (z1-z2)) / detJ;
       shg (2, 2, iel) = (x1 * (y4-y2) + x2 * (y1-y4) 
                          + x4 * (y2-y1)) / detJ;
-    
+
       shg (0, 3, iel) = Nb4 / detJ;
       shg (1, 3, iel) = (x1 * (z3-z2) + x2 * (z1-z3) 
                          + x3 * (z2-z1)) / detJ;
       shg (2, 3, iel) = (x1 * (y2-y3) + x2 * (y3-y1) 
                          + x3 * (y1-y2)) / detJ;
-      
+
       //std::cout << "\tcomputed shg" << std::endl;
     }
 };
 
 std::ostream & operator<< (std::ostream &stream, mesh &msh)
 {
-  stream << "nnodes = " << msh.nnodes 
-         << "; nelements = " << msh.nelements 
+  stream << "nnodes = " << msh.nnodes
+         << "; nelements = " << msh.nelements
          << "; nfaces = " << msh.nfaces << ";" << std::endl;
 
   stream << "p = [ ";
@@ -230,17 +230,17 @@ void
 mesh::element_data::update (int iel_)
 {
   memcpy (&iel, &iel_, sizeof (int));
-  
+
   memcpy (t, m.t_data + 5 * iel, 5 * sizeof (int));
-  
+
   for (int inode = 0; inode < 4; ++inode)
     memcpy (p + 3 * inode, m.p_data + 3 * t[inode], 3 * sizeof (double));
-      
+
   memcpy (shg, m.shg_data + 12 * iel, 12 * sizeof (double));
-  
+
   memcpy (wjacdet, m.wjacdet_data + 4 * iel, 4 * sizeof (double));
-  
-  memcpy (&volume, m.volume_data + iel, sizeof (double));            
+
+  memcpy (&volume, m.volume_data + iel, sizeof (double));
 };
 
 //}

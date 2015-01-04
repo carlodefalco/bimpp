@@ -2,7 +2,7 @@
 // Copyright (C) 2014  Davide Cagnoni
 //
 // This file is part of:
-//     secs3d - A 3-D Drift--Diffusion Semiconductor Device Simulator 
+//     secs3d - A 3-D Drift--Diffusion Semiconductor Device Simulator
 //
 //  secs3d is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -33,18 +33,18 @@
 //namespace bim
 //{
 
-/// Virtual class defining the interface 
+/// Virtual class defining the interface
 /// of a FEM coefficient functor.
-class 
+class
 coefficient_functor
 {
  public:
   virtual const double& operator() (const int) = 0;
 };
 
-/// Specialization to use a vector as a 
+/// Specialization to use a vector as a
 /// coefficient functor.
-class 
+class
 coefficient_vector : public coefficient_functor
 {
  private:
@@ -52,7 +52,7 @@ coefficient_vector : public coefficient_functor
  public:
   /// Constructor
   coefficient_vector (const std::vector<double> *_v) : v(_v) {};
-  /// 
+  ///
   const double& operator() (const int ii) { return (*v)[ii]; };
 };
 
@@ -60,207 +60,207 @@ coefficient_vector : public coefficient_functor
 enum normType {Inf,L2,H1};
 
 /// Allocate the structure for a FEM matrix over the mesh msh.
-void 
-bim3a_structure (const mesh& msh, 
+void
+bim3a_structure (const mesh& msh,
                  sparse_matrix& A);
 
 /// Assemble the rhs of a FEM problem.
-void 
-bim3a_rhs (mesh& msh, 
-           const std::vector<double>& ecoeff, 
-           const std::vector<double>& ncoeff, 
+void
+bim3a_rhs (mesh& msh,
+           const std::vector<double>& ecoeff,
+           const std::vector<double>& ncoeff,
            std::vector<double>& b);
 
 /// Assemble the mass matrix of a FEM problem.
-void 
-bim3a_reaction (mesh& msh, 
-                const std::vector<double>& ecoeff, 
-                const std::vector<double>& ncoeff, 
+void
+bim3a_reaction (mesh& msh,
+                const std::vector<double>& ecoeff,
+                const std::vector<double>& ncoeff,
                 sparse_matrix& A);
 
 /// Assemble the stiffness matrix of a FEM diffusion problem.
-void 
-bim3a_laplacian (mesh& msh, 
-                 const std::vector<double>& epsilon, 
+void
+bim3a_laplacian (mesh& msh,
+                 const std::vector<double>& epsilon,
                  sparse_matrix& A);
 
 /// Assemble the stiffness matrix of a FEM diffusion problem with anisotropic diffusion.
-void 
-bim3a_laplacian_anisotropic (mesh& msh, 
-			     const std::vector<double>& epsilon, 
-			     sparse_matrix& A);
+void
+bim3a_laplacian_anisotropic (mesh& msh,
+                             const std::vector<double>& epsilon,
+                             sparse_matrix& A);
 
 /// Assemble the stiffness matrix of a FEM advection-diffusion problem.
-void 
-bim3a_advection_diffusion (mesh& msh, 
-                           const std::vector<double>& epsilon, 
-                           const std::vector<double>& phi, 
+void
+bim3a_advection_diffusion (mesh& msh,
+                           const std::vector<double>& epsilon,
+                           const std::vector<double>& phi,
                            sparse_matrix& A);
 
 /// Assemble the stiffness matrix of a FEM advection-diffusion problem with anisotropic diffusion.
-void 
-bim3a_advection_diffusion_anisotropic (mesh& msh, 
-				       const std::vector<double>& epsilon, 
-				       const std::vector<double>& phi, 
-				       sparse_matrix& A);
+void
+bim3a_advection_diffusion_anisotropic (mesh& msh,
+                                       const std::vector<double>& epsilon,
+                                       const std::vector<double>& phi,
+                                       sparse_matrix& A);
 
 /// Assemple the stiffness matrix of a FEM advection problem with upwind stabilisation.
 void
 bim3a_advection_upwind(mesh &msh,
-		       const std::vector<double>& v,
-		       sparse_matrix& UP);
+                       const std::vector<double>& v,
+                       sparse_matrix& UP);
 
 /// Assemble the stiffness matrix of a FEM diffusion problem (by the Orthogonal Subdomain Collocation method).
-void 
-bim3a_osc_laplacian (mesh& msh, 
-                     const std::vector<double>& epsilon, 
+void
+bim3a_osc_laplacian (mesh& msh,
+                     const std::vector<double>& epsilon,
                      sparse_matrix& A);
 
-/// Assemble the stiffness matrix of a FEM diffusion problem 
+/// Assemble the stiffness matrix of a FEM diffusion problem
 /// with anisotropic diffusion(by the Orthogonal Subdomain Collocation method).
-void 
-bim3a_osc_laplacian_anisotropic (mesh& msh, 
-				 const std::vector<double>& epsilon, 
-				 sparse_matrix& A);
+void
+bim3a_osc_laplacian_anisotropic (mesh& msh,
+                                 const std::vector<double>& epsilon,
+                                 sparse_matrix& A);
 
-/// Assemble the stiffness matrix of a FEM advection-diffusion 
+/// Assemble the stiffness matrix of a FEM advection-diffusion
 /// problem (by the Orthogonal Subdomain Collocation method).
-void 
-bim3a_osc_advection_diffusion (mesh& msh, 
+void
+bim3a_osc_advection_diffusion (mesh& msh,
                                const std::vector<double>& epsilon,
-                               const std::vector<double>& phi, 
+                               const std::vector<double>& phi,
                                sparse_matrix& A);
 
-/// Assemble the stiffness matrix of a FEM advection-diffusion 
+/// Assemble the stiffness matrix of a FEM advection-diffusion
 /// problem with anisotropic diffusion (by the Orthogonal Subdomain Collocation method).
-void 
-bim3a_osc_advection_diffusion_anisotropic (mesh& msh, 
-					   const std::vector<double>& epsilon,
-					   const std::vector<double>& phi, 
-					   sparse_matrix& A);
+void
+bim3a_osc_advection_diffusion_anisotropic (mesh& msh,
+                                           const std::vector<double>& epsilon,
+                                           const std::vector<double>& phi,
+                                           sparse_matrix& A);
 
 /// Robustly compute B(x) = x / (exp(x) - 1). Stores B(x) and B(-x)
-void 
-bimu_bernoulli (double x, 
-		double &bp, 
-		double &bm);
+void
+bimu_bernoulli (double x,
+                double &bp,
+                double &bm);
 
 /// Robustly compute B'(x), B(x) = x / (exp(x) - 1). Stores B'(x) and B'(-x)
-void 
-bimu_bernoulli_derivative (double x, 
-			   double &bpp, 
-			   double &bmp);
+void
+bimu_bernoulli_derivative (double x,
+                           double &bpp,
+                           double &bmp);
 
-/// Modify a precomputed local diffusion matrix, considering 
-/// effects due to advection field generated by a potential, 
+/// Modify a precomputed local diffusion matrix, considering
+/// effects due to advection field generated by a potential,
 /// through Scharfetter-Gummel method
 void
-bim3a_local_advection (const double v[4], 
-                       const double a, 
+bim3a_local_advection (const double v[4],
+                       const double a,
                        const double epsilon,
                        double Lloc[16]);
 
-/// Transform a precomputed local diffusion matrix into the jacobian  
-/// of the S-G transport term with respect to the potential of the 
+/// Transform a precomputed local diffusion matrix into the jacobian
+/// of the S-G transport term with respect to the potential of the
 /// transport field
 void
-bim3a_local_advection_jacobian (const double v[4], 
+bim3a_local_advection_jacobian (const double v[4],
                                 const double n[4],
-                                const double a, 
+                                const double a,
                                 const double epsilon,
                                 double Lloc[16]);
 
-/// Compute the elemental contribution to the global 
+/// Compute the elemental contribution to the global
 /// stiffness matrix (FEM), and add it to the exit buffer
 void
 bim3a_local_laplacian (const double shg[12],
-		       const double volume,
-                       const double epsilon, 
+                       const double volume,
+                       const double epsilon,
                        double Lloc[16]);
 
-/// Compute the elemental contribution to the global 
+/// Compute the elemental contribution to the global
 /// stiffness matrix (FEM) with anisotropic diffusion, and add it to the exit buffer
 void
 bim3a_local_laplacian_anisotropic (const double shg[12],
-				   const double volume,
-				   const double epsilon[9], 
-				   double Lloc[16]);
+                                   const double volume,
+                                   const double epsilon[9],
+                                   double Lloc[16]);
 
-/// Compute the elemental contribution to the global 
+/// Compute the elemental contribution to the global
 /// stiffness matrix (FEM) with diagonal anisotropic diffusion, and add it to the exit buffer
 void
 bim3a_local_laplacian_anisotropic_diag (const double shg[12],
-					const double volume,
-					const double epsilon[3], 
-					double Lloc[16]);
+                                        const double volume,
+                                        const double epsilon[3],
+                                        double Lloc[16]);
 
-/// Compute the elemental contribution to the global 
+/// Compute the elemental contribution to the global
 /// stiffness matrix (OSC method), and add it to the exit buffer
 void
 bim3a_osc_local_laplacian (const double shg[12],
                            const double p[12],
                            const double volume,
-                           const double epsilon, 
+                           const double epsilon,
                            double Lloc[16]);
 
-/// Compute the elemental contribution to the global 
+/// Compute the elemental contribution to the global
 /// stiffness matrix (OSC method) with diagonal anisotropic diffusion, and add it to the exit buffer
 void
 bim3a_osc_local_laplacian_anisotropic (const double shg[12],
                            const double p[12],
                            const double volume,
-                           const double epsilon[3], 
+                           const double epsilon[3],
                            double Lloc[16]);
 
-/// Compute the elemental contribution to the global mass matrix 
+/// Compute the elemental contribution to the global mass matrix
 /// (with mass lumping), and add it to the exit buffer
 void
 bim3a_local_reaction (const double shp[16],
                       const double wjacdet[4],
                       const double coeffe,
-                      const double coeffn[4], 
+                      const double coeffn[4],
                       double Lloc[16]);
 
-/// Compute the elemental contribution to the rhs of a FEM problem 
+/// Compute the elemental contribution to the rhs of a FEM problem
 /// and add it to the exit buffer.
-void 
-bim3a_local_rhs (const double shp[16], 
+void
+bim3a_local_rhs (const double shp[16],
                  const double wjacdet[4],
                  const double coeffe,
-                 const double coeffn[4], 
+                 const double coeffn[4],
                  double bLoc[4]);
 
 /// Find nodes in sidelist boundary
 void
-bim3a_boundary_nodes(mesh& msh,
-		     const std::vector<int>& sidelist,
-		     std::vector<int>& bnodes);
+bim3a_boundary_nodes (mesh& msh,
+                     const std::vector<int>& sidelist,
+                     std::vector<int>& bnodes);
 
 /// Set Dirichlet border condition
 void
-bim3a_dirichletBC(sparse_matrix& M, 
-		  std::vector<double>& b,
-		  const std::vector<int>& bnodes,
-		  const std::vector<double>& vnodes);
+bim3a_dirichletBC (sparse_matrix& M,
+                  std::vector<double>& b,
+                  const std::vector<int>& bnodes,
+                  const std::vector<double>& vnodes);
 
 /// Compute the gradient of a piecewise function
 void
-bim3a_pde_gradient(mesh& msh,
-		   const std::vector<double>& u,
-		   std::vector<double>& g);
+bim3a_pde_gradient (mesh& msh,
+                   const std::vector<double>& u,
+                   std::vector<double>& g);
 
 /// Compute the (Inf,L2,H1) norm of a piecewise function
 void
-bim3a_norm(mesh& msh,
-	   const std::vector<double>& v,
-	   double& norm,
-	   normType type);
+bim3a_norm (mesh& msh,
+           const std::vector<double>& v,
+           double& norm,
+           normType type);
 
 /// Compute matrix-vector product
 void
-bim3a_matrix_vector_product(sparse_matrix& M,
-			    const std::vector<double>& x,
-			    std::vector<double>& y);
+bim3a_matrix_vector_product (sparse_matrix& M,
+                            const std::vector<double>& x,
+                            std::vector<double>& y);
 
 //}
 #endif
