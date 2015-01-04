@@ -1,14 +1,14 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 /*
-  Problem:	du/dt-nabla(u)=g
-  u = 1-x^2-y^2-z^2 on border
-  g = 6
+  Problem:         du/dt-nabla(u) = g
+                   u = 1-x^2-y^2-z^2 on border
+                   g = 6
 
-  Exact Solution:	u=1-x^2-y^2-z^2
+  Exact Solution:  u=1-x^2-y^2-z^2
 */
 
 #include <stdio.h>
@@ -22,17 +22,17 @@
 #include <stdlib.h>
 #include <bim_config.h>
 
-LIS_INT main(LIS_INT argc, char* argv[])
+LIS_INT main (LIS_INT argc, char* argv[])
 {
   int rank, size;
 
   LIS_INT     iter;
   double      time;
 
-  lis_initialize(&argc, &argv);
+  lis_initialize (&argc, &argv);
 
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+  MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   mesh msh;
 
@@ -57,7 +57,7 @@ LIS_INT main(LIS_INT argc, char* argv[])
       std::cout << "\n\n*****\nLis test: Time Dependent Problem\n*****\n";
 
       std::cout << "read mesh" << std::endl;
-      msh.read (data_dir + std::string("mesh_in_cube.msh"));
+      msh.read (data_dir + std::string ("mesh_in_cube.msh"));
 
       std::cout << "compute mesh props" << std::endl;
       msh.precompute_properties ();
@@ -67,8 +67,8 @@ LIS_INT main(LIS_INT argc, char* argv[])
       bim3a_structure (msh, lhs);
       std::vector<double> ecoeff (msh.nelements, 1.0); //isotropic diffusion coefficient
       std::vector<double> v (msh.nnodes, 0.0);
-      std::vector<double> ncoeff (msh.nnodes, 1/dt);
-      std::vector<double> nodecoeff1 (msh.nnodes, 1/dt);
+      std::vector<double> ncoeff (msh.nnodes, 1 / dt);
+      std::vector<double> nodecoeff1 (msh.nnodes, 1 / dt);
       std::vector<double> nodecoeff2 (msh.nnodes, 6.0);
 
       bim3a_advection_diffusion (msh, ecoeff, v, lhs);
@@ -76,12 +76,14 @@ LIS_INT main(LIS_INT argc, char* argv[])
 
       bim3a_rhs (msh, ecoeff, nodecoeff1, rhs1);
       bim3a_rhs (msh, ecoeff, nodecoeff2, rhs2);
-		
+
       uold = std::vector<double> (msh.nnodes, 0.0);
       for (int i = 0; i < msh.nnodes; ++i)
-	{
-	  uold[i]=1-msh.p(0,i)*msh.p(0,i)-msh.p(1,i)*msh.p(1,i)-msh.p(2,i)*msh.p(2,i);								
-	}      			
+        {
+          uold[i] = 1.0 - msh.p (0, i) * msh.p (0, i)
+                        - msh.p (1, i) * msh.p (1, i)
+                        - msh.p (2, i) * msh.p (2, i);
+        }
 
       std::vector<int> sidelist;
       sidelist.push_back(1);
@@ -96,84 +98,89 @@ LIS_INT main(LIS_INT argc, char* argv[])
       vnodes.resize (bnodes.size ());
 
       for (int i = 0; i < vnodes.size (); ++i)
-	{	
-	  vnodes_start[i]=1-msh.p(0,bnodes[i])*msh.p(0,bnodes[i])-msh.p(1,bnodes[i])*msh.p(1,bnodes[i])-msh.p(2,bnodes[i])*msh.p(2,bnodes[i]);
-	}
+        {
+          vnodes_start[i] = 1.0 - msh.p (0, bnodes[i]) * msh.p (0, bnodes[i])
+                                - msh.p (1, bnodes[i]) * msh.p (1, bnodes[i])
+                                - msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
+        }
 
       exactsolution_start.resize (msh.nnodes);
       exactsolution.resize (msh.nnodes);
-      
-      for(int i = 0; i < exactsolution_start.size (); ++i)
-	{
-	  exactsolution_start[i]=1-msh.p(0,i)*msh.p(0,i)-msh.p(1,i)*msh.p(1,i)-msh.p(2,i)*msh.p(2,i);
-	}
-      
-      std::cout << "\nResult of Time Dependent Test \nwill be written in Lis_Solution_TimeTest.txt\n";
+
+      for (int i = 0; i < exactsolution_start.size (); ++i)
+        {
+          exactsolution_start[i] = 1.0 - msh.p (0, i) * msh.p (0, i)
+                                       - msh.p (1, i) * msh.p (1, i)
+                                       - msh.p (2, i) * msh.p (2, i);
+        }
+
+      std::cout << "\nResult of Time Dependent Test"
+                << "\nwill be written in Lis_Solution_TimeTest.txt\n";
     }
-  
+
   for (int t = 1; t <= T; ++t)
     {
       if (rank == 0)
-	{  
-	  std::cout << "\nTime Iteration: "<< t << std::endl;
-	  rhs_new.resize (rhs1.size ());
-	  lhs_new = lhs;
+        {
+          std::cout << "\nTime Iteration: "<< t << std::endl;
+          rhs_new.resize (rhs1.size ());
+          lhs_new = lhs;
 
-	  for (int i = 0; i < rhs_new.size (); ++i)
-	    {
-	      rhs_new[i]=rhs2[i]+rhs1[i]*uold[i];
-	    }
-	  for (int i = 0;i < vnodes.size (); ++i)
-	    {	
-	      vnodes[i]=vnodes_start[i];
-	    }
-	  
-	  bim3a_dirichletBC (lhs_new, rhs_new, bnodes, vnodes);
-	  
-	  for(int i = 0; i < exactsolution.size (); ++i)
-	    {
-	      exactsolution[i]=exactsolution_start[i];
-	    }
-	}
-      if(size > 1)
-	{
-	  lis_matrix_parallelization (lhs_new, lhs_loc);
-	  lis_vector_parallelization (rhs_new, rhs_loc);
+          for (int i = 0; i < rhs_new.size (); ++i)
+            {
+              rhs_new[i] = rhs2[i] + rhs1[i] * uold[i];
+            }
+          for (int i = 0; i < vnodes.size (); ++i)
+            {
+              vnodes[i] = vnodes_start[i];
+            }
 
-	  lis_solve_system (lhs_loc, rhs_loc,sol, iter, time, lhs_new.size (), option);
-	}
+          bim3a_dirichletBC (lhs_new, rhs_new, bnodes, vnodes);
+
+          for (int i = 0; i < exactsolution.size (); ++i)
+            {
+              exactsolution[i] = exactsolution_start[i];
+            }
+        }
+      if (size > 1)
+        {
+          lis_matrix_parallelization (lhs_new, lhs_loc);
+          lis_vector_parallelization (rhs_new, rhs_loc);
+
+          lis_solve_system (lhs_loc, rhs_loc,sol, iter, time, lhs_new.size (), option);
+        }
       else
-	lis_solve_system(lhs_new, rhs_new, sol, iter, time, lhs_new.size (), option);
+        lis_solve_system(lhs_new, rhs_new, sol, iter, time, lhs_new.size (), option);
       if (rank == 0)
-	{
-	  std::cout << "Number of iterations = "<< iter << std::endl;
-	  std::cout << "Elapsed time = " << time << std::endl;
-	  
-	  fout_sol << std::endl;
-	  fout_sol << "Time Iteration: "<< t << std::endl;
-	 
-	  double norm = 0;
-	  std::vector<double> delta (sol.size ());
+        {
+          std::cout << "Number of iterations = "<< iter << std::endl;
+          std::cout << "Elapsed time = " << time << std::endl;
 
-	  for (int k = 0; k < sol.size (); ++k)
-	    {
-	      fout_sol << sol[k] << "  " << exactsolution[k]<< std::endl;
-	      delta[k]=exactsolution[k]-sol[k];
-	    }
-	  fout_sol.close ();
+          fout_sol << std::endl;
+          fout_sol << "Time Iteration: "<< t << std::endl;
 
-	  bim3a_norm (msh, delta, norm, Inf);
-	  std::cout << "Error: " << norm << std::endl;
+          double norm = 0;
+          std::vector<double> delta (sol.size ());
 
-	  if (norm > 10e-10)
-	    {
-	      std::cerr << "The error is bigger than tolerance" << std::endl;
-	      exit(-1);
-	    }
-	}
+          for (int k = 0; k < sol.size (); ++k)
+            {
+              fout_sol << sol[k] << "  " << exactsolution[k] << std::endl;
+              delta[k] = exactsolution[k] - sol[k];
+            }
+          fout_sol.close ();
+
+          bim3a_norm (msh, delta, norm, Inf);
+          std::cout << "Error: " << norm << std::endl;
+
+          if (norm > 10e-10)
+            {
+              std::cerr << "The error is bigger than tolerance" << std::endl;
+              exit(-1);
+            }
+        }
     }
   fout_sol.close ();
-  lis_finalize();
-  
+  lis_finalize ();
+
   return 0;
 }

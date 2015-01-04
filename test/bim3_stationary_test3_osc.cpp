@@ -1,16 +1,16 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 /*
-  Problem:	-div(D(grad(u)-grad(v)*u))+u=g
-  u=1-2*x^2-2*y^2-z^2 on border
-  g=7-2x^2-2y^2-z^2-2x-2y-2z
-  D=diag(0.5,0.5,1)
-  v=x+y+z
+  Problem:         -div(D(grad(u)-grad(v)*u))+u=g
+                   u = 1-2*x^2-2*y^2-z^2 on border
+                   g = 7-2x^2-2y^2-z^2-2x-2y-2z
+                   D = diag (0.5, 0.5, 1)
+                   v = x + y + z
 
-  Exact Solution:	u=1-2*x^2-2*y^2-z^2
+  Exact Solution:  u=1-2*x^2-2*y^2-z^2
 */
 
 #include <bim_sparse.h>
@@ -26,7 +26,7 @@ int main (int argc, char **argv)
   MPI_Init (&argc, &argv);
   int rank, size;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-  MPI_Comm_size (MPI_COMM_WORLD, &size);    
+  MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   mesh msh;
 
@@ -36,33 +36,36 @@ int main (int argc, char **argv)
   std::vector<double> xa;
   std::vector<double> exactsolution;
   if (rank == 0)
-    {  
+    {
       std::cout << "\n\n*****\nStationary Test 3 (OSC)\n*****\n";
 
       std::cout << "read mesh" << std::endl;
-      msh.read (data_dir + std::string("mesh_in_cube.msh"));
+      msh.read (data_dir + std::string ("mesh_in_cube.msh"));
 
       std::cout << "compute mesh props" << std::endl;
       msh.precompute_properties ();
 
       bim3a_structure (msh, lhs);
-      std::vector<double> dcoeff (msh.nelements*3, 1.0); //anisotropic diffusion coefficient
+      std::vector<double> dcoeff (msh.nelements * 3, 1.0); //anisotropic diffusion coefficient
       std::vector<double> ecoeff (msh.nelements, 1.0);
       std::vector<double> v (msh.nnodes, 0.0);
       std::vector<double> ncoeff (msh.nnodes, 0.0);
       std::vector<double> nodecoeff (msh.nnodes,1.0);
 
       for(int k = 0; k < msh.nelements; ++k)
-        {			
-          dcoeff[0+3*k]=0.5;
-          dcoeff[1+3*k]=0.5;
-          dcoeff[2+3*k]=1;
+        {
+          dcoeff[0 + 3 * k] = 0.5;
+          dcoeff[1 + 3 * k] = 0.5;
+          dcoeff[2 + 3 * k] = 1;
         }
 
       for(int k = 0; k < msh.nnodes; ++k)
         {
-          v[k]=msh.p(0,k)+msh.p(1,k)+msh.p(2,k);
-	  ncoeff[k]=7-2*msh.p(0,k)*msh.p(0,k)-2*msh.p(1,k)*msh.p(1,k)-msh.p(2,k)*msh.p(2,k)-2*msh.p(0,k)-2*msh.p(1,k)-2*msh.p(2,k);
+          v[k] = msh.p (0, k) + msh.p (1, k) + msh.p (2, k);
+	  ncoeff[k] = 7 - 2 * msh.p (0, k) * msh.p (0, k)
+                        - 2 * msh.p (1, k) * msh.p (1, k)
+                        - msh.p (2, k) * msh.p (2, k)
+                        - 2 * msh.p (0, k) - 2 * msh.p (1, k) - 2 * msh.p (2, k);
         }
 
       bim3a_osc_advection_diffusion_anisotropic (msh, dcoeff, v, lhs);
@@ -78,26 +81,30 @@ int main (int argc, char **argv)
       sidelist.push_back(5);
       sidelist.push_back(6);
 
-      std::vector<int> bnodes;			
+      std::vector<int> bnodes;
       std::vector<double> vnodes;
 
       bim3a_boundary_nodes (msh, sidelist, bnodes);
-      vnodes.resize(bnodes.size ());
+      vnodes.resize (bnodes.size ());
 
       for(int i = 0; i < vnodes.size (); ++i)
         {
-          vnodes[i]=1-2*msh.p(0,bnodes[i])*msh.p(0,bnodes[i])-2*msh.p(1,bnodes[i])*msh.p(1,bnodes[i])-msh.p(2,bnodes[i])*msh.p(2,bnodes[i]);
+          vnodes[i] = 1 - 2 * msh.p (0, bnodes[i]) * msh.p (0, bnodes[i])
+                        - 2 * msh.p (1, bnodes[i]) * msh.p (1, bnodes[i])
+                        - msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
         }
 
-      bim3a_dirichletBC(lhs,rhs,bnodes,vnodes);
+      bim3a_dirichletBC (lhs, rhs, bnodes, vnodes);
 
       lhs.aij (xa, ir, jc, 1);
-			
+
       exactsolution.resize (msh.nnodes);
 
       for(int i = 0; i < exactsolution.size (); ++i)
         {
-          exactsolution[i]=1-2*msh.p(0,i)*msh.p(0,i)-2*msh.p(1,i)*msh.p(1,i)-msh.p(2,i)*msh.p(2,i);
+          exactsolution[i] = 1 - 2 * msh.p (0, i) * msh.p (0, i)
+                               - 2 * msh.p (1, i) * msh.p (1, i)
+                               - msh.p (2, i) * msh.p (2, i);
         }
     }
 
@@ -130,7 +137,7 @@ int main (int argc, char **argv)
       for (int k = 0; k < rhs.size (); ++k)
         {
           fout << rhs[k] << "  " << exactsolution[k]<< std::endl;
-          delta[k]=exactsolution[k]-rhs[k];
+          delta[k] = exactsolution[k] - rhs[k];
         }
       fout.close ();
 

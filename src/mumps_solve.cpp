@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 
@@ -11,7 +11,11 @@
 #include <mumps_solve.h>
 #include <mumps_class.h>
 
-void mumps_solve (sparse_matrix &lhs, std::vector<double> &rhs, const std::vector<int> &rows, const std::vector<int> &cols)
+void
+mumps_solve (sparse_matrix &lhs,
+             std::vector<double> &rhs,
+             const std::vector<int> &rows,
+             const std::vector<int> &cols)
 {
 
   std::vector<double> lrhs;
@@ -28,7 +32,7 @@ void mumps_solve (sparse_matrix &lhs, std::vector<double> &rhs, const std::vecto
   llhs.aij (xa, ir, jc, 1);
 
   mumps mumps_solver;
-  
+
   mumps_solver.set_lhs_structure (llhs.rows (), ir, jc);
   mumps_solver.analyze ();
 
@@ -37,7 +41,7 @@ void mumps_solve (sparse_matrix &lhs, std::vector<double> &rhs, const std::vecto
 
   mumps_solver.set_rhs (lrhs);
   mumps_solver.solve ();
-  
+
   mumps_solver.cleanup ();
 
   for (size_t i = 0; i < lrhs.size (); ++i)

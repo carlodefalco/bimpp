@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 
@@ -14,14 +14,13 @@
 
 int main (int argc, char **argv)
 {
-
   MPI_Init (&argc, &argv);
   int rank, size;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   if (rank == 0)
-    {  
+    {
       std::cout << "\n\n*****\ntest 1\n*****\n";
 
       std::cout << "read mesh" << std::endl;
@@ -41,21 +40,21 @@ int main (int argc, char **argv)
       std::vector<double> v (msh.nnodes, 0.0);
       std::vector<double> b (msh.nnodes, 0.0);
       std::vector<double> ncoeff (msh.nnodes, 1.0);
-      
-      std::vector<double> acoeff (msh.nelements*9,0.0); //full diffusion tensor
-      for(int i=0; i<msh.nelements*9; i+=9)acoeff[i]=1.0;
-      for(int i=4; i<msh.nelements*9; i+=9)acoeff[i]=1.0;
-      for(int i=8; i<msh.nelements*9; i+=9)acoeff[i]=1.0;
-     
+
+      std::vector<double> acoeff (msh.nelements * 9, 0.0); //full diffusion tensor
+      for (int i = 0; i < msh.nelements * 9; i += 9) acoeff[i] = 1.0;
+      for (int i = 4; i < msh.nelements * 9; i += 9) acoeff[i] = 1.0;
+      for (int i = 8; i < msh.nelements * 9; i += 9) acoeff[i] = 1.0;
+
       std::vector<double> dcoeff (msh.nelements*3,1.0); //diagonal diffusion tensor      
-      std::vector<double> bcoeff (msh.nelements*3,1.0);
+      std::vector<double> bcoeff (msh.nelements * 3, 1.0);
 
       std::cout << "make advection-diffusion with anisotropic diffusion" << std::endl;
-      bim3a_advection_diffusion_anisotropic(msh, acoeff,v,M);
+      bim3a_advection_diffusion_anisotropic (msh, acoeff, v, M);
 
       bim3a_reaction (msh, ecoeff, ncoeff, M);
       bim3a_rhs (msh, ecoeff, ncoeff, b);
- 
+
       std::cout << "export stiffness matrix. nnodes = " << msh.nnodes << std::endl;      
       std::ofstream fout ("SG.m");
       fout << M;

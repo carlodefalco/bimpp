@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 
@@ -9,10 +9,9 @@
 #include <mumps_class.h>
 #include <mpi.h>
 #include <fstream>
-  
+
 int main (int argc, char **argv)
 {
-
   MPI_Init (&argc, &argv);
   int rank, size;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
@@ -23,8 +22,8 @@ int main (int argc, char **argv)
 
       std::cout << "*****\ntest 1\n*****\n";
 
-      sparse_matrix     sp; 
-      p_sparse_matrix   spp; 
+      sparse_matrix     sp;
+      p_sparse_matrix   spp;
 
       std::vector<int>   i,j;
       std::vector<double>  a;
@@ -87,14 +86,14 @@ int main (int argc, char **argv)
       lrhs.resize (980);
       lrhs.assign (lrhs.size (), 1.0);
 
-      rows2.resize (980); 
+      rows2.resize (980);
       cols2.resize (980);
 
       for (int k = 0; k < 980; ++k)
         {
-	  rows2[k] = k+10; 
-	  cols2[k] = k+10;
-	}
+          rows2[k] = k+10;
+          cols2[k] = k+10;
+        }
 
       lhs.extract_block_pointer (rows2, cols2, llhs);
       llhs.aij (xa, ir, jc, 1);
@@ -111,7 +110,7 @@ int main (int argc, char **argv)
     mumps_solver.set_lhs_data (xa);
 
   mumps_solver.factorize ();
-  
+
   if (rank == 0)
     mumps_solver.set_rhs (lrhs);
 
@@ -123,7 +122,7 @@ int main (int argc, char **argv)
       std::ofstream fout ("first_solve.txt");
       fout << std::endl;
       for (int k = 0; k < lrhs.size (); ++k)
-	fout << lrhs[k] << std::endl;
+        fout << lrhs[k] << std::endl;
       fout.close ();
     }
 

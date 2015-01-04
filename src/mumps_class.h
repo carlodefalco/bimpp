@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2011, 2015 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 /*! \file mumps_class.h
@@ -32,9 +32,9 @@ private :
 
 public :
   DMUMPS_STRUC_C id;
-  
+
   /// Init the (serial) mumps solver instance.
-  void 
+  void
   init ();
 
   /// Default constructor.
@@ -44,33 +44,33 @@ public :
   { init (); };
 
   /// Set-up the matrix structure.
-  void 
-  set_lhs_structure (int n, 
-                     std::vector<int> &ir, 
+  void
+  set_lhs_structure (int n,
+                     std::vector<int> &ir,
                      std::vector<int> &jc);
 
   /// Perform the analysis.
-  int 
+  int
   analyze ();
 
   /// Set matrix entries.
-  void 
+  void
   set_lhs_data (std::vector<double> &xa);
 
   /// Set the rhs.
-  void 
+  void
   set_rhs (std::vector<double> &rhs);
 
   /// Perform the factorization.
-  int 
+  int
   factorize ();
 
   /// Perform the back-substitution.
-  int 
+  int
   solve ();
 
   /// Cleanup memory.
-  void 
+  void
   cleanup ();
 };
 

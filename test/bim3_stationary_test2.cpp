@@ -1,15 +1,15 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 /*
-  Problem:	-Dnabla(u)=g
-  u=1-2*x^2-2*y^2-z^2 on border
-  g=6
-  D=diag(0.5,0.5,1)
+  Problem:         -Dnabla(u)=g
+                   u = 1-2*x^2-2*y^2-z^2 on border
+                   g = 6
+                   D = diag (0.5, 0.5, 1)
 
-  Exact Solution:	u=1-2*x^2-2*y^2-z^2
+  Exact Solution:  u=1-2*x^2-2*y^2-z^2
 */
 
 #include <bim_sparse.h>
@@ -25,7 +25,7 @@ int main (int argc, char **argv)
   MPI_Init (&argc, &argv);
   int rank, size;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-  MPI_Comm_size (MPI_COMM_WORLD, &size);    
+  MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   mesh msh;
 
@@ -36,14 +36,14 @@ int main (int argc, char **argv)
   std::vector<double> exactsolution;
 
   if (rank == 0)
-    {  
+    {
       std::cout << "\n\n*****\nStationary Test 2\n*****\n";
 
       std::cout << "read mesh" << std::endl;
-      msh.read (data_dir + std::string("mesh_in_cube.msh"));
+      msh.read (data_dir + std::string ("mesh_in_cube.msh"));
 
       std::cout << "export mesh" << std::endl;
-      msh.write (std::string("mesh_out_cube.m"));
+      msh.write (std::string ("mesh_out_cube.m"));
 
       std::cout << "compute mesh props" << std::endl;
       msh.precompute_properties ();
@@ -51,12 +51,12 @@ int main (int argc, char **argv)
       std::cout << "assemble stiffness matrix. nnodes = " << msh.nnodes << std::endl;      
 
       bim3a_structure (msh, lhs);
-      std::vector<double> dcoeff (msh.nelements*3, 1.0); //anisotropic diffusion coefficient
-      for(int k=0; k < msh.nelements; ++k)
-        {			
-          dcoeff[0+3*k]=0.5;
-          dcoeff[1+3*k]=0.5;
-          dcoeff[2+3*k]=1.0;
+      std::vector<double> dcoeff (msh.nelements * 3, 1.0); //anisotropic diffusion coefficient
+      for(int k = 0; k < msh.nelements; ++k)
+        {
+          dcoeff[0 + 3 * k] = 0.5;
+          dcoeff[1 + 3 * k] = 0.5;
+          dcoeff[2 + 3 * k] = 1.0;
         }
       std::vector<double> ecoeff (msh.nelements, 1.0);
       std::vector<double> v (msh.nnodes, 0.0);
@@ -65,7 +65,7 @@ int main (int argc, char **argv)
       bim3a_advection_diffusion_anisotropic (msh, dcoeff, v, lhs);
 
       bim3a_rhs (msh, ecoeff, ncoeff, rhs);
-			
+
       std::vector<int> sidelist;
       sidelist.push_back(1);
       sidelist.push_back(2);
@@ -76,27 +76,31 @@ int main (int argc, char **argv)
 
       std::vector<int> bnodes;
       std::vector<double> vnodes;
-     
+
       bim3a_boundary_nodes (msh, sidelist, bnodes);
 
-      vnodes.resize( bnodes.size ());
-      for(int i=0; i < vnodes.size (); ++i)
+      vnodes.resize (bnodes.size ());
+      for(int i = 0; i < vnodes.size (); ++i)
         {
-          vnodes[i]=1-2*msh.p(0,bnodes[i])*msh.p(0,bnodes[i])-2*msh.p(1,bnodes[i])*msh.p(1,bnodes[i])-msh.p(2,bnodes[i])*msh.p(2,bnodes[i]);
+          vnodes[i] = 1 - 2 * msh.p (0, bnodes[i]) * msh.p (0, bnodes[i])
+                        - 2 * msh.p (1, bnodes[i]) * msh.p (1, bnodes[i])
+                        - msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
         }
       bim3a_dirichletBC (lhs, rhs, bnodes, vnodes);
 
-      lhs.aij(xa,ir,jc,1);
+      lhs.aij (xa, ir, jc, 1);
 
       exactsolution.resize (msh.nnodes);
-      for(int i=0; i < exactsolution.size (); ++i)
+      for(int i = 0; i < exactsolution.size (); ++i)
         {
-          exactsolution[i]=1-2*msh.p(0,i)*msh.p(0,i)-2*msh.p(1,i)*msh.p(1,i)-msh.p(2,i)*msh.p(2,i);
+          exactsolution[i] = 1 - 2 * msh.p (0, i) * msh.p (0, i)
+                               - 2 * msh.p (1, i) * msh.p (1, i)
+                               - msh.p (2, i) * msh.p (2, i);
         }
     }
 
   mumps mumps_solver;
-  
+
   if (rank == 0)
     mumps_solver.set_lhs_structure (lhs.rows (), ir, jc);
 
@@ -111,7 +115,7 @@ int main (int argc, char **argv)
     mumps_solver.set_rhs (rhs);
 
   mumps_solver.solve ();
-  
+
   if (rank == 0)
     {
       std::cout << "\nResult of Stationary Test \nwill be written in solution2.txt\n";
@@ -124,7 +128,7 @@ int main (int argc, char **argv)
       for (int k = 0; k < rhs.size (); ++k)
         {
           fout << rhs[k] << "  " << exactsolution[k]<< std::endl;
-          delta[k]=exactsolution[k]-rhs[k];
+          delta[k] = exactsolution[k] - rhs[k];
         }
       fout.close ();
 

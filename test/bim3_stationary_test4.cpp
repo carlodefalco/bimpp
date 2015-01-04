@@ -1,14 +1,14 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 /*
-  Problem:	-nabla(u)+u=g
-  u=sin(pi*x)+sin(pi*y)+sin(pi*z) on border
-  g=(pi^2+1)*(sin(pi*x)+sin(pi*y)+sin(pi*z))
+  Problem:         -nabla(u)+u=g
+                   u = sin(pi*x) + sin(pi*y) + sin(pi*z) on border
+                   g = (pi^2+1) * (sin(pi*x) + sin(pi*y) + sin(pi*z))
 
-  Exact Solution:	u=sin(pi*x)+sin(pi*y)+sin(pi*z)
+  Exact Solution:  u=sin(pi*x)+sin(pi*y)+sin(pi*z)
 */
 
 #include <bim_sparse.h>
@@ -25,7 +25,7 @@ int main (int argc, char **argv)
   MPI_Init (&argc, &argv);
   int rank, size;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-  MPI_Comm_size (MPI_COMM_WORLD, &size);    
+  MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   mesh msh;
 
@@ -35,11 +35,11 @@ int main (int argc, char **argv)
   std::vector<double> xa;
   std::vector<double> exactsolution;
   if (rank == 0)
-    {  
+    {
       std::cout << "\n\n*****\nStationary Test 4\n*****\n";
-			      
+
       std::cout << "read mesh" << std::endl;
-      msh.read (data_dir + std::string("mesh_in_cube2.msh"));
+      msh.read (data_dir + std::string ("mesh_in_cube2.msh"));
 
       std::cout << "compute mesh props" << std::endl;
       msh.precompute_properties ();
@@ -48,10 +48,13 @@ int main (int argc, char **argv)
       std::vector<double> ecoeff (msh.nelements, 1.0); //isotropic diffusion coefficient
       std::vector<double> v (msh.nnodes, 0.0);
       std::vector<double> ncoeff (msh.nnodes, 1.0);
-      std::vector<double> nodecoeff (msh.nnodes, 0.0);      
+      std::vector<double> nodecoeff (msh.nnodes, 0.0);
 
       for (int i = 0; i < msh.nnodes; ++i)
-        nodecoeff[i]=(M_PI*M_PI+1)*(sin(M_PI*msh.p(0,i))+sin(M_PI*msh.p(1,i))+sin(M_PI*msh.p(2,i)));
+        nodecoeff[i] = (M_PI * M_PI + 1)
+                       * (sin (M_PI * msh.p (0, i))
+                        + sin (M_PI * msh.p (1, i))
+                        + sin (M_PI * msh.p (2, i)));
 
       bim3a_advection_diffusion (msh, ecoeff, v, lhs);
 
@@ -65,16 +68,18 @@ int main (int argc, char **argv)
       sidelist.push_back(4);
       sidelist.push_back(5);
       sidelist.push_back(6);
-			
+
       std::vector<int> bnodes;
       std::vector<double> vnodes;
-      
-      bim3a_boundary_nodes(msh,sidelist,bnodes);
-      vnodes.resize(bnodes.size());
+
+      bim3a_boundary_nodes (msh, sidelist, bnodes);
+      vnodes.resize (bnodes.size ());
 
       for(int i = 0; i < vnodes.size (); ++i)
         {
-          vnodes[i]=sin(M_PI*msh.p(0,bnodes[i]))+sin(M_PI*msh.p(1,bnodes[i]))+sin(M_PI*msh.p(2,bnodes[i]));
+          vnodes[i] = sin (M_PI * msh.p (0, bnodes[i]))
+                    + sin (M_PI * msh.p (1, bnodes[i]))
+                    + sin (M_PI * msh.p (2, bnodes[i]));
         }
 
       bim3a_dirichletBC (lhs, rhs, bnodes, vnodes);
@@ -84,7 +89,9 @@ int main (int argc, char **argv)
       exactsolution.resize (msh.nnodes);
       for(int i = 0; i < exactsolution.size (); ++i)
         {
-          exactsolution[i]=sin(M_PI*msh.p(0,i))+sin(M_PI*msh.p(1,i))+sin(M_PI*msh.p(2,i));
+          exactsolution[i] = sin (M_PI * msh.p (0, i))
+                           + sin (M_PI * msh.p (1, i))
+                           + sin (M_PI * msh.p (2, i));
         }
     }
 
@@ -110,14 +117,14 @@ int main (int argc, char **argv)
       std::cout << "\nResult of Stationary Test \nwill be written in solution4.txt\n";
       std::ofstream fout ("solution4.txt");
       fout << std::endl;
-			
+
       double norm = 0;
       std::vector<double> delta (rhs.size ());
 
       for (int k = 0; k < rhs.size (); ++k)
         {
           fout << rhs[k] << "  " << exactsolution[k]<< std::endl;
-          delta[k]=exactsolution[k]-rhs[k];
+          delta[k] = exactsolution[k] - rhs[k];
         }
       fout.close ();
 

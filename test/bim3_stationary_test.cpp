@@ -1,13 +1,13 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 /*
-  Problem:	-nabla(u)=g
-  u=1-x^2-y^2-z^2 on border
-  g=6
-  Exact Solution:	u=1-x^2-y^2-z^2
+  Problem:               -nabla(u) = g
+                         u = 1-x^2-y^2-z^2 on border
+                         g = 6
+  Exact Solution:        u = 1-x^2-y^2-z^2
 */
 
 #include <bim_sparse.h>
@@ -17,14 +17,14 @@
 #include <mpi.h>
 #include <fstream>
 #include <bim_config.h>
- 
+
 int main (int argc, char **argv)
 {
   MPI_Init (&argc, &argv);
   int rank, size;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
-    
+
   mesh msh;
 
   sparse_matrix       lhs;
@@ -33,7 +33,7 @@ int main (int argc, char **argv)
   std::vector<double> xa;
   std::vector<double> exactsolution;
   if (rank == 0)
-    {  
+    {
       std::cout << "\n\n*****\nStationary Test\n*****\n";
 
       std::cout << "read mesh" << std::endl;
@@ -60,17 +60,18 @@ int main (int argc, char **argv)
       sidelist.push_back(4);
       sidelist.push_back(5);
       sidelist.push_back(6);
-	
+
       std::vector<int> bnodes;
 
       std::vector<double> vnodes;
       bim3a_boundary_nodes (msh, sidelist, bnodes);
 
       vnodes.resize (bnodes.size ());
-      for (int i=0; i < vnodes.size (); ++i)
+      for (int i = 0; i < vnodes.size (); ++i)
         {
-          vnodes[i]=1-msh.p(0,bnodes[i])*msh.p(0,bnodes[i])-msh.p(1,bnodes[i])*msh.p(1,bnodes[i])
-            -msh.p(2,bnodes[i])*msh.p(2,bnodes[i]);
+          vnodes[i] = 1 - msh.p (0, bnodes[i]) * msh.p (0, bnodes[i])
+                        - msh.p (1, bnodes[i]) * msh.p (1, bnodes[i])
+                        - msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
         }
 
       bim3a_dirichletBC (lhs, rhs, bnodes, vnodes);
@@ -78,9 +79,11 @@ int main (int argc, char **argv)
       lhs.aij (xa, ir, jc, 1);
 
       exactsolution.resize (msh.nnodes);
-      for(int i=0; i < exactsolution.size (); ++i)
+      for(int i = 0; i < exactsolution.size (); ++i)
         {
-          exactsolution[i]=1-msh.p(0,i)*msh.p(0,i)-msh.p(1,i)*msh.p(1,i)-msh.p(2,i)*msh.p(2,i);
+          exactsolution[i]=1 - msh.p (0, i) * msh.p (0, i)
+                             - msh.p (1, i) * msh.p (1, i)
+                             - msh.p (2, i) * msh.p (2, i);
         }
     }
 
@@ -113,7 +116,7 @@ int main (int argc, char **argv)
       for (int k = 0; k < rhs.size (); ++k)
         {
           fout << rhs[k] << "  " << exactsolution[k]<< std::endl;
-          delta[k]=exactsolution[k]-rhs[k];
+          delta[k] = exactsolution[k] - rhs[k];
         }
       fout.close ();
 
