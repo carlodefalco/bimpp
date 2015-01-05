@@ -17,16 +17,15 @@
 enum SolverType {MUMPS,LIS};
 
 template <typename P, typename FT, SolverType ST>
-  inexact_newton_status inexact_newton (P& problem,
-                                        std::vector<double>& ustart,
-                                        std::vector<double>& sol,
-                                        FT& forcing,
-                                        linear_solver_option lis_option
-                                          = {"-tol 0.5", "", "-conv_cond 1 -i cg"},
-                                        inexact_newton_option option
-                                          = {100, 10e-10, 10e-10, 10e-10, Inf},
-                                        const stream_option stream
-                                          = {2, "output.txt"})
+inexact_newton_status inexact_newton
+(P& problem, std::vector<double>& ustart,
+ std::vector<double>& sol, FT& forcing,
+ linear_solver_option lis_option =
+   {"-tol 0.5", "", "-conv_cond 1 -i cg"},
+ inexact_newton_option option =
+   {100, 10e-10, 10e-10, 10e-10, Inf},
+ const stream_option stream =
+   {2, "output.txt"})
 {
   std::ofstream fout;
 
@@ -46,7 +45,8 @@ template <typename P, typename FT, SolverType ST>
     {
       fout.open (stream.filename);
       std::cout << "Result of Non Linear Test "
-                <<"\nwill be written in " << stream.filename << "\n\n";
+                <<"\nwill be written in "
+                << stream.filename << "\n\n";
     }
   if (rank == 0)
     {
@@ -66,7 +66,7 @@ template <typename P, typename FT, SolverType ST>
     {
       ++it;
       if (rank == 0 && stream.verbosity == 2)
-        std::cout << "Newton Iteration: "<<it<<std::endl;
+        std::cout << "Newton Iteration: "<< it << std::endl;
 
       if (ST == LIS)
         {
@@ -76,14 +76,18 @@ template <typename P, typename FT, SolverType ST>
             {
               lis_matrix_parallelization (lhs, lhs_loc);
               lis_vector_parallelization (rhs, rhs_loc);
-              lis_solve_system(lhs_loc, rhs_loc, du, iter, time, lhs.size (), lis_option);
+              lis_solve_system (lhs_loc, rhs_loc, du, iter,
+                                time, lhs.size (), lis_option);
             }
           else
-            lis_solve_system(lhs, rhs, du, iter, time, lhs.size (), lis_option);
+            lis_solve_system (lhs, rhs, du, iter, time,
+                              lhs.size (), lis_option);
           if(rank == 0 && stream.verbosity == 2)
             {
-              std::cout << "Number of iterations = " << iter << std::endl;
-              std::cout << "Elapsed time = " << time << std::endl;
+              std::cout << "Number of iterations = "
+                        << iter << std::endl;
+              std::cout << "Elapsed time = "
+                        << time << std::endl;
             }
         }
       else
@@ -120,7 +124,8 @@ template <typename P, typename FT, SolverType ST>
           if (stream.verbosity == 2)
             fout << "Iteration: " << it << std::endl;
 
-          option.forcing = forcing (problem, ustart, du, option.forcing, option.type);
+          option.forcing = forcing (problem, ustart, du,
+                                    option.forcing, option.type);
 
           for (int i = 0; i < du.size (); ++i)
             ustart[i] = du[i] + ustart[i];
@@ -136,7 +141,8 @@ template <typename P, typename FT, SolverType ST>
 
               //bim3a_print(ustart,fout);
               std::cout << "Step Error: " << stepNorm << std::endl;
-              std::cout << "Residual Error: " << resNorm << std::endl << std::endl;
+              std::cout << "Residual Error: " << resNorm
+                        << std::endl << std::endl;
             }
         }
       MPI_Bcast (&stepNorm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -145,7 +151,9 @@ template <typename P, typename FT, SolverType ST>
       lis_option.tolerance = new char[100];
       sprintf (lis_option.tolerance, "-tol %f", option.forcing);
     }
-  while (it <= option.maxIter && resNorm > option.minRes && stepNorm > option.tol);
+  while (it <= option.maxIter
+         && resNorm > option.minRes
+         && stepNorm > option.tol);
 
   if (rank == 0 && stream.verbosity == 1)
     {
@@ -166,16 +174,16 @@ template <typename P, typename FT, SolverType ST>
 };
 
 template <typename P, typename FT, SolverType ST>
-  inexact_newton_status backtracking_inexact_newton (P& problem,
-                                                     std::vector<double>& ustart,
-                                                std::vector<double>& sol,
-                                                FT& forcing,
-                                                linear_solver_option lis_option
-                                                  = {"-tol 0.5", "", "-conv_cond 1 -i cg"},
-                                                backtracking_inexact_newton_option option
-                                                  = {100,10e-10,10e-10,10e-10,10e-4,0.1,0.5,0,L2},
-                                                const stream_option stream
-                                                  = {2,"output.txt"})
+inexact_newton_status backtracking_inexact_newton
+(P& problem, std::vector<double>& ustart,
+ std::vector<double>& sol,
+ FT& forcing,
+ linear_solver_option lis_option =
+   {"-tol 0.5", "", "-conv_cond 1 -i cg"},
+ backtracking_inexact_newton_option option =
+   {100, 10e-10, 10e-10, 10e-10, 10e-4, 0.1, 0.5, 0, L2},
+ const stream_option stream =
+   {2, "output.txt"})
 {
   std::ofstream fout;
 
@@ -195,7 +203,8 @@ template <typename P, typename FT, SolverType ST>
     {
       fout.open (stream.filename);
       std::cout << "Result of Non Linear Test "
-                <<"\nwill be written in " << stream.filename << "\n\n";
+                <<"\nwill be written in " << stream.filename
+                << std:endl << std::endl;
     }
   if (rank == 0)
     {
@@ -226,14 +235,18 @@ template <typename P, typename FT, SolverType ST>
               lis_matrix_parallelization (lhs, lhs_loc);
               lis_vector_parallelization (rhs, rhs_loc);
 
-              lis_solve_system (lhs_loc, rhs_loc, du, iter, time, lhs.size(), lis_option);
+              lis_solve_system (lhs_loc, rhs_loc, du, iter,
+                                time, lhs.size(), lis_option);
             }
           else
-            lis_solve_system (lhs, rhs, du, iter, time, lhs.size(), lis_option);
+            lis_solve_system (lhs, rhs, du, iter,
+                              time, lhs.size(), lis_option);
           if (rank == 0 && stream.verbosity == 2)
             {
-              std::cout << "Number of iterations = " << iter << std::endl;
-              std::cout << "Elapsed time = " << time << std::endl;
+              std::cout << "Number of iterations = "
+                        << iter << std::endl;
+              std::cout << "Elapsed time = "
+                        << time << std::endl;
             }
         }
       else
@@ -285,7 +298,9 @@ template <typename P, typename FT, SolverType ST>
           bim3a_norm (problem.msh, Fold, foldNorm, option.type);
           bim3a_norm(problem.msh, Fnew, fnewNorm, option.type);
 
-          while (fnewNorm > (1 - option.t * (1 - option.forcing)) * foldNorm)
+          while (fnewNorm >
+                 (1 - option.t * (1 - option.forcing)) *
+                 foldNorm)
             {
               std::vector<double> temp;
               double tempNorm = 0.0;
@@ -295,7 +310,7 @@ template <typename P, typename FT, SolverType ST>
                 tempNorm += rhs[i] * temp[i];
 
               double a = fnewNorm * fnewNorm
-                       - foldNorm * foldNorm - 2 * tempNorm;
+                - foldNorm * foldNorm - 2 * tempNorm;
               double b = 2 * tempNorm;
               double c = foldNorm * foldNorm;
 
@@ -306,12 +321,15 @@ template <typename P, typename FT, SolverType ST>
                   du[i] *= option.theta;
                   unew[i] = du[i] + ustart[i];
                 }
-              option.forcing = 1 - option.theta * (1 - option.forcing);
+              option.forcing =
+                1 - option.theta * (1 - option.forcing);
 
               problem (Fnew, unew);
               bim3a_norm (problem.msh, Fnew, fnewNorm, option.type);
             }
-          option.forcing = forcing (problem, ustart, du, option.forcing, option.type);
+          option.forcing =
+            forcing (problem, ustart, du,
+                     option.forcing, option.type); 
 
           for (int i = 0; i < du.size (); ++i)
             ustart[i] = du[i] + ustart[i];
@@ -330,7 +348,8 @@ template <typename P, typename FT, SolverType ST>
 
               //bim3a_print(ustart,fout);
               std::cout << "Step Error: " << stepNorm << std::endl;
-              std::cout << "Residual Error: " << resNorm << std::endl << std::endl;
+              std::cout << "Residual Error: "
+                        << resNorm << std::endl << std::endl;
             }
         }
       MPI_Bcast (&stepNorm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -339,7 +358,9 @@ template <typename P, typename FT, SolverType ST>
       lis_option.tolerance = new char[100];
       sprintf(lis_option.tolerance, "-tol %f", option.forcing);
     }
-  while (it <= option.maxIter && resNorm > option.minRes && stepNorm > option.tol);
+  while (it <= option.maxIter
+         && resNorm > option.minRes
+         && stepNorm > option.tol);
 
   if (rank == 0 && stream.verbosity == 1)
     {
@@ -358,4 +379,5 @@ template <typename P, typename FT, SolverType ST>
   sol = ustart;
   return {it, resNorm, converged};
 };
+
 #endif

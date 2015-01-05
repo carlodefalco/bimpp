@@ -64,10 +64,10 @@ struct ForcingType1
 
   template<typename P>
   double operator() (P& problem,
-                    std::vector<double>& uold,
-                    std::vector<double>& du,
-                    double eta_old,
-                    normType norm_type)
+                     std::vector<double>& uold,
+                     std::vector<double>& du,
+                     double eta_old,
+                     normType norm_type)
   {
     sparse_matrix df;
     std::vector<double> fnew, fold, unew, temp;
@@ -103,10 +103,10 @@ struct ForcingType2
 
   template<typename P>
   double operator() (P& problem,
-                    std::vector<double>& uold,
-                    std::vector<double>& du,
-                    double eta_old,
-                    normType norm_type)
+                     std::vector<double>& uold,
+                     std::vector<double>& du,
+                     double eta_old,
+                     normType norm_type)
   {
     sparse_matrix df;
     std::vector<double> fnew, fold, unew, temp;
