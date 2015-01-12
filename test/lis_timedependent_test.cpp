@@ -17,29 +17,26 @@
 #include <bim_sparse.h>
 #include <mesh.h>
 #include <operators.h>
-#include <lis_operators.h>
+#include <lis_class.h>
 #include <fstream>
 #include <stdlib.h>
 #include <bim_config.h>
 
-LIS_INT main (LIS_INT argc, char* argv[])
+int main (int argc, char **argv)
 {
+  linear_solver *solver = new lis ();
   int rank, size;
-
-  LIS_INT     iter;
-  double      time;
-
-  lis_initialize (&argc, &argv);
 
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   mesh msh;
 
-  sparse_matrix       lhs, lhs_new, lhs_loc;
-  std::vector<double> rhs1, rhs2, rhs_new, rhs_loc;
-
-  std::vector<double> exactsolution_start, exactsolution, sol;
+  sparse_matrix       lhs, lhs_new;
+  std::vector<double> rhs1, rhs2, rhs_new;
+  std::vector<int>    ir, jc;
+  std::vector<double> xa;
+  std::vector<double> exactsolution_start, exactsolution;
 
   std::vector<int> bnodes;
   std::vector<double> vnodes_start, vnodes;
@@ -47,8 +44,6 @@ LIS_INT main (LIS_INT argc, char* argv[])
   std::vector<double> uold;
   double dt = 1;
   int T = 10;
-
-  linear_solver_option option = {"", "", ""};
 
   std::ofstream fout_sol ("Lis_Solution_TimeTest.txt");
 
@@ -62,10 +57,13 @@ LIS_INT main (LIS_INT argc, char* argv[])
       std::cout << "compute mesh props" << std::endl;
       msh.precompute_properties ();
 
-      std::cout << "assemble stiffness matrix. nnodes = " << msh.nnodes << std::endl;     
+      std::cout << "assemble stiffness matrix. nnodes = "
+                << msh.nnodes << std::endl;
 
       bim3a_structure (msh, lhs);
-      std::vector<double> ecoeff (msh.nelements, 1.0); //isotropic diffusion coefficient
+       //isotropic diffusion coefficient
+      std::vector<double> ecoeff (msh.nelements, 1.0);
+
       std::vector<double> v (msh.nnodes, 0.0);
       std::vector<double> ncoeff (msh.nnodes, 1 / dt);
       std::vector<double> nodecoeff1 (msh.nnodes, 1 / dt);
@@ -80,9 +78,10 @@ LIS_INT main (LIS_INT argc, char* argv[])
       uold = std::vector<double> (msh.nnodes, 0.0);
       for (int i = 0; i < msh.nnodes; ++i)
         {
-          uold[i] = 1.0 - msh.p (0, i) * msh.p (0, i)
-                        - msh.p (1, i) * msh.p (1, i)
-                        - msh.p (2, i) * msh.p (2, i);
+          uold[i] = 1.0 -
+                    msh.p (0, i) * msh.p (0, i) -
+                    msh.p (1, i) * msh.p (1, i) -
+                    msh.p (2, i) * msh.p (2, i);
         }
 
       std::vector<int> sidelist;
@@ -99,9 +98,10 @@ LIS_INT main (LIS_INT argc, char* argv[])
 
       for (int i = 0; i < vnodes.size (); ++i)
         {
-          vnodes_start[i] = 1.0 - msh.p (0, bnodes[i]) * msh.p (0, bnodes[i])
-                                - msh.p (1, bnodes[i]) * msh.p (1, bnodes[i])
-                                - msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
+          vnodes_start[i] = 1.0 -
+                            msh.p (0, bnodes[i]) * msh.p (0, bnodes[i]) -
+                            msh.p (1, bnodes[i]) * msh.p (1, bnodes[i]) -
+                            msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
         }
 
       exactsolution_start.resize (msh.nnodes);
@@ -109,20 +109,25 @@ LIS_INT main (LIS_INT argc, char* argv[])
 
       for (int i = 0; i < exactsolution_start.size (); ++i)
         {
-          exactsolution_start[i] = 1.0 - msh.p (0, i) * msh.p (0, i)
-                                       - msh.p (1, i) * msh.p (1, i)
-                                       - msh.p (2, i) * msh.p (2, i);
+          exactsolution_start[i] = 1.0 -
+                                   msh.p (0, i) * msh.p (0, i) -
+                                   msh.p (1, i) * msh.p (1, i) -
+                                   msh.p (2, i) * msh.p (2, i);
         }
 
-      std::cout << "\nResult of Time Dependent Test"
-                << "\nwill be written in Lis_Solution_TimeTest.txt\n";
+      std::cout << std::endl << "Result of Time Dependent Test"
+                << std::endl
+                << "will be written in Lis_Solution_TimeTest.txt"
+                << std::endl;
     }
 
   for (int t = 1; t <= T; ++t)
     {
       if (rank == 0)
         {
-          std::cout << "\nTime Iteration: "<< t << std::endl;
+          std::cout << std::endl
+                    << "Time Iteration: "<< t << std::endl;
+
           rhs_new.resize (rhs1.size ());
           lhs_new = lhs;
 
@@ -142,30 +147,36 @@ LIS_INT main (LIS_INT argc, char* argv[])
               exactsolution[i] = exactsolution_start[i];
             }
         }
-      if (size > 1)
-        {
-          lis_matrix_parallelization (lhs_new, lhs_loc);
-          lis_vector_parallelization (rhs_new, rhs_loc);
 
-          lis_solve_system (lhs_loc, rhs_loc,sol, iter, time, lhs_new.size (), option);
-        }
-      else
-        lis_solve_system(lhs_new, rhs_new, sol, iter, time, lhs_new.size (), option);
+      lhs_new.aij (xa, ir, jc, 1);
+
+     if (rank == 0)
+        solver->set_lhs_structure (lhs_new.rows (), ir, jc);
+
+     solver->analyze ();
+
       if (rank == 0)
-        {
-          std::cout << "Number of iterations = "<< iter << std::endl;
-          std::cout << "Elapsed time = " << time << std::endl;
+        solver->set_lhs_data (xa);
 
+     solver->factorize ();
+
+      if (rank == 0)
+        solver->set_rhs (rhs_new);
+
+     solver->solve ();
+
+     if (rank == 0)
+        {
           fout_sol << std::endl;
           fout_sol << "Time Iteration: "<< t << std::endl;
 
           double norm = 0;
-          std::vector<double> delta (sol.size ());
+          std::vector<double> delta (rhs_new.size ());
 
-          for (int k = 0; k < sol.size (); ++k)
+          for (int k = 0; k < rhs_new.size (); ++k)
             {
-              fout_sol << sol[k] << "  " << exactsolution[k] << std::endl;
-              delta[k] = exactsolution[k] - sol[k];
+              fout_sol << rhs_new[k] << "  " << exactsolution[k] << std::endl;
+              delta[k] = exactsolution[k] - rhs_new[k];
             }
           fout_sol.close ();
 
@@ -178,9 +189,9 @@ LIS_INT main (LIS_INT argc, char* argv[])
               exit(-1);
             }
         }
+
     }
   fout_sol.close ();
-  lis_finalize ();
-
+  solver->cleanup ();
   return 0;
 }

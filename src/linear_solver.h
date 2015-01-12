@@ -12,6 +12,8 @@
 
 #include <string>
 
+enum matrix_format {aij, csr};
+
 class linear_solver
 {
 private :
@@ -36,7 +38,8 @@ public :
   set_lhs_structure
   (int number_of_rows, 
    std::vector<int> &i_rows, 
-   std::vector<int> &j_columns) = 0;
+   std::vector<int> &j_columns,
+   matrix_format format = aij) = 0;
 
   /// Perform analysis steps required prior to factorization
   /// (e.g. reordering, partitioning, etc.).
@@ -62,7 +65,7 @@ public :
   /// The lhs structure and values must be set before this step.
   /// Must be called on the master (rank == 0) and slave (rank <> 0)
   /// nodes at the same time.
-  virtual int 
+  virtual int
   factorize () { return 1; };
 
   /// Set the rhs vector value.
@@ -73,7 +76,7 @@ public :
   /// node.
   /// Must be called on the master (rank == 0)
   /// node only.
-  virtual void 
+  virtual void
   set_rhs (std::vector<double> &rhs) = 0;
 
   /// Set the rhs vector value.
@@ -89,8 +92,69 @@ public :
   /// Must be called on the master (rank == 0) and slave (rank <> 0)
   /// nodes at the same time.
   /// After invoking this method the object should not be used anymore.
-  virtual void 
+  virtual void
   cleanup () { };
+
+  /// Set max iteration of linear solver.
+  /// Must be called only if linear solver is an iterative method.
+  /// Must be called on the master (rank == 0) and slave (rank <> 0)
+  /// nodes at the same time.
+  virtual void
+    set_max_iterations (int max_iter) { };
+
+  /// Get max iteration of linear solver.
+  /// Must be called only if linear solver is an iterative method.
+  virtual void
+    get_max_iterations (int &max_iter) { };
+
+  /// Set tolerance of linear solver.
+  /// Must be called only if linear solver is an iterative method.
+  /// Must be called on the master (rank == 0) and slave (rank <> 0)
+  /// nodes at the same time.
+  virtual void
+    set_tolerance (double tolerance) { };
+
+  /// Get tolerance of linear solver.
+  /// Must be called only if linear solver is an iterative method.
+  virtual void
+    get_tolerance (double &tolerance) { };
+
+  /// Set type of linear solver.
+  /// Must be called only if linear solver is an iterative method.
+  /// Must be called on the master (rank == 0) and slave (rank <> 0)
+  /// nodes at the same time.
+  virtual void
+    set_linear_solver (const std::string &linear_solver_type) { };
+
+  /// Get type of linear solver.
+  /// Must be called only if linear solver is an iterative method.
+  virtual void
+    get_linear_solver (std::string &linear_solver_type) { };
+
+
+  /// Set preconditioner of linear solver.
+  /// Must be called only if linear solver is an iterative method.
+  /// Must be called on the master (rank == 0) and slave (rank <> 0)
+  /// nodes at the same time.
+  virtual void
+    set_preconditioner (const std::string &preconditioner) { };
+
+  /// Get preconditioner of linear solver.
+  /// Must be called only if linear solver is an iterative method.
+  virtual void
+    get_preconditioner (std::string &preconditioner) { };
+
+  /// Set other options of linear solver.
+  /// Must be called only if linear solver is an iterative method.
+  /// Must be called on the master (rank == 0) and slave (rank <> 0)
+  /// nodes at the same time.
+  virtual void
+    set_other_options (const std::string &other_options) { };
+
+  /// Get other options of linear solver.
+  /// Must be called only if linear solver is an iterative method.
+  virtual void
+    get_other_options (std::string &other_options) { };
 
   /// Return the name of the specific implementation.
   const std::string&

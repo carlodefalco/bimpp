@@ -45,8 +45,23 @@ mumps::init ()
 
 void
 mumps::set_lhs_structure
-(int n, std::vector<int> &ir, std::vector<int> &jc)
+(int n, std::vector<int> &ir, std::vector<int> &jc,
+ matrix_format f)
 {
+  if (f == csr)
+    {
+      std::vector<int> aij_ir (jc.size (), 0);
+      for (int i = 0; i < n; ++i)
+        for (int j = ir[i]; j < ir[i+1]; ++j)
+          aij_ir[j] = i;
+
+      ir = aij_ir;
+      for (int i = 0; i < n; ++i)
+        {
+          ir[i]++;
+          jc[i]++;
+        }
+    }
   id.n  = n;
   id.nz = ir.size ();
 

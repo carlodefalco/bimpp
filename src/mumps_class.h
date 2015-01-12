@@ -47,7 +47,8 @@ public :
   void
   set_lhs_structure (int n,
                      std::vector<int> &ir,
-                     std::vector<int> &jc);
+                     std::vector<int> &jc,
+                     matrix_format f = aij);
 
   /// Perform the analysis.
   int
