@@ -4,7 +4,7 @@
   the terms of the GNU/GPL licence v3
 */
 /*! \file lis_class.cpp
-  \wrapper for lis data.
+  \brief wrapper for lis data.
 */
 
 #include <lis_class.h>
