@@ -12,8 +12,6 @@
 
 #include <string>
 
-enum matrix_format {aij, csr};
-
 class linear_solver
 {
 private :
@@ -42,7 +40,7 @@ public :
   (int number_of_rows, 
    std::vector<int> &i_rows, 
    std::vector<int> &j_columns,
-   matrix_format format = aij) = 0;
+   matrix_format_t format = aij) = 0;
 
   /// Perform analysis steps required prior to factorization
   /// (e.g. reordering, partitioning, etc.).

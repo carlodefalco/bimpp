@@ -82,10 +82,6 @@ bim3_timedependent_test3_osc_SOURCES = bim3_timedependent_test3_osc.cpp
 bim3_timedependent_test3_osc_LDADD = $(BIMLIB) $(BIMMUMPSLIB)
 CLEANFILES += Solution_TimeTest3_osc.txt
 
-linear_solver_test_SOURCES = linear_solver_test.cpp
-linear_solver_test_LDADD = $(BIMLIB) $(BIMMUMPSLIB)
-CLEANFILES += MUMPS_solution.txt
-
 if HAVE_LIS
   lis_test1_SOURCES = lis_test1.cpp
   lis_test1_LDADD = $(BIMLIB) $(BIMLISLIB)
@@ -118,6 +114,9 @@ if HAVE_LIS
   bim3_nonlinear_test4_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMMUMPSLIB)
   CLEANFILES += Lis_Solution_NonLinear4.txt
 
+  linear_solver_test_SOURCES = linear_solver_test.cpp
+  linear_solver_test_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMMUMPSLIB)
+  CLEANFILES += MUMPS_solution.txt LIS_Solution.txt
 endif
 
 TESTS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \

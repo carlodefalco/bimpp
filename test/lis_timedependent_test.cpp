@@ -162,6 +162,11 @@ int main (int argc, char **argv)
 
       if (rank == 0)
         solver->set_rhs (rhs_new);
+      if (solver->solver_type () == "iterative")
+        {
+          solver->set_max_iterations (1000);
+          solver->set_tolerance (1e-12);
+        }
 
      solver->solve ();
 
