@@ -62,6 +62,7 @@ mumps::set_lhs_structure
           jc[i]++;
         }
     }
+
   id.n  = n;
   id.nz = ir.size ();
 
