@@ -33,7 +33,7 @@ mumps_solve (sparse_matrix &lhs,
 
   mumps mumps_solver;
 
-  mumps_solver.set_lhs_structure (llhs.rows (), ir, jc);
+  mumps_solver.set_lhs_structure (llhs.rows (), ir, jc, aij);
   mumps_solver.analyze ();
 
   mumps_solver.set_lhs_data (xa);

@@ -203,8 +203,8 @@ inexact_newton_status backtracking_inexact_newton
     {
       fout.open (stream.filename);
       std::cout << "Result of Non Linear Test "
-                <<"\nwill be written in " << stream.filename
-                << std:endl << std::endl;
+                << "\nwill be written in " << stream.filename
+                << std::endl << std::endl;
     }
   if (rank == 0)
     {

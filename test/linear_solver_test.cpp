@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 
@@ -23,9 +23,6 @@ int main (int argc, char **argv)
   linear_solver *mumps_solver = new mumps ();
   run_test_problem (mumps_solver);
 
-  //  linear_solver *lis_solver = new mumps ();
-  //  run_test_problem (lis_solver);
-
   MPI_Finalize ();
   return (0);
 }
@@ -47,25 +44,28 @@ run_test_problem (linear_solver *solver)
   std::vector<double> xa;
   std::vector<double> exactsolution;
   if (rank == 0)
-    {  
-      std::cout << "\n\n*****\nStationary Test\n*****\n";
+    {
+      std::cout << "\n\n*****\nLinear Solver Test\n*****\n";
 
       std::cout << "Using solver of type "
                 << solver->solver_type ()
                 << " named "
                 << solver->solver_name ()
                 << std::endl;
-      
+
       std::cout << "read mesh" << std::endl;
       msh.read (data_dir + std::string ("mesh_in_cube.msh"));
 
       std::cout << "compute mesh props" << std::endl;
       msh.precompute_properties ();
 
-      std::cout << "assemble stiffness matrix. nnodes = " << msh.nnodes << std::endl;      
+      std::cout << "assemble stiffness matrix. nnodes = "
+                << msh.nnodes << std::endl;
 
       bim3a_structure (msh, lhs);
-      std::vector<double> ecoeff (msh.nelements, 1.0); //isotropic diffusion coefficient
+       //isotropic diffusion coefficient
+      std::vector<double> ecoeff (msh.nelements, 1.0);
+
       std::vector<double> v (msh.nnodes, 0.0);
       std::vector<double> ncoeff (msh.nnodes, 6.0);
 
@@ -80,17 +80,19 @@ run_test_problem (linear_solver *solver)
       sidelist.push_back(4);
       sidelist.push_back(5);
       sidelist.push_back(6);
-	
+
       std::vector<int> bnodes;
 
       std::vector<double> vnodes;
       bim3a_boundary_nodes (msh, sidelist, bnodes);
 
       vnodes.resize (bnodes.size ());
-      for (int i=0; i < vnodes.size (); ++i)
+      for (int i = 0; i < vnodes.size (); ++i)
         {
-          vnodes[i]=1-msh.p(0,bnodes[i])*msh.p(0,bnodes[i])-msh.p(1,bnodes[i])*msh.p(1,bnodes[i])
-            -msh.p(2,bnodes[i])*msh.p(2,bnodes[i]);
+          vnodes[i] = 1.0 -
+                      msh.p (0, bnodes[i]) * msh.p (0, bnodes[i]) -
+                      msh.p (1, bnodes[i]) * msh.p (1, bnodes[i]) -
+                      msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
         }
 
       bim3a_dirichletBC (lhs, rhs, bnodes, vnodes);
@@ -98,9 +100,12 @@ run_test_problem (linear_solver *solver)
       lhs.aij (xa, ir, jc, 1);
 
       exactsolution.resize (msh.nnodes);
-      for(int i=0; i < exactsolution.size (); ++i)
+      for(int i = 0; i < exactsolution.size (); ++i)
         {
-          exactsolution[i]=1-msh.p(0,i)*msh.p(0,i)-msh.p(1,i)*msh.p(1,i)-msh.p(2,i)*msh.p(2,i);
+          exactsolution[i] = 1.0 -
+                             msh.p (0, i) * msh.p (0, i) -
+                             msh.p (1, i) * msh.p (1, i) -
+                             msh.p (2, i) * msh.p (2, i);
         }
     }
 
@@ -117,12 +122,21 @@ run_test_problem (linear_solver *solver)
   if (rank == 0)
     solver->set_rhs (rhs);
 
+  if (solver->solver_type () == "iterative")
+    {
+      solver->set_max_iterations (1000);
+      solver->set_tolerance (1e-12);
+    }
+
   solver->solve ();
 
   if (rank == 0)
     {
-      std::cout << "\nResult of Stationary Test \nwill be written in solution.txt\n";
-      std::ofstream fout ((solver->solver_name () + std::string ("_solution.txt")).c_str ());
+      std::cout << "\nResult of Stationary Test \nwill be written in "
+                << solver->solver_name () << "_solution.txt"
+                << std::endl;
+      std::ofstream fout ((solver->solver_name () +
+                           std::string ("_solution.txt")).c_str ());
       fout << std::endl;
 
       double norm = 0;
@@ -131,7 +145,7 @@ run_test_problem (linear_solver *solver)
       for (int k = 0; k < rhs.size (); ++k)
         {
           fout << rhs[k] << "  " << exactsolution[k]<< std::endl;
-          delta[k]=exactsolution[k]-rhs[k];
+          delta[k] = exactsolution[k] - rhs[k];
         }
       fout.close ();
 

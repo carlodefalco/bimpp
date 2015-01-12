@@ -11,7 +11,7 @@ check_PROGRAMS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 bim3_sta
                  bim3_stationary_test2 bim3_stationary_test2_osc bim3_stationary_test3 \
                  bim3_stationary_test3_osc bim3_stationary_test4 bim3_timedependent_test \
                  bim3_timedependent_test2 bim3_timedependent_test2_osc bim3_timedependent_test3 \
-                 bim3_timedependent_test3_osc linear_solver_test 
+                 bim3_timedependent_test3_osc linear_solver_test
 
 if HAVE_LIS
   check_PROGRAMS += lis_test1 lis_stationary_test lis_timedependent_test \
@@ -82,13 +82,17 @@ bim3_timedependent_test3_osc_SOURCES = bim3_timedependent_test3_osc.cpp
 bim3_timedependent_test3_osc_LDADD = $(BIMLIB) $(BIMMUMPSLIB)
 CLEANFILES += Solution_TimeTest3_osc.txt
 
+linear_solver_test_SOURCES = linear_solver_test.cpp
+linear_solver_test_LDADD = $(BIMLIB) $(BIMMUMPSLIB)
+CLEANFILES += MUMPS_solution.txt
+
 if HAVE_LIS
   lis_test1_SOURCES = lis_test1.cpp
   lis_test1_LDADD = $(BIMLIB) $(BIMLISLIB)
 
   lis_stationary_test_SOURCES = lis_stationary_test.cpp
   lis_stationary_test_LDADD = $(BIMLIB) $(BIMLISLIB)
-  CLEANFILES += Lis_Solution.txt
+  CLEANFILES += LIS_Solution.txt
 
   lis_timedependent_test_SOURCES = lis_timedependent_test.cpp
   lis_timedependent_test_LDADD = $(BIMLIB) $(BIMLISLIB)
@@ -114,10 +118,6 @@ if HAVE_LIS
   bim3_nonlinear_test4_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMMUMPSLIB)
   CLEANFILES += Lis_Solution_NonLinear4.txt
 
-  linear_solver_test_SOURCES = linear_solver_test.cpp
-  linear_solver_test_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMMUMPSLIB)
-  CLEANFILES += MUMPS_solution.txt
-
 endif
 
 TESTS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
@@ -129,5 +129,5 @@ TESTS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
 if HAVE_LIS
   TESTS+=lis_test1 lis_stationary_test lis_timedependent_test \
          bim3_nonlinear_eq_test bim3_nonlinear_test  bim3_nonlinear_test2 \
-         bim3_nonlinear_test4 bim3_nonlinear_test3 
+         bim3_nonlinear_test3 bim3_nonlinear_test4
 endif

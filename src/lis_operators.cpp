@@ -236,7 +236,7 @@ lis_solve_system (sparse_matrix& lhs,
   lis_solver_get_time (solver, &time);
 
   lis_vector_unification (x, sol, nnodes, is, ie);
-
+  
   lis_solver_destroy (solver);
   lis_matrix_destroy (A);
   lis_vector_destroy (b);
