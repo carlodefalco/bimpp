@@ -4,10 +4,12 @@
   the terms of the GNU/GPL licence v3
 */
 
+#include <lis.h>
 #include <bim_sparse.h>
 #include <mesh.h>
 #include <operators.h>
 #include <mumps_class.h>
+#include <lis_class.h>
 #include <mpi.h>
 #include <fstream>
 #include <bim_config.h>
@@ -23,6 +25,9 @@ int main (int argc, char **argv)
   linear_solver *mumps_solver = new mumps ();
   run_test_problem (mumps_solver);
 
+  linear_solver *lis_solver = new lis ();
+  run_test_problem (lis_solver);
+
   MPI_Finalize ();
   return (0);
 }
@@ -31,7 +36,6 @@ int main (int argc, char **argv)
 void
 run_test_problem (linear_solver *solver)
 {
-
   int rank, size;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);

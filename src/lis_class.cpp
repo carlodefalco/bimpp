@@ -17,7 +17,7 @@ void
 lis::set_lhs_structure (int n,
                         std::vector<int> &ir,
                         std::vector<int> &jc,
-                        matrix_format f)
+                        matrix_format_t f)
 {
   n_row = n;
   row_ptr.clear ();
