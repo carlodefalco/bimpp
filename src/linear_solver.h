@@ -21,8 +21,8 @@ private :
 protected :
 
   linear_solver (const char *name_, const char *type_) :
-    name (name_), type (type_) { }; 
-    
+    name (name_), type (type_) { };
+
 public :
 
   /// Format for sparse matrix structure.
@@ -35,10 +35,10 @@ public :
   /// entries are not yet assigned.
   /// Must be called on the master (rank == 0)
   /// node only.
-  virtual void 
+  virtual void
   set_lhs_structure
-  (int number_of_rows, 
-   std::vector<int> &i_rows, 
+  (int number_of_rows,
+   std::vector<int> &i_rows,
    std::vector<int> &j_columns,
    matrix_format_t format = aij) = 0;
 
@@ -96,14 +96,14 @@ public :
   virtual void
   cleanup () { };
 
-  /// Set max iteration of linear solver.
+  /// Set maximum number of iterations of linear solver.
   /// Must be called only if linear solver is an iterative method.
   /// Must be called on the master (rank == 0) and slave (rank <> 0)
   /// nodes at the same time.
   virtual void
   set_max_iterations (int max_iter) { };
 
-  /// Get max iteration of linear solver.
+  /// Get maximum number of iterations of linear solver.
   /// Must be called only if linear solver is an iterative method.
   virtual void
   get_max_iterations (int &max_iter) { };
@@ -120,42 +120,66 @@ public :
   virtual void
   get_tolerance (double &tolerance) { };
 
-  /// Set type of linear solver.
+  /// Set type of iterative method used to find solution of system.
   /// Must be called only if linear solver is an iterative method.
   /// Must be called on the master (rank == 0) and slave (rank <> 0)
   /// nodes at the same time.
+  /// Possible input are:
+  /// "conjugate_gradient" for Conjugate Gradient Method
+  /// "biconjuagte_gradient" for BiConjugate Gradient Method
+  /// "bicg_stablized" for BiConjugate Gradient Stabilized Method
+  /// "jacobi" for Jacobi Method
+  /// "gauss_seidel" for Gauss Seidel Method
+  /// "sor" for SOR Method
+  /// If iterative method sent to solver is invalid,
+  /// the program will run with default iterative method "bicg".
   virtual void
-  set_linear_solver (const std::string &linear_solver_type) { };
+  set_iterative_method
+  (const std::string &type_of_iterative_method) { };
 
-  /// Get type of linear solver.
+  /// Get type of iterative method sent to solver.
   /// Must be called only if linear solver is an iterative method.
   virtual void
-  get_linear_solver (std::string &linear_solver_type) { };
-  
+  get_iterative_method
+  (std::string &type_of_iterative_method) { };
 
   /// Set preconditioner of linear solver.
   /// Must be called only if linear solver is an iterative method.
   /// Must be called on the master (rank == 0) and slave (rank <> 0)
   /// nodes at the same time.
+  /// Possible input are:
+  /// "none" for solve system without preconditioner.
+  /// "jacobi" for Jacobi preconditioner.
+  /// "ssor" for Symmetric Successive Over-Relaxation.
+  /// If preconditioner sent to solver is invalid,
+  /// the program will run without preconditioner.
   virtual void
   set_preconditioner (const std::string &preconditioner) { };
 
-  /// Get preconditioner of linear solver.
+  /// Get preconditioner sent to solver.
   /// Must be called only if linear solver is an iterative method.
   virtual void
   get_preconditioner (std::string &preconditioner) { };
 
-  /// Set other options of linear solver.
+  /// Set convergence condition of iterative method.
   /// Must be called only if linear solver is an iterative method.
   /// Must be called on the master (rank == 0) and slave (rank <> 0)
   /// nodes at the same time.
+  /// Possible input are:
+  /// "norm2_of_residual" for \f$ ||b-Ax||_2 <= tol * ||b-Ax_0||_2 \f$
+  /// "norm2_of_rhs" for \f$ ||b-Ax||_2 <= tol * ||b||_2 \f$
+  /// If convergence condition sent to solver is invalid,
+  /// the program will run with default convergence condition
+  /// "norm2_of_residual".
   virtual void
-  set_other_options (const std::string &other_options) { };
+  set_convergence_condition
+  (const std::string &convergence_condition) { };
 
-  /// Get other options of linear solver.
+  /// Get convergence condition of iterative method sent to solver.
   /// Must be called only if linear solver is an iterative method.
   virtual void
-  get_other_options (std::string &other_options) { };
+  get_convergence_condition
+  (std::string &convergence_condition) { };
 
   /// Return the name of the specific implementation.
   const std::string&

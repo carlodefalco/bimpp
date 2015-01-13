@@ -15,26 +15,48 @@
 #include <bim_config.h>
 
 void
-run_test_problem (linear_solver *solver);
+run_test_problem (linear_solver *solver, std::vector<double> &rhs);
 
 int main (int argc, char **argv)
 {
 
   MPI_Init (&argc, &argv);
 
+  int rank, size;
+  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+  MPI_Comm_size (MPI_COMM_WORLD, &size);
+
+  std::vector<double> lis_rhs;
+  std::vector<double> mumps_rhs;
+
   linear_solver *mumps_solver = new mumps ();
-  run_test_problem (mumps_solver);
+  run_test_problem (mumps_solver, mumps_rhs);
 
   linear_solver *lis_solver = new lis ();
-  run_test_problem (lis_solver);
+  run_test_problem (lis_solver, lis_rhs);
 
+  if (rank == 0)
+    {
+      double error = 0;
+
+      for (int i = 0; i < lis_rhs.size (); ++i)
+       {
+         if (fabs (lis_rhs[i]-mumps_rhs[i]) > 1e-5)
+           std::cout<<i<<std::endl;
+         error += fabs (lis_rhs[i]-mumps_rhs[i]);
+       }
+
+      std::cout << std::endl
+                << "Difference between solutions computed"
+                << std::endl
+                << "with lis and mumps solvers = " << error << std::endl;
+    }
   MPI_Finalize ();
   return (0);
 }
 
-
 void
-run_test_problem (linear_solver *solver)
+run_test_problem (linear_solver *solver, std::vector<double> &rhs)
 {
   int rank, size;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
@@ -43,7 +65,7 @@ run_test_problem (linear_solver *solver)
   mesh msh;
 
   sparse_matrix       lhs;
-  std::vector<double> rhs;
+
   std::vector<int>    ir, jc;
   std::vector<double> xa;
   std::vector<double> exactsolution;
@@ -130,6 +152,8 @@ run_test_problem (linear_solver *solver)
     {
       solver->set_max_iterations (1000);
       solver->set_tolerance (1e-12);
+      solver->set_iterative_method("conjugate_gradient");
+      solver->set_convergence_condition("norm2_of_residual");
     }
 
   solver->solve ();

@@ -4,7 +4,7 @@
   the terms of the GNU/GPL licence v3
 */
 /*! \file lis_class.h
-  \wrapper for lis data.
+  \brief interface for linear solver built with lis library.
 */
 
 #ifndef HAVE_LIS_CLASS
@@ -27,14 +27,17 @@ private :
   int max_iter;
   double tolerance;
 
-  std::string lin_solver;
+  std::string iterative_method;
   std::string preconditioner;
-  std::string other_options;
+  std::string convergence_condition;
 
   int i_s, row_s;
   int n, nnz, n_row;
 
+  LIS_SOLVER solver;
+
 public :
+
   /// Default costructor.
   lis (LIS_INT argc = 0, char * argv[] = NULL) :
     linear_solver ("LIS", "iterative")
@@ -42,14 +45,18 @@ public :
     lis_initialize (&argc, &argv);
     max_iter = 1000;
     tolerance = 1.0e-12;
+    iterative_method = "bicg";
+    preconditioner = "none";
+    convergence_condition = "nrm2_r";
   };
 
   /// Set-up the matrix structure.
   void
-  set_lhs_structure (int n,
-                     std::vector<int> &ir,
-                     std::vector<int> &jc,
-                     matrix_format_t f = aij);
+  set_lhs_structure
+  (int n,
+   std::vector<int> &ir,
+   std::vector<int> &jc,
+   matrix_format_t f = aij);
 
   /// Perform the analysis.
   int
@@ -65,10 +72,7 @@ public :
 
   /// Perform the factorization.
   int
-  factorize ()
-  {
-    return 1;
-  };
+  factorize () { return 1; };
 
   /// Solve the system.
   int
@@ -78,15 +82,16 @@ public :
   void
   cleanup ();
 
-  /// Set maximum number of iterations.
+  /// Set maximum number of iterations (default = 1000).
   void
   set_max_iterations (int max_iter_);
 
   /// Get maximum number of iterations.
   void
-  get_max_iterations (int &max_iter_);
+  get_max_iterations
+  (int &max_iter_);
 
-  /// Set tolerance of linear solver.
+  /// Set tolerance of iterative method (default = 1.0e-12).
   void
   set_tolerance (double tol);
 
@@ -94,15 +99,15 @@ public :
   void
   get_tolerance (double &tol);
 
-  /// Set type of linear solver.
+  /// Set type of iterative method (default = cg).
   void
-  set_linear_solver (const std::string &s);
+  set_iterative_method (const std::string &s);
 
-  /// Get type of linear solver.
+  /// Get type of iterative method.
   void
-  get_linear_solver (std::string &s);
+  get_iterative_method (std::string &s);
 
-  /// Set type of preconditioner.
+  /// Set type of preconditioner (default = none).
   void
   set_preconditioner (const std::string &s);
 
@@ -110,13 +115,18 @@ public :
   void
   get_preconditioner (std::string &s);
 
-  /// Set other optins of linear solver
+  /// Set convergence condition of iterative method
+  /// (default = nrm2_r)
   void
-  set_other_options (const std::string &s);
+  set_convergence_condition (const std::string &s);
 
-  /// get other options of linear solver
+  /// get convergence condition of iterative method
   void
-  get_other_options (std::string &s);
+  get_convergence_condition (std::string &s);
+
+  /// Get the rhs vector value.
+  void
+  get_rhs (std::vector<double> &rhs);
 
 };
 #endif
