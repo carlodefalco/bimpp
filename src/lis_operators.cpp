@@ -55,7 +55,7 @@ lis_matrix_parallelization (sparse_matrix& sp,
   else
     {
 
-      MPI_Status *status;
+      MPI_Status *status = NULL;
       n_loc = gn / size;
       sp_loc.resize (n_loc);
 
@@ -108,7 +108,7 @@ lis_vector_parallelization (std::vector<double>& v,
     }
   else
     {
-      MPI_Status *status;
+      MPI_Status *status = NULL;
       n_loc = gn / size;
       v_loc.resize (n_loc);
       for (int i = 0; i < n_loc; ++i)
@@ -136,7 +136,7 @@ lis_vector_unification (LIS_VECTOR& v_loc,
           lis_vector_get_value (v_loc, i, &temp);
           v[i] = temp;
         }
-      MPI_Status *status;
+      MPI_Status *status = NULL;
       for (int k = 1; k < size; ++k)
         {
           int is_loc, ie_loc;

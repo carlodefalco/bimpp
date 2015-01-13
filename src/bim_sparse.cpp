@@ -28,7 +28,8 @@ sparse_matrix::extract_block_pointer (const std::vector<int> &rows,
   out.resize (rows.size ());
 
   for (ii = 0; ii < rows.size (); ++ii)
-    if (rows[ii] < (*this).rows () && (*this)[rows[ii]].size ())
+    if (rows[ii] < int((*this).rows ()) && 
+        (*this)[rows[ii]].size ())
       for (jj = 0; jj < cols.size (); ++jj)
         if ((*this)[rows[ii]].count (cols[jj]))
           out[ii][jj] = &((*this)[rows[ii]][cols[jj]]);

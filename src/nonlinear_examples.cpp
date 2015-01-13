@@ -44,7 +44,7 @@ plaplacian::operator() (sparse_matrix& lhs,
     }
   bim3a_laplacian (msh, isocoeff, lhs);
   bim3a_matrix_vector_product (lhs, u, rhs);
-  for (int i = 0; i < rhs.size (); ++i)
+  for (unsigned int i = 0; i < rhs.size (); ++i)
     rhs[i] *= -1;
   bim3a_rhs (msh, ecoeff, f, rhs);
   bim3a_laplacian_anisotropic (msh, dcoeff, lhs);
@@ -56,7 +56,7 @@ plaplacian::operator() (std::vector<double>& F,const std::vector<double>& u)
 {
   sparse_matrix M;
   this->operator()(M, F, u);
-  for (int i = 0; i < F.size(); ++i)
+  for (unsigned int i = 0; i < F.size(); ++i)
     F[i] *= -1;
 }
 
