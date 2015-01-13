@@ -7,7 +7,6 @@
   \brief wrapper for mumps data.
 */
 
-
 #include <mumps_class.h>
 
 void
@@ -45,7 +44,9 @@ mumps::init ()
 
 void
 mumps::set_lhs_structure
-(int n, std::vector<int> &ir, std::vector<int> &jc,
+(int n,
+ std::vector<int> &ir,
+ std::vector<int> &jc,
  matrix_format_t f)
 {
   if (f == csr)

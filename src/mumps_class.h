@@ -45,10 +45,11 @@ public :
 
   /// Set-up the matrix structure.
   void
-  set_lhs_structure (int n,
-                     std::vector<int> &ir,
-                     std::vector<int> &jc,
-                     matrix_format_t f = aij);
+  set_lhs_structure
+  (int n,
+   std::vector<int> &ir,
+   std::vector<int> &jc,
+   matrix_format_t f = aij);
 
   /// Perform the analysis.
   int
@@ -74,7 +75,5 @@ public :
   void
   cleanup ();
 };
-
-
 
 #endif

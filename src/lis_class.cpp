@@ -4,7 +4,7 @@
   the terms of the GNU/GPL licence v3
 */
 /*! \file lis_class.cpp
-  \brief wrapper for lis data.
+  \brief interface for linear solver built with for lis library.
 */
 
 #include <lis_class.h>
@@ -14,10 +14,11 @@
 #include <cstring>
 
 void
-lis::set_lhs_structure (int n,
-                        std::vector<int> &ir,
-                        std::vector<int> &jc,
-                        matrix_format_t f)
+lis::set_lhs_structure
+(int n,
+ std::vector<int> &ir,
+ std::vector<int> &jc,
+ matrix_format_t f)
 {
   n_row = n;
   row_ptr.clear ();
@@ -189,9 +190,9 @@ lis::solve ()
   std::stringstream opt;
   opt << "-maxiter " << max_iter
       << " -tol " << tolerance
-      << " -i " << lin_solver
+      << " -i " << iterative_method
       << " -p " << preconditioner
-      << other_options;
+      << " -conv_cond " << convergence_condition;
 
   std::string opt_ = opt.str ();
   char* options = new char[opt_.length () + 1];
@@ -289,21 +290,55 @@ lis::get_tolerance (double &tol)
 }
 
 void
-lis::set_linear_solver (const std::string &s)
+lis::set_iterative_method (const std::string &s)
 {
-  lin_solver = s;
+  if (s == "conjugate_gradient")
+    iterative_method = "cg";
+  else if (s == "biconjugate_gradient")
+    iterative_method = "bicg";
+  else if (s == "bicg_stabilized")
+    iterative_method = "bicgstab";
+  else if (s == "jacobi")
+    iterative_method = "jacobi";
+  else if (s == "gauss_seidel")
+    iterative_method = "gs";
+  else if (s == "sor")
+    iterative_method = "sor";
+  else
+    {
+      std::cout << std::endl
+                <<"Invalid Iterative Method"
+                << std::endl
+                << "Solve with default BiConjugate Gradient"
+                << std::endl;
+      iterative_method = "bicg";
+    }
 }
 
 void
-lis::get_linear_solver (std::string &s)
+lis::get_iterative_method (std::string &s)
 {
-  s = lin_solver;
+  s = iterative_method;
 }
 
 void
 lis::set_preconditioner (const std::string &s)
 {
-  preconditioner = s;
+  if (s == "none")
+    preconditioner = "none";
+  else if (s == "jacobi")
+    preconditioner = "jacobi";
+  else if (s == "ssor")
+    preconditioner = "ssor";
+  else
+    {
+      std::cout << std::endl
+                <<"Invalid Preconditioner"
+                << std::endl
+                << "Solve without preconditioner"
+                << std::endl;
+      preconditioner = "none";
+    }
 }
 
 void
@@ -313,13 +348,25 @@ lis::get_preconditioner (std::string &s)
 }
 
 void
-lis::set_other_options (const std::string &s)
+lis::set_convergence_condition (const std::string &s)
 {
-  other_options = s;
+  if (s == "norm2_of_residual")
+    convergence_condition = "nrm2_r";
+  else if (s == "norm2_of_rhs")
+    convergence_condition = "nrm2_b";
+  else
+    {
+      std::cout << std::endl
+                <<"Invalid Convergence Condition"
+                << std::endl
+                << "Solve with default norm2_of_residual"
+                << std::endl;
+      convergence_condition = "nrm2_r";
+    }
 }
 
 void
-lis::get_other_options (std::string &s)
+lis::get_convergence_condition (std::string &s)
 {
-  s = other_options;
+  s = convergence_condition;
 }
