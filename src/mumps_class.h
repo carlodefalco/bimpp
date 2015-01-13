@@ -39,8 +39,9 @@ public :
 
   /// Default constructor.
   mumps (bool verbose_ = false, int icntl23_ = 0) :
-    verbose (verbose_), icntl23 (icntl23_),
-    linear_solver ("MUMPS", "direct")
+    linear_solver ("MUMPS", "direct"),
+    verbose (verbose_), 
+    icntl23 (icntl23_) 
   { init (); };
 
   /// Set-up the matrix structure.

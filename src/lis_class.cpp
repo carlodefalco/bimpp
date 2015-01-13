@@ -28,12 +28,12 @@ lis::set_lhs_structure
   if (f == aij)
     {
       if (ir[0] == 1)
-        for (int i = 0; i < ir.size (); ++i)
+        for (unsigned int i = 0; i < ir.size (); ++i)
           {
             ir[i]--;
             jc[i]--;
           }
-      for (int i = 0; i < ir.size (); ++i)
+      for (unsigned int i = 0; i < ir.size (); ++i)
         row_ptr[ir[i]]++;
 
       for (int i = 0, cumsum = 0; i < n_row; ++i)
@@ -88,7 +88,7 @@ lis::analyze ()
     {
       n = n_row / size;
 
-      MPI_Status *status;
+      MPI_Status *status = NULL;
       MPI_Recv (&i_s, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, status);
       MPI_Recv (&nnz, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, status);
 
@@ -151,7 +151,7 @@ lis::solve ()
     }
   else
     {
-      MPI_Status *status;
+      MPI_Status *status = NULL;
       data.resize(nnz, 0);
       rhs.resize(n, 0);
       MPI_Recv (&data[0], nnz,
@@ -225,7 +225,7 @@ lis::solve ()
           *(rhs_it + i) = temp;
         }
 
-      MPI_Status *status;
+      MPI_Status *status = NULL;
       for (int k = 1; k < size; ++k)
         {
           int loc_row_s, loc_n;

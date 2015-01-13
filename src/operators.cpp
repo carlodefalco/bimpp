@@ -70,7 +70,7 @@ bim3a_reaction (mesh& msh,
     A.resize (msh.nnodes);
 
   int iel, inode[4];
-  double Lloc[16], nloc[4] = {0.0, 0.0, 0.0, 0.0}, *mesh_local;
+  double Lloc[16], nloc[4] = {0.0, 0.0, 0.0, 0.0};
 
   for (iel = 0; iel < msh.nelements; ++iel)
     {
@@ -283,7 +283,7 @@ bim3a_advection_upwind(mesh &msh,
         for(int i = 0; i < 6; ++i)
           vnodes[i] = 0;
 
-      else if (v.size () == 3 * msh.nelements)
+      else if (v.size () == 3u * msh.nelements)
         {
           int node = 0;
           for (int i = 0; i < 3; ++i)
@@ -294,7 +294,7 @@ bim3a_advection_upwind(mesh &msh,
               ++node;
             }
         }
-      else if (v.size () == 4 * msh.nelements)
+      else if (v.size () == 4u * msh.nelements)
         {
           double vloc[4];
           int node = 0;
@@ -1009,7 +1009,7 @@ bim3a_dirichletBC (sparse_matrix& M,
                   const std::vector<double>& vnodes)
 {
   sparse_matrix::col_iterator j;
-  for (int it = 0; it < bnodes.size (); ++it)
+  for (unsigned int it = 0; it < bnodes.size (); ++it)
     {
       int i = bnodes[it];
       M[i][i] = 0.0;
@@ -1051,7 +1051,7 @@ bim3a_norm (mesh& msh,
   if (type == Inf)
     {
       norm = 0.0;
-      for (int i = 0; i < v.size (); ++i)
+      for (unsigned int i = 0; i < v.size (); ++i)
         {
           double temp = fabs (v[i]);
           if (norm < temp)
@@ -1069,7 +1069,7 @@ bim3a_norm (mesh& msh,
         bim3a_laplacian (msh, ecoeff, M);
       std::vector<double> temp;
       bim3a_matrix_vector_product (M, v, temp);
-      for (int i = 0; i < v.size(); ++i)
+      for (unsigned int i = 0; i < v.size(); ++i)
         norm += v[i] * temp[i];
       norm = sqrt (norm);
     }
@@ -1083,7 +1083,7 @@ bim3a_matrix_vector_product(sparse_matrix& M,
 {
   sparse_matrix::col_iterator j;
   y.resize (x.size ());
-  for (int i = 0; i < M.size (); ++i)
+  for (unsigned int i = 0; i < M.size (); ++i)
     if (M[i].size ())
       for (j = M[i].begin (); j != M[i].end (); ++j)
         y[i] += M.col_val (j) * x[M.col_idx (j)];
