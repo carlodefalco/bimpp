@@ -36,7 +36,7 @@ lis::set_lhs_structure
       for (unsigned int i = 0; i < ir.size (); ++i)
         row_ptr[ir[i]]++;
 
-      for (int i = 0, cumsum = 0; i < n_row; ++i)
+      for (unsigned int i = 0, cumsum = 0; i < n_row; ++i)
         {
           int temp = row_ptr[i];
           row_ptr[i] = cumsum;
@@ -64,7 +64,7 @@ lis::analyze ()
     {
       n = n_row / size;
 
-      for (int k = 1; k < size; ++k)
+      for (unsigned int k = 1; k < size; ++k)
         {
           i_s = row_ptr[n * k + n_row % size];
           nnz = row_ptr[n * (k + 1) + n_row % size] -
@@ -133,7 +133,7 @@ lis::solve ()
 
   if (rank == 0)
     {
-      for (int k = 1; k < size; ++k)
+      for (unsigned int k = 1; k < size; ++k)
         {
           n = n_row / size;
           nnz = row_ptr[n * (k + 1) + n_row % size] -
@@ -164,7 +164,7 @@ lis::solve ()
   LIS_INT *col = (LIS_INT *)malloc (nnz * sizeof (LIS_INT));
   LIS_SCALAR *value = (LIS_SCALAR *)malloc (nnz * sizeof (LIS_SCALAR));
 
-  for (int i = 0; i < nnz ; ++i)
+  for (unsigned int i = 0; i < nnz ; ++i)
     {
       col[i] = jcol[i];
       value[i] = data[i];
@@ -219,14 +219,14 @@ lis::solve ()
   if (rank == 0)
     {
       double temp = 0.0;
-      for (int i = row_s; i < row_s + n; ++i)
+      for (unsigned int i = row_s; i < row_s + n; ++i)
         {
           lis_vector_get_value (x, i, &temp);
           *(rhs_it + i) = temp;
         }
 
       MPI_Status *status = NULL;
-      for (int k = 1; k < size; ++k)
+      for (unsigned int k = 1; k < size; ++k)
         {
           int loc_row_s, loc_n;
           MPI_Recv (&loc_row_s, 1,
