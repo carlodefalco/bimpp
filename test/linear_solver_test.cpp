@@ -39,12 +39,8 @@ int main (int argc, char **argv)
     {
       double error = 0;
 
-      for (int i = 0; i < lis_rhs.size (); ++i)
-       {
-         if (fabs (lis_rhs[i]-mumps_rhs[i]) > 1e-5)
-           std::cout<<i<<std::endl;
-         error += fabs (lis_rhs[i]-mumps_rhs[i]);
-       }
+      for (unsigned int i = 0; i < lis_rhs.size (); ++i)
+        error += fabs (lis_rhs[i] - mumps_rhs[i]);
 
       std::cout << std::endl
                 << "Difference between solutions computed"
@@ -113,7 +109,7 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
       bim3a_boundary_nodes (msh, sidelist, bnodes);
 
       vnodes.resize (bnodes.size ());
-      for (int i = 0; i < vnodes.size (); ++i)
+      for (unsigned int i = 0; i < vnodes.size (); ++i)
         {
           vnodes[i] = 1.0 -
                       msh.p (0, bnodes[i]) * msh.p (0, bnodes[i]) -
@@ -126,7 +122,7 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
       lhs.aij (xa, ir, jc, 1);
 
       exactsolution.resize (msh.nnodes);
-      for(int i = 0; i < exactsolution.size (); ++i)
+      for(unisgned int i = 0; i < exactsolution.size (); ++i)
         {
           exactsolution[i] = 1.0 -
                              msh.p (0, i) * msh.p (0, i) -
@@ -152,8 +148,8 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
     {
       solver->set_max_iterations (1000);
       solver->set_tolerance (1e-12);
-      solver->set_iterative_method("conjugate_gradient");
-      solver->set_convergence_condition("norm2_of_residual");
+      solver->set_iterative_method ("conjugate_gradient");
+      solver->set_convergence_condition ("norm2_of_residual");
     }
 
   solver->solve ();
