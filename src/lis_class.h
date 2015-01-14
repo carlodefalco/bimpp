@@ -70,10 +70,6 @@ public :
   void
   set_rhs (std::vector<double> &rhs);
 
-  /// Perform the factorization.
-  int
-  factorize () { return 1; };
-
   /// Solve the system.
   int
   solve ();
@@ -123,10 +119,6 @@ public :
   /// get convergence condition of iterative method
   void
   get_convergence_condition (std::string &s);
-
-  /// Get the rhs vector value.
-  void
-  get_rhs (std::vector<double> &rhs);
 
 };
 #endif

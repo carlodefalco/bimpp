@@ -122,7 +122,7 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
       lhs.aij (xa, ir, jc, 1);
 
       exactsolution.resize (msh.nnodes);
-      for(unisgned int i = 0; i < exactsolution.size (); ++i)
+      for(unsigned int i = 0; i < exactsolution.size (); ++i)
         {
           exactsolution[i] = 1.0 -
                              msh.p (0, i) * msh.p (0, i) -
