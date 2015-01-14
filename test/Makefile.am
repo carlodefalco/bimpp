@@ -76,7 +76,7 @@ CLEANFILES += Solution_TimeTest2_osc.txt
 
 bim3_timedependent_test3_SOURCES = bim3_timedependent_test3.cpp
 bim3_timedependent_test3_LDADD = $(BIMLIB) $(BIMMUMPSLIB)
-CLEANFILES += Solution_TimeTest2.txt
+CLEANFILES += Solution_TimeTest3.txt
 
 bim3_timedependent_test3_osc_SOURCES = bim3_timedependent_test3_osc.cpp
 bim3_timedependent_test3_osc_LDADD = $(BIMLIB) $(BIMMUMPSLIB)
