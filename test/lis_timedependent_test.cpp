@@ -4,11 +4,11 @@
   the terms of the GNU/GPL licence v3
 */
 /*
-  Problem:         du/dt-nabla(u) = g
-                   u = 1-x^2-y^2-z^2 on border
-                   g = 6
+  Problem:  du/dt-nabla (u) = g
+  u = 1-x^2-y^2-z^2 on boundary
+  g = 6
 
-  Exact Solution:  u=1-x^2-y^2-z^2
+  Exact Solution:  u = 1-x^2-y^2-z^2
 */
 
 #include <stdio.h>
@@ -49,7 +49,9 @@ int main (int argc, char **argv)
 
   if (rank == 0)
     {
-      std::cout << "\n\n*****\nLis test: Time Dependent Problem\n*****\n";
+      std::cout << std::endl << std::endl
+                << "*****\nLis test: Time Dependent Problem\n*****"
+                << std::endl;
 
       std::cout << "read mesh" << std::endl;
       msh.read (data_dir + std::string ("mesh_in_cube.msh"));
@@ -79,40 +81,40 @@ int main (int argc, char **argv)
       for (int i = 0; i < msh.nnodes; ++i)
         {
           uold[i] = 1.0 -
-                    msh.p (0, i) * msh.p (0, i) -
-                    msh.p (1, i) * msh.p (1, i) -
-                    msh.p (2, i) * msh.p (2, i);
+            msh.p (0, i) * msh.p (0, i) -
+            msh.p (1, i) * msh.p (1, i) -
+            msh.p (2, i) * msh.p (2, i);
         }
 
       std::vector<int> sidelist;
-      sidelist.push_back(1);
-      sidelist.push_back(2);
-      sidelist.push_back(3);
-      sidelist.push_back(4);
-      sidelist.push_back(5);
-      sidelist.push_back(6);
+      sidelist.push_back (1);
+      sidelist.push_back (2);
+      sidelist.push_back (3);
+      sidelist.push_back (4);
+      sidelist.push_back (5);
+      sidelist.push_back (6);
 
       bim3a_boundary_nodes (msh, sidelist, bnodes);
       vnodes_start.resize (bnodes.size ());
       vnodes.resize (bnodes.size ());
 
-      for (int i = 0; i < vnodes.size (); ++i)
+      for (unsigned int i = 0; i < vnodes.size (); ++i)
         {
           vnodes_start[i] = 1.0 -
-                            msh.p (0, bnodes[i]) * msh.p (0, bnodes[i]) -
-                            msh.p (1, bnodes[i]) * msh.p (1, bnodes[i]) -
-                            msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
+            msh.p (0, bnodes[i]) * msh.p (0, bnodes[i]) -
+            msh.p (1, bnodes[i]) * msh.p (1, bnodes[i]) -
+            msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
         }
 
       exactsolution_start.resize (msh.nnodes);
       exactsolution.resize (msh.nnodes);
 
-      for (int i = 0; i < exactsolution_start.size (); ++i)
+      for (unsigned int i = 0; i < exactsolution_start.size (); ++i)
         {
           exactsolution_start[i] = 1.0 -
-                                   msh.p (0, i) * msh.p (0, i) -
-                                   msh.p (1, i) * msh.p (1, i) -
-                                   msh.p (2, i) * msh.p (2, i);
+            msh.p (0, i) * msh.p (0, i) -
+            msh.p (1, i) * msh.p (1, i) -
+            msh.p (2, i) * msh.p (2, i);
         }
 
       std::cout << std::endl << "Result of Time Dependent Test"
@@ -131,18 +133,18 @@ int main (int argc, char **argv)
           rhs_new.resize (rhs1.size ());
           lhs_new = lhs;
 
-          for (int i = 0; i < rhs_new.size (); ++i)
+          for (unsigned int i = 0; i < rhs_new.size (); ++i)
             {
               rhs_new[i] = rhs2[i] + rhs1[i] * uold[i];
             }
-          for (int i = 0; i < vnodes.size (); ++i)
+          for (unsigned int i = 0; i < vnodes.size (); ++i)
             {
               vnodes[i] = vnodes_start[i];
             }
 
           bim3a_dirichletBC (lhs_new, rhs_new, bnodes, vnodes);
 
-          for (int i = 0; i < exactsolution.size (); ++i)
+          for (unsigned int i = 0; i < exactsolution.size (); ++i)
             {
               exactsolution[i] = exactsolution_start[i];
             }
@@ -178,9 +180,10 @@ int main (int argc, char **argv)
           double norm = 0;
           std::vector<double> delta (rhs_new.size ());
 
-          for (int k = 0; k < rhs_new.size (); ++k)
+          for (unsigned int k = 0; k < rhs_new.size (); ++k)
             {
-              fout_sol << rhs_new[k] << "  " << exactsolution[k] << std::endl;
+              fout_sol << rhs_new[k] << "  "
+                       << exactsolution[k] << std::endl;
               delta[k] = exactsolution[k] - rhs_new[k];
             }
           fout_sol.close ();
@@ -190,11 +193,11 @@ int main (int argc, char **argv)
 
           if (norm > 10e-10)
             {
-              std::cerr << "The error is bigger than tolerance" << std::endl;
-              exit(-1);
+              std::cerr << "The error is bigger than tolerance"
+                        << std::endl;
+              exit (-1);
             }
         }
-
     }
   fout_sol.close ();
   solver->cleanup ();

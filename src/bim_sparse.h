@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2011 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 
@@ -14,11 +14,11 @@
 #include <iomanip>
 #include <cassert>
 
-//namespace bim 
+//namespace bim
 //{
 
 /// Templated class for sparse row-oriented matrix.
-template <class T> 
+template <class T>
 class sparse_matrix_template : public std::vector< std::map<int, T> >
 {
 private:
@@ -104,7 +104,7 @@ public:
   csr (std::vector<double> &a,
        std::vector<int> &col_ind,
        std::vector<int> &row_ptr)
-  {this->csr(a,col_ind,row_ptr,0);};
+  {this->csr (a, col_ind, row_ptr, 0);};
   /// Update the entries of a sparse matrix in CSR format, with shift.
   void
   csr_update (std::vector<double> &a,
@@ -140,7 +140,7 @@ void sparse_matrix_template<Y>::set_properties ()
 
 
 template<class Y>
-std::ostream & operator<<(std::ostream &stream, sparse_matrix_template<Y> &sp)
+std::ostream & operator<< (std::ostream &stream, sparse_matrix_template<Y> &sp)
 {
   typename sparse_matrix_template<Y>::col_iterator j;
 
@@ -154,7 +154,7 @@ std::ostream & operator<<(std::ostream &stream, sparse_matrix_template<Y> &sp)
         for (j = sp[i].begin (); j != sp[i].end (); ++j)
           {
             stream << i+1 << ", " << sp.col_idx (j) + 1 << ", ";
-            stream  << std::setprecision(17)
+            stream  << std::setprecision (17)
                     << sp.col_val (j) << ";" << std::endl;
           }
     }
@@ -206,7 +206,8 @@ void sparse_matrix_template<T>::csr (std::vector<double> &a,
                                      int base)
 {
   this->set_properties ();
-  a.resize (nnz); col_ind.resize (nnz); row_ptr.resize (this->rows()+1);
+  a.resize (nnz); col_ind.resize (nnz);
+  row_ptr.resize (this->rows () + 1);
   int idx = 0;
   int idr = 0;
   typename sparse_matrix_template<T>::col_iterator jj;
@@ -223,7 +224,7 @@ void sparse_matrix_template<T>::csr (std::vector<double> &a,
             idx++;
           }
       }
-  row_ptr[this->rows()] = nnz + base;
+  row_ptr[this->rows ()] = nnz + base;
 }
 
 template<class T>
@@ -239,7 +240,7 @@ void sparse_matrix_template<T>::csr_update (std::vector<double> &a,
 
   for (size_t ii = 0; ii < n; ++ii)
     {
-      if(ii < row_ptr[i - base + 1])
+      if (ii < row_ptr[i - base + 1])
         a[ii] = this->col_val (((*this)[i-base]).find (col_ind[ii]-base));
       else
         {

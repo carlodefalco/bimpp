@@ -53,7 +53,7 @@ mumps::set_lhs_structure
     {
       id.n  = n;
       id.nz = jc.size ();
-      id.irn = new int[jc.size()];
+      id.irn = new int[jc.size ()];
       id.jcn = &*jc.begin ();
       for (int i = 0; i < n; ++i)
         {

@@ -4,11 +4,11 @@
   the terms of the GNU/GPL licence v3
 */
 /*
-  Problem:         du/dt-div(D(grad(u)-grad(v)*u)) = g
-                   u = (1-x^2-y^2-z^2) * exp (- t) on border
-                   g = (11+x^2+y^2+z^2-2x-2y-2z) * exp(- t)
-                   D = diag (1.0, 2.0, 3.0)
-                   v = [1.0, 0.5, 1/3]
+  Problem:  du/dt-div (D (grad (u)-grad (v)*u)) = g
+  u = (1-x^2-y^2-z^2) * exp (- t) on boundary
+  g = (11+x^2+y^2+z^2-2x-2y-2z) * exp (- t)
+  D = diag (1.0, 2.0, 3.0)
+  v = [1.0, 0.5, 1/3]
 
   Exact Solution:  u = (1-x^2-y^2-z^2) * exp (- t)
 */
@@ -56,7 +56,10 @@ int main (int argc, char **argv)
         {
           if (t == 1)
             {
-              std::cout << "\n\n*****\nTime Dependent Test 3 (OSC)\n*****\n";
+              std::cout << std::endl << std::endl
+                        << "*****" << std::endl
+                        << "Time Dependent Test 3 (OSC)"
+                        << std::endl << "*****" << std::endl;
 
               std::cout << "read mesh" << std::endl;
               msh.read (data_dir + std::string ("mesh_in_cube.msh"));
@@ -66,31 +69,36 @@ int main (int argc, char **argv)
 
               bim3a_structure (msh, lhs);
               std::vector<double> ecoeff (msh.nelements, 1.0);
-              std::vector<double> dcoeff (msh.nelements * 3, 1.0);//anisotropic diffusion coefficients
+              std::vector<double> dcoeff (msh.nelements * 3, 1.0);
+
               std::vector<double> v (msh.nnodes, 0.0);
               std::vector<double> ncoeff (msh.nnodes, 1 / dt);
               std::vector<double> nodecoeff1 (msh.nnodes, 1 / dt);
               std::vector<double> nodecoeff2 (msh.nnodes, 0.0);
 
-              for (int i = 0; i < msh.nelements; ++i)
+              for (unsigned int i = 0; i < msh.nelements; ++i)
                 {
                   dcoeff[0 + 3 * i] = 1.0;
                   dcoeff[1 + 3 * i] = 2.0;
                   dcoeff[2 + 3 * i] = 3.0;
                 }
 
-              for (int i = 0; i < msh.nnodes; ++i)
+              for (unsigned int i = 0; i < msh.nnodes; ++i)
                 {
-                  v[i] = msh.p (0, i) + 0.5 * msh.p (1, i) + msh.p (2, i) / 3.0;
-                  nodecoeff2[i] = 12.0 - 1.0 + msh.p (0, i) * msh.p (0, i)
-                                             + msh.p (1, i) * msh.p (1, i)
-                                             + msh.p (2, i) * msh.p (2, i)
-                                             - 2.0 * msh.p (0, i)
-                                             - 2.0 * msh.p (1, i)
-                                             - 2.0 * msh.p (2, i);
+                  v[i] = msh.p (0, i) +
+                    0.5 * msh.p (1, i) +
+                    msh.p (2, i) / 3.0;
+                  nodecoeff2[i] = 12.0 - 1.0 +
+                    msh.p (0, i) * msh.p (0, i) +
+                    msh.p (1, i) * msh.p (1, i) +
+                    msh.p (2, i) * msh.p (2, i) -
+                    2.0 * msh.p (0, i) -
+                    2.0 * msh.p (1, i) -
+                    2.0 * msh.p (2, i);
                 }
 
-              bim3a_osc_advection_diffusion_anisotropic (msh, dcoeff, v, lhs);
+              bim3a_osc_advection_diffusion_anisotropic
+                (msh, dcoeff, v, lhs);
               bim3a_reaction (msh, ecoeff, ncoeff, lhs);
 
               bim3a_rhs (msh, ecoeff, nodecoeff1, rhs1);
@@ -98,51 +106,55 @@ int main (int argc, char **argv)
 
               uold = std::vector<double> (msh.nnodes, 0.0);
 
-              for (int i = 0; i < msh.nnodes; ++i)
+              for (unsigned int i = 0; i < msh.nnodes; ++i)
                 {
-                  uold[i] = 1.0 - msh.p (0, i) * msh.p (0, i)
-                                - msh.p (1, i) * msh.p (1, i)
-                                - msh.p (2, i) * msh.p (2, i);
+                  uold[i] = 1.0 -
+                    msh.p (0, i) * msh.p (0, i) -
+                    msh.p (1, i) * msh.p (1, i) -
+                    msh.p (2, i) * msh.p (2, i);
                 }
 
               std::vector<int> sidelist;
-              sidelist.push_back(1);
-              sidelist.push_back(2);
-              sidelist.push_back(3);
-              sidelist.push_back(4);
-              sidelist.push_back(5);
-              sidelist.push_back(6);
+              sidelist.push_back (1);
+              sidelist.push_back (2);
+              sidelist.push_back (3);
+              sidelist.push_back (4);
+              sidelist.push_back (5);
+              sidelist.push_back (6);
 
               bim3a_boundary_nodes (msh, sidelist, bnodes);
               vnodes_start.resize (bnodes.size ());
               vnodes.resize (bnodes.size ());
 
-              for (int i = 0; i < vnodes.size (); ++i)
+              for (unsigned int i = 0; i < vnodes.size (); ++i)
                 {
-                  vnodes_start[i] = 1.0 - msh.p (0, bnodes[i]) * msh.p (0, bnodes[i])
-                                        - msh.p (1, bnodes[i]) * msh.p (1, bnodes[i])
-                                        - msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
+                  vnodes_start[i] = 1.0 -
+                    msh.p (0, bnodes[i]) * msh.p (0, bnodes[i]) -
+                    msh.p (1, bnodes[i]) * msh.p (1, bnodes[i]) -
+                    msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
                 }
 
               exactsolution_start.resize (msh.nnodes);
               exactsolution.resize (msh.nnodes);
 
-              for(int i = 0;i < exactsolution_start.size (); ++i)
+              for (unsigned int i = 0; i < exactsolution_start.size (); ++i)
                 {
-                  exactsolution_start[i] = 1.0 - msh.p (0, i) * msh.p (0, i)
-                                               - msh.p (1, i) * msh.p (1, i)
-                                               - msh.p (2, i) * msh.p (2, i);
+                  exactsolution_start[i] = 1.0 -
+                    msh.p (0, i) * msh.p (0, i) -
+                    msh.p (1, i) * msh.p (1, i) -
+                    msh.p (2, i) * msh.p (2, i);
                 }
             }
 
           rhs_new.resize (rhs1.size ());
           lhs_new = lhs;
 
-          for (int i = 0; i < rhs_new.size (); ++i)
+          for (unsigned int i = 0; i < rhs_new.size (); ++i)
             {
-              rhs_new[i] = rhs2[i] * exp(- t * dt) + rhs1[i] * uold[i];
+              rhs_new[i] = rhs2[i] * exp (- t * dt) +
+                           rhs1[i] * uold[i];
             }
-          for (int i = 0; i < vnodes.size (); ++i)
+          for (unsigned int i = 0; i < vnodes.size (); ++i)
             {
               vnodes[i] = vnodes_start[i] * exp (- t * dt);
             }
@@ -180,19 +192,23 @@ int main (int argc, char **argv)
       if (rank == 0)
         {
           if (t == 1)
-            std::cout << "\nResult of Time Dependent Test"
-                      << "\nwill be written in " << nomefile << std::endl;
+            std::cout << std::endl
+                      << "Result of Time Dependent Test"
+                      << std::endl << "will be written in "
+                      << nomefile << std::endl;
 
-          std::cout << "\nIteration " << t << std::endl;
-          fout << "\nIteration " << t << std::endl;
+          std::cout << std::endl
+                    << "Iteration " << t << std::endl;
+          fout << std::endl << "Iteration " << t << std::endl;
 
           double norm = 0;
           std::vector<double> delta (rhs_new.size ());
 
-          for (int k = 0; k < rhs_new.size (); ++k)
+          for (unsigned int k = 0; k < rhs_new.size (); ++k)
             {
               uold[k] = rhs_new[k];
-              fout << rhs_new[k] << "  " << exactsolution[k] << std::endl;
+              fout << rhs_new[k] << "  "
+                   << exactsolution[k] << std::endl;
               delta[k] = exactsolution[k] - rhs_new[k];
             }
 
@@ -203,8 +219,9 @@ int main (int argc, char **argv)
 
           if (norm > 10e-3)
             {
-              std::cerr << "The error is bigger than tolerance" << std::endl;
-              exit(-1);
+              std::cerr << "The error is bigger than tolerance"
+                        << std::endl;
+              exit (-1);
             }
         }
 

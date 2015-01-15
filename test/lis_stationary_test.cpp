@@ -4,9 +4,9 @@
   the terms of the GNU/GPL licence v3
 */
 /*
-  Problem:         -nabla(u) = g
-                   u = 1-x^2-y^2-z^2 on border
-                   g = 6
+  Problem:  -nabla (u) = g
+  u = 1-x^2-y^2-z^2 on boundary
+  g = 6
 
   Exact Solution:  u = 1-x^2-y^2-z^2
 */
@@ -79,12 +79,12 @@ run_test_problem (linear_solver *solver)
       bim3a_rhs (msh, ecoeff, ncoeff, rhs);
 
       std::vector<int> sidelist;
-      sidelist.push_back(1);
-      sidelist.push_back(2);
-      sidelist.push_back(3);
-      sidelist.push_back(4);
-      sidelist.push_back(5);
-      sidelist.push_back(6);
+      sidelist.push_back (1);
+      sidelist.push_back (2);
+      sidelist.push_back (3);
+      sidelist.push_back (4);
+      sidelist.push_back (5);
+      sidelist.push_back (6);
 
       std::vector<int> bnodes;
 
@@ -92,12 +92,12 @@ run_test_problem (linear_solver *solver)
       bim3a_boundary_nodes (msh, sidelist, bnodes);
 
       vnodes.resize (bnodes.size ());
-      for (int i = 0; i < vnodes.size (); ++i)
+      for (unsigned int i = 0; i < vnodes.size (); ++i)
         {
           vnodes[i] = 1.0 -
-                      msh.p (0, bnodes[i]) * msh.p (0, bnodes[i]) -
-                      msh.p (1, bnodes[i]) * msh.p (1, bnodes[i]) -
-                      msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
+            msh.p (0, bnodes[i]) * msh.p (0, bnodes[i]) -
+            msh.p (1, bnodes[i]) * msh.p (1, bnodes[i]) -
+            msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
         }
 
       bim3a_dirichletBC (lhs, rhs, bnodes, vnodes);
@@ -105,12 +105,12 @@ run_test_problem (linear_solver *solver)
       lhs.aij (xa, ir, jc, 1);
 
       exactsolution.resize (msh.nnodes);
-      for(int i = 0; i < exactsolution.size (); ++i)
+      for (unsigned int i = 0; i < exactsolution.size (); ++i)
         {
           exactsolution[i] = 1.0 -
-                             msh.p (0, i) * msh.p (0, i) -
-                             msh.p (1, i) * msh.p (1, i) -
-                             msh.p (2, i) * msh.p (2, i);
+            msh.p (0, i) * msh.p (0, i) -
+            msh.p (1, i) * msh.p (1, i) -
+            msh.p (2, i) * msh.p (2, i);
         }
     }
 
@@ -160,7 +160,7 @@ run_test_problem (linear_solver *solver)
       if (norm > 10e-10)
         {
           std::cerr << "The error is bigger than tolerance" << std::endl;
-          exit(-1);
+          exit (-1);
         }
     }
 

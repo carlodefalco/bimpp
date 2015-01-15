@@ -47,6 +47,7 @@ int main (int argc, char **argv)
                 << std::endl
                 << "with lis and mumps solvers = " << error << std::endl;
     }
+
   MPI_Finalize ();
   return (0);
 }
@@ -135,7 +136,6 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
     solver->set_lhs_structure (lhs.rows (), ir, jc);
 
   solver->analyze ();
-
   if (rank == 0)
     solver->set_lhs_data (xa);
 

@@ -4,11 +4,11 @@
   the terms of the GNU/GPL licence v3
 */
 /*
-  Problem:         -nabla(u)+u=g
-                   u = sin(pi*x) + sin(pi*y) + sin(pi*z) on border
-                   g = (pi^2+1) * (sin(pi*x) + sin(pi*y) + sin(pi*z))
+  Problem:  -nabla (u) + u = g
+  u = sin (pi*x) + sin (pi*y) + sin (pi*z) on boundary
+  g = (pi^2+1) * (sin (pi*x) + sin (pi*y) + sin (pi*z))
 
-  Exact Solution:  u=sin(pi*x)+sin(pi*y)+sin(pi*z)
+  Exact Solution:  u=sin (pi*x) + sin (pi*y) + sin (pi*z)
 */
 
 #include <bim_sparse.h>
@@ -45,16 +45,18 @@ int main (int argc, char **argv)
       msh.precompute_properties ();
 
       bim3a_structure (msh, lhs);
-      std::vector<double> ecoeff (msh.nelements, 1.0); //isotropic diffusion coefficient
+      //isotropic diffusion coefficient
+      std::vector<double> ecoeff (msh.nelements, 1.0);
+
       std::vector<double> v (msh.nnodes, 0.0);
       std::vector<double> ncoeff (msh.nnodes, 1.0);
       std::vector<double> nodecoeff (msh.nnodes, 0.0);
 
-      for (int i = 0; i < msh.nnodes; ++i)
-        nodecoeff[i] = (M_PI * M_PI + 1)
-                       * (sin (M_PI * msh.p (0, i))
-                        + sin (M_PI * msh.p (1, i))
-                        + sin (M_PI * msh.p (2, i)));
+      for (unsigned int i = 0; i < msh.nnodes; ++i)
+        nodecoeff[i] = (M_PI * M_PI + 1) *
+          (sin (M_PI * msh.p (0, i)) +
+           sin (M_PI * msh.p (1, i)) +
+           sin (M_PI * msh.p (2, i)));
 
       bim3a_advection_diffusion (msh, ecoeff, v, lhs);
 
@@ -62,12 +64,12 @@ int main (int argc, char **argv)
       bim3a_rhs (msh, ecoeff, nodecoeff, rhs);
 
       std::vector<int> sidelist;
-      sidelist.push_back(1);
-      sidelist.push_back(2);
-      sidelist.push_back(3);
-      sidelist.push_back(4);
-      sidelist.push_back(5);
-      sidelist.push_back(6);
+      sidelist.push_back (1);
+      sidelist.push_back (2);
+      sidelist.push_back (3);
+      sidelist.push_back (4);
+      sidelist.push_back (5);
+      sidelist.push_back (6);
 
       std::vector<int> bnodes;
       std::vector<double> vnodes;
@@ -75,11 +77,12 @@ int main (int argc, char **argv)
       bim3a_boundary_nodes (msh, sidelist, bnodes);
       vnodes.resize (bnodes.size ());
 
-      for(int i = 0; i < vnodes.size (); ++i)
+      for (unsigned int i = 0; i < vnodes.size (); ++i)
         {
-          vnodes[i] = sin (M_PI * msh.p (0, bnodes[i]))
-                    + sin (M_PI * msh.p (1, bnodes[i]))
-                    + sin (M_PI * msh.p (2, bnodes[i]));
+          vnodes[i] =
+            sin (M_PI * msh.p (0, bnodes[i])) +
+            sin (M_PI * msh.p (1, bnodes[i])) +
+            sin (M_PI * msh.p (2, bnodes[i]));
         }
 
       bim3a_dirichletBC (lhs, rhs, bnodes, vnodes);
@@ -87,11 +90,12 @@ int main (int argc, char **argv)
       lhs.aij (xa, ir, jc, 1);
 
       exactsolution.resize (msh.nnodes);
-      for(int i = 0; i < exactsolution.size (); ++i)
+      for (unsigned int i = 0; i < exactsolution.size (); ++i)
         {
-          exactsolution[i] = sin (M_PI * msh.p (0, i))
-                           + sin (M_PI * msh.p (1, i))
-                           + sin (M_PI * msh.p (2, i));
+          exactsolution[i] =
+            sin (M_PI * msh.p (0, i)) +
+            sin (M_PI * msh.p (1, i)) +
+            sin (M_PI * msh.p (2, i));
         }
     }
 
@@ -114,16 +118,19 @@ int main (int argc, char **argv)
 
   if (rank == 0)
     {
-      std::cout << "\nResult of Stationary Test \nwill be written in solution4.txt\n";
+      std::cout << "\nResult of Stationary Test"
+                << std::endl
+                << "will be written in solution4.txt"
+                << std::endl;
       std::ofstream fout ("solution4.txt");
       fout << std::endl;
 
       double norm = 0;
       std::vector<double> delta (rhs.size ());
 
-      for (int k = 0; k < rhs.size (); ++k)
+      for (unsigned int k = 0; k < rhs.size (); ++k)
         {
-          fout << rhs[k] << "  " << exactsolution[k]<< std::endl;
+          fout << rhs[k] << "  " << exactsolution[k] << std::endl;
           delta[k] = exactsolution[k] - rhs[k];
         }
       fout.close ();
@@ -133,8 +140,9 @@ int main (int argc, char **argv)
 
       if (norm > 10e-3)
         {
-          std::cerr << "The error is bigger than tolerance" << std::endl;
-          exit(-1);
+          std::cerr << "The error is bigger than tolerance"
+                    << std::endl;
+          exit (-1);
         }
     }
 

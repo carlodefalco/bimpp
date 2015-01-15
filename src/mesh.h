@@ -101,72 +101,72 @@ public:
   /// i-th coordinate of a node.
   inline double&
   p (int idir, int inode)
-  {return (*(p_data+idir+3*inode));};
+  {return (*(p_data + idir + 3 * inode));};
 
   /// i-th node of a tetrahedron.
   inline int&
   t (int inode, int iel)
-  {return (*(t_data+inode+5*iel));};
+  {return (*(t_data + inode + 5 * iel));};
 
   /// i-th boundary face
   inline int&
   e (int ient, int ifc)
-  {return (*(e_data+ient+10*ifc));};
+  {return (*(e_data + ient + 10 * ifc));};
 
   /// i-th coordinate of a node (const version).
   inline const double&
   p (int idir, int inode) const
-  {return (*(p_data+idir+3*inode));};
+  {return (*(p_data + idir + 3 * inode));};
 
   /// i-th node of a tetrahedra (const version).
   inline const int&
   t (int inode, int iel) const
-  {return (*(t_data+inode+5*iel));};
+  {return (*(t_data + inode + 5 * iel));};
 
   /// i-th boundary face (const version).
   inline const int&
   e (int ient, int ifc) const
-  {return (*(e_data+ient+10*ifc));};
+  {return (*(e_data + ient + 10 * ifc));};
 
   /// node value of a node shape function.
   inline double&
   shp (int inode, int jnode)
-  {return (*(shp_data+inode+4*jnode));};
+  {return (*(shp_data + inode + 4 * jnode));};
 
   /// value of node shape function gradient component on an element
   inline double&
   shg (int idir, int inode, int iel)
-  {return (*(shg_data+idir+3*(inode+(4*iel))));};
+  {return (*(shg_data + idir + 3 * (inode + (4 * iel))));};
 
   /// determinant of the jacobian of a shape function on an element
   inline double&
   wjacdet (int inode, int iel)
-  {return (*(wjacdet_data+inode+4*iel));};
+  {return (*(wjacdet_data + inode + 4 * iel));};
 
   /// volume of an element.
   inline double&
   volume (int iel)
-  {return (*(volume_data+iel));};
+  {return (*(volume_data + iel));};
 
   /// node value of a node shape function.
   inline const double&
   shp (int inode, int jnode) const
-  {return (*(shp_data+inode+4*jnode));};
+  {return (*(shp_data + inode + 4 * jnode));};
 
   /// value of node shape function gradient component on an element
   inline const double&
   shg (int idir, int inode, int iel) const
-  {return (*(shg_data+idir+3*(inode+(4*iel))));};
+  {return (*(shg_data + idir + 3 * (inode + (4 * iel))));};
 
   /// determinant of the jacobian of a shape function on an element
   inline const double&
   wjacdet (int inode, int iel) const
-  {return (*(wjacdet_data+inode+4*iel));};
+  {return (*(wjacdet_data + inode + 4 * iel));};
 
   /// volume of an element.
   inline const double&
   volume (int iel) const
-  {return (*(volume_data+iel));};
+  {return (*(volume_data + iel));};
 
   /// mesh textual output.
   friend std::ostream &operator<< (std::ostream &, mesh &);
@@ -205,7 +205,7 @@ public:
 
     const mesh& m;
     element_data (const mesh& _m)
-      : m(_m)
+      : m (_m)
     {
       memcpy (shp, m.shp_data, 16 * sizeof (double));
     };

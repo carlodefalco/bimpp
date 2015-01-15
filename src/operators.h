@@ -39,7 +39,7 @@ class
 coefficient_functor
 {
  public:
-  virtual const double& operator() (const int) = 0;
+  virtual const double& operator () (const int) = 0;
 };
 
 /// Specialization to use a vector as a
@@ -51,9 +51,9 @@ coefficient_vector : public coefficient_functor
   const std::vector<double> *v;
  public:
   /// Constructor
-  coefficient_vector (const std::vector<double> *_v) : v(_v) {};
+  coefficient_vector (const std::vector<double> *_v) : v (_v) {};
   ///
-  const double& operator() (const int ii) { return (*v)[ii]; };
+  const double& operator () (const int ii) { return (*v)[ii]; };
 };
 
 /// Enumeration to specificate type of norm
@@ -84,7 +84,8 @@ bim3a_laplacian (mesh& msh,
                  const std::vector<double>& epsilon,
                  sparse_matrix& A);
 
-/// Assemble the stiffness matrix of a FEM diffusion problem with anisotropic diffusion.
+/// Assemble the stiffness matrix of a FEM diffusion problem
+/// with anisotropic diffusion.
 void
 bim3a_laplacian_anisotropic (mesh& msh,
                              const std::vector<double>& epsilon,
@@ -97,27 +98,31 @@ bim3a_advection_diffusion (mesh& msh,
                            const std::vector<double>& phi,
                            sparse_matrix& A);
 
-/// Assemble the stiffness matrix of a FEM advection-diffusion problem with anisotropic diffusion.
+/// Assemble the stiffness matrix of a FEM advection-diffusion problem
+/// with anisotropic diffusion.
 void
 bim3a_advection_diffusion_anisotropic (mesh& msh,
                                        const std::vector<double>& epsilon,
                                        const std::vector<double>& phi,
                                        sparse_matrix& A);
 
-/// Assemple the stiffness matrix of a FEM advection problem with upwind stabilisation.
+/// Assemple the stiffness matrix of a FEM advection problem
+/// with upwind stabilisation.
 void
-bim3a_advection_upwind(mesh &msh,
+bim3a_advection_upwind (mesh &msh,
                        const std::vector<double>& v,
                        sparse_matrix& UP);
 
-/// Assemble the stiffness matrix of a FEM diffusion problem (by the Orthogonal Subdomain Collocation method).
+/// Assemble the stiffness matrix of a FEM diffusion problem
+/// (by the Orthogonal Subdomain Collocation method).
 void
 bim3a_osc_laplacian (mesh& msh,
                      const std::vector<double>& epsilon,
                      sparse_matrix& A);
 
 /// Assemble the stiffness matrix of a FEM diffusion problem
-/// with anisotropic diffusion(by the Orthogonal Subdomain Collocation method).
+/// with anisotropic diffusion
+/// (by the Orthogonal Subdomain Collocation method).
 void
 bim3a_osc_laplacian_anisotropic (mesh& msh,
                                  const std::vector<double>& epsilon,
@@ -132,12 +137,13 @@ bim3a_osc_advection_diffusion (mesh& msh,
                                sparse_matrix& A);
 
 /// Assemble the stiffness matrix of a FEM advection-diffusion
-/// problem with anisotropic diffusion (by the Orthogonal Subdomain Collocation method).
+/// problem with anisotropic diffusion
+/// (by the Orthogonal Subdomain Collocation method).
 void
 bim3a_osc_advection_diffusion_anisotropic (mesh& msh,
-                                           const std::vector<double>& epsilon,
-                                           const std::vector<double>& phi,
-                                           sparse_matrix& A);
+                      const std::vector<double>& epsilon,
+                      const std::vector<double>& phi,
+                      sparse_matrix& A);
 
 /// Robustly compute B(x) = x / (exp(x) - 1). Stores B(x) and B(-x)
 void
@@ -145,7 +151,8 @@ bimu_bernoulli (double x,
                 double &bp,
                 double &bm);
 
-/// Robustly compute B'(x), B(x) = x / (exp(x) - 1). Stores B'(x) and B'(-x)
+/// Robustly compute B'(x), B(x) = x / (exp(x) - 1).
+/// Stores B'(x) and B'(-x)
 void
 bimu_bernoulli_derivative (double x,
                            double &bpp,
@@ -179,7 +186,8 @@ bim3a_local_laplacian (const double shg[12],
                        double Lloc[16]);
 
 /// Compute the elemental contribution to the global
-/// stiffness matrix (FEM) with anisotropic diffusion, and add it to the exit buffer
+/// stiffness matrix (FEM) with anisotropic diffusion,
+/// and add it to the exit buffer
 void
 bim3a_local_laplacian_anisotropic (const double shg[12],
                                    const double volume,
@@ -187,7 +195,8 @@ bim3a_local_laplacian_anisotropic (const double shg[12],
                                    double Lloc[16]);
 
 /// Compute the elemental contribution to the global
-/// stiffness matrix (FEM) with diagonal anisotropic diffusion, and add it to the exit buffer
+/// stiffness matrix (FEM) with diagonal anisotropic diffusion,
+/// and add it to the exit buffer
 void
 bim3a_local_laplacian_anisotropic_diag (const double shg[12],
                                         const double volume,
@@ -204,7 +213,8 @@ bim3a_osc_local_laplacian (const double shg[12],
                            double Lloc[16]);
 
 /// Compute the elemental contribution to the global
-/// stiffness matrix (OSC method) with diagonal anisotropic diffusion, and add it to the exit buffer
+/// stiffness matrix (OSC method) with diagonal anisotropic diffusion,
+/// and add it to the exit buffer
 void
 bim3a_osc_local_laplacian_anisotropic (const double shg[12],
                            const double p[12],

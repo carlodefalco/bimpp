@@ -212,7 +212,7 @@ std::ostream & operator<< (std::ostream &stream, mesh &msh)
         stream << msh.t (inode, iel) << " ";
       stream << ";" << std::endl;
     }
-  stream << "]'; t(1:4, :) += 1;" << std::endl;
+  stream << "]'; t (1:4, :) += 1;" << std::endl;
 
   stream << "e = [ ";
   for (int ifc = 0; ifc < msh.nfaces; ++ifc)
@@ -221,7 +221,7 @@ std::ostream & operator<< (std::ostream &stream, mesh &msh)
         stream << msh.e (ient, ifc) << " ";
       stream << ";" << std::endl;
     }
-  stream << "]'; e(1:3, :) += 1;" << std::endl;
+  stream << "]'; e (1:3, :) += 1;" << std::endl;
 
   return stream;
 }
