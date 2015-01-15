@@ -20,9 +20,9 @@ class lis: public linear_solver
 private :
   std::vector<int> row_ptr;
   std::vector<int> jcol;
-  std::vector<double> data;
-  std::vector<double> rhs;
-  std::vector<double>::iterator rhs_it;
+
+  double *data;
+  double *rhs;
 
   int max_iter;
   double tolerance;

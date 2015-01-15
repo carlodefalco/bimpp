@@ -4,12 +4,12 @@
   the terms of the GNU/GPL licence v3
 */
 /*
-  Problem:         -Dnabla(u)=g
-                   u = 1-2*x^2-2*y^2-z^2 on border
-                   g = 6
-                   D = diag (0.5, 0.5, 1)
+  Problem:  -Dnabla (u) = g
+  u = 1-2*x^2-2*y^2-z^2 on boundary
+  g = 6
+  D = diag (0.5, 0.5, 1)
 
-  Exact Solution:  u=1-2*x^2-2*y^2-z^2
+  Exact Solution:  u = 1-2*x^2-2*y^2-z^2
 */
 
 #include <bim_sparse.h>
@@ -48,11 +48,14 @@ int main (int argc, char **argv)
       std::cout << "compute mesh props" << std::endl;
       msh.precompute_properties ();
 
-      std::cout << "assemble stiffness matrix. nnodes = " << msh.nnodes << std::endl;      
+      std::cout << "assemble stiffness matrix. nnodes = "
+                << msh.nnodes << std::endl;
 
       bim3a_structure (msh, lhs);
-      std::vector<double> dcoeff (msh.nelements * 3, 1.0); //anisotropic diffusion coefficient
-      for(int k = 0; k < msh.nelements; ++k)
+      //anisotropic diffusion coefficient
+      std::vector<double> dcoeff (msh.nelements * 3, 1.0);
+
+      for (unsigned int k = 0; k < msh.nelements; ++k)
         {
           dcoeff[0 + 3 * k] = 0.5;
           dcoeff[1 + 3 * k] = 0.5;
@@ -67,12 +70,12 @@ int main (int argc, char **argv)
       bim3a_rhs (msh, ecoeff, ncoeff, rhs);
 
       std::vector<int> sidelist;
-      sidelist.push_back(1);
-      sidelist.push_back(2);
-      sidelist.push_back(3);
-      sidelist.push_back(4);
-      sidelist.push_back(5);
-      sidelist.push_back(6);
+      sidelist.push_back (1);
+      sidelist.push_back (2);
+      sidelist.push_back (3);
+      sidelist.push_back (4);
+      sidelist.push_back (5);
+      sidelist.push_back (6);
 
       std::vector<int> bnodes;
       std::vector<double> vnodes;
@@ -80,22 +83,24 @@ int main (int argc, char **argv)
       bim3a_boundary_nodes (msh, sidelist, bnodes);
 
       vnodes.resize (bnodes.size ());
-      for(int i = 0; i < vnodes.size (); ++i)
+      for (int i = 0; i < vnodes.size (); ++i)
         {
-          vnodes[i] = 1 - 2 * msh.p (0, bnodes[i]) * msh.p (0, bnodes[i])
-                        - 2 * msh.p (1, bnodes[i]) * msh.p (1, bnodes[i])
-                        - msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
+          vnodes[i] = 1.0 -
+            2 * msh.p (0, bnodes[i]) * msh.p (0, bnodes[i]) -
+            2 * msh.p (1, bnodes[i]) * msh.p (1, bnodes[i]) -
+            msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
         }
       bim3a_dirichletBC (lhs, rhs, bnodes, vnodes);
 
       lhs.aij (xa, ir, jc, 1);
 
       exactsolution.resize (msh.nnodes);
-      for(int i = 0; i < exactsolution.size (); ++i)
+      for (unsigned int i = 0; i < exactsolution.size (); ++i)
         {
-          exactsolution[i] = 1 - 2 * msh.p (0, i) * msh.p (0, i)
-                               - 2 * msh.p (1, i) * msh.p (1, i)
-                               - msh.p (2, i) * msh.p (2, i);
+          exactsolution[i] = 1.0 -
+            2 * msh.p (0, i) * msh.p (0, i) -
+            2 * msh.p (1, i) * msh.p (1, i) -
+            msh.p (2, i) * msh.p (2, i);
         }
     }
 
@@ -118,7 +123,9 @@ int main (int argc, char **argv)
 
   if (rank == 0)
     {
-      std::cout << "\nResult of Stationary Test \nwill be written in solution2.txt\n";
+      std::cout << "\nResult of Stationary Test"
+                << std::endl << "will be written in solution2.txt"
+                << std::endl;
       std::ofstream fout ("solution2.txt");
       fout << std::endl;
 
@@ -137,8 +144,9 @@ int main (int argc, char **argv)
 
       if (norm > 10e-10)
         {
-          std::cerr << "The error is bigger than tolerance" << std::endl;
-          exit(-1);
+          std::cerr << "The error is bigger than tolerance"
+                    << std::endl;
+          exit (-1);
         }
     }
 

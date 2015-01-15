@@ -107,14 +107,13 @@ lis::analyze ()
 void
 lis::set_lhs_data (std::vector<double> &xa)
 {
-  data = xa;
+  data = &*xa.begin ();
 }
 
 void
 lis::set_rhs (std::vector<double> &rhs_)
 {
-  rhs = rhs_;
-  rhs_it = rhs_.begin();
+  rhs = &*rhs_.begin ();
 }
 
 int
@@ -152,8 +151,8 @@ lis::solve ()
   else
     {
       MPI_Status *status = NULL;
-      data.resize(nnz, 0);
-      rhs.resize(n, 0);
+      data = new double[nnz]; 
+      rhs = new double[n]; 
       MPI_Recv (&data[0], nnz,
                 MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, status);
       MPI_Recv (&rhs[0], n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, status);
@@ -179,7 +178,7 @@ lis::solve ()
 
   lis_vector_create (LIS_COMM_WORLD, &b);
   lis_vector_set_size (b, n, 0);
-  for(int i = row_s; i < row_s + n; ++i)
+  for (int i = row_s; i < row_s + n; ++i)
     lis_vector_set_value (LIS_INS_VALUE, i, rhs[i - row_s], b);
 
   lis_vector_create (LIS_COMM_WORLD, &x);
@@ -222,7 +221,7 @@ lis::solve ()
       for (unsigned int i = row_s; i < row_s + n; ++i)
         {
           lis_vector_get_value (x, i, &temp);
-          *(rhs_it + i) = temp;
+	  rhs[i] = temp;
         }
 
       MPI_Status *status = NULL;
@@ -237,7 +236,7 @@ lis::solve ()
             {
               MPI_Recv (&temp, 1, MPI_DOUBLE,
                         k, 0, MPI_COMM_WORLD, status);
-              *(rhs_it + i) = temp;
+              rhs[i] = temp;
             }
         }
     }

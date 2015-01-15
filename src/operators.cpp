@@ -81,8 +81,8 @@ bim3a_reaction (mesh& msh,
         }
 
       memset (Lloc, 0, 16 * sizeof (double));
-      bim3a_local_reaction (&(msh.shp(0, 0)),
-                            &(msh.wjacdet(0, iel)),
+      bim3a_local_reaction (& (msh.shp (0, 0)),
+                            & (msh.wjacdet (0, iel)),
                             ecoeff[iel],
                             nloc, Lloc);
 
@@ -109,7 +109,7 @@ bim3a_laplacian (mesh& msh,
         inode[ii] = msh.t (ii, iel);
 
       memset (Lloc, 0, 16 * sizeof (double));
-      bim3a_local_laplacian (&(msh.shg(0, 0, iel)),
+      bim3a_local_laplacian (& (msh.shg (0, 0, iel)),
                              msh.volume (iel),
                              acoeff[iel],
                              Lloc);
@@ -120,7 +120,7 @@ bim3a_laplacian (mesh& msh,
     }
 };
 
-void 
+void
 bim3a_laplacian_anisotropic (mesh& msh,
                              const std::vector<double>& acoeff,
                              sparse_matrix& SG)
@@ -131,7 +131,7 @@ bim3a_laplacian_anisotropic (mesh& msh,
   double Lloc[16];
   int iel, inode[4];
 
-  double adim = (double) acoeff.size() / msh.nelements;
+  double adim = (double) acoeff.size () / msh.nelements;
   for (iel = 0; iel < msh.nelements; ++iel)
     {
       for (int ii = 0; ii < 4; ++ii)
@@ -140,12 +140,12 @@ bim3a_laplacian_anisotropic (mesh& msh,
       memset (Lloc, 0, 16 * sizeof (double));
 
       if (adim == 3)
-        bim3a_local_laplacian_anisotropic_diag (&(msh.shg(0, 0, iel)),
+        bim3a_local_laplacian_anisotropic_diag (& (msh.shg (0, 0, iel)),
                                                 msh.volume (iel),
                                                 &acoeff[iel*3],
                                                 Lloc);
       else if (adim == 9)
-        bim3a_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)),
+        bim3a_local_laplacian_anisotropic (& (msh.shg (0, 0, iel)),
                                            msh.volume (iel),
                                           &acoeff[iel*9],
                                           Lloc);
@@ -153,7 +153,7 @@ bim3a_laplacian_anisotropic (mesh& msh,
         {
           std::cerr << "bim3a_laplacian_anisotropic: "
                     << "coefficient acoeff has wrong dimension" << std::endl;
-         exit(-1);
+          exit (-1);
         }
 
       for (int ii = 0; ii < 4; ++ii)
@@ -183,7 +183,7 @@ bim3a_advection_diffusion (mesh& msh,
         }
 
       memset (Lloc, 0, 16 * sizeof (double));
-      bim3a_local_laplacian (&(msh.shg(0, 0, iel)),
+      bim3a_local_laplacian (& (msh.shg (0, 0, iel)),
                              msh.volume (iel),
                              acoeff[iel],
                              Lloc);
@@ -208,7 +208,7 @@ bim3a_advection_diffusion_anisotropic (mesh& msh,
   double Lloc[16], vloc[4];
   int iel, inode[4];
 
-  double adim = (double) acoeff.size() / msh.nelements;
+  double adim = (double) acoeff.size () / msh.nelements;
 
   for (iel = 0; iel < msh.nelements; ++iel)
     {
@@ -220,13 +220,13 @@ bim3a_advection_diffusion_anisotropic (mesh& msh,
 
       memset (Lloc, 0, 16 * sizeof (double));
       if (adim == 3)
-        bim3a_local_laplacian_anisotropic_diag (&(msh.shg(0, 0, iel)),
+        bim3a_local_laplacian_anisotropic_diag (& (msh.shg (0, 0, iel)),
                                                 msh.volume (iel),
                                                 &acoeff[iel*3],
                                                 Lloc);
 
       else if (adim == 9)
-        bim3a_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)),
+        bim3a_local_laplacian_anisotropic (& (msh.shg (0, 0, iel)),
                                            msh.volume (iel),
                                            &acoeff[iel*9],
                                            Lloc);
@@ -234,7 +234,7 @@ bim3a_advection_diffusion_anisotropic (mesh& msh,
         {
           std::cerr << "bim3a_advection_diffusion_anisotropic: "
                     << "coefficient acoeff has wrong dimension" << std::endl;
-          exit(-1);
+          exit (-1);
         }
 
       bim3a_local_advection (vloc, 1.0, 1.0, Lloc);
@@ -247,9 +247,9 @@ bim3a_advection_diffusion_anisotropic (mesh& msh,
 
 
 void
-bim3a_advection_upwind(mesh &msh,
-                       const std::vector<double>& v,
-                       sparse_matrix& UP)
+bim3a_advection_upwind (mesh &msh,
+                        const std::vector<double>& v,
+                        sparse_matrix& UP)
 {
   if (UP.size () < size_t (msh.nnodes))
     UP.resize (msh.nnodes);
@@ -265,14 +265,14 @@ bim3a_advection_upwind(mesh &msh,
         }
 
       memset (Lloc, 0, 16 * sizeof (double));
-      bim3a_local_laplacian(&(msh.shg(0, 0, iel)),
-                            msh.volume (iel),
-                            1.0,
-                            Lloc);
+      bim3a_local_laplacian (& (msh.shg (0, 0, iel)),
+                             msh.volume (iel),
+                             1.0,
+                             Lloc);
 
-      double x[4],y[4],z[4];
+      double x[4], y[4], z[4];
       double vnodes[6]; //v12,v13,v14,v23,v24,v34;
-      for(int i = 0; i < 4; ++i)
+      for (int i = 0; i < 4; ++i)
         {
           x[i] = msh.p (0, inode[i]);
           y[i] = msh.p (1, inode[i]);
@@ -280,7 +280,7 @@ bim3a_advection_upwind(mesh &msh,
         }
 
       if (v.size () == 1)
-        for(int i = 0; i < 6; ++i)
+        for (int i = 0; i < 6; ++i)
           vnodes[i] = 0;
 
       else if (v.size () == 3u * msh.nelements)
@@ -288,9 +288,9 @@ bim3a_advection_upwind(mesh &msh,
           int node = 0;
           for (int i = 0; i < 3; ++i)
             for (int j = i + 1; j < 4; ++j){
-              vnodes[node] = v[iel * 3] * (x[j] - x[i])
-                           + v[iel * 3 + 1] * (y[j] - y[i])
-                           + v[iel * 3 + 2] * (z[j] -z[i]);
+              vnodes[node] = v[iel * 3] * (x[j] - x[i]) +
+                             v[iel * 3 + 1] * (y[j] - y[i]) +
+                             v[iel * 3 + 2] * (z[j] -z[i]);
               ++node;
             }
         }
@@ -311,14 +311,14 @@ bim3a_advection_upwind(mesh &msh,
         {
           std::cerr << "bim3a_advection_upwind: "
                     << "parameter v has wrong dimension" << std::endl;
-          exit(-1);
+          exit (-1);
         }
 
       double bp[6];
       double bm[6];
       for (int i = 0; i < 6; ++i)
         {
-          bp[i] = -(vnodes[i] - fabs (vnodes[i])) / 2;
+          bp[i] = - (vnodes[i] - fabs (vnodes[i])) / 2;
           bm[i] = (vnodes[i] + fabs (vnodes[i])) / 2;
         }
       int node = 0;
@@ -364,7 +364,7 @@ bim3a_osc_laplacian (mesh& msh,
       // Compute local laplacian matrix
       // and assemble into global matrix
       memset (Lloc, 0, 16 * sizeof (double));
-      bim3a_osc_local_laplacian (&(msh.shg(0, 0, iel)),
+      bim3a_osc_local_laplacian (& (msh.shg (0, 0, iel)),
                                  p, msh.volume (iel),
                                  acoeff[iel], Lloc);
 
@@ -403,7 +403,7 @@ bim3a_osc_laplacian_anisotropic (mesh& msh,
       // Compute local laplacian matrix
       // and assemble into global matrix
       memset (Lloc, 0, 16 * sizeof (double));
-      bim3a_osc_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)),
+      bim3a_osc_local_laplacian_anisotropic (& (msh.shg (0, 0, iel)),
                                              p, msh.volume (iel),
                                              &acoeff[3 * iel], Lloc);
 
@@ -444,7 +444,7 @@ bim3a_osc_advection_diffusion (mesh& msh,
       // Compute local laplacian matrix
       // and assemble into global matrix
       memset (Lloc, 0, 16 * sizeof (double));
-      bim3a_osc_local_laplacian (&(msh.shg(0, 0, iel)),
+      bim3a_osc_local_laplacian (& (msh.shg (0, 0, iel)),
                                  p, msh.volume (iel),
                                  acoeff[iel], Lloc);
       bim3a_local_advection (vloc, 1.0, 1.0, Lloc);
@@ -458,9 +458,9 @@ bim3a_osc_advection_diffusion (mesh& msh,
 
 void
 bim3a_osc_advection_diffusion_anisotropic (mesh& msh,
-                                           const std::vector<double>& acoeff,
-                                           const std::vector<double>& v,
-                                           sparse_matrix& SG)
+                      const std::vector<double>& acoeff,
+                      const std::vector<double>& v,
+                      sparse_matrix& SG)
 {
   if (SG.size () < size_t (msh.nnodes))
     SG.resize (msh.nnodes);
@@ -482,7 +482,7 @@ bim3a_osc_advection_diffusion_anisotropic (mesh& msh,
       // Compute local laplacian matrix
       // and assemble into global matrix
       memset (Lloc, 0, 16 * sizeof (double));
-      bim3a_osc_local_laplacian_anisotropic (&(msh.shg(0, 0, iel)),
+      bim3a_osc_local_laplacian_anisotropic (& (msh.shg (0, 0, iel)),
                                              p, msh.volume (iel),
                                              &acoeff[3 * iel], Lloc);
       bim3a_local_advection (vloc, 1.0, 1.0, Lloc);
@@ -654,23 +654,23 @@ bim3a_osc_local_laplacian (const double shg[12],
         (pts[idir + 3 * 1] - pts[idir + 3 * 3]);
 
 
-      AidotAj[0] += A[idir + 3 * 2] // Ak dot Al
-                  * A[idir + 3 * 3];
+      AidotAj[0] += A[idir + 3 * 2] * // Ak dot Al
+                    A[idir + 3 * 3];
 
-      AidotAj[1] += A[idir + 3 * 1] // Aj dot Al
-                  * A[idir + 3 * 3];
+      AidotAj[1] += A[idir + 3 * 1] * // Aj dot Al
+                    A[idir + 3 * 3];
 
-      AidotAj[2] += A[idir + 3 * 1] // Aj dot Ak
-                  * A[idir + 3 * 2];
+      AidotAj[2] += A[idir + 3 * 1] * // Aj dot Ak
+                    A[idir + 3 * 2];
 
-      AidotAj[3] += A[idir + 3 * 0] // Ai dot Al
-                  * A[idir + 3 * 3];
+      AidotAj[3] += A[idir + 3 * 0] * // Ai dot Al
+                    A[idir + 3 * 3];
 
-      AidotAj[4] += A[idir + 3 * 0] // Ai dot Ak
-                  * A[idir + 3 * 2];
+      AidotAj[4] += A[idir + 3 * 0] * // Ai dot Ak
+                    A[idir + 3 * 2];
 
-      AidotAj[5] += A[idir + 3 * 0] // Ai dot Aj
-                  * A[idir + 3 * 1];
+      AidotAj[5] += A[idir + 3 * 0] * // Ai dot Aj
+                    A[idir + 3 * 1];
     }
 
   double tmp;
@@ -728,8 +728,9 @@ bim3a_osc_local_laplacian_anisotropic (const double shg[12],
                                        double Lloc[16])
 {
   int inode, idir;
-  double A[12] = {0}, Ann[4]= {0}, AidotAj[6]={0}, r[12] = {0}, dcoeff[3]={0};
-  double d=cbrt(acoeff[0]*acoeff[1]*acoeff[2]);
+  double A[12] = {0}, Ann[4]= {0},
+         AidotAj[6]={0}, r[12] = {0}, dcoeff[3]={0};
+  double d = cbrt (acoeff[0] * acoeff[1] * acoeff[2]);
   double epsilonareak  = d / volume / 48.0;
 
   for (inode = 0; inode < 4; ++inode)
@@ -794,23 +795,23 @@ bim3a_osc_local_laplacian_anisotropic (const double shg[12],
         (pts[idir + 3 * 1] - pts[idir + 3 * 2]) *
         (pts[idir + 3 * 1] - pts[idir + 3 * 3]);
 
-      AidotAj[0] += A[idir + 3 * 2] // Ak dot Al
-                  * A[idir + 3 * 3];
+      AidotAj[0] += A[idir + 3 * 2] * // Ak dot Al
+                    A[idir + 3 * 3];
 
-      AidotAj[1] += A[idir + 3 * 1] // Aj dot Al
-                  * A[idir + 3 * 3];
+      AidotAj[1] += A[idir + 3 * 1] * // Aj dot Al
+                    A[idir + 3 * 3];
 
-      AidotAj[2] += A[idir + 3 * 1] // Aj dot Ak
-                  * A[idir + 3 * 2];
+      AidotAj[2] += A[idir + 3 * 1] * // Aj dot Ak
+                    A[idir + 3 * 2];
 
-      AidotAj[3] += A[idir + 3 * 0] // Ai dot Al
-                  * A[idir + 3 * 3];
+      AidotAj[3] += A[idir + 3 * 0] * // Ai dot Al
+                    A[idir + 3 * 3];
 
-      AidotAj[4] += A[idir + 3 * 0] // Ai dot Ak
-                  * A[idir + 3 * 2];
+      AidotAj[4] += A[idir + 3 * 0] * // Ai dot Ak
+                    A[idir + 3 * 2];
 
-      AidotAj[5] += A[idir + 3 * 0] // Ai dot Aj
-                  * A[idir + 3 * 1];
+      AidotAj[5] += A[idir + 3 * 0] * // Ai dot Aj
+                    A[idir + 3 * 1];
     }
 
   double tmp;
@@ -883,17 +884,19 @@ bim3a_local_rhs (const double shp[16],
 };
 
 void
-bim3a_boundary_nodes(mesh& msh,
-                     const std::vector<int>& sidelist,
-                     std::vector<int>& bnodes)
+bim3a_boundary_nodes (mesh& msh,
+                      const std::vector<int>& sidelist,
+                      std::vector<int>& bnodes)
 {
-  bnodes.clear();
-  for(int i = 0; i < msh.nfaces; ++i)
-    if (find (sidelist.begin (), sidelist.end (), msh.e (9, i)) != sidelist.end ())
+  bnodes.clear ();
+  for (int i = 0; i < msh.nfaces; ++i)
+    if (find (sidelist.begin (), sidelist.end (), msh.e (9, i))
+        != sidelist.end ())
       {
         for (int j = 0; j < 3; ++j)
-          if(find (bnodes.begin (), bnodes.end (), msh.e (j, i)) == bnodes.end ())
-           bnodes.push_back(msh.e (j, i));
+          if (find (bnodes.begin (), bnodes.end (), msh.e (j, i))
+             == bnodes.end ())
+           bnodes.push_back (msh.e (j, i));
       }
   sort (bnodes.begin (), bnodes.end ());
 }
@@ -1036,9 +1039,12 @@ bim3a_pde_gradient (mesh& msh,
   for (int iel = 0; iel < msh.nelements; ++iel)
     for (int inode = 0; inode < 4; ++inode)
       {
-        g[iel * 3 + 0] += msh.shg (0, inode, iel) * u[msh.t (inode, iel)];
-        g[iel * 3 + 1] += msh.shg (1, inode, iel) * u[msh.t (inode, iel)];
-        g[iel * 3 + 2] += msh.shg( 2, inode, iel) * u[msh.t (inode, iel)];
+        g[iel * 3 + 0] +=
+          msh.shg (0, inode, iel) * u[msh.t (inode, iel)];
+        g[iel * 3 + 1] +=
+          msh.shg (1, inode, iel) * u[msh.t (inode, iel)];
+        g[iel * 3 + 2] +=
+          msh.shg ( 2, inode, iel) * u[msh.t (inode, iel)];
       }
 }
 
@@ -1069,7 +1075,7 @@ bim3a_norm (mesh& msh,
         bim3a_laplacian (msh, ecoeff, M);
       std::vector<double> temp;
       bim3a_matrix_vector_product (M, v, temp);
-      for (unsigned int i = 0; i < v.size(); ++i)
+      for (unsigned int i = 0; i < v.size (); ++i)
         norm += v[i] * temp[i];
       norm = sqrt (norm);
     }
@@ -1077,7 +1083,7 @@ bim3a_norm (mesh& msh,
 
 
 void
-bim3a_matrix_vector_product(sparse_matrix& M,
+bim3a_matrix_vector_product (sparse_matrix& M,
                             const std::vector<double>& x,
                             std::vector<double>& y)
 {

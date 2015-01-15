@@ -21,7 +21,8 @@ int main (int argc, char **argv)
 
   if (rank == 0)
     {
-      std::cout << "\n\n*****\ntest 3: Advection-Diffusion with diagonal diffusion tensor\n*****\n";
+      std::cout << "\n\n*****\ntest 3: Advection-Diffusion"
+                << "  with diagonal diffusion tensor\n*****\n";
 
       std::cout << "read mesh" << std::endl;
       mesh msh (data_dir + std::string ("mesh_in.msh"));
@@ -32,7 +33,8 @@ int main (int argc, char **argv)
       std::cout << "compute mesh props" << std::endl;
       msh.precompute_properties ();
 
-      std::cout << "assemble stiffness matrix. nnodes = " << msh.nnodes << std::endl;      
+      std::cout << "assemble stiffness matrix. nnodes = "
+                << msh.nnodes << std::endl;
       sparse_matrix M;
 
       bim3a_structure (msh, M);
@@ -41,15 +43,17 @@ int main (int argc, char **argv)
       std::vector<double> b (msh.nnodes, 0.0);
       std::vector<double> ncoeff (msh.nnodes, 1.0);
 
-      std::vector<double> dcoeff (msh.nelements * 3, 1.0); //diagonal diffusion tensor
-
-      std::cout << "make advection-diffusion with anisotropic diffusion" << std::endl;
+      //diagonal diffusion tensor
+      std::vector<double> dcoeff (msh.nelements * 3, 1.0);
+      std::cout << "make advection-diffusion "
+                << "with anisotropic diffusion" << std::endl;
       bim3a_advection_diffusion_anisotropic (msh, dcoeff, v, M);
 
       bim3a_reaction (msh, ecoeff, ncoeff, M);
       bim3a_rhs (msh, ecoeff, ncoeff, b);
 
-      std::cout << "export stiffness matrix. nnodes = " << msh.nnodes << std::endl;      
+      std::cout << "export stiffness matrix. nnodes = "
+                << msh.nnodes << std::endl;
       std::ofstream fout ("SG3.m");
       fout << M;
       fout.close ();

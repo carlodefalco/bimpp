@@ -14,7 +14,7 @@
 #include <fstream>
 #include <stdlib.h>
 
-LIS_INT main(LIS_INT argc, char* argv[])
+LIS_INT main (LIS_INT argc, char* argv[])
 {
   int nnz, gn , n_loc, nnz_loc;
   int rank, size;
@@ -34,7 +34,7 @@ LIS_INT main(LIS_INT argc, char* argv[])
   if (rank == 0)
     {
       std::cout << "\n\n*****\nLis Test 1\n*****\n";
-      sp.resize(6);
+      sp.resize (6);
       sp[0][0] = 10;
       sp[0][4] = -2;
       sp[1][0] = 3;
@@ -56,7 +56,7 @@ LIS_INT main(LIS_INT argc, char* argv[])
       sp[5][5] = -1;
 
       sparse_matrix::col_iterator j;
-      for (int i = 0; i < sp.size (); ++i){
+      for (unsigned int i = 0; i < sp.size (); ++i){
         if (sp[i].size ())
           {
            for (j = sp[i].begin (); j != sp[i].end (); ++j)
@@ -64,21 +64,21 @@ LIS_INT main(LIS_INT argc, char* argv[])
            std::cout << std::endl;
           }
       }
-      gn = sp.size();
+      gn = sp.size ();
     }
 
   lis_matrix_parallelization (sp, sp_loc);
 
   sp_loc.csr (xa, jc, ir, 0);
 
-  nnz_loc = xa.size();
+  nnz_loc = xa.size ();
   n_loc = sp_loc.size ();
 
   row = (LIS_INT *) malloc ((n_loc + 1) * sizeof (LIS_INT));
   col = (LIS_INT *) malloc (nnz_loc * sizeof (LIS_INT));
   value = (LIS_SCALAR *) malloc (nnz_loc * sizeof (LIS_SCALAR));
 
-  for (int i = 0; i < nnz_loc; ++i)
+  for (unsigned int i = 0; i < nnz_loc; ++i)
     {
       col[i] = jc[i];
       value[i] = xa[i];
