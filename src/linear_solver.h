@@ -125,14 +125,15 @@ public :
   /// Must be called on the master (rank == 0) and slave (rank <> 0)
   /// nodes at the same time.
   /// Possible input are:
-  /// "conjugate_gradient" for Conjugate Gradient Method
-  /// "biconjuagte_gradient" for BiConjugate Gradient Method
-  /// "bicg_stablized" for BiConjugate Gradient Stabilized Method
-  /// "jacobi" for Jacobi Method
-  /// "gauss_seidel" for Gauss Seidel Method
-  /// "sor" for SOR Method
+  /// "Conjugate Gradient" for Conjugate Gradient Method
+  /// "Biconjugate Gradient" for BiConjugate Gradient Method
+  /// "Bicg Stabilized" for BiConjugate Gradient Stabilized Method
+  /// "Jacobi" for Jacobi Method
+  /// "Gauss Seidel" for Gauss Seidel Method
+  /// "SOR" for SOR Method
   /// If iterative method sent to solver is invalid,
-  /// the program will run with default iterative method "bicg".
+  /// the program will run with default 
+  /// iterative method "Biconjugate Gradient".
   virtual void
   set_iterative_method
   (const std::string &type_of_iterative_method) { };

@@ -291,17 +291,17 @@ lis::get_tolerance (double &tol)
 void
 lis::set_iterative_method (const std::string &s)
 {
-  if (s == "conjugate_gradient")
+  if (s == "Conjugate Gradient")
     iterative_method = "cg";
-  else if (s == "biconjugate_gradient")
+  else if (s == "Biconjugate Gradient")
     iterative_method = "bicg";
-  else if (s == "bicg_stabilized")
+  else if (s == "Bicg Stabilized")
     iterative_method = "bicgstab";
-  else if (s == "jacobi")
+  else if (s == "Jacobi")
     iterative_method = "jacobi";
-  else if (s == "gauss_seidel")
+  else if (s == "Gauss Seidel")
     iterative_method = "gs";
-  else if (s == "sor")
+  else if (s == "SOR")
     iterative_method = "sor";
   else
     {
