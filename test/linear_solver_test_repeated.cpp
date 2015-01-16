@@ -26,7 +26,8 @@ int shuffle_not (int x, int nnz)
 { return (x); }
 
 void
-run_test_problem_rank0 (linear_solver *solver, int base, std::vector<double> &rhs,
+run_test_problem_rank0 (linear_solver *solver,
+                        std::vector<double> &rhs,
                         int (*f) (int, int));
 
 void
@@ -45,16 +46,15 @@ int main (int argc, char **argv)
   std::vector<double> mumps_rhs, mumps_rhs_shuffle;
 
   linear_solver *mumps_solver = new mumps ();
-  int base = 1;
 
   if (rank == 0)
-    run_test_problem_rank0 (mumps_solver, base,
+    run_test_problem_rank0 (mumps_solver, 
                             mumps_rhs, shuffle_not);
   else
     run_test_problem_rank1 (mumps_solver);
 
   if (rank == 0)
-    run_test_problem_rank0 (mumps_solver, base,
+    run_test_problem_rank0 (mumps_solver, 
                             mumps_rhs_shuffle, shuffle);
   else
     run_test_problem_rank1 (mumps_solver);
@@ -64,16 +64,15 @@ int main (int argc, char **argv)
   linear_solver *lis_solver = new lis ();
   lis_solver->set_tolerance (1e-12);
   lis_solver->set_preconditioner ("ilut");
-  base = 0;
 
   if (rank == 0)
-    run_test_problem_rank0 (lis_solver, base,
+    run_test_problem_rank0 (lis_solver, 
                             lis_rhs, shuffle_not);
   else
     run_test_problem_rank1 (lis_solver);
 
   if (rank == 0)
-    run_test_problem_rank0 (lis_solver, base,
+    run_test_problem_rank0 (lis_solver, 
                             lis_rhs_shuffle, shuffle);
   else
     run_test_problem_rank1 (lis_solver);
@@ -94,9 +93,13 @@ int main (int argc, char **argv)
 }
 
 void
-run_test_problem_rank0 (linear_solver *solver, int base,
-                        std::vector<double> &rhs, int (*f) (int, int))
+run_test_problem_rank0 (linear_solver *solver,
+                        std::vector<double> &rhs,
+                        int (*f) (int, int))
 {
+
+  int base = solver->get_index_base ();
+  
   sparse_matrix       lhs;
   std::vector<int>    ir, jc, ir_tmp, jc_tmp;
   std::vector<double> xa, xa_tmp;
