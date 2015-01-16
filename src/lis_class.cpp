@@ -108,6 +108,13 @@ lis::set_rhs (std::vector<double> &rhs_)
   rhs = &*rhs_.begin ();
 }
 
+void
+lis::set_initial_guess (std::vector<double> &initial_guess_)
+{
+  have_initial_guess = true;
+  initial_guess = &*initial_guess_.begin ();
+}
+
 int
 lis::solve ()
 {
@@ -117,6 +124,8 @@ lis::solve ()
   LIS_SOLVER solver;
   LIS_MATRIX A;
   LIS_VECTOR b,x;
+
+  MPI_Bcast(&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   if (rank == 0)
     {
@@ -130,6 +139,9 @@ lis::solve ()
 
           MPI_Send (&data[i_s], nnz, MPI_DOUBLE, k, 0, MPI_COMM_WORLD);
           MPI_Send (&rhs[row_s], n, MPI_DOUBLE, k, 0, MPI_COMM_WORLD);
+          if (have_initial_guess)
+            MPI_Send (&initial_guess[row_s], n,
+                      MPI_DOUBLE, k, 0, MPI_COMM_WORLD);
         }
       n = n_row / size + n_row % size;
       nnz = row_ptr[n] - base;
@@ -141,9 +153,13 @@ lis::solve ()
       MPI_Status *status = NULL;
       data = new double[nnz];
       rhs = new double[n];
+      initial_guess = new double[n];
       MPI_Recv (&data[0], nnz,
                 MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, status);
       MPI_Recv (&rhs[0], n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, status);
+      if (have_initial_guess)
+        MPI_Recv (&initial_guess[0], n,
+                  MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, status);
     }
 
   //Build lis structure and solve system
@@ -166,11 +182,13 @@ lis::solve ()
 
   lis_vector_create (LIS_COMM_WORLD, &b);
   lis_vector_set_size (b, n, 0);
-  for (int i = row_s; i < row_s + n; ++i)
-    lis_vector_set_value (LIS_INS_VALUE, i, rhs[i - row_s], b);
-
   lis_vector_create (LIS_COMM_WORLD, &x);
   lis_vector_duplicate (b, &x);
+  for (int i = row_s; i < row_s + n; ++i)
+    {
+      lis_vector_set_value (LIS_INS_VALUE, i, rhs[i - row_s], b);
+      lis_vector_set_value (LIS_INS_VALUE, i, initial_guess[i-row_s], x);
+    }
 
   lis_solver_create (&solver);
 
@@ -180,7 +198,8 @@ lis::solve ()
       << " -i " << iterative_method
       << " -p " << preconditioner
       << " -conv_cond " << convergence_condition;
-
+  if (have_initial_guess)
+    opt << " -initx_zeros false ";
   std::string opt_ = opt.str ();
   char* options = new char[opt_.length () + 1];
   strcpy (options, opt_.c_str ());
@@ -200,7 +219,7 @@ lis::solve ()
                 << "Elapsed time = " << time << std::endl;
     }
 
-   delete[] options;
+   delete [] options;
 
   //unificate solution vector
   if (rank == 0)
@@ -249,6 +268,12 @@ lis::solve ()
 void
 lis::cleanup ()
 {
+  if (rank != 0)
+    {
+      delete [] data;
+      delete [] rhs;
+      delete [] initial_guess;
+    }
   lis_finalize ();
 }
 

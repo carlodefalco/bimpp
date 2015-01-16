@@ -96,6 +96,13 @@ public :
   virtual void
   cleanup () { };
 
+  /// Set the initial guess of linear solver.
+  /// Must be called only if linaer solver is an iterative method.
+  /// Must be called on the master (rank == 0)
+  /// node only.
+  virtual void
+  set_initial_guess (std::vector<double> &initial_guess) { };
+
   /// Set maximum number of iterations of linear solver.
   /// Must be called only if linear solver is an iterative method.
   /// Must be called on the master (rank == 0) and slave (rank <> 0)
