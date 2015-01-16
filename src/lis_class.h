@@ -35,7 +35,7 @@ private :
 
   int i_s, row_s;
   int n, nnz, n_row;
-  const int index_base = 0;
+  static const int index_base = 0;
 
   LIS_SOLVER solver;
 
