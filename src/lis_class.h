@@ -33,8 +33,11 @@ private :
 
   int i_s, row_s;
   int n, nnz, n_row;
+  int base;
 
   LIS_SOLVER solver;
+
+  int rank, size;
 
 public :
 
@@ -43,11 +46,14 @@ public :
     linear_solver ("LIS", "iterative")
   {
     lis_initialize (&argc, &argv);
+    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+    MPI_Comm_size (MPI_COMM_WORLD, &size);
     max_iter = 1000;
     tolerance = 1.0e-12;
     iterative_method = "bicg";
     preconditioner = "none";
     convergence_condition = "nrm2_r";
+    base = 0;
   };
 
   /// Set-up the matrix structure.

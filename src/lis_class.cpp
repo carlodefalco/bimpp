@@ -23,26 +23,20 @@ lis::set_lhs_structure
   n_row = n;
   row_ptr.clear ();
   row_ptr.resize (n_row + 1, 0);
-
+  base = ir[0];
   //aij_to_csr_format
   if (f == aij)
     {
-      if (ir[0] == 1)
-        for (unsigned int i = 0; i < ir.size (); ++i)
-          {
-            ir[i]--;
-            jc[i]--;
-          }
       for (unsigned int i = 0; i < ir.size (); ++i)
-        row_ptr[ir[i]]++;
+        row_ptr[ir[i]-base]++;
 
-      for (unsigned int i = 0, cumsum = 0; i < n_row; ++i)
+      for (unsigned int i = 0, cumsum = base; i < n_row; ++i)
         {
           int temp = row_ptr[i];
           row_ptr[i] = cumsum;
           cumsum += temp;
         }
-      row_ptr[n_row] = ir.size ();
+      row_ptr[n_row] = ir.size () + base;
     }
   else
     row_ptr = ir;
@@ -54,11 +48,9 @@ int
 lis::analyze ()
 {
   //partitioning row_ptr and jcol
-  int rank, size;
-  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-  MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   MPI_Bcast (&n_row, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast (&base, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   if (rank == 0)
     {
@@ -66,7 +58,7 @@ lis::analyze ()
 
       for (unsigned int k = 1; k < size; ++k)
         {
-          i_s = row_ptr[n * k + n_row % size];
+          i_s = row_ptr[n * k + n_row % size] - base;
           nnz = row_ptr[n * (k + 1) + n_row % size] -
                 row_ptr[n * k + n_row % size];
 
@@ -80,7 +72,7 @@ lis::analyze ()
                     MPI_INT, k, 0, MPI_COMM_WORLD);
         }
       n = n_row / size + n_row % size;
-      nnz = row_ptr[n];
+      nnz = row_ptr[n] - base;
       i_s = 0;
       row_s = 0;
     }
@@ -120,15 +112,11 @@ int
 lis::solve ()
 {
   //partitioning data and rhs
-  int rank, size;
   LIS_INT iter;
   double time;
   LIS_SOLVER solver;
   LIS_MATRIX A;
   LIS_VECTOR b,x;
-
-  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-  MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   if (rank == 0)
     {
@@ -137,22 +125,22 @@ lis::solve ()
           n = n_row / size;
           nnz = row_ptr[n * (k + 1) + n_row % size] -
                 row_ptr[n * k + n_row % size];
-          i_s = row_ptr[n * k + n_row % size];
+          i_s = row_ptr[n * k + n_row % size] - base;
           row_s = n * k + n_row % size;
 
           MPI_Send (&data[i_s], nnz, MPI_DOUBLE, k, 0, MPI_COMM_WORLD);
           MPI_Send (&rhs[row_s], n, MPI_DOUBLE, k, 0, MPI_COMM_WORLD);
         }
       n = n_row / size + n_row % size;
-      nnz = row_ptr[n];
+      nnz = row_ptr[n] - base;
       i_s = 0;
       row_s = 0;
     }
   else
     {
       MPI_Status *status = NULL;
-      data = new double[nnz]; 
-      rhs = new double[n]; 
+      data = new double[nnz];
+      rhs = new double[n];
       MPI_Recv (&data[0], nnz,
                 MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, status);
       MPI_Recv (&rhs[0], n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, status);
@@ -165,7 +153,7 @@ lis::solve ()
 
   for (unsigned int i = 0; i < nnz ; ++i)
     {
-      col[i] = jcol[i];
+      col[i] = jcol[i] - base;
       value[i] = data[i];
     }
   for (int i = 0; i < n + 1; ++i)
@@ -305,11 +293,12 @@ lis::set_iterative_method (const std::string &s)
     iterative_method = "sor";
   else
     {
-      std::cout << std::endl
-                <<"Invalid Iterative Method"
-                << std::endl
-                << "Solve with default BiConjugate Gradient"
-                << std::endl;
+      if (rank == 0)
+        std::cout << std::endl
+                  <<"Invalid Iterative Method"
+                  << std::endl
+                  << "Solve with default BiConjugate Gradient"
+                  << std::endl;
       iterative_method = "bicg";
     }
 }
@@ -337,11 +326,12 @@ lis::set_preconditioner (const std::string &s)
     preconditioner = "iluc";
   else
     {
-      std::cout << std::endl
-                <<"Invalid Preconditioner"
-                << std::endl
-                << "Solve with ilu[0]"
-                << std::endl;
+      if (rank == 0)
+        std::cout << std::endl
+                  <<"Invalid Preconditioner"
+                  << std::endl
+                  << "Solve with ilu[0]"
+                  << std::endl;
       preconditioner = "ilu";
     }
 }
@@ -361,11 +351,12 @@ lis::set_convergence_condition (const std::string &s)
     convergence_condition = "nrm2_b";
   else
     {
-      std::cout << std::endl
-                <<"Invalid Convergence Condition"
-                << std::endl
-                << "Solve with default norm2_of_residual"
-                << std::endl;
+      if (rank == 0)
+        std::cout << std::endl
+                  <<"Invalid Convergence Condition"
+                  << std::endl
+                  << "Solve with default norm2_of_residual"
+                  << std::endl;
       convergence_condition = "nrm2_r";
     }
 }
