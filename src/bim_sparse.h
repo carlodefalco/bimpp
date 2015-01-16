@@ -34,7 +34,7 @@ public:
   /// Index of non-empty column.
   inline int
   col_idx (col_iterator j) const
-  {return (*j).first;}
+  { return (*j).first; }
 
   /// Value stored in non-empty column.
   virtual double
@@ -51,7 +51,7 @@ public:
   /// Number of columns.
   inline const size_t
   cols () const
-  {return m;}
+  { return m; }
 
   /// Init an empty sparse matrix.
   void init ();
@@ -78,7 +78,7 @@ public:
   aij (std::vector<double> &a,
        std::vector<int> &i,
        std::vector<int> &j)
-  {this->aij (a, i, j, 0);};
+  { this->aij (a, i, j, 0); };
 
   /// Update the entries of a sparse matrix in AIJ format, with shift.
   void
@@ -92,31 +92,35 @@ public:
   aij_update (std::vector<double> &a,
               const std::vector<int> &i,
               const std::vector<int> &j)
-  {this->aij_update (a, i, j, 0);};
+  { this->aij_update (a, i, j, 0); };
+
   /// Convert row-oriented sparse matrix to CRS format with shift.
   void
   csr (std::vector<double> &a,
        std::vector<int> &col_ind,
        std::vector<int> &row_ptr,
        int base);
+
   /// Convert row-oriented sparse matrix to CRS format.
   void
   csr (std::vector<double> &a,
        std::vector<int> &col_ind,
        std::vector<int> &row_ptr)
-  {this->csr (a, col_ind, row_ptr, 0);};
+  { this->csr (a, col_ind, row_ptr, 0); };
+
   /// Update the entries of a sparse matrix in CSR format, with shift.
   void
   csr_update (std::vector<double> &a,
               const std::vector<int> &col_ind,
               const std::vector<int> &row_ptr,
               int base);
+
   /// Update the entries of a sparse matrix in CSR format.
   void
   csr_update (std::vector<double> &a,
               const std::vector<int> &col_ind,
               const std::vector<int> &row_ptr)
-  {this->csr_update (a, col_ind, row_ptr, 0);};
+  { this->csr_update (a, col_ind, row_ptr, 0); };
 };
 
 template<class Y>
@@ -195,7 +199,8 @@ void sparse_matrix_template<T>::aij_update (std::vector<double> &a,
   a.resize (n);
 
   for (size_t ii = 0; ii < n; ++ii)
-    a[ii] = this->col_val (((*this)[i[ii]-base]).find (j[ii]-base));
+    a[ii] =
+      this->col_val (((*this)[i[ii] - base]).find (j[ii] - base));
 
 }
 
@@ -239,15 +244,12 @@ void sparse_matrix_template<T>::csr_update (std::vector<double> &a,
   a.resize (n);
 
   for (size_t ii = 0; ii < n; ++ii)
-    {
-      if (ii < row_ptr[i - base + 1])
-        a[ii] = this->col_val (((*this)[i-base]).find (col_ind[ii]-base));
-      else
-        {
-          ++i;
-          a[ii] = this->col_val (((*this)[i-base]).find (col_ind[ii]-base));
-        }
-    }
+    if (ii < row_ptr[i - base + 1])
+      a[ii] =
+        this->col_val (((*this)[i - base]).find (col_ind[ii] - base));
+    else
+      a[++ii] =
+        this->col_val (((*this)[i - base]).find (col_ind[ii] - base));
 }
 
 
