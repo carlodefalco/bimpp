@@ -24,6 +24,8 @@ private :
   double *data;
   double *rhs;
 
+  double *initial_guess;
+  bool have_initial_guess;
   int max_iter;
   double tolerance;
 
@@ -50,6 +52,7 @@ public :
     MPI_Comm_size (MPI_COMM_WORLD, &size);
     max_iter = 1000;
     tolerance = 1.0e-12;
+    have_initial_guess = false;
     iterative_method = "bicg";
     preconditioner = "none";
     convergence_condition = "nrm2_r";
@@ -75,6 +78,10 @@ public :
   /// Set the rhs.
   void
   set_rhs (std::vector<double> &rhs);
+
+  /// Set the initial guess.
+  void
+  set_initial_guess (std::vector<double> &initial_guess);
 
   /// Solve the system.
   int
