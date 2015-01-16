@@ -27,10 +27,13 @@
 class mumps: public linear_solver
 {
 private :
+
   bool verbose;
   int  icntl23;
-
+  const int index_base = 1;
+  
 public :
+
   DMUMPS_STRUC_C id;
 
   /// Init the (serial) mumps solver instance.
@@ -75,6 +78,12 @@ public :
   /// Cleanup memory.
   void
   cleanup ();
+
+  /// MUMPS uses 1-based indexing
+  inline int
+  get_index_base ()
+  { return index_base; }
+
 };
 
 #endif
