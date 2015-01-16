@@ -47,7 +47,8 @@ int main (int argc, char **argv)
                 << std::endl
                 << "with lis and mumps solvers = " << error << std::endl;
     }
-
+  lis_solver->cleanup ();
+  mumps_solver->cleanup ();
   MPI_Finalize ();
   return (0);
 }
@@ -62,7 +63,7 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
   mesh msh;
 
   sparse_matrix       lhs;
-
+  std::vector<double> initial_guess;
   std::vector<int>    ir, jc;
   std::vector<double> xa;
   std::vector<double> exactsolution;
@@ -130,6 +131,7 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
                              msh.p (1, i) * msh.p (1, i) -
                              msh.p (2, i) * msh.p (2, i);
         }
+      initial_guess.resize (msh.nnodes, 0.0);
     }
 
   if (rank == 0)
@@ -150,6 +152,8 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
       solver->set_tolerance (1e-12);
       solver->set_iterative_method ("conjugate_gradient");
       solver->set_convergence_condition ("norm2_of_residual");
+      if (rank == 0)
+        solver->set_initial_guess (initial_guess);
     }
 
   solver->solve ();
@@ -183,5 +187,5 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
         }
     }
 
-  solver->cleanup ();
+  //solver->cleanup ();
 };
