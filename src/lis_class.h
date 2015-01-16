@@ -35,7 +35,7 @@ private :
 
   int i_s, row_s;
   int n, nnz, n_row;
-  int base;
+  const int index_base = 0;
 
   LIS_SOLVER solver;
 
@@ -132,6 +132,11 @@ public :
   /// get convergence condition of iterative method
   void
   get_convergence_condition (std::string &s);
+
+  /// LIS uses 0-based indexing
+  inline int
+  get_index_base ()
+  { return index_base; }
 
 };
 #endif
