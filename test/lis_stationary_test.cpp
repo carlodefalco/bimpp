@@ -38,6 +38,7 @@ void
 run_test_problem (linear_solver *solver)
 {
   int rank, size;
+  int base = solver->get_index_base ();
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
@@ -102,7 +103,7 @@ run_test_problem (linear_solver *solver)
 
       bim3a_dirichletBC (lhs, rhs, bnodes, vnodes);
 
-      lhs.aij (xa, ir, jc, 1);
+      lhs.aij (xa, ir, jc, base);
 
       exactsolution.resize (msh.nnodes);
       for (unsigned int i = 0; i < exactsolution.size (); ++i)
