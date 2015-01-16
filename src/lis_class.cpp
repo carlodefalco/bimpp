@@ -60,7 +60,7 @@ lis::analyze ()
         {
           i_s = row_ptr[n * k + n_row % size] - base;
           nnz = row_ptr[n * (k + 1) + n_row % size] -
-                row_ptr[n * k + n_row % size];
+            row_ptr[n * k + n_row % size];
 
           MPI_Send (&i_s, 1, MPI_INT, k, 0, MPI_COMM_WORLD);
           MPI_Send (&nnz, 1, MPI_INT, k, 0, MPI_COMM_WORLD);
@@ -133,7 +133,7 @@ lis::solve ()
         {
           n = n_row / size;
           nnz = row_ptr[n * (k + 1) + n_row % size] -
-                row_ptr[n * k + n_row % size];
+            row_ptr[n * k + n_row % size];
           i_s = row_ptr[n * k + n_row % size] - base;
           row_s = n * k + n_row % size;
 
@@ -219,7 +219,7 @@ lis::solve ()
                 << "Elapsed time = " << time << std::endl;
     }
 
-   delete [] options;
+  delete [] options;
 
   //unificate solution vector
   if (rank == 0)
