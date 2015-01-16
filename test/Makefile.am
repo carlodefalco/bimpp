@@ -120,7 +120,7 @@ if HAVE_LIS
   CLEANFILES += MUMPS_solution.txt LIS_Solution.txt
 
   linear_solver_test_repeated_SOURCES = linear_solver_test_repeated.cpp
-  linear_solver_test_repeated_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMMUMPSLIB)
+  linear_solver_test_repeated_LDADD =  $(BIMMUMPSLIB) $(BIMLIB) $(BIMLISLIB)
 
 endif
 
