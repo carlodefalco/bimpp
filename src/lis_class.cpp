@@ -23,20 +23,20 @@ lis::set_lhs_structure
   n_row = n;
   row_ptr.clear ();
   row_ptr.resize (n_row + 1, 0);
-  base = ir[0];
+  
   //aij_to_csr_format
   if (f == aij)
     {
       for (unsigned int i = 0; i < ir.size (); ++i)
-        row_ptr[ir[i]-base]++;
+        row_ptr[ir[i]]++;
 
-      for (unsigned int i = 0, cumsum = base; i < n_row; ++i)
+      for (unsigned int i = 0, cumsum = 0; i < n_row; ++i)
         {
           int temp = row_ptr[i];
           row_ptr[i] = cumsum;
           cumsum += temp;
         }
-      row_ptr[n_row] = ir.size () + base;
+      row_ptr[n_row] = ir.size ();
     }
   else
     row_ptr = ir;
@@ -50,7 +50,6 @@ lis::analyze ()
   //partitioning row_ptr and jcol
 
   MPI_Bcast (&n_row, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast (&base, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   if (rank == 0)
     {
@@ -58,7 +57,7 @@ lis::analyze ()
 
       for (unsigned int k = 1; k < size; ++k)
         {
-          i_s = row_ptr[n * k + n_row % size] - base;
+          i_s = row_ptr[n * k + n_row % size];
           nnz = row_ptr[n * (k + 1) + n_row % size] -
             row_ptr[n * k + n_row % size];
 
@@ -72,7 +71,7 @@ lis::analyze ()
                     MPI_INT, k, 0, MPI_COMM_WORLD);
         }
       n = n_row / size + n_row % size;
-      nnz = row_ptr[n] - base;
+      nnz = row_ptr[n];
       i_s = 0;
       row_s = 0;
     }
@@ -134,7 +133,7 @@ lis::solve ()
           n = n_row / size;
           nnz = row_ptr[n * (k + 1) + n_row % size] -
             row_ptr[n * k + n_row % size];
-          i_s = row_ptr[n * k + n_row % size] - base;
+          i_s = row_ptr[n * k + n_row % size];
           row_s = n * k + n_row % size;
 
           MPI_Send (&data[i_s], nnz, MPI_DOUBLE, k, 0, MPI_COMM_WORLD);
@@ -144,7 +143,7 @@ lis::solve ()
                       MPI_DOUBLE, k, 0, MPI_COMM_WORLD);
         }
       n = n_row / size + n_row % size;
-      nnz = row_ptr[n] - base;
+      nnz = row_ptr[n];
       i_s = 0;
       row_s = 0;
     }
@@ -169,7 +168,7 @@ lis::solve ()
 
   for (unsigned int i = 0; i < nnz ; ++i)
     {
-      col[i] = jcol[i] - base;
+      col[i] = jcol[i];
       value[i] = data[i];
     }
   for (int i = 0; i < n + 1; ++i)
@@ -187,7 +186,9 @@ lis::solve ()
   for (int i = row_s; i < row_s + n; ++i)
     {
       lis_vector_set_value (LIS_INS_VALUE, i, rhs[i - row_s], b);
-      lis_vector_set_value (LIS_INS_VALUE, i, initial_guess[i-row_s], x);
+      if (have_initial_guess)
+        lis_vector_set_value (LIS_INS_VALUE, i,
+                              initial_guess[i-row_s], x);
     }
 
   lis_solver_create (&solver);

@@ -189,6 +189,10 @@ public :
   get_convergence_condition
   (std::string &convergence_condition) { };
 
+  /// Return index base used in the specific implementation.
+  virtual int
+  get_index_base () { };
+
   /// Return the name of the specific implementation.
   const std::string&
   solver_name () { return name; }

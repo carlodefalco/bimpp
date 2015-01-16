@@ -47,8 +47,7 @@ int main (int argc, char **argv)
                 << std::endl
                 << "with lis and mumps solvers = " << error << std::endl;
     }
-  lis_solver->cleanup ();
-  mumps_solver->cleanup ();
+
   MPI_Finalize ();
   return (0);
 }
@@ -189,5 +188,5 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
         }
     }
 
-  //solver->cleanup ();
+  solver->cleanup ();
 };

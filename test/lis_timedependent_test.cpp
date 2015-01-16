@@ -26,6 +26,7 @@ int main (int argc, char **argv)
 {
   linear_solver *solver = new lis ();
   int rank, size;
+  int base = solver->get_index_base ();
 
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
@@ -149,8 +150,8 @@ int main (int argc, char **argv)
               exactsolution[i] = exactsolution_start[i];
             }
         }
-
-      lhs_new.aij (xa, ir, jc, 1);
+      
+      lhs_new.aij (xa, ir, jc, base);
 
      if (rank == 0)
         solver->set_lhs_structure (lhs_new.rows (), ir, jc);

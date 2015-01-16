@@ -56,7 +56,6 @@ public :
     iterative_method = "bicg";
     preconditioner = "none";
     convergence_condition = "nrm2_r";
-    base = 0;
   };
 
   /// Set-up the matrix structure.
