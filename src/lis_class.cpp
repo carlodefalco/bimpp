@@ -23,20 +23,20 @@ lis::set_lhs_structure
   n_row = n;
   row_ptr.clear ();
   row_ptr.resize (n_row + 1, 0);
-  
+
   //aij_to_csr_format
   if (f == aij)
     {
       for (unsigned int i = 0; i < ir.size (); ++i)
-        row_ptr[ir[i]]++;
+        row_ptr[ir[i] - index_base]++;
 
-      for (unsigned int i = 0, cumsum = 0; i < n_row; ++i)
+      for (unsigned int i = 0, cumsum = index_base; i < n_row; ++i)
         {
           int temp = row_ptr[i];
           row_ptr[i] = cumsum;
           cumsum += temp;
         }
-      row_ptr[n_row] = ir.size ();
+      row_ptr[n_row] = ir.size () + index_base;
     }
   else
     row_ptr = ir;
@@ -57,7 +57,7 @@ lis::analyze ()
 
       for (unsigned int k = 1; k < size; ++k)
         {
-          i_s = row_ptr[n * k + n_row % size];
+          i_s = row_ptr[n * k + n_row % size] - index_base;
           nnz = row_ptr[n * (k + 1) + n_row % size] -
             row_ptr[n * k + n_row % size];
 
@@ -71,7 +71,7 @@ lis::analyze ()
                     MPI_INT, k, 0, MPI_COMM_WORLD);
         }
       n = n_row / size + n_row % size;
-      nnz = row_ptr[n];
+      nnz = row_ptr[n] - index_base;
       i_s = 0;
       row_s = 0;
     }
@@ -133,7 +133,7 @@ lis::solve ()
           n = n_row / size;
           nnz = row_ptr[n * (k + 1) + n_row % size] -
             row_ptr[n * k + n_row % size];
-          i_s = row_ptr[n * k + n_row % size];
+          i_s = row_ptr[n * k + n_row % size] - index_base;
           row_s = n * k + n_row % size;
 
           MPI_Send (&data[i_s], nnz, MPI_DOUBLE, k, 0, MPI_COMM_WORLD);
@@ -143,7 +143,7 @@ lis::solve ()
                       MPI_DOUBLE, k, 0, MPI_COMM_WORLD);
         }
       n = n_row / size + n_row % size;
-      nnz = row_ptr[n];
+      nnz = row_ptr[n] - index_base;
       i_s = 0;
       row_s = 0;
     }
@@ -168,7 +168,7 @@ lis::solve ()
 
   for (unsigned int i = 0; i < nnz ; ++i)
     {
-      col[i] = jcol[i];
+      col[i] = jcol[i] - index_base;
       value[i] = data[i];
     }
   for (int i = 0; i < n + 1; ++i)

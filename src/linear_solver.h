@@ -200,8 +200,16 @@ public :
   /// Return the type (either "iterative" or "direct")
   /// of the specific implementation.
   const std::string&
-  solver_type () { return type; }
+  solver_type () { return type; } 
 
+  /// Return the preferred base used for indexing
+  /// usually libraries written in C such as LIS
+  /// prefer 0-based indexing while libraries written
+  /// in fortran prefer 1-based indexing.
+  virtual int
+  get_index_base ()
+  { return 0; }
+  
 };
 
 #endif
