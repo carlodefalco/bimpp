@@ -140,6 +140,9 @@ run_test_problem_rank0 (linear_solver *solver, int base,
   for (int ii = 0; ii < xa_tmp.size (); ++ ii)
     xa[ii] = xa_tmp[f (ii, xa_tmp.size ())];
 
+  for (int ii = 0; ii < xa.size (); ++ ii)
+    std::cout << xa[ii] << std::endl;
+
   std::cout << "\tset_lhs_data" << std::endl;
   solver->set_lhs_data (xa);
 
@@ -161,7 +164,14 @@ run_test_problem_rank0 (linear_solver *solver, int base,
   //  std::cout << lhs << std::endl;
   
   std::cout << "\taij_update" << std::endl;
-  lhs.aij_update (xa, ir, jc, base);
+  lhs.aij_update (xa_tmp, ir_tmp, jc_tmp, base);
+  for (int ii = 0; ii < xa_tmp.size (); ++ ii)
+    xa[ii] = xa_tmp[f (ii, xa_tmp.size ())];
+
+  for (int ii = 0; ii < xa.size (); ++ ii)
+    std::cout << xa[ii] << std::endl;
+  
+  std::cout << "\tset_lhs_data" << std::endl;
   solver->set_lhs_data (xa);
   
   std::cout << "\tfactorize" << std::endl;
