@@ -11,12 +11,13 @@ check_PROGRAMS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 bim3_sta
                  bim3_stationary_test2 bim3_stationary_test2_osc bim3_stationary_test3 \
                  bim3_stationary_test3_osc bim3_stationary_test4 bim3_timedependent_test \
                  bim3_timedependent_test2 bim3_timedependent_test2_osc bim3_timedependent_test3 \
-                 bim3_timedependent_test3_osc linear_solver_test
+                 bim3_timedependent_test3_osc 
 
 if HAVE_LIS
   check_PROGRAMS += lis_test1 lis_stationary_test lis_timedependent_test \
                     bim3_nonlinear_test bim3_nonlinear_eq_test bim3_nonlinear_test2 \
-                    bim3_nonlinear_test4 bim3_nonlinear_test3
+                    bim3_nonlinear_test4 bim3_nonlinear_test3 linear_solver_test \
+                    linear_solver_test_repeated
 endif
 sparse_test_SOURCES = sparse_test.cpp
 CLEANFILES += first_solve.txt second_solve.txt
@@ -117,16 +118,21 @@ if HAVE_LIS
   linear_solver_test_SOURCES = linear_solver_test.cpp
   linear_solver_test_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMMUMPSLIB)
   CLEANFILES += MUMPS_solution.txt LIS_Solution.txt
+
+  linear_solver_test_repeated_SOURCES = linear_solver_test_repeated.cpp
+  linear_solver_test_repeated_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMMUMPSLIB)
+
 endif
 
 TESTS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
         bim3_stationary_test bim3_stationary_test2 bim3_stationary_test2_osc \
         bim3_stationary_test3 bim3_stationary_test3_osc bim3_stationary_test4 \
         bim3_timedependent_test bim3_timedependent_test2 bim3_timedependent_test2_osc \
-        bim3_timedependent_test3 bim3_timedependent_test3_osc linear_solver_test
+        bim3_timedependent_test3 bim3_timedependent_test3_osc 
 
 if HAVE_LIS
-  TESTS+=lis_test1 lis_stationary_test lis_timedependent_test \
+  TESTS+=lis_test1 linear_solver_test linear_solver_test_repeated \
+         lis_stationary_test lis_timedependent_test \
          bim3_nonlinear_eq_test bim3_nonlinear_test  bim3_nonlinear_test2 \
          bim3_nonlinear_test3 bim3_nonlinear_test4
 endif

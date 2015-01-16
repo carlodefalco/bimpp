@@ -329,14 +329,20 @@ lis::set_preconditioner (const std::string &s)
     preconditioner = "jacobi";
   else if (s == "ssor")
     preconditioner = "ssor";
+  else if (s == "ilu")
+    preconditioner = "ilu";
+  else if (s == "ilut")
+    preconditioner = "ilut";
+  else if (s == "iluc")
+    preconditioner = "iluc";
   else
     {
       std::cout << std::endl
                 <<"Invalid Preconditioner"
                 << std::endl
-                << "Solve without preconditioner"
+                << "Solve with ilu[0]"
                 << std::endl;
-      preconditioner = "none";
+      preconditioner = "ilu";
     }
 }
 
