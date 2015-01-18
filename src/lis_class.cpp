@@ -66,50 +66,64 @@ lis::set_lhs_structure
 int
 lis::analyze ()
 {
+
   //partitioning row_ptr and jcol
 
   MPI_Bcast (&n_row, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   if (rank == 0)
     {
-      n = n_row / size;
+      map_i_s.assign (size, 0);
+      map_row_s.assign (size, 0);
+      map_n.assign (size, 0);
+      map_nnz.assign (size, 0);
+
+      map_n[0] = n_row / size + n_row % size;
+      map_nnz[0] = row_ptr[map_n[0]] - index_base;
 
       for (unsigned int k = 1; k < size; ++k)
         {
-          i_s = row_ptr[n * k + n_row % size] - index_base;
-          nnz = row_ptr[n * (k + 1) + n_row % size] -
-            row_ptr[n * k + n_row % size];
+          map_n[k] = n_row / size;
+          map_i_s[k] = row_ptr[map_n[k] * k + n_row % size] -
+                       index_base;
+          map_nnz[k] = row_ptr[map_n[k] * (k + 1) + n_row % size] -
+                       row_ptr[map_n[k] * k + n_row % size];
+          map_row_s[k] = map_n[k] * k + n_row % size;
 
-          MPI_Send (&i_s, 1, MPI_INT, k, 0, MPI_COMM_WORLD);
-          MPI_Send (&nnz, 1, MPI_INT, k, 0, MPI_COMM_WORLD);
-          MPI_Send (&jcol[i_s], nnz, MPI_INT, k, 0, MPI_COMM_WORLD);
-
-          row_s = n * k + n_row % size;
-          MPI_Send (&row_s, 1, MPI_INT, k, 0, MPI_COMM_WORLD);
-          MPI_Send (&row_ptr[row_s], n + 1,
-                    MPI_INT, k, 0, MPI_COMM_WORLD);
         }
-      n = n_row / size + n_row % size;
-      nnz = row_ptr[n] - index_base;
-      i_s = 0;
-      row_s = 0;
     }
+
+  MPI_Scatter (&map_i_s[0], 1, MPI_INT,
+               &i_s, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Scatter (&map_row_s[0], 1, MPI_INT,
+               &row_s, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Scatter (&map_n[0], 1, MPI_INT,
+               &n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Scatter (&map_nnz[0], 1, MPI_INT,
+               &nnz, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+  if (rank == 0)
+    MPI_Scatterv (&jcol[0], &map_nnz[0], &map_i_s[0], MPI_INT,
+                  MPI_IN_PLACE, 0, MPI_INT, 0, MPI_COMM_WORLD);
   else
     {
-      n = n_row / size;
-
+      jcol.assign (nnz, 0);
+      MPI_Scatterv (&jcol[0], &map_nnz[0], &map_i_s[0], MPI_INT,
+        &jcol[0], nnz, MPI_INT, 0, MPI_COMM_WORLD);
+    }
+  //(commento da rimuovere in seguito)
+  //non posso utilizzare scatter per row_ptr perchè ogni processo
+  //riceve anche il primo valore che viene inviato al processo successivo
+  if (rank == 0)
+    for (unsigned int k = 1; k < size; ++k)
+      MPI_Send (&row_ptr[map_row_s[k]], map_n[k] + 1, MPI_INT,
+        k, 0, MPI_COMM_WORLD);
+  else
+    {
       MPI_Status *status = NULL;
-      MPI_Recv (&i_s, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, status);
-      MPI_Recv (&nnz, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, status);
-
-      jcol.resize (nnz, 0);
-      row_ptr.resize (n + 1, 0);
-
-      MPI_Recv (&jcol[0], nnz,
-                MPI_INT, 0, 0, MPI_COMM_WORLD, status);
-      MPI_Recv (&row_s, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, status);
-      MPI_Recv (&row_ptr[0], n + 1,
-                MPI_INT, 0, 0, MPI_COMM_WORLD, status);
+      row_ptr.assign (n + 1, 0);
+      MPI_Recv (&row_ptr[0], n + 1, MPI_INT,
+        0, 0, MPI_COMM_WORLD, status);
     }
   return 1;
 }
@@ -145,48 +159,42 @@ lis::set_initial_guess (std::vector<double> &initial_guess_)
 int
 lis::solve ()
 {
-  //partitioning data and rhs
   LIS_INT iter;
   double time;
   LIS_SOLVER solver;
   LIS_MATRIX A;
   LIS_VECTOR b,x;
 
+  //partitioning data, rhs and initial_guess if exist
   MPI_Bcast(&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   if (rank == 0)
     {
-      for (unsigned int k = 1; k < size; ++k)
-        {
-          n = n_row / size;
-          nnz = row_ptr[n * (k + 1) + n_row % size] -
-            row_ptr[n * k + n_row % size];
-          i_s = row_ptr[n * k + n_row % size] - index_base;
-          row_s = n * k + n_row % size;
-
-          MPI_Send (&data[i_s], nnz, MPI_DOUBLE, k, 0, MPI_COMM_WORLD);
-          MPI_Send (&rhs[row_s], n, MPI_DOUBLE, k, 0, MPI_COMM_WORLD);
-          if (have_initial_guess)
-            MPI_Send (&initial_guess[row_s], n,
-                      MPI_DOUBLE, k, 0, MPI_COMM_WORLD);
-        }
-      n = n_row / size + n_row % size;
-      nnz = row_ptr[n] - index_base;
-      i_s = 0;
-      row_s = 0;
+      MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
+        MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
+        MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      if(have_initial_guess)
+        MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
+          MPI_DOUBLE, MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     }
   else
     {
-      MPI_Status *status = NULL;
       data = new double[nnz];
       rhs = new double[n];
-      initial_guess = new double[n];
-      MPI_Recv (&data[0], nnz,
-                MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, status);
-      MPI_Recv (&rhs[0], n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, status);
-      if (have_initial_guess)
-        MPI_Recv (&initial_guess[0], n,
-                  MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, status);
+
+      MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
+        &data[0], nnz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
+        &rhs[0], n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+      if(have_initial_guess)
+        {
+          initial_guess = new double[n];
+          MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
+            MPI_DOUBLE, &initial_guess[0], n, MPI_DOUBLE,
+            0, MPI_COMM_WORLD);
+        }
     }
 
   //Build lis structure and solve system
@@ -216,7 +224,7 @@ lis::solve ()
       lis_vector_set_value (LIS_INS_VALUE, i, rhs[i - row_s], b);
       if (have_initial_guess)
         lis_vector_set_value (LIS_INS_VALUE, i,
-                              initial_guess[i-row_s], x);
+                              initial_guess[i - row_s], x);
     }
 
   lis_solver_create (&solver);
@@ -251,42 +259,19 @@ lis::solve ()
   delete [] options;
 
   //unificate solution vector
+  double temp = 0.0;
+  for (unsigned int i = row_s; i < row_s + n; ++i)
+    {
+      lis_vector_get_value (x, i, &temp);
+      rhs[i - row_s] = temp;
+    }
   if (rank == 0)
-    {
-      double temp = 0.0;
-      for (unsigned int i = row_s; i < row_s + n; ++i)
-        {
-          lis_vector_get_value (x, i, &temp);
-	  rhs[i] = temp;
-        }
-
-      MPI_Status *status = NULL;
-      for (unsigned int k = 1; k < size; ++k)
-        {
-          int loc_row_s, loc_n;
-          MPI_Recv (&loc_row_s, 1,
-                    MPI_INT, k, 0, MPI_COMM_WORLD, status);
-          MPI_Recv (&loc_n, 1, MPI_INT, k, 0, MPI_COMM_WORLD, status);
-
-          for (int i = loc_row_s; i < loc_row_s + loc_n; ++i)
-            {
-              MPI_Recv (&temp, 1, MPI_DOUBLE,
-                        k, 0, MPI_COMM_WORLD, status);
-              rhs[i] = temp;
-            }
-        }
-    }
+    MPI_Gatherv (MPI_IN_PLACE, 0, MPI_DOUBLE, &rhs[0],
+      &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
   else
-    {
-      double temp = 0.0;
-      MPI_Send (&row_s, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-      MPI_Send (&n, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-      for (int i = row_s; i < row_s + n; ++i)
-        {
-          lis_vector_get_value (x, i, &temp);
-          MPI_Send (&temp, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
-        }
-    }
+    MPI_Gatherv (&rhs[0], n, MPI_DOUBLE, &rhs[0],
+      &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
   lis_solver_destroy (solver);
   lis_matrix_destroy (A);
   lis_vector_destroy (b);
@@ -301,7 +286,8 @@ lis::cleanup ()
     {
       delete [] data;
       delete [] rhs;
-      delete [] initial_guess;
+      if (have_initial_guess)
+        delete [] initial_guess;
     }
   else if (ordering_map.size () != 0)
     delete [] data;

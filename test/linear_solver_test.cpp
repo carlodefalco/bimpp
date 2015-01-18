@@ -150,7 +150,7 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
     {
       solver->set_max_iterations (1000);
       solver->set_tolerance (1e-12);
-      solver->set_iterative_method ("conjugate_gradient");
+      solver->set_iterative_method ("Conjugate Gradient");
       solver->set_convergence_condition ("norm2_of_residual");
       if (rank == 0)
         solver->set_initial_guess (initial_guess);
