@@ -37,6 +37,7 @@ private :
 
   std::vector<int> map_i_s, map_row_s;
   std::vector<int> map_n, map_nnz;
+
   int i_s, row_s;
   int n, nnz, n_row;
   static const int index_base = 0;
