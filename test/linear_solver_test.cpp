@@ -123,7 +123,6 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
       bim3a_dirichletBC (lhs, rhs, bnodes, vnodes);
 
       lhs.aij (xa, ir, jc, base);
-
       exactsolution.resize (msh.nnodes);
       for(unsigned int i = 0; i < exactsolution.size (); ++i)
         {
