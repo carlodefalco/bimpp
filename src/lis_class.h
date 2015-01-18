@@ -24,6 +24,8 @@ private :
   double *data;
   double *rhs;
 
+  std::vector<int> ordering_map;
+
   double *initial_guess;
   bool have_initial_guess;
   int max_iter;

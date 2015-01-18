@@ -21,12 +21,14 @@ lis::set_lhs_structure
  matrix_format_t f)
 {
   n_row = n;
-  row_ptr.clear ();
-  row_ptr.resize (n_row + 1, 0);
+  row_ptr.assign (n_row + 1, 0);
+
+  jcol.assign (jc.size (), 0);
 
   //aij_to_csr_format
   if (f == aij)
     {
+      ordering_map.assign (jc.size (), 0);
       for (unsigned int i = 0; i < ir.size (); ++i)
         row_ptr[ir[i] - index_base]++;
 
@@ -37,11 +39,28 @@ lis::set_lhs_structure
           cumsum += temp;
         }
       row_ptr[n_row] = ir.size () + index_base;
+      for (unsigned int i = 0; i < jc.size (); ++i)
+        {
+          int row = ir[i];
+          int dest = row_ptr[row];
+
+          jcol[dest] = jc[i];
+          ordering_map[i] = dest;
+
+          row_ptr[row]++;
+        }
+      for (unsigned int i = 0, last = index_base; i <= n_row; ++i)
+        {
+          int temp = row_ptr[i];
+          row_ptr[i] = last;
+          last = temp;
+        }
     }
   else
-    row_ptr = ir;
-
-  jcol = jc;
+    {
+      row_ptr = ir;
+      jcol = jc;
+    }
 }
 
 int
@@ -98,7 +117,16 @@ lis::analyze ()
 void
 lis::set_lhs_data (std::vector<double> &xa)
 {
-  data = &*xa.begin ();
+  //(commento da rimuovere in seguito)
+  //per non modificare xa penso sia necessario allocare nuova memoria
+  if (ordering_map.size () != 0)
+    {
+      data = new double [xa.size ()];
+      for (unsigned int i = 0; i < xa.size (); ++i)
+      data[ordering_map[i]] = xa[i];
+    }
+  else
+    data = &*xa.begin ();
 }
 
 void
@@ -275,6 +303,9 @@ lis::cleanup ()
       delete [] rhs;
       delete [] initial_guess;
     }
+  else if (ordering_map.size () != 0)
+    delete [] data;
+
   lis_finalize ();
 }
 

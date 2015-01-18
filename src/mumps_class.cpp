@@ -58,14 +58,13 @@ mumps::set_lhs_structure
       for (int i = 0; i < n; ++i)
         {
           for (int j = ir[i]; j < ir[i+1]; ++j)
-            id.irn[j] = i;
+            id.irn[j - index_base] = i + index_base;
         }
     }
   else
   {
     id.n  = n;
     id.nz = ir.size ();
-
     id.irn = &*ir.begin ();
     id.jcn = &*jc.begin ();
   }

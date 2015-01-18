@@ -80,7 +80,7 @@ int main (int argc, char **argv)
   if (rank == 0)
     for (int ii = 0; ii < lis_rhs.size (); ++ii)
       std::cout << lis_rhs[ii]
-                << lis_rhs_shuffle[ii]
+                << "  " << lis_rhs_shuffle[ii]
                 << "  " << mumps_rhs[ii]
                 << "  " << mumps_rhs_shuffle[ii]
                 << std::endl;
