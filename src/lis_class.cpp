@@ -166,7 +166,7 @@ lis::solve ()
   LIS_VECTOR b,x;
 
   //partitioning data, rhs and initial_guess if exist
-  MPI_Bcast(&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast (&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   if (rank == 0)
     {
@@ -174,7 +174,7 @@ lis::solve ()
         MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
         MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      if(have_initial_guess)
+      if (have_initial_guess)
         MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
           MPI_DOUBLE, MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     }
@@ -188,7 +188,7 @@ lis::solve ()
       MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
         &rhs[0], n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-      if(have_initial_guess)
+      if (have_initial_guess)
         {
           initial_guess = new double[n];
           MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
@@ -207,7 +207,7 @@ lis::solve ()
       col[i] = jcol[i] - index_base;
       value[i] = data[i];
     }
-  for (int i = 0; i < n + 1; ++i)
+  for (unsigned int i = 0; i < n + 1; ++i)
     row[i] = row_ptr[i] - row_ptr[0];
 
   lis_matrix_create (LIS_COMM_WORLD, &A);
@@ -219,7 +219,7 @@ lis::solve ()
   lis_vector_set_size (b, n, 0);
   lis_vector_create (LIS_COMM_WORLD, &x);
   lis_vector_duplicate (b, &x);
-  for (int i = row_s; i < row_s + n; ++i)
+  for (unsigned int i = row_s; i < row_s + n; ++i)
     {
       lis_vector_set_value (LIS_INS_VALUE, i, rhs[i - row_s], b);
       if (have_initial_guess)
