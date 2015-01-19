@@ -42,8 +42,6 @@ private :
   int n, nnz, n_row;
   static const int index_base = 0;
 
-  LIS_SOLVER solver;
-
   int rank, size;
 
 public :
