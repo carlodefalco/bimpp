@@ -60,8 +60,11 @@ adaptive_inexact_newton::solve ()
                 << filename
                 << std::endl << std::endl;
     }
-
-  lin_initial_guess.assign (problem->msh.nnodes, 0.0);
+  if (rank == 0)
+    if (problem->msh.nnodes !=0)
+      lin_initial_guess.assign (problem->msh.nnodes, 0.0);
+    else
+      lin_initial_guess.assign (1, 0.0);
 
   do
     {
@@ -89,7 +92,7 @@ adaptive_inexact_newton::solve ()
       if (lin_solver->solver_type () == "iterative")
         {
           lin_solver->set_tolerance (forcing_value);
-          lin_solver->set_initial_guess (lin_initial_guess);
+	  lin_solver->set_initial_guess (lin_initial_guess);
         }
 
       lin_solver->solve ();
