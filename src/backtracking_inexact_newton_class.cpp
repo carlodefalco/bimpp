@@ -14,6 +14,21 @@
 #include <nonlinear_solver.h>
 #include <linear_solver.h>
 
+void
+backtracking_inexact_newton::set_problem
+  (abstract_nonlinear_problem *problem_)
+{ problem = problem_; } 
+
+void
+backtracking_inexact_newton::set_forcing_term
+  (abstract_forcing_term *forcing_)
+{ forcing = forcing_; }
+
+void
+backtracking_inexact_newton::set_initial_guess
+  (std::vector<double> &initial_guess_)
+{ initial_guess = &initial_guess_; }
+
 int
 backtracking_inexact_newton::solve ()
 {
@@ -211,3 +226,66 @@ backtracking_inexact_newton::theta_choice
         else
           theta = theta_max;
 }
+
+void
+backtracking_inexact_newton::set_max_iterations_of_linear_solver
+  (int max_iteration)
+{ lin_solver->set_max_iterations (max_iteration); }
+
+void
+backtracking_inexact_newton::set_initial_guess_of_linear_solver
+  (std::vector<double> &initial_guess)
+{ lin_solver->set_initial_guess (initial_guess); }
+
+void
+backtracking_inexact_newton::set_initial_tolerance_of_linear_solver
+  (double initial_tolerance)
+{
+  lin_solver->set_tolerance (initial_tolerance);
+  forcing_value = initial_tolerance;
+}
+
+void
+backtracking_inexact_newton::set_iterative_method_of_linear_solver
+  (const std::string &iterative_method)
+{
+  lin_solver->set_iterative_method (iterative_method);
+}
+
+void
+backtracking_inexact_newton::set_preconditioner_of_linear_solver
+  (const std::string &preconditioner)
+{
+  lin_solver->set_preconditioner (preconditioner);
+}
+
+void
+backtracking_inexact_newton::set_convergence_condition_of_linear_solver
+  (const std::string &convergence_condition)
+{
+  lin_solver->set_convergence_condition (convergence_condition);
+}
+
+void
+backtracking_inexact_newton::get_result_residual_norm
+  (double &residual_norm_)
+{ residual_norm_ =  residual_norm; }
+
+void
+backtracking_inexact_newton::get_result_solution
+  (std::vector<double> &solution)
+{ solution = *initial_guess; }
+
+void
+backtracking_inexact_newton::get_result_iterations
+  (int &iterations_)
+{ iterations_ = iteration; }
+
+void
+backtracking_inexact_newton::cleanup ()
+{ lin_solver->cleanup (); }
+
+void
+backtracking_inexact_newton::set_output_filename
+  (const std::string &filename_)
+{ filename = filename_; }

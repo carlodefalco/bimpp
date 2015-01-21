@@ -84,25 +84,16 @@ public :
 
   /// Set nonlinear problem to solve.
   void
-  set_problem (abstract_nonlinear_problem *problem_)
-  {
-    problem = problem_;
-  }
+  set_problem (abstract_nonlinear_problem *problem_);
 
   /// Set forcing term.
   void
-  set_forcing_term (abstract_forcing_term *forcing_)
-  {
-    forcing = forcing_;
-  }
+  set_forcing_term (abstract_forcing_term *forcing_);
 
   /// Set initial guess.
   void
   set_initial_guess
-  (std::vector<double> &initial_guess_)
-  {
-    initial_guess = &initial_guess_;
-  }
+    (std::vector<double> &initial_guess_);
 
   /// Solve system.
   int
@@ -111,30 +102,22 @@ public :
   /// Set maximum number of nonlinear solver iterations.
   void
   set_max_iterations (int max_iter_)
-  {
-    max_iter = max_iter_;
-  }
+  { max_iter = max_iter_; }
 
   /// Set tolerance of nonlinear solver.
   void
   set_tolerance (double tolerance_)
-  {
-    tolerance = tolerance_;
-  }
+  { tolerance = tolerance_; }
 
   /// Set minimum residual of nonlinear solver.
   void
   set_min_residual (double min_residual_)
-  {
-    min_residual = min_residual_;
-  }
+  { min_residual = min_residual_; }
 
   /// Set type of norm used by nonlinear solver.
   void
   set_norm_type (norm_type norm_t_)
-  {
-    norm_t = norm_t_;
-  }
+  { norm_t = norm_t_; }
 
   /// Set backtracking parameters.
   /// \f$ t \in (0, 1) \f$
@@ -164,51 +147,32 @@ public :
   /// Set maximum number of linear solver iterations.
   void
   set_max_iterations_of_linear_solver
-  (int max_iteration)
-  {
-    lin_solver->set_max_iterations (max_iteration);
-  }
+    (int max_iteration);
 
   /// Set initial guess of linear solver.
   void
   set_initial_guess_of_linear_solver
-  (std::vector<double> &initial_guess)
-  {
-    lin_solver->set_initial_guess (initial_guess);
-  }
+    (std::vector<double> &initial_guess);
 
   /// Set initial tolerance of linear solver.
   void
   set_initial_tolerance_of_linear_solver
-  (double initial_tolerance)
-  {
-    lin_solver->set_tolerance (initial_tolerance);
-    forcing_value = initial_tolerance;
-  }
+    (double initial_tolerance);
 
   /// Set type of iterative method used by linear solver.
   void
   set_iterative_method_of_linear_solver
-  (const std::string &iterative_method)
-  {
-    lin_solver->set_iterative_method (iterative_method);
-  }
+    (const std::string &iterative_method);
 
   /// Set type of preconditioner used by linear solver.
   void
   set_preconditioner_of_linear_solver
-  (const std::string &preconditioner)
-  {
-    lin_solver->set_preconditioner (preconditioner);
-  }
+    (const std::string &preconditioner);
 
   /// Set type of convergence condition used by linear solver.
   void
   set_convergence_condition_of_linear_solver
-  (const std::string &convergence_condition)
-  {
-    lin_solver->set_convergence_condition (convergence_condition);
-  }
+    (const std::string &convergence_condition);
 
   /// Return name of linear solver used.
   const std::string&
@@ -226,37 +190,24 @@ public :
 
   /// Get the norm of the solution's residual
   void
-  get_result_residual_norm (double &residual_norm_)
-  {
-    residual_norm_ =  residual_norm;
-  }
+  get_result_residual_norm (double &residual_norm_);
 
   /// Get the solution found by nonlinear solver.
   void
-  get_result_solution (std::vector<double> &solution)
-  {
-    solution = *initial_guess;
-  }
+  get_result_solution (std::vector<double> &solution);
+
   /// Get number of iterations when solve () ends
   void
-  get_result_iterations (int &iterations_)
-  {
-    iterations_ = iteration;
-  }
+  get_result_iterations (int &iterations_);
 
   /// Cleanup memory
   void
-  cleanup ()
-  {
-    lin_solver->cleanup ();
-  }
+  cleanup ();
 
   /// Set the name of output file.
   void
-  set_output_filename (const std::string &filename_)
-  {
-    filename = filename_;
-  }
+  set_output_filename (const std::string &filename_);
+
 };
 
 #endif
