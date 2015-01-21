@@ -18,7 +18,7 @@ struct inexact_newton_option
   double minRes; //Iteration stops if ||F(x)||<minRes
   double forcing; //Linear Iteration stops if linear residual<forcing
 
-  normType type; //Type of norm
+  norm_type type; //Type of norm
 };
 
 struct backtracking_inexact_newton_option
@@ -34,7 +34,7 @@ struct backtracking_inexact_newton_option
   double theta_max;
   double theta;
 
-  normType type; //Type of norm
+  norm_type type; //Type of norm
 
   ///compute theta that minimizing over [theta_min, theta_max]
   ///the quadratic function f(theta) for which f(0)=g(0), f'(0)=g'(0)
@@ -67,7 +67,7 @@ struct ForcingType1
                      std::vector<double>& uold,
                      std::vector<double>& du,
                      double eta_old,
-                     normType norm_type)
+                     norm_type norm_type)
   {
     sparse_matrix df;
     std::vector<double> fnew, fold, unew, temp;
@@ -106,7 +106,7 @@ struct ForcingType2
                      std::vector<double>& uold,
                      std::vector<double>& du,
                      double eta_old,
-                     normType norm_type)
+                     norm_type norm_type)
   {
     sparse_matrix df;
     std::vector<double> fnew, fold, unew, temp;
@@ -153,7 +153,7 @@ struct ForcingType3
                      std::vector<double>& uold,
                      std::vector<double>& du,
                      double eta_old,
-                     normType norm_type)
+                     norm_type norm_type)
   {
     std::vector<double> fnew, fold, unew, temp;
     double eta_new, eta_temp;
@@ -184,7 +184,7 @@ struct ForcingCostant
                      std::vector<double>& uold,
                      std::vector<double>& du,
                      double eta_old,
-                     normType norm_type)
+                     norm_type norm_type)
   {
     return eta_old;
   }

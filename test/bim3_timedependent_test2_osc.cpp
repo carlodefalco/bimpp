@@ -4,7 +4,7 @@
   the terms of the GNU/GPL licence v3
 */
 /*
-  Problem:  du/dt-Dnabla(u) = g
+  Problem:  du/dt-Dnabla (u) = g
   u = (1-x^2-y^2-z^2) * exp (- t) on boundary
   g = (11+x^2+y^2+z^2) * exp (- t)
   D = diag (1.0, 2.0, 3.0)

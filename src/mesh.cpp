@@ -22,7 +22,7 @@
   \brief Classes and methods for managing tetrahedral meshes.
 */
 
-#include <mesh.h>
+#include "mesh.h"
 #include <iostream>
 #include <fstream>
 #include <new>

@@ -11,9 +11,9 @@
 #define HAVE_LIS_CLASS 1
 
 #include <lis.h>
-#include <bim_sparse.h>
 #include <string>
-#include <linear_solver.h>
+#include "bim_sparse.h"
+#include "linear_solver.h"
 
 class lis: public linear_solver
 {

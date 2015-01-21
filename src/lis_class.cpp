@@ -7,11 +7,10 @@
   \brief interface for linear solver built with for lis library.
 */
 
-#include <lis_class.h>
+#include "lis_class.h"
 #include <stdlib.h>
 #include <sstream>
 #include <string>
-#include <cstring>
 
 void
 lis::set_lhs_structure

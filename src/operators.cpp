@@ -1052,7 +1052,7 @@ void
 bim3a_norm (mesh& msh,
            const std::vector<double>& v,
            double& norm,
-           normType type)
+           norm_type type)
 {
   if (type == Inf)
     {

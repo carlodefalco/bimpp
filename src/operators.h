@@ -25,8 +25,8 @@
 
 #ifndef HAVE_OPERATORS_H
 #define HAVE_OPERATORS_H 1
-#include <mesh.h>
-#include <bim_sparse.h>
+#include "mesh.h"
+#include "bim_sparse.h"
 #include <cmath>
 #include <mpi.h>
 
@@ -57,7 +57,7 @@ coefficient_vector : public coefficient_functor
 };
 
 /// Enumeration to specificate type of norm
-enum normType {Inf,L2,H1};
+enum norm_type {Inf,L2,H1};
 
 /// Allocate the structure for a FEM matrix over the mesh msh.
 void
@@ -264,7 +264,7 @@ void
 bim3a_norm (mesh& msh,
            const std::vector<double>& v,
            double& norm,
-           normType type);
+           norm_type type);
 
 /// Compute matrix-vector product
 void
