@@ -77,7 +77,7 @@ run_test_problem (nonlinear_solver *solver)
                 << std::endl;
 
       exactsolution.resize (1);
-      exactsolution[0] = sqrt (2);
+      exactsolution[0] = sqrt (p);
       uold.resize (1);
       uold[0] = 0;
 
