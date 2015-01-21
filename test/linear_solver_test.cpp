@@ -99,12 +99,12 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
       bim3a_rhs (msh, ecoeff, ncoeff, rhs);
 
       std::vector<int> sidelist;
-      sidelist.push_back(1);
-      sidelist.push_back(2);
-      sidelist.push_back(3);
-      sidelist.push_back(4);
-      sidelist.push_back(5);
-      sidelist.push_back(6);
+      sidelist.push_back (1);
+      sidelist.push_back (2);
+      sidelist.push_back (3);
+      sidelist.push_back (4);
+      sidelist.push_back (5);
+      sidelist.push_back (6);
 
       std::vector<int> bnodes;
 
@@ -124,7 +124,7 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
 
       lhs.aij (xa, ir, jc, base);
       exactsolution.resize (msh.nnodes);
-      for(unsigned int i = 0; i < exactsolution.size (); ++i)
+      for (unsigned int i = 0; i < exactsolution.size (); ++i)
         {
           exactsolution[i] = 1.0 -
                              msh.p (0, i) * msh.p (0, i) -
@@ -183,7 +183,7 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
       if (norm > 10e-10)
         {
           std::cerr << "The error is bigger than tolerance" << std::endl;
-          exit(-1);
+          exit (-1);
         }
     }
 

@@ -4,7 +4,7 @@
   the terms of the GNU/GPL licence v3
 */
 
-#include <bim_sparse.h>
+#include "bim_sparse.h"
 
 //using namespace bim;
 

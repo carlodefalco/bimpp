@@ -126,7 +126,7 @@ inexact_newton_status inexact_newton
 
           option.forcing = forcing (problem, ustart, du,
                                     option.forcing, option.type);
-
+	  std::cout<<"forcing="<<option.forcing<<std::endl;
           for (int i = 0; i < du.size (); ++i)
             ustart[i] = du[i] + ustart[i];
 

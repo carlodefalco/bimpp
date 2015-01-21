@@ -3,7 +3,7 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-
+ 
 #include <nonlinear_examples.h>
 
 void

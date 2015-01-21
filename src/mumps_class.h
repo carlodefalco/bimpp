@@ -17,7 +17,7 @@
 #define JOB_SOLVE 3
 #define JOB_END  -2
 
-#include <bim_sparse.h>
+#include "bim_sparse.h"
 #include <dmumps_c.h>
 #include "linear_solver.h"
 

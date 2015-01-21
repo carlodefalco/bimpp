@@ -7,7 +7,7 @@
   \brief wrapper for mumps data.
 */
 
-#include <mumps_class.h>
+#include "mumps_class.h"
 
 void
 mumps::init ()

@@ -17,7 +17,8 @@ if HAVE_LIS
   check_PROGRAMS += lis_test1 lis_stationary_test lis_timedependent_test \
                     bim3_nonlinear_test bim3_nonlinear_eq_test bim3_nonlinear_test2 \
                     bim3_nonlinear_test4 bim3_nonlinear_test3 linear_solver_test \
-                    linear_solver_test_repeated
+                    linear_solver_test_repeated nonlinear_solver_test nonlinear_solver_test2 \
+                    nonlinear_solver_test3 nonlinear_solver_test4 nonlinear_solver_eq_test
 endif
 sparse_test_SOURCES = sparse_test.cpp
 CLEANFILES += first_solve.txt second_solve.txt
@@ -85,7 +86,7 @@ CLEANFILES += Solution_TimeTest3_osc.txt
 
 if HAVE_LIS
   lis_test1_SOURCES = lis_test1.cpp
-  lis_test1_LDADD = $(BIMLIB) $(BIMLISLIB)
+  lis_test1_LDADD = $(BIMLISLIB) $(BIMLIB) 
 
   lis_stationary_test_SOURCES = lis_stationary_test.cpp
   lis_stationary_test_LDADD = $(BIMLIB) $(BIMLISLIB)
@@ -122,6 +123,26 @@ if HAVE_LIS
   linear_solver_test_repeated_SOURCES = linear_solver_test_repeated.cpp
   linear_solver_test_repeated_LDADD =  $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLIB)
 
+  nonlinear_solver_test_SOURCES =  nonlinear_solver_test.cpp plaplacian_class.h plaplacian_class.cpp
+  nonlinear_solver_test_LDADD = $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLIB)
+  CLEANFILES += NonLinear_Plaplacian_Test1.txt
+
+  nonlinear_solver_test2_SOURCES =  nonlinear_solver_test2.cpp plaplacian_class.h plaplacian_class.cpp
+  nonlinear_solver_test2_LDADD = $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLIB)
+  CLEANFILES += NonLinear_Plaplacian_Test2.txt
+
+  nonlinear_solver_test3_SOURCES =  nonlinear_solver_test3.cpp plaplacian_class.h plaplacian_class.cpp
+  nonlinear_solver_test3_LDADD = $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLIB)
+  CLEANFILES += NonLinear_Plaplacian_Test3.txt
+
+  nonlinear_solver_test4_SOURCES =  nonlinear_solver_test4.cpp plaplacian_class.h plaplacian_class.cpp
+  nonlinear_solver_test4_LDADD = $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLIB)
+  CLEANFILES += NonLinear_Plaplacian_Test4.txt
+
+  nonlinear_solver_eq_test_SOURCES =  nonlinear_solver_eq_test.cpp equation_class.h equation_class.cpp
+  nonlinear_solver_eq_test_LDADD =  $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLIB)
+  CLEANFILES += NonLinear_Equation_Test.txt
+
 endif
 
 TESTS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
@@ -132,7 +153,8 @@ TESTS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
 
 if HAVE_LIS
   TESTS+=lis_test1 linear_solver_test linear_solver_test_repeated \
-         lis_stationary_test lis_timedependent_test \
-         bim3_nonlinear_eq_test bim3_nonlinear_test  bim3_nonlinear_test2 \
-         bim3_nonlinear_test3 bim3_nonlinear_test4
+         lis_stationary_test lis_timedependent_test nonlinear_solver_eq_test\
+         nonlinear_solver_test nonlinear_solver_test2 nonlinear_solver_test3 nonlinear_solver_test4 \
+         bim3_nonlinear_eq_test bim3_nonlinear_test \
+         bim3_nonlinear_test2 bim3_nonlinear_test3 bim3_nonlinear_test4
 endif
