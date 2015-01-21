@@ -44,7 +44,7 @@ CLEANFILES += solution.txt
 
 bim3_stationary_test2_SOURCES = bim3_stationary_test2.cpp
 bim3_stationary_test2_LDADD = $(BIMLIB) $(BIMMUMPSLIB)
-CLEANFILES += solution2.txt
+CLEANFILES += solution2.txt mesh_out_cube.m
 
 bim3_stationary_test2_osc_SOURCES = bim3_stationary_test2_osc.cpp
 bim3_stationary_test2_osc_LDADD = $(BIMLIB) $(BIMMUMPSLIB)
@@ -86,7 +86,7 @@ if HAVE_LIS
 
   lis_stationary_test_SOURCES = lis_stationary_test.cpp
   lis_stationary_test_LDADD = $(BIMLIB) $(BIMLISLIB)
-  CLEANFILES += LIS_Solution.txt
+  CLEANFILES += LIS_solution.txt
 
   lis_timedependent_test_SOURCES = lis_timedependent_test.cpp
   lis_timedependent_test_LDADD = $(BIMLIB) $(BIMLISLIB)
@@ -94,7 +94,7 @@ if HAVE_LIS
 
   linear_solver_test_SOURCES = linear_solver_test.cpp
   linear_solver_test_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMMUMPSLIB)
-  CLEANFILES += MUMPS_solution.txt LIS_Solution.txt
+  CLEANFILES += MUMPS_solution.txt LIS_solution.txt
 
   linear_solver_test_repeated_SOURCES = linear_solver_test_repeated.cpp
   linear_solver_test_repeated_LDADD =  $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLIB)
