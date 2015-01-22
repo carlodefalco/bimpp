@@ -70,7 +70,7 @@ adaptive_inexact_newton::solve ()
     {
       ++iteration;
 
-      if (rank == 0 && verbose == 2)
+      if (rank == 0 && verbose >= 1)
         std::cout << "\nNewton Iteration: "<< iteration << std::endl;
 
       if (rank == 0)
@@ -116,14 +116,13 @@ adaptive_inexact_newton::solve ()
           (*problem) (lhs, rhs, (*initial_guess));
           bim3a_norm (problem->msh, rhs, residual_norm, norm_t);
           if (verbose == 2)
-            {
-              for (unsigned int i = 0; i < initial_guess->size (); ++i)
-                fout << (*initial_guess)[i] << std::endl;
+            for (unsigned int i = 0; i < initial_guess->size (); ++i)
+              fout << (*initial_guess)[i] << std::endl;
 
-              std::cout << "Step Error: " << step_norm << std::endl
-                        << "Residual Error: " << residual_norm
-                        << std::endl;
-            }
+          if (verbose >= 1)
+            std::cout << "Step Error: " << step_norm << std::endl
+                      << "Residual Error: " << residual_norm
+                      << std::endl;
         }
       MPI_Bcast (&step_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);

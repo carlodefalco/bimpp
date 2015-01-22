@@ -3,7 +3,9 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-
+/*! \file equation_class.cpp
+  \brief interface for nonlinear problem \f$ x^2 = p \f$
+ */
 #include "equation_class.h"
 
 void

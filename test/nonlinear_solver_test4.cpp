@@ -43,7 +43,7 @@ int main (int argc, char **argv)
   linear_solver *mumps_solver = new mumps ();
 
   nonlinear_solver *solver =
-    new backtracking_inexact_newton (lis_solver, 2);
+    new backtracking_inexact_newton (lis_solver, 1);
 
   run_test_problem (solver);
 
@@ -138,7 +138,7 @@ run_test_problem (nonlinear_solver *solver)
 
   if (rank == 0)
     {
-      if (solver->solver_name () == "BacktrackingInexactNewton")
+      if (solver->solver_name () == "Backtracking Inexact Newton")
         ((backtracking_inexact_newton *) solver)->
           set_backtracking_parameters (10e-4, 0.1, 0.5);
       solver->set_problem (plap);
