@@ -56,8 +56,8 @@ public :
               norm_type norm_t);
 };
 
-/// Class that compute forcing term
-/// \f$ \gamma*(\|F(x_k)\|/\|F(x_{k-1})||)^{\alpha}\f$
+/// Class that compute forcing term 
+/// \f$ \gamma*(\|F(x_k)\|/\|F(x_{k-1})||)^{\alpha} \f$
 class forcing_type3 : public abstract_forcing_term
 {
 private :
