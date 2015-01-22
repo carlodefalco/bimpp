@@ -22,7 +22,6 @@ lis::set_lhs_structure
 {
   n_row = n;
   row_ptr.assign (n_row + 1, 0);
-
   jcol.assign (jc.size (), 0);
 
   //aij_to_csr_format
@@ -46,7 +45,6 @@ lis::set_lhs_structure
 
           jcol[dest] = jc[i];
           ordering_map[i] = dest;
-
           row_ptr[row]++;
         }
       for (unsigned int i = 0, last = index_base; i <= n_row; ++i)
@@ -68,8 +66,6 @@ lis::analyze ()
 {
 
   //partitioning row_ptr and jcol
-
-  MPI_Bcast (&n_row, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   if (rank == 0)
     {
@@ -137,7 +133,7 @@ lis::set_lhs_data (std::vector<double> &xa)
     {
       data = new double [xa.size ()];
       for (unsigned int i = 0; i < xa.size (); ++i)
-      data[ordering_map[i]] = xa[i];
+        data[ordering_map[i]] = xa[i];
     }
   else
     data = &*xa.begin ();
@@ -219,6 +215,7 @@ lis::solve ()
   lis_vector_set_size (b, n, 0);
   lis_vector_create (LIS_COMM_WORLD, &x);
   lis_vector_duplicate (b, &x);
+
   for (unsigned int i = row_s; i < row_s + n; ++i)
     {
       lis_vector_set_value (LIS_INS_VALUE, i, rhs[i - row_s], b);
@@ -238,7 +235,7 @@ lis::solve ()
   if (have_initial_guess)
     opt << " -initx_zeros false ";
   std::string opt_ = opt.str ();
-  char* options = new char[opt_.length () + 1];
+  char* options = new char[opt_.size () + 1];
   strcpy (options, opt_.c_str ());
 
   lis_solver_set_option (options, solver);
