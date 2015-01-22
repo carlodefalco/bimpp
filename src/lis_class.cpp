@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <sstream>
 #include <string>
+#include <cstring>
 
 void
 lis::set_lhs_structure
