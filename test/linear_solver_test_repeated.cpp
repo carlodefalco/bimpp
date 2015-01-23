@@ -14,12 +14,13 @@
 #include <fstream>
 #include <bim_config.h>
 
-const int system_size = 10;
+const int system_size = 117;
 int shuffle (int x, int nnz)
 {
-  return (x < floor (nnz / 2) ?
-          x + floor (nnz / 2) :
-          x - floor (nnz / 2));
+  int half = nnz / 2;
+  return (x >= half ?
+          x - half :
+          nnz - half + x);
 }
 
 int shuffle_not (int x, int nnz)
@@ -78,12 +79,16 @@ int main (int argc, char **argv)
 
   if (rank == 0)
     for (int ii = 0; ii < lis_rhs.size (); ++ii)
-      std::cout << lis_rhs[ii]
-                << "  " << lis_rhs_shuffle[ii]
-                << "  " << mumps_rhs[ii]
-                << "  " << mumps_rhs_shuffle[ii]
-                << std::endl;
-
+      {
+        std::cout << lis_rhs[ii]
+                  << "  " << lis_rhs_shuffle[ii]
+                  << "  " << mumps_rhs[ii]
+                  << "  " << mumps_rhs_shuffle[ii]
+                  << std::endl;
+        assert (fabs (lis_rhs_shuffle[ii] - lis_rhs[ii]) < 1.0e-10);
+        assert (fabs (lis_rhs_shuffle[ii] - mumps_rhs[ii]) < 1.0e-10);
+        assert (fabs (lis_rhs_shuffle[ii] - mumps_rhs_shuffle[ii]) < 1.0e-10);
+      }
   mumps_solver->cleanup ();
   lis_solver->cleanup ();
 
@@ -109,11 +114,10 @@ run_test_problem_rank0 (linear_solver *solver,
   for (int ii = 0; ii < system_size; ++ii)
     {
       lhs[ii][ii] = 10;
-      if (ii < system_size -1)
-        {
-          lhs[ii][ii+1] = -1;
-          lhs[ii+1][ii] = -1;
-        }
+      if (ii > 0)
+        lhs[ii][ii-1] = -1;
+      if (ii < system_size - 1)
+        lhs[ii][ii+1] = -1;
     }
  
   // std::cout << lhs << std::endl;
@@ -143,8 +147,8 @@ run_test_problem_rank0 (linear_solver *solver,
   for (int ii = 0; ii < xa_tmp.size (); ++ ii)
     xa[ii] = xa_tmp[f (ii, xa_tmp.size ())];
 
-  for (int ii = 0; ii < xa.size (); ++ ii)
-    std::cout << xa[ii] << std::endl;
+  // for (int ii = 0; ii < xa.size (); ++ ii)
+  //   std::cout << xa[ii] << std::endl;
 
   std::cout << "\tset_lhs_data" << std::endl;
   solver->set_lhs_data (xa);
@@ -171,8 +175,8 @@ run_test_problem_rank0 (linear_solver *solver,
   for (int ii = 0; ii < xa_tmp.size (); ++ ii)
     xa[ii] = xa_tmp[f (ii, xa_tmp.size ())];
 
-  for (int ii = 0; ii < xa.size (); ++ ii)
-    std::cout << xa[ii] << std::endl;
+  // for (int ii = 0; ii < xa.size (); ++ ii)
+  //   std::cout << xa[ii] << std::endl;
 
   std::cout << "\tset_lhs_data" << std::endl;
   solver->set_lhs_data (xa);
