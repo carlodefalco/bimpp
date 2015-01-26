@@ -272,5 +272,10 @@ bim3a_matrix_vector_product (sparse_matrix& M,
                             const std::vector<double>& x,
                             std::vector<double>& y);
 
+
+/// Return the norm 2 of the vector
+double
+bim3a_norm2 (const std::vector<double>& v);
+
 //}
 #endif

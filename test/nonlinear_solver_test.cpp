@@ -70,7 +70,7 @@ run_test_problem (nonlinear_solver *solver)
   double q = p / (p - 1);
 
   abstract_nonlinear_problem *plap = new plaplacian (p);
-  abstract_forcing_term *forcing = new  forcing_type3 (1, 2, 0.9);
+  abstract_forcing_term *forcing = new  forcing_type1 (0.9);
 
   double lambda = 1.0;
   double mu = 0.5;
