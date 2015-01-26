@@ -32,11 +32,10 @@ public :
   /// for the nonlinear problem.
   /// Must be called on the master (rank == 0) node only.
   virtual double
-  operator () (abstract_nonlinear_problem *problem,
-               const std::vector<double>& old_guess,
-               const std::vector<double>& gap_guess,
-               double old_forcing_value,
-               norm_type norm_t) = 0;
+    operator () (const std::vector<double>& functional_old,
+                const std::vector<double>& functional_new,
+                const std::vector<double>& df_gap,
+                double old_forcing_value) = 0;
 
   /// Return the name of forcing term.
   const std::string&

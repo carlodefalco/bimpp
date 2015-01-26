@@ -70,7 +70,7 @@ run_test_problem (nonlinear_solver *solver)
   double q = p / (p - 1);
 
   abstract_nonlinear_problem *plap = new plaplacian (p);
-  abstract_forcing_term *forcing = new  forcing_type1 (0.9);
+  abstract_forcing_term *forcing = new  forcing_type3 (1, 2, 0.9);
 
   double lambda = 1.0;
   double mu = 0.5;
@@ -140,7 +140,7 @@ run_test_problem (nonlinear_solver *solver)
     {
       if (solver->solver_name () == "Backtracking Inexact Newton")
         ((backtracking_inexact_newton *) solver)->
-          set_backtracking_parameters (10e-4, 0.1, 0.5);
+          set_backtracking_parameters (1e-4, 0.1, 0.5);
       solver->set_problem (plap);
       solver->set_forcing_term (forcing);
       solver->set_initial_guess (uold);

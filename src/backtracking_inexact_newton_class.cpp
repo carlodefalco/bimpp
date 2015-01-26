@@ -17,7 +17,7 @@
 void
 backtracking_inexact_newton::set_problem
   (abstract_nonlinear_problem *problem_)
-{ problem = problem_; } 
+{ problem = problem_; }
 
 void
 backtracking_inexact_newton::set_forcing_term
@@ -37,10 +37,23 @@ backtracking_inexact_newton::solve ()
   std::vector<double> xa;
   std::vector<double> lin_initial_guess;
 
-  if (rank == 0)
+  sparse_matrix mass_matrix;
+
+  std::vector<double> f_old, f_new, df_gap;
+
+if (rank == 0)
     {
+      if (norm_t == L2 || norm_t == H1)
+        {
+          std::vector<double> ecoeff (problem->msh.nelements, 1.0);
+          std::vector<double> ncoeff (problem->msh.nnodes, 1.0);
+          bim3a_reaction (problem->msh, ecoeff, ncoeff, mass_matrix);
+          if (norm_t == H1)
+            bim3a_laplacian (problem->msh, ecoeff, mass_matrix);
+        }
+
       problem->operator () (lhs, rhs, (*initial_guess));
-      bim3a_norm (problem->msh, rhs, residual_norm, norm_t);
+      residual_norm = bim3a_norm2 (rhs);
     }
 
   MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -75,6 +88,10 @@ backtracking_inexact_newton::solve ()
 
       if (rank == 0)
         {
+          f_old.assign (rhs.size (), 0.0);
+          for (unsigned int i = 0; i < rhs.size (); ++i)
+            f_old[i] = - rhs[i];
+
           lhs.aij (xa, ir, jc, lin_solver->get_index_base ());
           lin_solver->set_lhs_structure (lhs.rows (), ir, jc);
         }
@@ -109,13 +126,11 @@ backtracking_inexact_newton::solve ()
           for (int i = 0; i < rhs.size (); ++i)
             unew[i] = rhs[i] + (*initial_guess)[i];
 
-          std::vector<double> f_new, f_old;
-          double f_old_norm = 0.0;
+          double f_old_norm = residual_norm;
           double f_new_norm = 0.0;
-          (*problem) (f_old, (*initial_guess));
+
           (*problem) (f_new, unew);
-          bim3a_norm (problem->msh, f_old, f_old_norm, norm_t);
-          bim3a_norm (problem->msh, f_new, f_new_norm, norm_t);
+          f_new_norm = bim3a_norm2 (f_new);
 
           while (f_new_norm >
             (1 - t * (1 - forcing_value)) * f_old_norm)
@@ -144,20 +159,33 @@ backtracking_inexact_newton::solve ()
               forcing_value = 1 - theta * (1 - forcing_value);
 
               (*problem) (f_new, unew);
-              bim3a_norm (problem->msh, f_new, f_new_norm, norm_t);
+
+              f_new_norm = bim3a_norm2 (f_new);
             }
 
-          forcing_value = (*forcing) (problem, (*initial_guess),
-                                      rhs, forcing_value, norm_t);
+          bim3a_matrix_vector_product (lhs, rhs, df_gap);
+          forcing_value = (*forcing)
+            (f_old, f_new, df_gap, forcing_value);
 
           for (unsigned int i = 0; i < rhs.size (); ++i)
             (*initial_guess)[i] = rhs[i] + (*initial_guess)[i];
 
-          bim3a_norm (problem->msh, rhs, step_norm, norm_t);
+          if (norm_t == Inf)
+            bim3a_norm (problem->msh, rhs, step_norm, norm_t);
+          else
+            {
+              step_norm = 0.0;
+              std::vector<double> temp;
+              bim3a_matrix_vector_product (mass_matrix, rhs, temp);
+              for (unsigned int i = 0; i < rhs.size (); ++i)
+                step_norm += rhs[i] * temp[i];
+              step_norm = sqrt (step_norm);
+            }
 
           (*problem) (lhs, rhs, (*initial_guess));
-          bim3a_norm (problem->msh, rhs, residual_norm, norm_t);
-          if (verbose == 2)
+          residual_norm = bim3a_norm2 (rhs);
+
+         if (verbose == 2)
             for (unsigned int i = 0; i < initial_guess->size (); ++i)
               fout << (*initial_guess)[i] << std::endl;
 
@@ -179,10 +207,8 @@ backtracking_inexact_newton::solve ()
       fout << "Solution: " << std::endl;
       for (unsigned int i = 0; i < initial_guess->size (); ++i)
         fout << (*initial_guess)[i] << std::endl;
-
-      std::cout << "Residual Error: " << residual_norm
-                << std::endl;
     }
+
   if (rank == 0 && verbose >=1)
     fout.close ();
 

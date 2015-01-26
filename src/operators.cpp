@@ -1088,10 +1088,20 @@ bim3a_matrix_vector_product (sparse_matrix& M,
                             std::vector<double>& y)
 {
   sparse_matrix::col_iterator j;
-  y.resize (x.size ());
+  y.assign (x.size (), 0.0);
   for (unsigned int i = 0; i < M.size (); ++i)
     if (M[i].size ())
       for (j = M[i].begin (); j != M[i].end (); ++j)
         y[i] += M.col_val (j) * x[M.col_idx (j)];
+}
+
+double
+bim3a_norm2 (const std::vector<double>& v)
+{
+  double norm = 0.0;
+  for (unsigned int i = 0; i < v.size (); ++i)
+    norm += v[i] * v[i];
+  norm = sqrt (norm);
+  return norm;
 }
 //}

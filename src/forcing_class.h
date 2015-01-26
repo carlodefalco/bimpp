@@ -28,11 +28,11 @@ public :
     eta_max (eta_max_) { };
 
   double
-  operator () (abstract_nonlinear_problem *problem,
-              const std::vector<double>& old_guess,
-              const std::vector<double>& gap_guess,
-              double eta_old,
-              norm_type norm_t);
+  operator () (const std::vector<double>& functional_old,
+              const std::vector<double>& functional_new,
+	      const std::vector<double>& df_gap,
+              double eta_old);
+
 };
 
 /// Class that compute forcing term
@@ -49,11 +49,10 @@ public :
     eta_max (eta_max_) { };
 
   double
-  operator () (abstract_nonlinear_problem *problem,
-              const std::vector<double>& old_guess,
-              const std::vector<double>& gap_guess,
-              double eta_old,
-              norm_type norm_t);
+  operator () (const std::vector<double>& functional_old,
+              const std::vector<double>& functional_new,
+	      const std::vector<double>& df_gap,
+              double eta_old);
 };
 
 /// Class that compute forcing term 
@@ -75,11 +74,10 @@ public :
     eta_max (eta_max_) { };
 
   double
-  operator () (abstract_nonlinear_problem *problem,
-              const std::vector<double>& old_guess,
-              const std::vector<double>& gap_guess,
-              double eta_old,
-	      norm_type norm_t);
+  operator () (const std::vector<double>& functional_old,
+              const std::vector<double>& functional_new,
+	      const std::vector<double>& df_gap,
+              double eta_old);
 };
 
 /// Class that computes costant forcing term
@@ -91,14 +89,11 @@ public :
     abstract_forcing_term ("Forcing Costant") { };
 
   double
-  operator () (abstract_nonlinear_problem *problem,
-              const std::vector<double>& old_guess,
-              const std::vector<double>& gap_guess,
-              double eta_old,
-              norm_type norm_t)
-  {
-    return eta_old;
-  }
+  operator () (const std::vector<double>& functional_old,
+              const std::vector<double>& functional_new,
+	      const std::vector<double>& df_gap,
+              double eta_old)
+  { return eta_old; }
 };
 
 #endif

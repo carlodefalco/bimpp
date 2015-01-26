@@ -17,7 +17,7 @@
 void
 adaptive_inexact_newton::set_problem
   (abstract_nonlinear_problem *problem_)
-{ problem = problem_; } 
+{ problem = problem_; }
 
 void
 adaptive_inexact_newton::set_forcing_term
@@ -37,10 +37,24 @@ adaptive_inexact_newton::solve ()
   std::vector<double> xa;
   std::vector<double> lin_initial_guess;
 
+  sparse_matrix mass_matrix;
+
+  std::vector<double> f_old, f_new, df_gap;
+
   if (rank == 0)
     {
+      if (norm_t == L2 || norm_t == H1)
+        {
+          std::vector<double> ecoeff (problem->msh.nelements, 1.0);
+          std::vector<double> ncoeff (problem->msh.nnodes, 1.0);
+          bim3a_reaction (problem->msh, ecoeff, ncoeff, mass_matrix);
+          if (norm_t == H1)
+            bim3a_laplacian (problem->msh, ecoeff, mass_matrix);
+        }
+
       problem->operator () (lhs, rhs, (*initial_guess));
-      bim3a_norm (problem->msh, rhs, residual_norm, norm_t);
+
+      residual_norm = bim3a_norm2 (rhs);
     }
 
   MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -75,6 +89,10 @@ adaptive_inexact_newton::solve ()
 
       if (rank == 0)
         {
+          f_old.assign (rhs.size (), 0.0);
+          for (unsigned int i = 0; i < rhs.size (); ++i)
+            f_old[i] = - rhs[i];
+
           lhs.aij (xa, ir, jc, lin_solver->get_index_base ());
           lin_solver->set_lhs_structure (lhs.rows (), ir, jc);
         }
@@ -92,7 +110,7 @@ adaptive_inexact_newton::solve ()
       if (lin_solver->solver_type () == "iterative")
         {
           lin_solver->set_tolerance (forcing_value);
-	  lin_solver->set_initial_guess (lin_initial_guess);
+          lin_solver->set_initial_guess (lin_initial_guess);
         }
 
       lin_solver->solve ();
@@ -105,16 +123,31 @@ adaptive_inexact_newton::solve ()
           if (verbose == 2)
             fout << "Iteration: " << iteration << std::endl;
 
-          forcing_value = (*forcing) (problem, (*initial_guess),
-                                      rhs, forcing_value, norm_t);
-
           for (unsigned int i = 0; i < rhs.size (); ++i)
             (*initial_guess)[i] = rhs[i] + (*initial_guess)[i];
 
-          bim3a_norm (problem->msh, rhs, step_norm, norm_t);
+          (*problem) (f_new, (*initial_guess));
+          bim3a_matrix_vector_product (lhs, rhs, df_gap);
+
+          forcing_value = (*forcing)
+            (f_old, f_new, df_gap, forcing_value);
+
+          if (norm_t == Inf)
+            bim3a_norm (problem->msh, rhs, step_norm, norm_t);
+          else
+            {
+              step_norm = 0.0;
+              std::vector<double> temp;
+              bim3a_matrix_vector_product (mass_matrix, rhs, temp);
+              for (unsigned int i = 0; i < rhs.size (); ++i)
+                step_norm += rhs[i] * temp[i];
+              step_norm = sqrt (step_norm);
+            }
 
           (*problem) (lhs, rhs, (*initial_guess));
-          bim3a_norm (problem->msh, rhs, residual_norm, norm_t);
+
+          residual_norm = bim3a_norm2 (rhs);
+
           if (verbose == 2)
             for (unsigned int i = 0; i < initial_guess->size (); ++i)
               fout << (*initial_guess)[i] << std::endl;
@@ -137,10 +170,8 @@ adaptive_inexact_newton::solve ()
       fout << "Solution: " << std::endl;
       for (unsigned int i = 0; i < initial_guess->size (); ++i)
         fout << (*initial_guess)[i] << std::endl;
-
-      std::cout << "Residual Error: " << residual_norm
-                << std::endl;
     }
+
   if (rank == 0 && verbose >=1)
     fout.close ();
 
