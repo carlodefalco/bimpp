@@ -19,8 +19,19 @@
 class lis: public linear_solver
 {
 private :
+
+  LIS_SOLVER solver;
+  LIS_MATRIX A;
+  LIS_VECTOR b, x;
+  LIS_INT iter;
+  double time;
+
+  LIS_INT *row,  *col;
+  LIS_SCALAR *value;
+
   /// Stores rows of matrix in CSR format.
   std::vector<int> row_ptr;
+  
   /// Stores columns of matrix in CSR format
   std::vector<int> jcol;
 
@@ -58,6 +69,9 @@ private :
   /// \brief Type of convergence condition.
   /// \details [default = norm 2 of residual]
   std::string convergence_condition;
+
+  /// \brief Option string.
+  std::string options_string;
 
   std::vector<int> map_i_s, map_row_s;
   std::vector<int> map_n, map_nnz;
@@ -111,6 +125,10 @@ public :
   void
   set_initial_guess (std::vector<double> &initial_guess);
 
+  /// Prepare the solver.
+  int
+  factorize ();
+  
   /// Solve the system.
   int
   solve ();

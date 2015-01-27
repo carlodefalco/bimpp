@@ -91,10 +91,13 @@ lis::analyze ()
 
   MPI_Scatter (&map_i_s[0], 1, MPI_INT,
                &i_s, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  
   MPI_Scatter (&map_row_s[0], 1, MPI_INT,
                &row_s, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  
   MPI_Scatter (&map_n[0], 1, MPI_INT,
                &n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  
   MPI_Scatter (&map_nnz[0], 1, MPI_INT,
                &nnz, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -121,6 +124,36 @@ lis::analyze ()
       MPI_Recv (&row_ptr[0], n + 1, MPI_INT,
         0, 0, MPI_COMM_WORLD, status);
     }
+
+  if (rank != 0)
+    {
+      data = new double[nnz];
+      rhs = new double[n];
+    }
+  
+  //Build lis structure 
+  row = new LIS_INT[n + 1];
+  col = new LIS_INT[nnz];
+  value = new LIS_SCALAR[nnz];
+
+  for (unsigned int i = 0; i < nnz ; ++i)
+    col[i] = jcol[i] - index_base;
+
+  for (unsigned int i = 0; i < n + 1; ++i)
+    row[i] = row_ptr[i] - row_ptr[0];
+  
+  lis_matrix_create (LIS_COMM_WORLD, &A);
+  lis_matrix_set_size (A, n, 0);
+  lis_matrix_set_csr (nnz, row, col, value, A);
+  lis_matrix_assemble (A);
+  
+  lis_vector_create (LIS_COMM_WORLD, &b);
+  lis_vector_set_size (b, n, 0);
+  lis_vector_create (LIS_COMM_WORLD, &x);
+  lis_vector_duplicate (b, &x);
+
+  lis_solver_create (&solver);
+
   return 1;
 }
 
@@ -141,9 +174,7 @@ lis::set_lhs_data (std::vector<double> &xa)
 
 void
 lis::set_rhs (std::vector<double> &rhs_)
-{
-  rhs = &*rhs_.begin ();
-}
+{ rhs = &*rhs_.begin (); }
 
 void
 lis::set_initial_guess (std::vector<double> &initial_guess_)
@@ -153,68 +184,51 @@ lis::set_initial_guess (std::vector<double> &initial_guess_)
 }
 
 int
+lis::factorize ()
+{
+  //partitioning matrix entries
+  if (rank == 0)
+    MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
+                  MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  else
+    MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
+                  &data[0], nnz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  for (unsigned int i = 0; i < nnz ; ++i)
+    value[i] = data[i];
+
+}
+
+int
 lis::solve ()
 {
-  LIS_INT iter;
-  double time;
-  LIS_SOLVER solver;
-  LIS_MATRIX A;
-  LIS_VECTOR b,x;
 
-  //partitioning data, rhs and initial_guess if exist
+  // Partion rhs and initial guess
   MPI_Bcast (&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
+  
   if (rank == 0)
-    {
-      MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
-        MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    {      
       MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
-        MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+                    MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      
       if (have_initial_guess)
         MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
-          MPI_DOUBLE, MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+                      MPI_DOUBLE, MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     }
   else
     {
-      data = new double[nnz];
-      rhs = new double[n];
-
-      MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
-        &data[0], nnz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
-        &rhs[0], n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
+                    &rhs[0], n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      
       if (have_initial_guess)
         {
           initial_guess = new double[n];
           MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
-            MPI_DOUBLE, &initial_guess[0], n, MPI_DOUBLE,
-            0, MPI_COMM_WORLD);
+                        MPI_DOUBLE, &initial_guess[0], n, MPI_DOUBLE,
+                        0, MPI_COMM_WORLD);
         }
     }
 
-  //Build lis structure and solve system
-  LIS_INT *row = (LIS_INT *)malloc ((n + 1) * sizeof (LIS_INT));
-  LIS_INT *col = (LIS_INT *)malloc (nnz * sizeof (LIS_INT));
-  LIS_SCALAR *value = (LIS_SCALAR *)malloc (nnz * sizeof (LIS_SCALAR));
-
-  for (unsigned int i = 0; i < nnz ; ++i)
-    {
-      col[i] = jcol[i] - index_base;
-      value[i] = data[i];
-    }
-  for (unsigned int i = 0; i < n + 1; ++i)
-    row[i] = row_ptr[i] - row_ptr[0];
-
-  lis_matrix_create (LIS_COMM_WORLD, &A);
-  lis_matrix_set_size (A, n, 0);
-  lis_matrix_set_csr (nnz, row, col, value, A);
-  lis_matrix_assemble (A);
-
-  lis_vector_create (LIS_COMM_WORLD, &b);
-  lis_vector_set_size (b, n, 0);
-  lis_vector_create (LIS_COMM_WORLD, &x);
-  lis_vector_duplicate (b, &x);
 
   for (unsigned int i = row_s; i < row_s + n; ++i)
     {
@@ -224,8 +238,6 @@ lis::solve ()
                               initial_guess[i - row_s], x);
     }
 
-  lis_solver_create (&solver);
-
   std::stringstream opt;
   opt << "-maxiter " << max_iter
       << " -tol " << tolerance
@@ -234,6 +246,9 @@ lis::solve ()
       << " -conv_cond " << convergence_condition;
   if (have_initial_guess)
     opt << " -initx_zeros false ";
+  else
+    opt << " -initx_zeros true ";
+  
   std::string opt_ = opt.str ();
   char* options = new char[opt_.size () + 1];
   strcpy (options, opt_.c_str ());
@@ -269,10 +284,6 @@ lis::solve ()
     MPI_Gatherv (&rhs[0], n, MPI_DOUBLE, &rhs[0],
       &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  lis_solver_destroy (solver);
-  lis_matrix_destroy (A);
-  lis_vector_destroy (b);
-  lis_vector_destroy (x);
   return 1;
 }
 
@@ -289,32 +300,33 @@ lis::cleanup ()
   else if (ordering_map.size () != 0)
     delete [] data;
 
+  lis_solver_destroy (solver);
+  lis_matrix_destroy (A);
+  lis_vector_destroy (b);
+  lis_vector_destroy (x);
+
+  row = new LIS_INT[n + 1];
+  col = new LIS_INT[nnz];
+  value = new LIS_SCALAR[nnz];
+  
   lis_finalize ();
 }
 
 void
 lis::set_max_iterations (int max_iter_)
-{
-  max_iter = max_iter_;
-}
+{ max_iter = max_iter_; }
 
 void
 lis::get_max_iterations (int &max_iter_)
-{
-  max_iter_ = max_iter;
-}
+{ max_iter_ = max_iter; }
 
 void
 lis::set_tolerance (double tol)
-{
-  tolerance = tol;
-}
+{ tolerance = tol; }
 
 void
 lis::get_tolerance (double &tol)
-{
-  tol = tolerance;
-}
+{ tol = tolerance; }
 
 void
 lis::set_iterative_method (const std::string &s)
