@@ -3,12 +3,12 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-/*! \file backtracking_inexact_newton_class.h
+/*! \file backtracking_inexact_newton_classs.h
   \brief interface for a nonlinear solver.
 */
 
 #ifndef HAVE_BACKTRACKING_INEXACT_NEWTON_H
-#define HAVE_BACKTRACKING_INEXACT_NEWTON 1
+#define HAVE_BACKTRACKING_INEXACT_NEWTON_H 1
 
 #include <linear_solver.h>
 #include <nonlinear_solver.h>
@@ -16,35 +16,98 @@
 #include <abstract_forcing_term.h>
 #include <fstream>
 
+/// \brief Specific interface's class for a nonlinear solver.
 class backtracking_inexact_newton : public nonlinear_solver
 {
 private :
-
+  /// Pointer to the nonlinear problem used by nonlinear solver.
   abstract_nonlinear_problem *problem;
+
+  /// Pointer to the forcing term used by nonlinear solver.
   abstract_forcing_term *forcing;
+
+  /// Pointer to the linear solver used by nonlinear solver.
   linear_solver *lin_solver;
 
+  /// Left Hand Side of the nonlinear problem linearized.
   sparse_matrix lhs;
+
+  /// Right Hand Side of the nonlinear problem linearize.
   std::vector<double> rhs;
+
+  /// Pointer to the initial guess of nonlinear solver.
   std::vector<double> *initial_guess;
 
+  /// \brief Maximum number iterations of nonlinear solver.
+  /// \details The iteration of nonlinear solver stops
+  /// if iteration > max_iter [default = 100].
   int max_iter;
+
+  /// \brief Minimum residual norm.
+  /// \details Nonlinear solver stops if
+  /// \f$ ||F(x)|| < min\_residual \f$ [default = 1e-10].
   double min_residual;
+
+  /// \brief Tolerance for two successive iterations.
+  /// \details The iteration of nonlinear solver stops
+  /// if \f$||x_{new} - x_{old}|| < tolerance \f$
+  /// [default = 1e-10].
   double tolerance;
+
+  /// \brief Forcing value of linear solver.
+  /// \details The linear solver iteration stops if
+  /// convergence condition is satisfies.
+  /// [default = 1e-12]
   double forcing_value;
 
+  /// \brief The norm of the residual in a specific nonlinear iteration.
+  /// \details At the end of method solve ()
+  /// it's the norm of the solution's residual.
   double residual_norm;
+
+  /// \brief The norm of difference between two nonlinear iteration.
   double step_norm;
+
+  /// \brief The iteration of nonlinear solver.
+  /// \details At the and of method solve ()
+  /// it's the number of iterations used by nonlinear solver.
   int iteration;
 
+  /// \brief The type of norm used by nonlinear solver.
+  /// \details [default = L2].
   norm_type norm_t;
 
+  /// \brief Backtracking parameter.
+  /// \details \f$||F (x_{new})|| > [1 - t (1-\eta_k)]||F (x_{old})||\f$
+  /// [default = 1e-4].
   double t;
-  double theta;
-  double theta_min;
-  double theta_max;  
 
+  /// \brief Backtracking parameter.
+  /// \details Backtracking quantity
+  /// computed by theta_choice method.
+  double theta;
+
+  /// \brief Backtracking parameter.
+  /// \details Lower bound of \f$ \theta \f$ [default = 0].
+  double theta_min;
+
+  /// \brief Backtracking parameter.
+  /// \details Upper bound of \f$ \theta \f$ [default = 1].
+  double theta_max;
+
+
+  /// \brief The type of verbose.
+  /// \details The solution of each iteration
+  /// will be print in output file if verbose = 2;
+  ///
+  /// The solution of final iteration
+  /// will be print in output file
+  /// if verbose_ = 1 [default];
+  ///
+  /// Anyone solution will be print in output file
+  /// if verbose_ = 0.
   int verbose;
+
   std::string filename;
   std::ofstream fout;
 
@@ -53,14 +116,9 @@ private :
 public :
 
   /// Default costructor.
-  /// The solution of each iteration will be print in output file
-  /// if verbose_ = 2
-  /// The solution of final iteration will be print in output file
-  /// if verbose_ = 1
-  /// Anyone solution will be print in output file
-  /// if verbose_ = 0 (default)
-  backtracking_inexact_newton (linear_solver *solver_, int verbose_ = 0) :
-  nonlinear_solver ("Backtracking Inexact Newton"),
+  backtracking_inexact_newton
+    (linear_solver *solver_, int verbose_ = 1) :
+    nonlinear_solver ("Backtracking Inexact Newton"),
     verbose (verbose_)
   {
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);
@@ -75,7 +133,7 @@ public :
     step_norm = 0.0;
     iteration = 0;
     norm_t = L2;
-    t = 10e-4;
+    t = 1e-4;
     theta = 0;
     theta_min = 0;
     theta_max = 1;
@@ -121,7 +179,7 @@ public :
 
   /// Set backtracking parameters.
   /// \f$ t \in (0, 1) \f$
-  /// \f$ \theta \in \[\theta_{min}, \theta_{max}\] \f$
+  /// \f$ \theta \in [ \theta_{min}, \theta_{max}] \f$
   void
   set_backtracking_parameters
   (double t_,
@@ -133,14 +191,17 @@ public :
     theta_max = theta_max_;
   }
   /// \f$ \theta \f$ was chosen to minimize over
-  /// \f$ \[\theta_{min}, \theta_{max} \f$ the quadratic
+  /// \f$ [\theta_{min}, \theta_{max}] \f$ the quadratic
   /// \f$ p (\theta) \f$ for which \f$ p (0) = g (0), p' (0) = g' (0)\f$
   /// and \f$ p (1) = g (1)\f$, where
-  /// \f$ g (\theta) = \|F (x_k + theta * s_k)\|_2^2 \f$
-  /// \f$ a = \|F (x_k + s_k)\|_2^2 - \|F (x_k)\|^2_2 -
+  /// \f$ g (\theta) = ||F (x_k + \theta * s_k)||_2^2 \f$
+  ///
+  /// \f$ a = ||F (x_k + s_k)||_2^2 - ||F (x_k)||^2_2 -
   /// 2*F (x_k)^TF' (x_k)s_k \f$
+  ///
   /// \f$ b = 2F (x_k)^TF' (x_k)s_k \f$
-  /// \f$ c = \|F (x_k)\|^2_2 
+  ///
+  /// \f$ c = ||F (x_k)||^2_2 \f$
   void
   theta_choice (double a, double b, double c);
 

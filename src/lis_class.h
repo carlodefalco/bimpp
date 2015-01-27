@@ -4,7 +4,7 @@
   the terms of the GNU/GPL licence v3
 */
 /*! \file lis_class.h
-  \brief interface for linear solver built with lis library.
+  \brief Interface for linear solver built with lis library.
 */
 
 #ifndef HAVE_LIS_CLASS
@@ -15,24 +15,48 @@
 #include "bim_sparse.h"
 #include "linear_solver.h"
 
+/// Interface for linear solver built with lis library.
 class lis: public linear_solver
 {
 private :
+  /// Stores rows of matrix in CSR format.
   std::vector<int> row_ptr;
+  /// Stores columns of matrix in CSR format
   std::vector<int> jcol;
 
+  /// Pointer to data of matrix.
   double *data;
+
+  /// Pointer to values of rhs.
   double *rhs;
 
+  /// Stores values of ordering map.
   std::vector<int> ordering_map;
 
+  /// Pointer to values of initial guess.
   double *initial_guess;
+
+  /// It's true if solver have initial guess passed by user.
   bool have_initial_guess;
+
+  /// \brief Maximum number of iterations.
+  /// \details [default = 1000].
   int max_iter;
+
+  /// \brief Tolerance of linear solver.
+  /// \details [default = 1e-12].
   double tolerance;
 
+  /// \brief Name of iterative method.
+  /// \details [default = bicg].
   std::string iterative_method;
+
+  /// \brief Name of preconditioner.
+  /// \details [default = none].
   std::string preconditioner;
+
+  /// \brief Type of convergence condition.
+  /// \details [default = norm 2 of residual]
   std::string convergence_condition;
 
   std::vector<int> map_i_s, map_row_s;
@@ -40,6 +64,8 @@ private :
 
   int i_s, row_s;
   int n, nnz, n_row;
+
+  /// Index base used by specific linear solver.
   static const int index_base = 0;
 
   int rank, size;

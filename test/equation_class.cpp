@@ -9,6 +9,13 @@
 #include "equation_class.h"
 
 void
+equation::set_exact_solution
+(const std::vector<double> exact_solution_)
+{
+  exact_solution = exact_solution_;
+}
+
+void
 equation::operator () (sparse_matrix& lhs,
                        std::vector<double>& rhs,
                        const std::vector<double>& guess)
@@ -28,7 +35,7 @@ equation::operator () (std::vector<double>& functional,
 }
 
 void
-equation::get_solution (std::vector<double>& sol)
+equation::get_exact_solution (std::vector<double>& sol)
 {
   sol = exact_solution;
 }

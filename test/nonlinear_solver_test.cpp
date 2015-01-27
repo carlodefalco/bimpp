@@ -3,14 +3,26 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-/*
-  Problem:  -div (|grad (u)|^{p-2} grad (u)) = f
-  u = 1/q * (0.5^q -
-      [ (x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2)]^{q/2} on boundary
-  f = 3
+/*!
+  Problem:  
+  \f[ -div (|\nabla (u)|^{p-2} \nabla (u)) = f \f]
 
-  Exact Solution:  u = 1/q * (0.5^q -
-                       [ (x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2)]^{q/2}
+  \f[ u = 1/q \cdot (0.5^q -
+     [ (x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2)]^{q/2} on boundary \f]
+
+  \f[ f = 3.0 \f]
+
+  \f[ p = 3.0 \f]
+
+  Exact Solution: 
+  \f[  u = 1/q \cdot (0.5^q -
+           [ (x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2)]^{q/2} \f]
+
+  Linear Solver: lis
+
+  NonLinear Solver: adaptive_inexact_newton
+
+  Forcing Term: forcing_type1 (0.9)
 */
 
 #include <lis.h>

@@ -8,7 +8,7 @@
 */
 
 #ifndef HAVE_ADAPTIVE_INEXACT_NEWTON_H
-#define HAVE_ADAPTIVE_INEXACT_NEWTON 1
+#define HAVE_ADAPTIVE_INEXACT_NEWTON_H 1
 
 #include <linear_solver.h>
 #include <nonlinear_solver.h>
@@ -16,31 +16,83 @@
 #include <abstract_forcing_term.h>
 #include <fstream>
 
+/// \brief Specific interface's class for a nonlinear solver.
 class adaptive_inexact_newton : public nonlinear_solver
 {
 private :
-
+  /// Pointer to the nonlinear problem used by nonlinear solver.
   abstract_nonlinear_problem *problem;
+
+  /// Pointer to the forcing term used by nonlinear solver.
   abstract_forcing_term *forcing;
+
+  /// Pointer to the linear solver used by nonlinear solver.
   linear_solver *lin_solver;
 
+  /// Left Hand Side of the nonlinear problem linearized.
   sparse_matrix lhs;
+
+  /// Right Hand Side of the nonlinear problem linearize.
   std::vector<double> rhs;
+
+  /// Pointer to the initial guess of nonlinear solver.
   std::vector<double> *initial_guess;
 
+  /// \brief Maximum number iterations of nonlinear solver.
+  /// \details The iteration of nonlinear solver stops
+  /// if iteration > max_iter [default = 100].
   int max_iter;
+
+  /// \brief Minimum residual norm.
+  /// \details Nonlinear solver stops if
+  /// \f$ ||F(x)|| < min\_residual \f$ [default = 1e-10].
   double min_residual;
+
+  /// \brief Tolerance for two successive iterations.
+  /// \details The iteration of nonlinear solver stops
+  /// if \f$||x_{new} - x_{old}|| < tolerance \f$
+  /// [default = 1e-10].
   double tolerance;
+
+  /// \brief Forcing value of linear solver.
+  /// \details The linear solver iteration stops if
+  /// convergence condition is satisfies.
+  /// [default = 1e-12]
   double forcing_value;
 
+  /// \brief The norm of the residual in a specific nonlinear iteration.
+  /// \details At the end of method solve ()
+  /// it's the norm of the solution's residual.
   double residual_norm;
+
+  /// \brief The norm of difference between two nonlinear iteration.
   double step_norm;
+
+  /// \brief The iteration of nonlinear solver.
+  /// \details At the and of method solve ()
+  /// it's the number of iterations used by nonlinear solver.
   int iteration;
 
+  /// \brief The type of norm used by nonlinear solver.
+  /// \details [default = L2].
   norm_type norm_t;
 
+  /// \brief The type of verbose.
+  /// \details The solution of each iteration
+  /// will be print in output file if verbose = 2;
+  ///
+  /// The solution of final iteration
+  /// will be print in output file
+  /// if verbose_ = 1 [default];
+  ///
+  /// Anyone solution will be print in output file
+  /// if verbose_ = 0.
   int verbose;
+
+  /// \brief The name of the output file.
+  /// \details [default = "output.txt"].
   std::string filename;
+
   std::ofstream fout;
 
   int rank, size;
@@ -48,13 +100,7 @@ private :
 public :
 
   /// Default costructor.
-  /// The solution of each iteration will be print in output file
-  /// if verbose_ = 2
-  /// The solution of final iteration will be print in output file
-  /// if verbose_ = 1
-  /// Anyone solution will be print in output file
-  /// if verbose_ = 0 (default)
-  adaptive_inexact_newton (linear_solver *solver_, int verbose_ = 0) :
+  adaptive_inexact_newton (linear_solver *solver_, int verbose_ = 1) :
     nonlinear_solver ("Adaptive Inexact Newton"),
     verbose (verbose_)
   {
@@ -162,11 +208,11 @@ public :
   void
   get_result_solution (std::vector<double> &solution);
 
-  /// Get number of iterations when solve () ends
+  /// Get number of iterations when solve () ends.
   void
   get_result_iterations (int &iterations_);
 
-  /// Cleanup memory
+  /// Cleanup memory.
   void
   cleanup ();
 
