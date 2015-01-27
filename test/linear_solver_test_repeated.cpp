@@ -14,7 +14,7 @@
 #include <fstream>
 #include <bim_config.h>
 
-const int system_size = 117;
+const int system_size = 117000;
 int shuffle (int x, int nnz)
 {
   int half = nnz / 2;
@@ -62,8 +62,9 @@ int main (int argc, char **argv)
 
 
   linear_solver *lis_solver = new lis ();
-  lis_solver->set_tolerance (1e-12);
-  lis_solver->set_preconditioner ("ilut");
+  lis_solver->set_tolerance (1e-14);
+  lis_solver->set_max_iterations (500);
+  lis_solver->set_preconditioner ("jacobi");
 
   if (rank == 0)
     run_test_problem_rank0 (lis_solver,
@@ -85,10 +86,40 @@ int main (int argc, char **argv)
                   << "  " << mumps_rhs[ii]
                   << "  " << mumps_rhs_shuffle[ii]
                   << std::endl;
-        assert (fabs (lis_rhs_shuffle[ii] - lis_rhs[ii]) < 1.0e-10);
-        assert (fabs (lis_rhs_shuffle[ii] - mumps_rhs[ii]) < 1.0e-10);
-        assert (fabs (lis_rhs_shuffle[ii] - mumps_rhs_shuffle[ii]) < 1.0e-10);
       }
+
+  double lis_shuffle_to_shuffle_not = 0,
+    lis_shuffle_to_mumps = 0,
+    lis_shuffle_to_mumps_shuffle = 0;
+  
+  if (rank == 0)
+    {
+      for (int ii = 0; ii < lis_rhs.size (); ++ii)
+        {
+          double tmp = fabs (lis_rhs_shuffle[ii] - lis_rhs[ii]);
+          lis_shuffle_to_shuffle_not =
+            (lis_shuffle_to_shuffle_not < tmp) ?
+            tmp : lis_shuffle_to_shuffle_not;
+
+          tmp = fabs (lis_rhs_shuffle[ii] - mumps_rhs[ii]);
+          lis_shuffle_to_mumps = (lis_shuffle_to_mumps < tmp) ?
+            tmp : lis_shuffle_to_mumps;
+
+          tmp = fabs (lis_rhs_shuffle[ii] - mumps_rhs_shuffle[ii]);
+          lis_shuffle_to_mumps_shuffle = (lis_shuffle_to_mumps_shuffle < tmp) ?
+            tmp : lis_shuffle_to_mumps_shuffle;
+      }
+    }
+
+  std::cout << "ls2l = " << lis_shuffle_to_shuffle_not
+            << " ls2m = " << lis_shuffle_to_mumps
+            << " ls2ms = " << lis_shuffle_to_mumps_shuffle
+            << std::endl;
+
+  assert (lis_shuffle_to_shuffle_not < 1e-10);
+  assert (lis_shuffle_to_mumps < 1e-10);
+  assert (lis_shuffle_to_mumps_shuffle < 1e-10);
+  
   mumps_solver->cleanup ();
   lis_solver->cleanup ();
 
