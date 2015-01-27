@@ -31,7 +31,7 @@ private :
 
   /// Stores rows of matrix in CSR format.
   std::vector<int> row_ptr;
-  
+
   /// Stores columns of matrix in CSR format
   std::vector<int> jcol;
 
@@ -99,6 +99,12 @@ public :
     iterative_method = "bicg";
     preconditioner = "none";
     convergence_condition = "nrm2_r";
+
+    lis_matrix_create (LIS_COMM_WORLD, &A);
+    lis_vector_create (LIS_COMM_WORLD, &b);
+    lis_vector_create (LIS_COMM_WORLD, &x);
+    lis_solver_create (&solver);
+  
   };
 
   /// Set-up the matrix structure.
@@ -128,7 +134,7 @@ public :
   /// Prepare the solver.
   int
   factorize ();
-  
+
   /// Solve the system.
   int
   solve ();

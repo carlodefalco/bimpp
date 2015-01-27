@@ -81,9 +81,9 @@ lis::analyze ()
         {
           map_n[k] = n_row / size;
           map_i_s[k] = row_ptr[map_n[k] * k + n_row % size] -
-                       index_base;
+            index_base;
           map_nnz[k] = row_ptr[map_n[k] * (k + 1) + n_row % size] -
-                       row_ptr[map_n[k] * k + n_row % size];
+            row_ptr[map_n[k] * k + n_row % size];
           map_row_s[k] = map_n[k] * k + n_row % size;
 
         }
@@ -91,13 +91,13 @@ lis::analyze ()
 
   MPI_Scatter (&map_i_s[0], 1, MPI_INT,
                &i_s, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  
+
   MPI_Scatter (&map_row_s[0], 1, MPI_INT,
                &row_s, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  
+
   MPI_Scatter (&map_n[0], 1, MPI_INT,
                &n, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  
+
   MPI_Scatter (&map_nnz[0], 1, MPI_INT,
                &nnz, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -108,7 +108,7 @@ lis::analyze ()
     {
       jcol.assign (nnz, 0);
       MPI_Scatterv (&jcol[0], &map_nnz[0], &map_i_s[0], MPI_INT,
-        &jcol[0], nnz, MPI_INT, 0, MPI_COMM_WORLD);
+                    &jcol[0], nnz, MPI_INT, 0, MPI_COMM_WORLD);
     }
   //(commento da rimuovere in seguito)
   //non posso utilizzare scatter per row_ptr perchè ogni processo
@@ -116,13 +116,13 @@ lis::analyze ()
   if (rank == 0)
     for (unsigned int k = 1; k < size; ++k)
       MPI_Send (&row_ptr[map_row_s[k]], map_n[k] + 1, MPI_INT,
-        k, 0, MPI_COMM_WORLD);
+                k, 0, MPI_COMM_WORLD);
   else
     {
       MPI_Status *status = NULL;
       row_ptr.assign (n + 1, 0);
       MPI_Recv (&row_ptr[0], n + 1, MPI_INT,
-        0, 0, MPI_COMM_WORLD, status);
+                0, 0, MPI_COMM_WORLD, status);
     }
 
   if (rank != 0)
@@ -130,8 +130,8 @@ lis::analyze ()
       data = new double[nnz];
       rhs = new double[n];
     }
-  
-  //Build lis structure 
+
+  //Build lis structure
   row = new LIS_INT[n + 1];
   col = new LIS_INT[nnz];
   value = new LIS_SCALAR[nnz];
@@ -142,17 +142,11 @@ lis::analyze ()
   // FIXME: row_ptr[0] non dovrebbe essere index_base ??
   for (unsigned int i = 0; i < n + 1; ++i)
     row[i] = row_ptr[i] - row_ptr[0];
-  
-  lis_matrix_create (LIS_COMM_WORLD, &A);
+
   lis_matrix_set_size (A, n, 0);
   lis_matrix_set_csr (nnz, row, col, value, A);
-  
-  lis_vector_create (LIS_COMM_WORLD, &b);
   lis_vector_set_size (b, n, 0);
-  lis_vector_create (LIS_COMM_WORLD, &x);
   lis_vector_duplicate (b, &x);
-
-  lis_solver_create (&solver);
 
   return 1;
 }
@@ -198,7 +192,7 @@ lis::factorize ()
     MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
                   &data[0], nnz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  // FIXME: whhy do we need 3 copies (xa, data, values)??? 
+  // FIXME: whhy do we need 3 copies (xa, data, values)???
   for (unsigned int i = 0; i < nnz ; ++i)
     value[i] = data[i];
 
@@ -211,12 +205,12 @@ lis::solve ()
 
   // Partion rhs and initial guess
   MPI_Bcast (&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  
+
   if (rank == 0)
-    {      
+    {
       MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
                     MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      
+
       if (have_initial_guess)
         MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
                       MPI_DOUBLE, MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -225,7 +219,7 @@ lis::solve ()
     {
       MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
                     &rhs[0], n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      
+
       if (have_initial_guess)
         {
           initial_guess = new double[n];
@@ -254,7 +248,7 @@ lis::solve ()
     opt << " -initx_zeros false ";
   else
     opt << " -initx_zeros true ";
-  
+
   std::string opt_ = opt.str ();
   char* options = new char[opt_.size () + 1];
   strcpy (options, opt_.c_str ());
@@ -285,10 +279,10 @@ lis::solve ()
     }
   if (rank == 0)
     MPI_Gatherv (MPI_IN_PLACE, 0, MPI_DOUBLE, &rhs[0],
-      &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+                 &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
   else
     MPI_Gatherv (&rhs[0], n, MPI_DOUBLE, &rhs[0],
-      &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+                 &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   return 1;
 }
@@ -314,7 +308,7 @@ lis::cleanup ()
   row = new LIS_INT[n + 1];
   col = new LIS_INT[nnz];
   value = new LIS_SCALAR[nnz];
-  
+
   lis_finalize ();
 }
 
