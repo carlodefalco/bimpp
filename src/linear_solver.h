@@ -99,14 +99,13 @@ public :
 
   /// \brief Set the initial guess of linear solver.
   /// \details Must be called only if linaer solver is an iterative method.
-  /// Must be called on the master (rank == 0)
-  /// node only.
+  /// Must be called on the master (rank == 0) node only.
   virtual void
   set_initial_guess (std::vector<double> &initial_guess) { };
 
   /// \brief Set maximum number of iterations of linear solver.
   /// \details Must be called only if linear solver is an iterative method.
-  /// Must be called on the master (rank == 0) and slave (rank <> 0)
+  /// Must be called on the master (rank == 0) and slave (rank != 0)
   /// nodes at the same time.
   virtual void
   set_max_iterations (int max_iter) { };
@@ -118,7 +117,7 @@ public :
 
   /// \brief Set tolerance of linear solver.
   /// \details Must be called only if linear solver is an iterative method.
-  /// Must be called on the master (rank == 0) and slave (rank <> 0)
+  /// Must be called on the master (rank == 0) and slave (rank != 0)
   /// nodes at the same time.
   virtual void
   set_tolerance (double tolerance) { };
@@ -130,7 +129,7 @@ public :
 
   /// \brief Set type of iterative method used to find solution of system.
   /// \details Must be called only if linear solver is an iterative method.
-  /// Must be called on the master (rank == 0) and slave (rank <> 0)
+  /// Must be called on the master (rank == 0) and slave (rank != 0)
   /// nodes at the same time.
   ///
   /// Possible input are:
@@ -162,7 +161,7 @@ public :
 
   /// \brief Set preconditioner of linear solver.
   /// \details Must be called only if linear solver is an iterative method.
-  /// Must be called on the master (rank == 0) and slave (rank <> 0)
+  /// Must be called on the master (rank == 0) and slave (rank != 0)
   /// nodes at the same time.
   ///
   /// Possible input are:
@@ -185,7 +184,7 @@ public :
 
   /// \brief Set convergence condition of iterative method.
   /// \details Must be called only if linear solver is an iterative method.
-  /// Must be called on the master (rank == 0) and slave (rank <> 0)
+  /// Must be called on the master (rank == 0) and slave (rank != 0)
   /// nodes at the same time.
   /// Possible input are:
   ///
