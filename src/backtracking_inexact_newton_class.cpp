@@ -41,7 +41,7 @@ backtracking_inexact_newton::solve ()
 
   std::vector<double> f_old, f_new, df_gap;
 
-if (rank == 0)
+  if (rank == 0)
     {
       if (norm_t == L2 || norm_t == H1)
         {
@@ -185,7 +185,7 @@ if (rank == 0)
           (*problem) (lhs, rhs, (*initial_guess));
           residual_norm = bim3a_norm2 (rhs);
 
-         if (verbose == 2)
+          if (verbose == 2)
             for (unsigned int i = 0; i < initial_guess->size (); ++i)
               fout << (*initial_guess)[i] << std::endl;
 

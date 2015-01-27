@@ -4,7 +4,7 @@
   the terms of the GNU/GPL licence v3
 */
 /*! \file abstract_nonlinear_problem.h
-  \brief generic interface for a nonlinear problem
+  \brief Generic interface for a nonlinear problem
 */
 
 #ifndef HAVE_ABSTRACT_NONLINEAR_PROBLEM_H
@@ -14,10 +14,12 @@
 #include "mesh.h"
 #include "bim_sparse.h"
 
+/// Generic interface for a nonlinear problem
 class abstract_nonlinear_problem
 {
 private :
 
+  /// The name of specific nonlinear problem.
   const std::string name;
 
 protected :
@@ -75,6 +77,7 @@ public :
   const std::string&
   problem_name () { return name; }
 
+  /// Mesh used in the nonlinear problem.
   mesh msh;
 };
 

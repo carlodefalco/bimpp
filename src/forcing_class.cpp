@@ -4,7 +4,7 @@
   the terms of the GNU/GPL licence v3
 */
 /*! \file forcing_class.cpp
-  \brief interface for a forcing term.
+  \brief interfaces for a forcing term.
 */
 
 #include "forcing_class.h"

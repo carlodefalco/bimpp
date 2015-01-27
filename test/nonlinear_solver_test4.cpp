@@ -3,14 +3,26 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-/*
-  Problem:  -div (|grad (u)|^{p-2} grad (u)) = f
-  u = 1/q * (0.5^q -
-      [ (x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2)]^{q/2} on boundary
-  f = 3
+/*!
+  Problem:  
+  \f[ -div (|\nabla (u)|^{p-2} \nabla (u)) = f \f]
 
-  Exact Solution:  u = 1/q * (0.5^q -
-                       [ (x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2)]^{q/2}
+  \f[ u = 1/q \cdot (0.5^q -
+     [ (x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2)]^{q/2} on boundary \f]
+
+  \f[ f = 3.0 \f]
+
+  \f[ p = 3.0 \f]
+
+  Exact Solution: 
+  \f[  u = 1/q \cdot (0.5^q -
+           [ (x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2)]^{q/2} \f]
+
+  Linear Solver: lis
+
+  NonLinear Solver: backtracking_inexact_newton
+
+  Forcing Term: forcing_type3 (1, 2, 0.9)
 */
 
 #include <lis.h>
@@ -43,7 +55,7 @@ int main (int argc, char **argv)
   linear_solver *mumps_solver = new mumps ();
 
   nonlinear_solver *solver =
-    new backtracking_inexact_newton (lis_solver, 1);
+    new backtracking_inexact_newton (lis_solver);
 
   run_test_problem (solver);
 
@@ -70,7 +82,7 @@ run_test_problem (nonlinear_solver *solver)
   double q = p / (p - 1);
 
   abstract_nonlinear_problem *plap = new plaplacian (p);
-  abstract_forcing_term *forcing = new  forcing_type2 (0.9);
+  abstract_forcing_term *forcing = new  forcing_type3 (1, 2, 0.9);
 
   double lambda = 1.0;
   double mu = 0.5;
@@ -156,7 +168,7 @@ run_test_problem (nonlinear_solver *solver)
       solver->set_max_iterations_of_linear_solver (1000);
       solver->set_iterative_method_of_linear_solver
               ("Conjugate Gradient");
-      solver->set_initial_tolerance_of_linear_solver (0.5);
+      solver->set_initial_tolerance_of_linear_solver (0.2);
       solver->set_convergence_condition_of_linear_solver ("norm2_of_rhs");
     }
 
