@@ -31,7 +31,7 @@ private :
   bool verbose;
   int  icntl23;
   const int index_base = 1;
-  
+
 public :
 
   DMUMPS_STRUC_C id;
@@ -43,8 +43,8 @@ public :
   /// Default constructor.
   mumps (bool verbose_ = false, int icntl23_ = 0) :
     linear_solver ("MUMPS", "direct"),
-    verbose (verbose_), 
-    icntl23 (icntl23_) 
+    verbose (verbose_),
+    icntl23 (icntl23_)
   { init (); };
 
   /// Set-up the matrix structure.

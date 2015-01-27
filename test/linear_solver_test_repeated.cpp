@@ -91,7 +91,7 @@ int main (int argc, char **argv)
   double lis_shuffle_to_shuffle_not = 0,
     lis_shuffle_to_mumps = 0,
     lis_shuffle_to_mumps_shuffle = 0;
-  
+
   if (rank == 0)
     {
       for (int ii = 0; ii < lis_rhs.size (); ++ii)
@@ -106,9 +106,10 @@ int main (int argc, char **argv)
             tmp : lis_shuffle_to_mumps;
 
           tmp = fabs (lis_rhs_shuffle[ii] - mumps_rhs_shuffle[ii]);
-          lis_shuffle_to_mumps_shuffle = (lis_shuffle_to_mumps_shuffle < tmp) ?
+          lis_shuffle_to_mumps_shuffle =
+            (lis_shuffle_to_mumps_shuffle < tmp) ?
             tmp : lis_shuffle_to_mumps_shuffle;
-      }
+        }
     }
 
   std::cout << "ls2l = " << lis_shuffle_to_shuffle_not
@@ -119,7 +120,7 @@ int main (int argc, char **argv)
   assert (lis_shuffle_to_shuffle_not < 1e-10);
   assert (lis_shuffle_to_mumps < 1e-10);
   assert (lis_shuffle_to_mumps_shuffle < 1e-10);
-  
+
   mumps_solver->cleanup ();
   lis_solver->cleanup ();
 
@@ -150,7 +151,7 @@ run_test_problem_rank0 (linear_solver *solver,
       if (ii < system_size - 1)
         lhs[ii][ii+1] = -1;
     }
- 
+
   // std::cout << lhs << std::endl;
   // std::cout << lhs.nnz << std::endl;
 

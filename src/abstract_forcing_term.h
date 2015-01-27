@@ -21,7 +21,7 @@ class abstract_forcing_term
 private :
 
   /// The name of the specific forcing term.
-  const std::string name; 
+  const std::string name;
 
 protected :
 

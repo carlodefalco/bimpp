@@ -130,7 +130,7 @@ public :
   /// Set initial guess.
   void
   set_initial_guess
-    (std::vector<double> &initial_guess_);
+  (std::vector<double> &initial_guess_);
 
   /// Solve system.
   int
@@ -159,32 +159,32 @@ public :
   /// Set maximum number of linear solver iterations.
   void
   set_max_iterations_of_linear_solver
-    (int max_iteration);
+  (int max_iteration);
 
   /// Set initial guess of linear solver.
   void
   set_initial_guess_of_linear_solver
-    (std::vector<double> &initial_guess);
+  (std::vector<double> &initial_guess);
 
   /// Set initial tolerance of linear solver.
   void
   set_initial_tolerance_of_linear_solver
-    (double initial_tolerance);
+  (double initial_tolerance);
 
   /// Set type of iterative method used by linear solver.
   void
   set_iterative_method_of_linear_solver
-    (const std::string &iterative_method);
+  (const std::string &iterative_method);
 
   /// Set type of preconditioner used by linear solver.
   void
   set_preconditioner_of_linear_solver
-    (const std::string &preconditioner);
+  (const std::string &preconditioner);
 
   /// Set type of convergence condition used by linear solver.
   void
   set_convergence_condition_of_linear_solver
-    (const std::string &convergence_condition);
+  (const std::string &convergence_condition);
 
   /// Return name of linear solver used.
   const std::string&

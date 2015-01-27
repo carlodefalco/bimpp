@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2015 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 /*! \file abstract_nonlinear_problem.h
@@ -50,8 +50,8 @@ public :
   /// Must be called on the master (rank == 0) node only.
   virtual void
   set_boundary_conditions
-    (std::vector<double> &boundary_values,
-     std::vector<int> &boundary_nodes) { };
+  (std::vector<double> &boundary_values,
+   std::vector<int> &boundary_nodes) { };
 
   /// Operator that computes lhs and rhs
   /// of the linearized problem \f$ DF(x) = - F(x)\f$ valued in guess.

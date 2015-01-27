@@ -38,9 +38,9 @@ public :
   /// for the nonlinear problem.
   double
   operator () (const std::vector<double>& functional_old,
-              const std::vector<double>& functional_new,
-	      const std::vector<double>& df_gap,
-              double eta_old);
+               const std::vector<double>& functional_new,
+               const std::vector<double>& df_gap,
+               double eta_old);
 
 };
 
@@ -68,12 +68,12 @@ public :
   /// for the nonlinear problem.
   double
   operator () (const std::vector<double>& functional_old,
-              const std::vector<double>& functional_new,
-	      const std::vector<double>& df_gap,
-              double eta_old);
+               const std::vector<double>& functional_new,
+               const std::vector<double>& df_gap,
+               double eta_old);
 };
 
-/// \brief Class that compute forcing term 
+/// \brief Class that compute forcing term
 /// \f$ \gamma (||F(x_k)||/||F(x_{k-1})||)^{\alpha}\f$.
 /// \details safeguard:
 /// \f$ \eta_k = max \{\eta_k, \gamma \eta_{k-1}^{\alpha}\}\f$
@@ -107,9 +107,9 @@ public :
   /// for the nonlinear problem.
   double
   operator () (const std::vector<double>& functional_old,
-              const std::vector<double>& functional_new,
-	      const std::vector<double>& df_gap,
-              double eta_old);
+               const std::vector<double>& functional_new,
+               const std::vector<double>& df_gap,
+               double eta_old);
 };
 
 /// Class that computes costant forcing term
@@ -125,9 +125,9 @@ public :
   /// for the nonlinear problem.
   double
   operator () (const std::vector<double>& functional_old,
-              const std::vector<double>& functional_new,
-	      const std::vector<double>& df_gap,
-              double eta_old)
+               const std::vector<double>& functional_new,
+               const std::vector<double>& df_gap,
+               double eta_old)
   { return eta_old; }
 };
 

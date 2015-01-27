@@ -38,7 +38,7 @@
 class
 coefficient_functor
 {
- public:
+public:
   virtual const double& operator () (const int) = 0;
 };
 
@@ -47,9 +47,9 @@ coefficient_functor
 class
 coefficient_vector : public coefficient_functor
 {
- private:
+private:
   const std::vector<double> *v;
- public:
+public:
   /// Constructor
   coefficient_vector (const std::vector<double> *_v) : v (_v) {};
   ///
@@ -110,8 +110,8 @@ bim3a_advection_diffusion_anisotropic (mesh& msh,
 /// with upwind stabilisation.
 void
 bim3a_advection_upwind (mesh &msh,
-                       const std::vector<double>& v,
-                       sparse_matrix& UP);
+                        const std::vector<double>& v,
+                        sparse_matrix& UP);
 
 /// Assemble the stiffness matrix of a FEM diffusion problem
 /// (by the Orthogonal Subdomain Collocation method).
@@ -141,9 +141,9 @@ bim3a_osc_advection_diffusion (mesh& msh,
 /// (by the Orthogonal Subdomain Collocation method).
 void
 bim3a_osc_advection_diffusion_anisotropic (mesh& msh,
-                      const std::vector<double>& epsilon,
-                      const std::vector<double>& phi,
-                      sparse_matrix& A);
+                                           const std::vector<double>& epsilon,
+                                           const std::vector<double>& phi,
+                                           sparse_matrix& A);
 
 /// Robustly compute B(x) = x / (exp(x) - 1). Stores B(x) and B(-x)
 void
@@ -217,10 +217,10 @@ bim3a_osc_local_laplacian (const double shg[12],
 /// and add it to the exit buffer
 void
 bim3a_osc_local_laplacian_anisotropic (const double shg[12],
-                           const double p[12],
-                           const double volume,
-                           const double epsilon[3],
-                           double Lloc[16]);
+                                       const double p[12],
+                                       const double volume,
+                                       const double epsilon[3],
+                                       double Lloc[16]);
 
 /// Compute the elemental contribution to the global mass matrix
 /// (with mass lumping), and add it to the exit buffer
@@ -243,34 +243,34 @@ bim3a_local_rhs (const double shp[16],
 /// Find nodes in sidelist boundary
 void
 bim3a_boundary_nodes (mesh& msh,
-                     const std::vector<int>& sidelist,
-                     std::vector<int>& bnodes);
+                      const std::vector<int>& sidelist,
+                      std::vector<int>& bnodes);
 
 /// Set Dirichlet border condition
 void
 bim3a_dirichletBC (sparse_matrix& M,
-                  std::vector<double>& b,
-                  const std::vector<int>& bnodes,
-                  const std::vector<double>& vnodes);
+                   std::vector<double>& b,
+                   const std::vector<int>& bnodes,
+                   const std::vector<double>& vnodes);
 
 /// Compute the gradient of a piecewise function
 void
 bim3a_pde_gradient (mesh& msh,
-                   const std::vector<double>& u,
-                   std::vector<double>& g);
+                    const std::vector<double>& u,
+                    std::vector<double>& g);
 
 /// Compute the (Inf,L2,H1) norm of a piecewise function
 void
 bim3a_norm (mesh& msh,
-           const std::vector<double>& v,
-           double& norm,
-           norm_type type);
+            const std::vector<double>& v,
+            double& norm,
+            norm_type type);
 
 /// Compute matrix-vector product
 void
 bim3a_matrix_vector_product (sparse_matrix& M,
-                            const std::vector<double>& x,
-                            std::vector<double>& y);
+                             const std::vector<double>& x,
+                             std::vector<double>& y);
 
 
 /// Return the norm 2 of the vector

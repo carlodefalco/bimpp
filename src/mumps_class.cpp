@@ -62,12 +62,12 @@ mumps::set_lhs_structure
         }
     }
   else
-  {
-    id.n  = n;
-    id.nz = ir.size ();
-    id.irn = &*ir.begin ();
-    id.jcn = &*jc.begin ();
-  }
+    {
+      id.n  = n;
+      id.nz = ir.size ();
+      id.irn = &*ir.begin ();
+      id.jcn = &*jc.begin ();
+    }
 }
 
 int
