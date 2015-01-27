@@ -3,12 +3,14 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-/*
-  Problem:  -nabla (u) + u = g
-  u = sin (pi*x) + sin (pi*y) + sin (pi*z) on boundary
-  g = (pi^2+1) * (sin (pi*x) + sin (pi*y) + sin (pi*z))
+/*!
+  Problem: 
+  \f[ -\Delta (u) + u = g \f]
+  \f[ u = \sin (\pi x) + \sin (\pi y) + \sin (\pi z) \:on \:boundary \f]
+  \f[g = (\pi^2+1) \cdot (\sin (\pi x) + \sin (\pi y) + \sin (\pi z))\f]
 
-  Exact Solution:  u=sin (pi*x) + sin (pi*y) + sin (pi*z)
+  Exact Solution:
+  \f[ u = \sin (\pi x) + \sin (\pi y) + \sin (\pi z)\f]
 */
 
 #include <bim_sparse.h>

@@ -3,12 +3,14 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-/*
-  Problem:  -nabla (u) = g
-  u = 1-x^2-y^2-z^2 on boundary
-  g = 6
+/*!
+  Problem:  
+  \f[ -\Delta (u) = g \f]
+  \f[u = 1-x^2-y^2-z^2 \:on \:boundary \f]
+  \f[g = 6\f]
 
-  Exact Solution:  u = 1-x^2-y^2-z^2
+  Exact Solution:
+  \f[ u = 1-x^2-y^2-z^2 \f]
 */
 
 #include <bim_sparse.h>

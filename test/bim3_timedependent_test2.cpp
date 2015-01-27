@@ -3,13 +3,15 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-/*
-  Problem:  du/dt-Dnabla (u) = g
-  u = (1-x^2-y^2-z^2) * exp (-t) on boundary
-  g = (11+x^2+y^2+z^2) * exp (-t)
-  D = diag (1.0, 2.0, 3.0)
+/*!
+  Problem:
+  \f[ \frac{\partial u}{\partial t} - D\Delta (u) = g \f]
+  \f[ u = (1-x^2-y^2-z^2)\cdot e^{-t} \:on \:boundary \f]
+  \f[ g = (11+x^2+y^2+z^2)\cdot e^{-t} \f]
+  \f[ D = diag (1.0, 2.0, 3.0) \f]
 
-  Exact Solution:  u = (1-x^2-y^2-z^2) * exp (-t)
+  Exact Solution:
+  \f[ u = (1-x^2-y^2-z^2)\cdot e^{-t} \f]
 */
 
 #include <bim_sparse.h>

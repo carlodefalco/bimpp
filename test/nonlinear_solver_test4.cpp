@@ -8,7 +8,7 @@
   \f[ -div (|\nabla (u)|^{p-2} \nabla (u)) = f \f]
 
   \f[ u = 1/q \cdot (0.5^q -
-     [ (x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2)]^{q/2} on boundary \f]
+     [ (x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2)]^{q/2} \:on \:boundary \f]
 
   \f[ f = 3.0 \f]
 

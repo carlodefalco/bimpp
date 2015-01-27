@@ -3,10 +3,12 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-/*
-  Problem:  x^2 - 2 = 0
+/*!
+  Problem:  
+  \f[ x^2 - 2 = 0 \f]
 
-  Exact Solution: x = sqrt (2)  
+  Exact Solution:
+  \f[ x = \sqrt{2} \f]  
 */
 
 #include <lis.h>
