@@ -3,14 +3,16 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-/*
-  Problem:  -div (D (grad (u)-grad (v)*u)) + u = g
-  u = 1-2*x^2-2*y^2-z^2 on boundary
-  g = 7-2x^2-2y^2-z^2-2x-2y-2z
-  D = diag (0.5,0.5,1)
-  v = x + y + z
+/*!
+  Problem: 
+  \f[ -div (D (\nabla (u)-\nabla (v)u)) + u = g \f]
+  \f[ u = 1-2x^2-2y^2-z^2 \:on \:boundary \f]
+  \f[ g = 7-2x^2-2y^2-z^2-2x-2y-2z \f]
+  \f[ D = diag (0.5,0.5,1) \f]
+  \f[ v = x + y + z \f]
 
-  Exact Solution:  u=1-2*x^2-2*y^2-z^2
+  Exact Solution:
+  \f[ u=1-2x^2-2y^2-z^2 \f]
 */
 
 #include <bim_sparse.h>

@@ -3,14 +3,16 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-/*
-  Problem:  du/dt-div (D (grad (u)-grad (v)*u)) = g
-  u = (1-x^2-y^2-z^2) * exp (- t) on boundary
-  g = (11+x^2+y^2+z^2-2x-2y-2z) * exp (- t)
-  D = diag (1.0, 2.0, 3.0)
-  v = [1.0, 0.5, 1/3]
+/*!
+  Problem:
+  \f[ \frac{\partial u}{\partial t}-div (D (\nabla (u)-\nabla (v)u)) = g \f]
+  \f[ u = (1-x^2-y^2-z^2)\cdot e^{-t} \:on \:boundary\f]
+  \f[ g = (11+x^2+y^2+z^2-2x-2y-2z)\cdot e^{-t} \f]
+  \f[ D = diag (1.0, 2.0, 3.0) \f]
+  \f[ v = x + \frac{1}{2}y + \frac{1}{3}z \f]
 
-  Exact Solution:  u = (1-x^2-y^2-z^2) * exp (- t)
+  Exact Solution:
+  \f[ u = (1-x^2-y^2-z^2)\cdot e^{-t} \f]
 */
 
 #include <bim_sparse.h>
