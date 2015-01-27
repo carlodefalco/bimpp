@@ -139,13 +139,13 @@ lis::analyze ()
   for (unsigned int i = 0; i < nnz ; ++i)
     col[i] = jcol[i] - index_base;
 
+  // FIXME: row_ptr[0] non dovrebbe essere index_base ??
   for (unsigned int i = 0; i < n + 1; ++i)
     row[i] = row_ptr[i] - row_ptr[0];
   
   lis_matrix_create (LIS_COMM_WORLD, &A);
   lis_matrix_set_size (A, n, 0);
   lis_matrix_set_csr (nnz, row, col, value, A);
-  lis_matrix_assemble (A);
   
   lis_vector_create (LIS_COMM_WORLD, &b);
   lis_vector_set_size (b, n, 0);
@@ -162,6 +162,9 @@ lis::set_lhs_data (std::vector<double> &xa)
 {
   //(commento da rimuovere in seguito)
   //per non modificare xa penso sia necessario allocare nuova memoria
+
+  //FIXME: (commento da rimuovere in seguito)
+  //FIXME:  no non e' necessario, per favore elimini questa duplicazione.
   if (ordering_map.size () != 0)
     {
       data = new double [xa.size ()];
@@ -186,7 +189,8 @@ lis::set_initial_guess (std::vector<double> &initial_guess_)
 int
 lis::factorize ()
 {
-  //partitioning matrix entries
+  // partitioning matrix entries
+  // FIXME: reordering should take place here!
   if (rank == 0)
     MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
                   MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -194,9 +198,11 @@ lis::factorize ()
     MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
                   &data[0], nnz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
+  // FIXME: whhy do we need 3 copies (xa, data, values)??? 
   for (unsigned int i = 0; i < nnz ; ++i)
     value[i] = data[i];
 
+  lis_matrix_assemble (A);
 }
 
 int
