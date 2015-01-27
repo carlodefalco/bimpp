@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2015 Carlo de Falco
-  This software is distributed under the terms 
+  This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 /*! \file linear_solver.h
@@ -147,7 +147,7 @@ public :
   /// "SOR" for SOR Method
   ///
   /// If iterative method sent to solver is invalid,
-  /// the program will run with default 
+  /// the program will run with default
   /// iterative method "Biconjugate Gradient".
   virtual void
   set_iterative_method
@@ -212,7 +212,7 @@ public :
   /// \brief Return the type (either "iterative" or "direct")
   /// of the specific implementation.
   const std::string&
-  solver_type () { return type; } 
+  solver_type () { return type; }
 
   /// \brief Return the preferred base used for indexing
   /// \details usually libraries written in C such as LIS
@@ -221,7 +221,7 @@ public :
   virtual int
   get_index_base ()
   { return 0; }
-  
+
 };
 
 #endif
