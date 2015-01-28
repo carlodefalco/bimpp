@@ -220,11 +220,12 @@ run_test_problem_rank0 (linear_solver *solver,
   std::cout << "\tset_rhs" << std::endl;
   solver->set_rhs (rhs);
 
+  std::cout << "\tset_rhs" << std::endl;
+  solver->set_rhs (rhs);
+
   for (int isolve = 0; isolve < 10; ++isolve)
     {
       rhs.assign (system_size, 2.0);
-      std::cout << "\tset_rhs" << std::endl;
-      solver->set_rhs (rhs);
       std::cout << "\tsolve" << std::endl;
       solver->solve ();
       MPI_Barrier (MPI_COMM_WORLD);
