@@ -12,8 +12,8 @@
 
 #include <lis.h>
 #include <string>
-#include "bim_sparse.h"
-#include "linear_solver.h"
+#include <bim_sparse.h>
+#include <linear_solver.h>
 
 /// Interface for linear solver built with lis library.
 class lis: public linear_solver
@@ -70,9 +70,6 @@ private :
   /// \details [default = norm 2 of residual]
   std::string convergence_condition;
 
-  /// \brief Option string.
-  std::string options_string;
-
   std::vector<int> map_i_s, map_row_s;
   std::vector<int> map_n, map_nnz;
 
@@ -85,6 +82,9 @@ private :
   int rank, size;
 
 public :
+
+  /// \brief Option string.
+  std::string option_string;
 
   /// Default costructor.
   lis (LIS_INT argc = 0, char * argv[] = NULL) :
@@ -100,6 +100,8 @@ public :
     preconditioner = "none";
     convergence_condition = "nrm2_r";
 
+    option_string = "";
+    
     lis_matrix_create (LIS_COMM_WORLD, &A);
     lis_vector_create (LIS_COMM_WORLD, &b);
     lis_vector_create (LIS_COMM_WORLD, &x);

@@ -197,6 +197,7 @@ lis::factorize ()
     value[i] = data[i];
 
   lis_matrix_assemble (A);
+  return 1;
 }
 
 int
@@ -238,20 +239,30 @@ lis::solve ()
                               initial_guess[i - row_s], x);
     }
 
-  std::stringstream opt;
-  opt << "-maxiter " << max_iter
-      << " -tol " << tolerance
-      << " -i " << iterative_method
-      << " -p " << preconditioner
-      << " -conv_cond " << convergence_condition;
-  if (have_initial_guess)
-    opt << " -initx_zeros false ";
-  else
-    opt << " -initx_zeros true ";
+  char* options = 0;
+  if (option_string.length () == 0)
+    {
+      std::stringstream opt;
+      opt << "-maxiter " << max_iter
+          << " -tol " << tolerance
+          << " -i " << iterative_method
+          << " -p " << preconditioner
+          << " -conv_cond " << convergence_condition;
+      if (have_initial_guess)
+        opt << " -initx_zeros false ";
+      else
+        opt << " -initx_zeros true ";
 
-  std::string opt_ = opt.str ();
-  char* options = new char[opt_.size () + 1];
-  strcpy (options, opt_.c_str ());
+      options = new char[opt.str ().size () + 1];
+      std::copy (opt.str ().begin (),
+                 opt.str ().end (), options);
+    }
+  else
+    {
+      options = new char[option_string.length () + 1];
+      std::copy (option_string.begin (),
+                 option_string.end (), options);
+    }
 
   lis_solver_set_option (options, solver);
 
