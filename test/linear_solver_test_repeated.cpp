@@ -216,21 +216,17 @@ run_test_problem_rank0 (linear_solver *solver,
   std::cout << "\tfactorize" << std::endl;
   solver->factorize ();
 
-  rhs.assign (system_size, 2.0);
-  std::cout << "\tset_rhs" << std::endl;
-  solver->set_rhs (rhs);
-
-  std::cout << "\tset_rhs" << std::endl;
-  solver->set_rhs (rhs);
-
   std::cout.setf (std::ios::scientific, std::ios::floatfield);
   std::cout.precision (17);
   
   for (int isolve = 0; isolve < 10; ++isolve)
     {
+      std::cout << "\trhs.assign" << std::endl;
       rhs.assign (system_size, 2.0);
+      
       std::cout << "\tsolve" << std::endl;
       solver->solve ();
+      
       MPI_Barrier (MPI_COMM_WORLD);
     }
 };
