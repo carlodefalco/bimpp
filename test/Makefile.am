@@ -1,8 +1,8 @@
 BIMMUMPSLIB = ../src/libbimmumps.la @MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@
 BIMLISLIB = ../src/libbimlis.la @LIS_LIB@ @MUMPS_EXTRA_LIBS@
 BIMLIB = ../src/libbim.la 
-AM_CPPFLAGS =  -I$(top_srcdir)/src -I$(top_builddir)/src  @OCTAVE_COMPILE_FLAGS@ @MUMPS_CPPFLAGS@ @LIS_CPPFLAGS@
-AM_LDFLAGS = @OCTAVE_LINK_FLAGS@ @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
+AM_CPPFLAGS =  -I$(top_srcdir)/src -I$(top_builddir)/src @MUMPS_CPPFLAGS@ @LIS_CPPFLAGS@
+AM_LDFLAGS = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
 CLEANFILES = 
