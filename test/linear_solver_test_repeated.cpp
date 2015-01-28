@@ -4,15 +4,11 @@
   the terms of the GNU/GPL licence v3
 */
 
-#include <lis.h>
 #include <bim_sparse.h>
-#include <mesh.h>
-#include <operators.h>
+#include <cmath>
 #include <mumps_class.h>
 #include <lis_class.h>
 #include <mpi.h>
-#include <fstream>
-#include <bim_config.h>
 
 const int system_size = 117000;
 int shuffle (int x, int nnz)
