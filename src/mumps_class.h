@@ -30,7 +30,7 @@ private :
 
   bool verbose;
   int  icntl23;
-  const int index_base = 1;
+  static const int index_base = 1;
 
 public :
 
