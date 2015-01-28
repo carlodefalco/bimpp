@@ -223,6 +223,9 @@ run_test_problem_rank0 (linear_solver *solver,
   std::cout << "\tset_rhs" << std::endl;
   solver->set_rhs (rhs);
 
+  std::cout.setf (std::ios::scientific, std::ios::floatfield);
+  std::cout.precision (17);
+  
   for (int isolve = 0; isolve < 10; ++isolve)
     {
       rhs.assign (system_size, 2.0);
