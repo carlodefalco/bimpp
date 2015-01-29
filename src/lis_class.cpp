@@ -368,9 +368,7 @@ lis::set_iterative_method (const std::string &s)
 
 void
 lis::get_iterative_method (std::string &s)
-{
-  s = iterative_method;
-}
+{ s = iterative_method; }
 
 void
 lis::set_preconditioner (const std::string &s)
@@ -426,6 +424,4 @@ lis::set_convergence_condition (const std::string &s)
 
 void
 lis::get_convergence_condition (std::string &s)
-{
-  s = convergence_condition;
-}
+{ s = convergence_condition; }
