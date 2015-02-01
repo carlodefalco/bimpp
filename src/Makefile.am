@@ -10,7 +10,7 @@ BIMXXSRC = mesh.cpp operators.cpp bim_sparse.cpp adaptive_inexact_newton_class.c
 backtracking_inexact_newton_class.cpp forcing_class.cpp
 
 BIMXXMUMPSSRC = mumps_class.cpp mumps_solve.cpp
-BIMXXLISSRC = lis_class.cpp
+BIMXXLISSRC = lis_class.cpp lis_class_master.cpp lis_class_slaves.cpp
 include_HEADERS = $(BIMXXHEADERS)
 
 lib_LTLIBRARIES = libbim.la libbimmumps.la libbimlis.la
