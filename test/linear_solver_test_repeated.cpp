@@ -10,7 +10,7 @@
 #include <lis_class.h>
 #include <mpi.h>
 
-const int system_size = 117000;
+const int system_size = 11;
 int shuffle (int x, int nnz)
 {
   int half = nnz / 2;
@@ -25,10 +25,10 @@ int shuffle_not (int x, int nnz)
 void
 run_test_problem_rank0 (linear_solver *solver,
                         std::vector<double> &rhs,
-                        int (*f) (int, int));
+                        int (*f) (int, int), bool b = true);
 
 void
-run_test_problem_rank1 (linear_solver *solver);
+run_test_problem_rank1 (linear_solver *solver, bool b = true);
 
 int main (int argc, char **argv)
 {
@@ -39,7 +39,8 @@ int main (int argc, char **argv)
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
-  std::vector<double> lis_rhs, lis_rhs_shuffle;
+  std::vector<double> lis_rhs (system_size, 0.0),
+    lis_rhs_shuffle (system_size, 0.0);
   std::vector<double> mumps_rhs, mumps_rhs_shuffle;
 
   linear_solver *mumps_solver = new mumps ();
@@ -58,6 +59,7 @@ int main (int argc, char **argv)
 
 
   linear_solver *lis_solver = new lis ();
+  
   lis_solver->set_tolerance (1e-14);
   lis_solver->set_max_iterations (500);
   lis_solver->set_preconditioner ("jacobi");
@@ -70,9 +72,9 @@ int main (int argc, char **argv)
 
   if (rank == 0)
     run_test_problem_rank0 (lis_solver,
-                            lis_rhs_shuffle, shuffle);
+                            lis_rhs_shuffle, shuffle, false);
   else
-    run_test_problem_rank1 (lis_solver);
+    run_test_problem_rank1 (lis_solver, false);
 
   if (rank == 0)
     for (int ii = 0; ii < lis_rhs.size (); ++ii)
@@ -106,17 +108,18 @@ int main (int argc, char **argv)
             (lis_shuffle_to_mumps_shuffle < tmp) ?
             tmp : lis_shuffle_to_mumps_shuffle;
         }
+
+      std::cout << "ls2l = " << lis_shuffle_to_shuffle_not
+                << " ls2m = " << lis_shuffle_to_mumps
+                << " ls2ms = " << lis_shuffle_to_mumps_shuffle
+                << std::endl;
+
+      assert (lis_shuffle_to_shuffle_not < 1e-10);
+      assert (lis_shuffle_to_mumps < 1e-10);
+      assert (lis_shuffle_to_mumps_shuffle < 1e-10);      
     }
 
-  std::cout << "ls2l = " << lis_shuffle_to_shuffle_not
-            << " ls2m = " << lis_shuffle_to_mumps
-            << " ls2ms = " << lis_shuffle_to_mumps_shuffle
-            << std::endl;
-
-  assert (lis_shuffle_to_shuffle_not < 1e-10);
-  assert (lis_shuffle_to_mumps < 1e-10);
-  assert (lis_shuffle_to_mumps_shuffle < 1e-10);
-
+  MPI_Barrier (MPI_COMM_WORLD);
   mumps_solver->cleanup ();
   lis_solver->cleanup ();
 
@@ -127,7 +130,7 @@ int main (int argc, char **argv)
 void
 run_test_problem_rank0 (linear_solver *solver,
                         std::vector<double> &rhs,
-                        int (*f) (int, int))
+                        int (*f) (int, int), bool b)
 {
 
   int base = solver->get_index_base ();
@@ -185,7 +188,7 @@ run_test_problem_rank0 (linear_solver *solver,
   solver->factorize ();
 
   std::cout << "\trhs.assign" << std::endl;
-  rhs.assign (system_size, 1.0);
+  rhs.assign (system_size, 3.0);
 
   std::cout << "\tset_rhs" << std::endl;
   solver->set_rhs (rhs);
@@ -212,35 +215,41 @@ run_test_problem_rank0 (linear_solver *solver,
   std::cout << "\tfactorize" << std::endl;
   solver->factorize ();
 
-  std::cout.setf (std::ios::scientific, std::ios::floatfield);
-  std::cout.precision (17);
+  // std::cout.setf (std::ios::scientific, std::ios::floatfield);
+  // std::cout.precision (17);
   
-  for (int isolve = 0; isolve < 10; ++isolve)
-    {
-      std::cout << "\trhs.assign" << std::endl;
-      rhs.assign (system_size, 2.0);
+  // for (int isolve = 0; isolve < 10; ++isolve)
+  //   {
+  std::cout << "\trhs.assign" << std::endl;
+  rhs.assign (system_size, 2.0);
       
-      std::cout << "\tsolve" << std::endl;
-      solver->solve ();
+  std::cout << "\tsolve" << std::endl;
+  solver->solve ();
       
-      MPI_Barrier (MPI_COMM_WORLD);
-    }
+  //     MPI_Barrier (MPI_COMM_WORLD);
+  //   }
 };
 
 void
-run_test_problem_rank1 (linear_solver *solver)
+run_test_problem_rank1 (linear_solver *solver, bool b)
 {
-  solver->analyze ();
 
+  // master node : solver->set_lhs_structure 
+  solver->analyze ();
+  // master node : solver->set_lhs_data
+  
   solver->factorize ();
+  // master node : solver->set_rhs
+  
   solver->solve ();
 
+  // master node : solver->set_lhs_data 
   solver->factorize ();
 
-  for (int isolve = 0; isolve < 10; ++isolve)
-    {
-      solver->solve ();
-      MPI_Barrier (MPI_COMM_WORLD);
-    }
+  // for (int isolve = 0; isolve < 10; ++isolve)
+  //   {
+  solver->solve ();
+  //     MPI_Barrier (MPI_COMM_WORLD);
+  //   }
 
 };

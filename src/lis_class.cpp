@@ -12,226 +12,59 @@
 #include <sstream>
 #include <string>
 #include <cstring>
+#include <cstdio>
 
-void
-lis::set_lhs_structure
-(int n,
- std::vector<int> &ir,
- std::vector<int> &jc,
- matrix_format_t f)
-{
-  n_row = n;
-  row_ptr.assign (n_row + 1, 0);
-  jcol.assign (jc.size (), 0);
-
-  //aij_to_csr_format
-  if (f == aij)
-    {
-      ordering_map.assign (jc.size (), 0);
-      for (unsigned int i = 0; i < ir.size (); ++i)
-        row_ptr[ir[i] - index_base]++;
-
-      for (unsigned int i = 0, cumsum = index_base; i < n_row; ++i)
-        {
-          int temp = row_ptr[i];
-          row_ptr[i] = cumsum;
-          cumsum += temp;
-        }
-      row_ptr[n_row] = ir.size () + index_base;
-      for (unsigned int i = 0; i < jc.size (); ++i)
-        {
-          int row = ir[i];
-          int dest = row_ptr[row];
-
-          jcol[dest] = jc[i];
-          ordering_map[i] = dest;
-          row_ptr[row]++;
-        }
-      for (unsigned int i = 0, last = index_base; i <= n_row; ++i)
-        {
-          int temp = row_ptr[i];
-          row_ptr[i] = last;
-          last = temp;
-        }
-    }
-  else
-    {
-      row_ptr = ir;
-      jcol = jc;
-    }
-}
+int num = 0;
 
 int
-lis::analyze ()
+lis::init_lis_objects ()
 {
-
-  //partitioning row_ptr and jcol
-
-  if (rank == 0)
-    {
-      map_i_s.assign (size, 0);
-      map_row_s.assign (size, 0);
-      map_n.assign (size, 0);
-      map_nnz.assign (size, 0);
-
-      map_n[0] = n_row / size + n_row % size;
-      map_nnz[0] = row_ptr[map_n[0]] - index_base;
-
-      for (unsigned int k = 1; k < size; ++k)
-        {
-          map_n[k] = n_row / size;
-          map_i_s[k] = row_ptr[map_n[k] * k + n_row % size] -
-            index_base;
-          map_nnz[k] = row_ptr[map_n[k] * (k + 1) + n_row % size] -
-            row_ptr[map_n[k] * k + n_row % size];
-          map_row_s[k] = map_n[k] * k + n_row % size;
-
-        }
-    }
-
-  MPI_Scatter (&map_i_s[0], 1, MPI_INT,
-               &i_s, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-  MPI_Scatter (&map_row_s[0], 1, MPI_INT,
-               &row_s, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-  MPI_Scatter (&map_n[0], 1, MPI_INT,
-               &n, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-  MPI_Scatter (&map_nnz[0], 1, MPI_INT,
-               &nnz, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-  if (rank == 0)
-    MPI_Scatterv (&jcol[0], &map_nnz[0], &map_i_s[0], MPI_INT,
-                  MPI_IN_PLACE, 0, MPI_INT, 0, MPI_COMM_WORLD);
-  else
-    {
-      jcol.assign (nnz, 0);
-      MPI_Scatterv (&jcol[0], &map_nnz[0], &map_i_s[0], MPI_INT,
-                    &jcol[0], nnz, MPI_INT, 0, MPI_COMM_WORLD);
-    }
-  //(commento da rimuovere in seguito)
-  //non posso utilizzare scatter per row_ptr perchè ogni processo
-  //riceve anche il primo valore che viene inviato al processo successivo
-  if (rank == 0)
-    for (unsigned int k = 1; k < size; ++k)
-      MPI_Send (&row_ptr[map_row_s[k]], map_n[k] + 1, MPI_INT,
-                k, 0, MPI_COMM_WORLD);
-  else
-    {
-      MPI_Status *status = NULL;
-      row_ptr.assign (n + 1, 0);
-      MPI_Recv (&row_ptr[0], n + 1, MPI_INT,
-                0, 0, MPI_COMM_WORLD, status);
-    }
-
-  if (rank != 0)
-    {
-      data = new double[nnz];
-      rhs = new double[n];
-    }
-
-  //Build lis structure
+  // Build lis structures
   row = new LIS_INT[n + 1];
   col = new LIS_INT[nnz];
   value = new LIS_SCALAR[nnz];
 
-  for (unsigned int i = 0; i < nnz ; ++i)
+  for (int i = 0; i < nnz ; ++i)
     col[i] = jcol[i] - index_base;
-
-  // FIXME: row_ptr[0] non dovrebbe essere index_base ??
-  for (unsigned int i = 0; i < n + 1; ++i)
+   
+  for (int i = 0; i < n + 1; ++i)
     row[i] = row_ptr[i] - row_ptr[0];
 
+  if (initialized)
+    {
+      destroy_lis_objects ();
+      initialized = false;
+    }
+
+  lis_matrix_create (MPI_COMM_WORLD, &A);
+  lis_vector_create (MPI_COMM_WORLD, &b);
+  lis_vector_create (MPI_COMM_WORLD, &x);
+  lis_solver_create (&solver);
+    
   lis_matrix_set_size (A, n, 0);
   lis_matrix_set_csr (nnz, row, col, value, A);
   lis_vector_set_size (b, n, 0);
   lis_vector_duplicate (b, &x);
 
+  initialized = true;
   return 1;
 }
 
-void
-lis::set_lhs_data (std::vector<double> &xa)
-{
-  //(commento da rimuovere in seguito)
-  //per non modificare xa penso sia necessario allocare nuova memoria
-
-  //FIXME: (commento da rimuovere in seguito)
-  //FIXME:  no non e' necessario, per favore elimini questa duplicazione.
-  if (ordering_map.size () != 0)
-    {
-      data = new double [xa.size ()];
-      for (unsigned int i = 0; i < xa.size (); ++i)
-        data[ordering_map[i]] = xa[i];
-    }
-  else
-    data = &*xa.begin ();
-}
-
-void
-lis::set_rhs (std::vector<double> &rhs_)
-{ rhs = &*rhs_.begin (); }
-
-void
-lis::set_initial_guess (std::vector<double> &initial_guess_)
-{
-  have_initial_guess = true;
-  initial_guess = &*initial_guess_.begin ();
-}
-
 int
-lis::factorize ()
+lis::assemble_lis_matrix ()
 {
-  // partitioning matrix entries
-  // FIXME: reordering should take place here!
-  if (rank == 0)
-    MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
-                  MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-  else
-    MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
-                  &data[0], nnz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
   // FIXME: whhy do we need 3 copies (xa, data, values)???
-  for (unsigned int i = 0; i < nnz ; ++i)
+  for (int i = 0; i < nnz ; ++i)
     value[i] = data[i];
-
+  
   lis_matrix_assemble (A);
   return 1;
 }
 
 int
-lis::solve ()
+lis::invoke_lis_solver ()
 {
-
-  // Partion rhs and initial guess
-  MPI_Bcast (&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-  if (rank == 0)
-    {
-      MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
-                    MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-      if (have_initial_guess)
-        MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
-                      MPI_DOUBLE, MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    }
-  else
-    {
-      MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
-                    &rhs[0], n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-      if (have_initial_guess)
-        {
-          initial_guess = new double[n];
-          MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
-                        MPI_DOUBLE, &initial_guess[0], n, MPI_DOUBLE,
-                        0, MPI_COMM_WORLD);
-        }
-    }
-
-
-  for (unsigned int i = row_s; i < row_s + n; ++i)
+  for (int i = row_s; i < row_s + n; ++i)
     {
       lis_vector_set_value (LIS_INS_VALUE, i, rhs[i - row_s], b);
       if (have_initial_guess)
@@ -248,96 +81,46 @@ lis::solve ()
           << " -i " << iterative_method
           << " -p " << preconditioner
           << " -conv_cond " << convergence_condition;
+
       if (have_initial_guess)
         opt << " -initx_zeros false ";
       else
         opt << " -initx_zeros true ";
 
-      options = new char[opt.str ().size () + 1];
-      std::copy (opt.str ().begin (),
-                 opt.str ().end (), options);
+      option_string = opt.str ();
     }
-  else
-    {
-      options = new char[option_string.length () + 1];
-      std::copy (option_string.begin (),
-                 option_string.end (), options);
-    }
+
+  options = new char[option_string.length () + 1];
+  std::copy (option_string.begin (),
+             option_string.end (), options);
 
   lis_solver_set_option (options, solver);
-
   lis_solve (A, b, x, solver);
 
   lis_solver_get_iter (solver, &iter);
   lis_solver_get_time (solver, &time);
 
-  if (rank == 0)
-    {
-      std::cout << std::endl
-                << "Number of iterations = " << iter
-                << std::endl
-                << "Elapsed time = " << time << std::endl;
-    }
-
   delete [] options;
 
-  //unificate solution vector
+  //gather solution vector
   double temp = 0.0;
-  for (unsigned int i = row_s; i < row_s + n; ++i)
+  for (int i = row_s; i < row_s + n; ++i)
     {
       lis_vector_get_value (x, i, &temp);
       rhs[i - row_s] = temp;
     }
-  if (rank == 0)
-    MPI_Gatherv (MPI_IN_PLACE, 0, MPI_DOUBLE, &rhs[0],
-                 &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
-  else
-    MPI_Gatherv (&rhs[0], n, MPI_DOUBLE, &rhs[0],
-                 &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
+  
   return 1;
 }
 
 void
-lis::cleanup ()
-{
-  if (rank != 0)
-    {
-      delete [] data;
-      delete [] rhs;
-      if (have_initial_guess)
-        delete [] initial_guess;
-    }
-  else if (ordering_map.size () != 0)
-    delete [] data;
-
+lis::destroy_lis_objects ()
+{  
   lis_solver_destroy (solver);
   lis_matrix_destroy (A);
   lis_vector_destroy (b);
   lis_vector_destroy (x);
-
-  row = new LIS_INT[n + 1];
-  col = new LIS_INT[nnz];
-  value = new LIS_SCALAR[nnz];
-
-  lis_finalize ();
 }
-
-void
-lis::set_max_iterations (int max_iter_)
-{ max_iter = max_iter_; }
-
-void
-lis::get_max_iterations (int &max_iter_)
-{ max_iter_ = max_iter; }
-
-void
-lis::set_tolerance (double tol)
-{ tolerance = tol; }
-
-void
-lis::get_tolerance (double &tol)
-{ tol = tolerance; }
 
 void
 lis::set_iterative_method (const std::string &s)
@@ -366,9 +149,6 @@ lis::set_iterative_method (const std::string &s)
     }
 }
 
-void
-lis::get_iterative_method (std::string &s)
-{ s = iterative_method; }
 
 void
 lis::set_preconditioner (const std::string &s)
@@ -398,12 +178,6 @@ lis::set_preconditioner (const std::string &s)
 }
 
 void
-lis::get_preconditioner (std::string &s)
-{
-  s = preconditioner;
-}
-
-void
 lis::set_convergence_condition (const std::string &s)
 {
   if (s == "norm2_of_residual")
@@ -422,6 +196,3 @@ lis::set_convergence_condition (const std::string &s)
     }
 }
 
-void
-lis::get_convergence_condition (std::string &s)
-{ s = convergence_condition; }
