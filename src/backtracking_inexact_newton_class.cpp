@@ -1,3 +1,4 @@
+
 /*
   Copyright (C) 2011 Carlo de Falco
   This software is distributed under the terms
@@ -109,13 +110,10 @@ backtracking_inexact_newton::solve ()
       if (lin_solver->solver_type () == "iterative")
         {
           lin_solver->set_tolerance (forcing_value);
-          lin_solver->set_initial_guess (lin_initial_guess);
+	  lin_solver->set_initial_guess (lin_initial_guess);
         }
 
       lin_solver->solve ();
-
-      if (lin_solver->solver_type () == "iterative")
-        lin_initial_guess = rhs;
 
       if (rank == 0)
         {
@@ -129,6 +127,7 @@ backtracking_inexact_newton::solve ()
           double f_old_norm = residual_norm;
           double f_new_norm = 0.0;
 
+          sparse_matrix M;
           (*problem) (f_new, unew);
           f_new_norm = bim3a_norm2 (f_new);
 
@@ -162,6 +161,10 @@ backtracking_inexact_newton::solve ()
 
               f_new_norm = bim3a_norm2 (f_new);
             }
+
+
+          if (lin_solver->solver_type () == "iterative")
+            lin_initial_guess = rhs;
 
           bim3a_matrix_vector_product (lhs, rhs, df_gap);
           forcing_value = (*forcing)
