@@ -3,7 +3,7 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-/*! \file backtracking_inexact_newton_classs.h
+/*! \file backtracking_inexact_newton_class.h
   \brief interface for a nonlinear solver.
 */
 
