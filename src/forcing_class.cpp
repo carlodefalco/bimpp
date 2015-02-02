@@ -21,7 +21,7 @@ forcing_type1::operator ()
   double eta_temp = 0.0;
 
   for (unsigned int i = 0; i < temp.size (); ++i)
-    temp[i] += f_new[i] - f_old[i] - df_gap[i];
+    temp[i] = f_new[i] - f_old[i] - df_gap[i];
 
   eta_new = bim3a_norm2 (temp);
   eta_temp = bim3a_norm2 (f_old);
@@ -52,6 +52,8 @@ forcing_type2::operator ()
   eta_temp = bim3a_norm2 (temp);
 
   eta_new -= eta_temp;
+
+  eta_new = fabs(eta_new);
 
   eta_temp = bim3a_norm2 (f_old);
 
