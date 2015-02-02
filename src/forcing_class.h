@@ -45,7 +45,7 @@ public :
 };
 
 /// \brief Class that compute forcing term
-/// \f$ (||F (x_k)||-||F (x_{k-1})+F'(x_{k-1})s_{k-1}||)/||F (x_{k-1})||\f$.
+/// \f$ \big|||F (x_k)||-||F (x_{k-1})+F'(x_{k-1})s_{k-1}||\big|/||F (x_{k-1})||\f$.
 /// \details safeguard:
 /// \f$ \eta_k = max \{\eta_k, eta_{k-1}^{(1+\sqrt{5})/2)}\}\f$
 /// if \f$  eta_{k-1}^{(1+\sqrt{5})/2)} > 0.1 \f$.

@@ -5,7 +5,7 @@
 */
 /*! \file plaplacian_class.h
   \brief Interface for nonlinear problem
-  \f$ div (|\nabla u|^{p-2}\nabla u) = f \f$
+  \f$ -div (|\nabla u|^{p-2}\nabla u) = f \f$
 */
 
 #ifndef HAVE_PLAPLACIAN_CLASS_H
