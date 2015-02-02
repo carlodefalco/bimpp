@@ -110,9 +110,6 @@ lis::analyze_master ()
   MPI_Scatterv (&jcol[0], &map_nnz[0], &map_i_s[0], MPI_INT,
                 MPI_IN_PLACE, 0, MPI_INT, 0, MPI_COMM_WORLD);
 
-  //(commento da rimuovere in seguito)
-  //non posso utilizzare scatter per row_ptr perchè ogni processo
-  //riceve anche il primo valore che viene inviato al processo successivo
   for (int k = 1; k < size; ++k)
     MPI_Send (&row_ptr[map_row_s[k]], map_n[k] + 1, MPI_INT,
               k, 0, MPI_COMM_WORLD);
@@ -138,7 +135,7 @@ lis::set_lhs_data (std::vector<double> &xa)
         data[ordering_map[i]] = xa[i];
     }
   else*/
-    data = &*xa.begin ();
+  data = &*xa.begin ();
 
 }
 
@@ -148,6 +145,9 @@ lis::factorize_master ()
 {
   // partitioning matrix entries
   // FIXME: reordering should take place here!
+
+  // al momento non riesco a trovare un modo per fare l'ordinamento
+  // sul posto senza una copia del vettore
   if (ordering_map.size () != 0)
     {
       double *temp = new double[ordering_map.size ()];
