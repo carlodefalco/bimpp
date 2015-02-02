@@ -128,7 +128,8 @@ lis::set_lhs_data (std::vector<double> &xa)
 
   //FIXME: (commento da rimuovere in seguito)
   //FIXME:  no non e' necessario, per favore elimini questa duplicazione.
-  delete [] data;
+  
+  /*delete [] data;
   if (ordering_map.size () != 0)
     {
       data = new double [xa.size ()];
@@ -136,8 +137,9 @@ lis::set_lhs_data (std::vector<double> &xa)
       for (unsigned int i = 0; i < xa.size (); ++i)
         data[ordering_map[i]] = xa[i];
     }
-  else
+  else*/
     data = &*xa.begin ();
+
 }
 
 
@@ -146,9 +148,18 @@ lis::factorize_master ()
 {
   // partitioning matrix entries
   // FIXME: reordering should take place here!
+  if (ordering_map.size () != 0)
+    {
+      double *temp = new double[ordering_map.size ()];
+      for (unsigned int i = 0; i < ordering_map.size (); ++i)
+        temp[i] = data[i];
+      for (unsigned int i = 0; i < ordering_map.size (); ++i)
+        data[ordering_map[i]] = temp[i];
+      delete [] temp;
+    }
   MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
                 MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-  
+
   return 1;
 }
 
@@ -185,8 +196,8 @@ lis::solve_master ()
 void
 lis::cleanup_master ()
 {
-  if (ordering_map.size () != 0)
-    delete [] data;
+  //if (ordering_map.size () != 0)
+  //delete [] data;
 }
 
 
