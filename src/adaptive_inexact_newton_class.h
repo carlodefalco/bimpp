@@ -102,21 +102,20 @@ public :
   /// Default costructor.
   adaptive_inexact_newton (linear_solver *solver_, int verbose_ = 1) :
     nonlinear_solver ("Adaptive Inexact Newton"),
-    verbose (verbose_)
+    lin_solver (solver_),
+    verbose (verbose_),
+    max_iter (100),
+    min_residual (1e-10),
+    tolerance (1e-10),
+    forcing_value (1e-12),
+    residual_norm (0.0),
+    step_norm (0.0),
+    iteration (0),
+    norm_t (L2),
+    filename ("output.txt")
   {
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);
     MPI_Comm_size (MPI_COMM_WORLD, &size);
-
-    lin_solver = solver_;
-    max_iter = 100;
-    min_residual = 1e-10;
-    tolerance = 1e-10;
-    forcing_value = 1e-12;
-    residual_norm = 0.0;
-    step_norm = 0.0;
-    iteration = 0;
-    norm_t = L2;
-    filename = "output.txt";
   };
 
   /// Set nonlinear problem to solve.

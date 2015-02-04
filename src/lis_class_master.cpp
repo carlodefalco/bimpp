@@ -120,23 +120,7 @@ lis::analyze_master ()
 void
 lis::set_lhs_data (std::vector<double> &xa)
 {
-  //(commento da rimuovere in seguito)
-  //per non modificare xa penso sia necessario allocare nuova memoria
-
-  //FIXME: (commento da rimuovere in seguito)
-  //FIXME:  no non e' necessario, per favore elimini questa duplicazione.
-  
-  /*delete [] data;
-  if (ordering_map.size () != 0)
-    {
-      data = new double [xa.size ()];
-      
-      for (unsigned int i = 0; i < xa.size (); ++i)
-        data[ordering_map[i]] = xa[i];
-    }
-  else*/
   data = &*xa.begin ();
-
 }
 
 
@@ -148,6 +132,7 @@ lis::factorize_master ()
 
   // al momento non riesco a trovare un modo per fare l'ordinamento
   // sul posto senza una copia del vettore
+  
   if (ordering_map.size () != 0)
     {
       double *temp = new double[ordering_map.size ()];
@@ -156,7 +141,7 @@ lis::factorize_master ()
       for (unsigned int i = 0; i < ordering_map.size (); ++i)
         data[ordering_map[i]] = temp[i];
       delete [] temp;
-    }
+      }
   MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
                 MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
@@ -194,10 +179,6 @@ lis::solve_master ()
 }
 
 void
-lis::cleanup_master ()
-{
-  //if (ordering_map.size () != 0)
-  //delete [] data;
-}
+lis::cleanup_master () { }
 
 
