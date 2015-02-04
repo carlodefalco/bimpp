@@ -53,7 +53,7 @@ forcing_type2::operator ()
 
   eta_new -= eta_temp;
 
-  eta_new = fabs(eta_new);
+  eta_new = fabs (eta_new);
 
   eta_temp = bim3a_norm2 (f_old);
 
