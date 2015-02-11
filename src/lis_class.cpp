@@ -80,7 +80,7 @@ lis::invoke_lis_solver ()
   //se si lascia questo controllo
   //nelle iterazioni dei solutori non lineari option_string
   //non viene più aggiornata con la nuova tolleranza.
-  //if (option_string.length () == 0)
+  if (! option_string_set)
     {
       std::stringstream opt;
       opt << "-maxiter " << max_iter
@@ -95,6 +95,7 @@ lis::invoke_lis_solver ()
         opt << " -initx_zeros true ";
 
       option_string = opt.str ();
+      option_string_set = true;
     }
 
   options = new char[option_string.length () + 1];
@@ -154,6 +155,7 @@ lis::set_iterative_method (const std::string &s)
                   << std::endl;
       iterative_method = "bicg";
     }
+  option_string_set = false;
 }
 
 
@@ -182,6 +184,7 @@ lis::set_preconditioner (const std::string &s)
                   << std::endl;
       preconditioner = "ilu";
     }
+  option_string_set = false;
 }
 
 void
@@ -201,5 +204,6 @@ lis::set_convergence_condition (const std::string &s)
                   << std::endl;
       convergence_condition = "nrm2_r";
     }
+  option_string_set = false;
 }
 

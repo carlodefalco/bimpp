@@ -133,6 +133,7 @@ public :
 
   /// \brief Option string.
   std::string option_string;
+  bool option_string_set;
   bool verbose;
   
   /// Default costructor.
@@ -152,6 +153,7 @@ public :
     preconditioner ("none"),
     convergence_condition ("nrm2_r"),
     option_string (""),
+    option_string_set (false),
     verbose (true)
   {
     lis_initialize (&argc, &argv);
@@ -244,17 +246,26 @@ public :
   /// Set maximum number of iterations (default = 1000).
   void
   set_max_iterations (int max_iter_)
-  { max_iter = max_iter_; }
+  {
+    max_iter = max_iter_;
+    option_string_set = false;
+  }
 
   /// Get maximum number of iterations.
   void
   get_max_iterations (int &max_iter_)
-  { max_iter_ = max_iter; }
+  {
+    max_iter_ = max_iter;
+    option_string_set = false;
+  }
 
   /// Set tolerance of iterative method (default = 1.0e-12).
   void
   set_tolerance (double tol)
-  { tolerance = tol; }
+  {
+    tolerance = tol;
+    option_string_set = false;
+  }
 
   /// Get tolerance of linear solver.
   void
