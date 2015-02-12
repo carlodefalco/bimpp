@@ -140,11 +140,11 @@ public :
 
   /// Return the name of linear solver used.
   virtual const std::string&
-  linear_solver_name () { };
+  linear_solver_name () = 0;
 
   /// Return the type of linear solver used.
   virtual const std::string&
-  linear_solver_type () { };
+  linear_solver_type () = 0;
 
   /// \brief Get the norm of the solution's residual.
   /// \details Must be called on the master (rank == 0)

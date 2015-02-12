@@ -75,10 +75,12 @@ backtracking_inexact_newton::solve ()
                 << std::endl << std::endl;
     }
   if (rank == 0)
-    if (problem->msh.nnodes !=0)
-      lin_initial_guess.assign (problem->msh.nnodes, 0.0);
-    else
-      lin_initial_guess.assign (1, 0.0);
+    { 
+      if (problem->msh.nnodes !=0)
+        lin_initial_guess.assign (problem->msh.nnodes, 0.0);
+      else
+        lin_initial_guess.assign (1, 0.0);
+    }
 
   do
     {
@@ -121,7 +123,7 @@ backtracking_inexact_newton::solve ()
             fout << "Iteration: " << iteration << std::endl;
 
           std::vector<double> unew (initial_guess->size ());
-          for (int i = 0; i < rhs.size (); ++i)
+          for (unsigned int i = 0; i < rhs.size (); ++i)
             unew[i] = rhs[i] + (*initial_guess)[i];
 
           double f_old_norm = residual_norm;
@@ -137,7 +139,7 @@ backtracking_inexact_newton::solve ()
               double temp_norm = 0.0;
 
               bim3a_matrix_vector_product (lhs, rhs, temp);
-              for (int i = 0; i < rhs.size (); ++i)
+              for (unsigned int i = 0; i < rhs.size (); ++i)
                 temp_norm += f_old[i] * temp[i];
 
               double a = f_new_norm * f_new_norm -
@@ -235,25 +237,17 @@ void
 backtracking_inexact_newton::theta_choice
 (double a, double b, double c)
 {
-  double f_theta, f_min, f_max;
   theta = - b / (2 * a);
-  f_theta = a * theta * theta + b * theta + c;
-  f_min = a * theta_min * theta_min + b * theta_min + c;
-  f_max = a * theta_max * theta_max + b * theta_max + c;
-  if (theta > theta_max || theta < theta_min)
-    if (f_min < f_max)
-      theta = theta_min;
-    else
-      theta = theta_max;
-  else
-    if (f_theta <= f_min )
-      if (f_theta >= f_max)
-        theta = theta_max;
+  if (theta > theta_max || theta < theta_min || a < 0)
+    {
+      double f_min, f_max;
+      f_min = (a * theta_min + b) * theta_min + c;
+      f_max = (a * theta_max + b) * theta_max + c;
+      if (f_min < f_max)
+        theta = theta_min;
       else
-        if (f_min <= f_max)
-          theta = theta_min;
-        else
-          theta = theta_max;
+        theta = theta_max;
+    }
 }
 
 void

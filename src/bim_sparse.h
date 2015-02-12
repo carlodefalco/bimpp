@@ -287,13 +287,13 @@ public :
 
   /// Sums the addendum matrix onto the base matrix. Generates entries if necessary
   template<class T>
-  sparse_matrix&
+  void 
   operator+= (T &adm);
 
 };
 
 template<class T>
-sparse_matrix&
+void
 sparse_matrix::operator+= (T &adm)
 {
 

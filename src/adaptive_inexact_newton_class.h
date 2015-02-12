@@ -103,7 +103,6 @@ public :
   adaptive_inexact_newton (linear_solver *solver_, int verbose_ = 1) :
     nonlinear_solver ("Adaptive Inexact Newton"),
     lin_solver (solver_),
-    verbose (verbose_),
     max_iter (100),
     min_residual (1e-10),
     tolerance (1e-10),
@@ -112,6 +111,7 @@ public :
     step_norm (0.0),
     iteration (0),
     norm_t (L2),
+    verbose (verbose_),
     filename ("output.txt")
   {
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);
