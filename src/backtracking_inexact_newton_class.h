@@ -120,7 +120,6 @@ public :
   (linear_solver *solver_, int verbose_ = 1) :
     nonlinear_solver ("Backtracking Inexact Newton"),
     lin_solver (solver_),
-    verbose (verbose_),
     max_iter (100),
     min_residual (1e-10),
     tolerance (1e-10),
@@ -133,6 +132,7 @@ public :
     theta (0),
     theta_min (0),
     theta_max (1),
+    verbose (verbose_),
     filename ("output.txt")
   {
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);
