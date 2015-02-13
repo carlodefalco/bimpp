@@ -75,14 +75,14 @@ int main (int argc, char **argv)
               std::vector<double> nodecoeff1 (msh.nnodes, 1 / dt);
               std::vector<double> nodecoeff2 (msh.nnodes, 0.0);
 
-              for (unsigned int i = 0; i < msh.nelements; ++i)
+              for (int i = 0; i < msh.nelements; ++i)
                 {
                   dcoeff[0 + 3 * i] = 1.0;
                   dcoeff[1 + 3 * i] = 2.0;
                   dcoeff[2 + 3 * i] = 3.0;
                 }
 
-              for (unsigned int i = 0; i < msh.nnodes; ++i)
+              for (int i = 0; i < msh.nnodes; ++i)
                 {
                   v[i] = msh.p (0, i) +
                     0.5 * msh.p (1, i) +
@@ -104,7 +104,7 @@ int main (int argc, char **argv)
 
               uold = std::vector<double> (msh.nnodes, 0.0);
 
-              for (unsigned int i = 0; i < msh.nnodes; ++i)
+              for (int i = 0; i < msh.nnodes; ++i)
                 {
                   uold[i] = 1.0 -
                     msh.p (0, i) * msh.p (0, i) -

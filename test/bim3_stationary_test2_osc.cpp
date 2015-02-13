@@ -54,7 +54,7 @@ int main (int argc, char **argv)
       std::vector<double> v (msh.nnodes, 0.0);
       std::vector<double> ncoeff (msh.nnodes, 6.0);
 
-      for (unsigned int k = 0; k < msh.nelements; ++k)
+      for (int k = 0; k < msh.nelements; ++k)
         {
           dcoeff[0 + 3 * k] = 0.5;
           dcoeff[1 + 3 * k] = 0.5;

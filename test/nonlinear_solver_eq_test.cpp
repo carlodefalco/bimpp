@@ -37,7 +37,7 @@ int main (int argc, char **argv)
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   linear_solver *lis_solver = new lis ();
-  linear_solver *mumps_solver = new mumps ();
+  //linear_solver *mumps_solver = new mumps ();
 
   nonlinear_solver *solver =
     new adaptive_inexact_newton (lis_solver, 2);
@@ -110,28 +110,29 @@ run_test_problem (nonlinear_solver *solver)
   bool converged = solver->solve ();
 
   if (rank == 0)
-    if (converged)
-      {
-        int iteration = 0;
-        double residual_norm = 0.0;
-        double delta_norm = 0.0;
+    {
+      if (converged)
+        {
+          int iteration = 0;
+          double residual_norm = 0.0;
 
-        solver->get_result_iterations (iteration);
-        solver->get_result_residual_norm (residual_norm);
+          solver->get_result_iterations (iteration);
+          solver->get_result_residual_norm (residual_norm);
 
-	std::cout << "Solution: " << uold[0]
-                  << std::endl
-                  << "Total Newton's Iterations: "
-                  << iteration << std::endl
-                  << "Residual Norm: " << residual_norm << std::endl
-                  << "Error: " << fabs (uold[0] - exactsolution[0])
-                  << std::endl;
-      }
-    else
-      {
-        std::cerr << "Not Converged!" << std::endl;
-        exit (-1);
-      }
+      std::cout << "Solution: " << uold[0]
+                    << std::endl
+                    << "Total Newton's Iterations: "
+                    << iteration << std::endl
+                    << "Residual Norm: " << residual_norm << std::endl
+                    << "Error: " << fabs (uold[0] - exactsolution[0])
+                    << std::endl;
+        }
+      else
+        {
+          std::cerr << "Not Converged!" << std::endl;
+          exit (-1);
+        }
+    }
 
   solver->cleanup ();
 }

@@ -56,14 +56,14 @@ int main (int argc, char **argv)
       std::vector<double> ncoeff (msh.nnodes, 0.0);
       std::vector<double> nodecoeff (msh.nnodes,1.0);
 
-      for (unsigned int k = 0; k < msh.nelements; ++k)
+      for (int k = 0; k < msh.nelements; ++k)
         {
           dcoeff[0 + 3 * k] = 0.5;
           dcoeff[1 + 3 * k] = 0.5;
           dcoeff[2 + 3 * k] = 1;
         }
 
-      for (unsigned int k = 0; k < msh.nnodes; ++k)
+      for (int k = 0; k < msh.nnodes; ++k)
         {
           v[k] = msh.p (0, k) + msh.p (1, k) + msh.p (2, k);
           ncoeff[k] = 7.0 -

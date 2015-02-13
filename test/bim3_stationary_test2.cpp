@@ -57,7 +57,7 @@ int main (int argc, char **argv)
       //anisotropic diffusion coefficient
       std::vector<double> dcoeff (msh.nelements * 3, 1.0);
 
-      for (unsigned int k = 0; k < msh.nelements; ++k)
+      for (int k = 0; k < msh.nelements; ++k)
         {
           dcoeff[0 + 3 * k] = 0.5;
           dcoeff[1 + 3 * k] = 0.5;
@@ -85,7 +85,7 @@ int main (int argc, char **argv)
       bim3a_boundary_nodes (msh, sidelist, bnodes);
 
       vnodes.resize (bnodes.size ());
-      for (int i = 0; i < vnodes.size (); ++i)
+      for (unsigned int i = 0; i < vnodes.size (); ++i)
         {
           vnodes[i] = 1.0 -
             2 * msh.p (0, bnodes[i]) * msh.p (0, bnodes[i]) -
@@ -134,7 +134,7 @@ int main (int argc, char **argv)
       double norm = 0;
       std::vector<double> delta (rhs.size ());
 
-      for (int k = 0; k < rhs.size (); ++k)
+      for (unsigned int k = 0; k < rhs.size (); ++k)
         {
           fout << rhs[k] << "  " << exactsolution[k]<< std::endl;
           delta[k] = exactsolution[k] - rhs[k];

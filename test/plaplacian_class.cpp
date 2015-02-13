@@ -52,7 +52,7 @@ plaplacian::operator () (sparse_matrix& lhs,
   bim3a_pde_gradient (msh, guess, g);
   std::vector<double> modg (msh.nelements);
 
-  for (unsigned int i = 0; i < msh.nelements; ++i)
+  for (int i = 0; i < msh.nelements; ++i)
     modg[i] = sqrt (g[3 * i + 0] * g[3 * i + 0] +
                     g[3 * i + 1] * g[3 * i + 1] +
                     g[3 * i + 2] * g[3 * i + 2]);
@@ -61,7 +61,7 @@ plaplacian::operator () (sparse_matrix& lhs,
   std::vector<double> isocoeff (msh.nelements, 1.0);
   std::vector<double> dcoeff (msh.nelements * 9, 1.0);
 
-  for (unsigned int i = 0; i < msh.nelements; ++i)
+  for (int i = 0; i < msh.nelements; ++i)
     {
       dcoeff[0 + 9 * i] =
         pow (modg[i], p - 4.0) * (p - 2.0) *
