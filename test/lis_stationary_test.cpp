@@ -150,7 +150,7 @@ run_test_problem (linear_solver *solver)
       double norm = 0;
       std::vector<double> delta (rhs.size ());
 
-      for (int k = 0; k < rhs.size (); ++k)
+      for (unsigned int k = 0; k < rhs.size (); ++k)
         {
           fout << rhs[k] << "  " << exactsolution[k] << std::endl;
           delta[k] = exactsolution[k] - rhs[k];

@@ -54,7 +54,7 @@ int main (int argc, char **argv)
       std::vector<double> ncoeff (msh.nnodes, 1.0);
       std::vector<double> nodecoeff (msh.nnodes, 0.0);
 
-      for (unsigned int i = 0; i < msh.nnodes; ++i)
+      for (int i = 0; i < msh.nnodes; ++i)
         nodecoeff[i] = (M_PI * M_PI + 1) *
           (sin (M_PI * msh.p (0, i)) +
            sin (M_PI * msh.p (1, i)) +

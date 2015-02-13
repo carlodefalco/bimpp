@@ -52,7 +52,7 @@ int main (int argc, char **argv)
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
   linear_solver *lis_solver = new lis ();
-  linear_solver *mumps_solver = new mumps ();
+  //linear_solver *mumps_solver = new mumps ();
 
   nonlinear_solver *solver =
     new backtracking_inexact_newton (lis_solver);
@@ -103,7 +103,7 @@ run_test_problem (nonlinear_solver *solver)
       exactsolution.resize (nnodes);
       uold.resize (nnodes);
 
-      for (unsigned int i = 0; i < nnodes; ++i)
+      for (int i = 0; i < nnodes; ++i)
         {
           exactsolution[i] = (1.0 / q) * (pow (0.5, q) -
             pow ((plap->msh.p (0, i) - 0.5) * (plap->msh.p (0, i) - 0.5) +
@@ -175,32 +175,34 @@ run_test_problem (nonlinear_solver *solver)
   bool converged = solver->solve ();
 
   if (rank == 0)
-    if (converged)
-      {
-        int iteration = 0;
-        double residual_norm = 0.0;
-        double delta_norm = 0.0;
+    {
+      if (converged)
+        {
+          int iteration = 0;
+          double residual_norm = 0.0;
+          double delta_norm = 0.0;
 
-        solver->get_result_iterations (iteration);
-        solver->get_result_residual_norm (residual_norm);
+          solver->get_result_iterations (iteration);
+          solver->get_result_residual_norm (residual_norm);
 
-        std::vector<double> delta_exact
-          (uold.size ());
-        for (unsigned int i = 0; i < uold.size (); ++i)
-          delta_exact[i] = uold[i] - exactsolution[i];
+          std::vector<double> delta_exact
+            (uold.size ());
+          for (unsigned int i = 0; i < uold.size (); ++i)
+            delta_exact[i] = uold[i] - exactsolution[i];
 
-        bim3a_norm (plap->msh, delta_exact, delta_norm, L2);
-        std::cout << std::endl
-                  << "Total Newton's Iterations: "
-                  << iteration << std::endl
-                  << "Residual Norm: " << residual_norm << std::endl
-                  << "Error: " << delta_norm << std::endl;
-      }
-    else
-      {
-        std::cerr << "Not Converged!" << std::endl;
-        exit (-1);
-      }
+          bim3a_norm (plap->msh, delta_exact, delta_norm, L2);
+          std::cout << std::endl
+                    << "Total Newton's Iterations: "
+                    << iteration << std::endl
+                    << "Residual Norm: " << residual_norm << std::endl
+                    << "Error: " << delta_norm << std::endl;
+        }
+      else
+        {
+          std::cerr << "Not Converged!" << std::endl;
+          exit (-1);
+        }
+    }
 
   solver->cleanup ();
 }

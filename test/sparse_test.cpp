@@ -50,7 +50,7 @@ int main (int argc, char **argv)
       spp.aij (a, i, j);
       std::cout << std::endl << "aij" << std::endl;
 
-      for (int k = 0; k < sp.nnz; ++k)
+      for (unsigned int k = 0; k < sp.nnz; ++k)
         std::cout << i[k] << " "
                   << j[k] << " "
                   << a[k] << std::endl;
@@ -121,7 +121,7 @@ int main (int argc, char **argv)
       std::cout << "\nresult of first solve\nwill be written in first_solve.txt\n";
       std::ofstream fout ("first_solve.txt");
       fout << std::endl;
-      for (int k = 0; k < lrhs.size (); ++k)
+      for (unsigned int k = 0; k < lrhs.size (); ++k)
         fout << lrhs[k] << std::endl;
       fout.close ();
     }
@@ -152,7 +152,7 @@ int main (int argc, char **argv)
       std::cout << "\nresult of second solve\nwill be written in second_solve.txt\n";
       std::ofstream fout ("second_solve.txt");
       fout << std::endl;
-      for (int k = 0; k < lrhs.size (); ++k)
+      for (unsigned int k = 0; k < lrhs.size (); ++k)
         fout << lrhs[k] << std::endl;
       fout << std::endl;
       fout.close ();

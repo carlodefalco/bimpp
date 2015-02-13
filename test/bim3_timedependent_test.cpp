@@ -80,7 +80,7 @@ int main (int argc, char **argv)
 
               uold = std::vector<double> (msh.nnodes, 0.0);
 
-              for (unsigned int i = 0; i < msh.nnodes; ++i)
+              for (int i = 0; i < msh.nnodes; ++i)
                 {
                   uold[i] = 1.0 -
                    msh.p (0, i) * msh.p (0, i) -
@@ -123,11 +123,11 @@ int main (int argc, char **argv)
           rhs_new.resize (rhs1.size ());
           lhs_new = lhs;
 
-          for (int i = 0; i < rhs_new.size (); ++i)
+          for (unsigned int i = 0; i < rhs_new.size (); ++i)
             {
               rhs_new[i] = rhs2[i] + rhs1[i] * uold[i];
             }
-          for (int i = 0; i < vnodes.size (); ++i)
+          for (unsigned int i = 0; i < vnodes.size (); ++i)
             {
               vnodes[i] = vnodes_start[i];
             }

@@ -75,13 +75,13 @@ int main (int argc, char **argv)
               std::vector<double> nodecoeff1 (msh.nnodes, 1 / dt);
               std::vector<double> nodecoeff2 (msh.nnodes, 0.0);
 
-              for (unsigned int i = 0; i < msh.nelements; ++i)
+              for (int i = 0; i < msh.nelements; ++i)
                 {
                   dcoeff[0 + 3 * i] = 1.0;
                   dcoeff[1 + 3 * i] = 2.0;
                   dcoeff[2 + 3 * i] = 3.0;
                 }
-              for (unsigned int i = 0; i < msh.nnodes; ++i)
+              for (int i = 0; i < msh.nnodes; ++i)
                 nodecoeff2[i] = 12.0 - 1.0 +
                   msh.p (0, i) * msh.p (0, i) +
                   msh.p (1, i) * msh.p (1, i) +
@@ -156,7 +156,7 @@ int main (int argc, char **argv)
           else
             lhs_new.aij_update (xa, ir, jc, 1);
 
-          for (int i = 0; i < exactsolution.size (); ++i)
+          for (unsigned int i = 0; i < exactsolution.size (); ++i)
             {
               exactsolution[i] =
                 exactsolution_start[i] * exp (- t * dt);
@@ -192,7 +192,7 @@ int main (int argc, char **argv)
           double norm = 0;
           std::vector<double> delta (rhs_new.size ());
 
-          for (int k = 0; k < rhs_new.size (); ++k)
+          for (unsigned int k = 0; k < rhs_new.size (); ++k)
             {
               uold[k] = rhs_new[k];
               fout << rhs_new[k] << "  "

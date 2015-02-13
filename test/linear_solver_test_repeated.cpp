@@ -77,7 +77,7 @@ int main (int argc, char **argv)
     run_test_problem_rank1 (lis_solver, false);
 
   if (rank == 0 && false)
-    for (int ii = 0; ii < lis_rhs.size (); ++ii)
+    for (unsigned int ii = 0; ii < lis_rhs.size (); ++ii)
       {
         std::cout << lis_rhs[ii]
                   << "  " << lis_rhs_shuffle[ii]
@@ -92,7 +92,7 @@ int main (int argc, char **argv)
 
   if (rank == 0)
     {
-      for (int ii = 0; ii < lis_rhs.size (); ++ii)
+      for (unsigned int ii = 0; ii < lis_rhs.size (); ++ii)
         {
           double tmp = fabs (lis_rhs_shuffle[ii] - lis_rhs[ii]);
           lis_shuffle_to_shuffle_not =
@@ -157,7 +157,7 @@ run_test_problem_rank0 (linear_solver *solver,
   std::cout << "\taij" << std::endl;
   lhs.aij (xa_tmp, ir_tmp, jc_tmp, base);
   xa = xa_tmp; ir = ir_tmp; jc = jc_tmp;
-  for (int ii = 0; ii < xa_tmp.size (); ++ ii)
+  for (unsigned int ii = 0; ii < xa_tmp.size (); ++ ii)
     {
       xa[ii] = xa_tmp[f (ii, xa_tmp.size ())];
       ir[ii] = ir_tmp[f (ii, ir_tmp.size ())];
@@ -175,7 +175,7 @@ run_test_problem_rank0 (linear_solver *solver,
 
   std::cout << "\taij_update" << std::endl;
   lhs.aij_update (xa_tmp, ir_tmp, jc_tmp, base);
-  for (int ii = 0; ii < xa_tmp.size (); ++ ii)
+  for (unsigned int ii = 0; ii < xa_tmp.size (); ++ ii)
     xa[ii] = xa_tmp[f (ii, xa_tmp.size ())];
 
   // for (int ii = 0; ii < xa.size (); ++ ii)
@@ -203,7 +203,7 @@ run_test_problem_rank0 (linear_solver *solver,
 
   std::cout << "\taij_update" << std::endl;
   lhs.aij_update (xa_tmp, ir_tmp, jc_tmp, base);
-  for (int ii = 0; ii < xa_tmp.size (); ++ ii)
+  for (unsigned int ii = 0; ii < xa_tmp.size (); ++ ii)
     xa[ii] = xa_tmp[f (ii, xa_tmp.size ())];
 
   // for (int ii = 0; ii < xa.size (); ++ ii)
