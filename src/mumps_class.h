@@ -30,6 +30,7 @@ private :
 
   bool verbose;
   int  icntl23;
+  int working_host;
   static const int index_base = 1;
 
 public :
@@ -41,10 +42,11 @@ public :
   init ();
 
   /// Default constructor.
-  mumps (bool verbose_ = false, int icntl23_ = 0) :
+  mumps (bool verbose_ = false, int icntl23_ = 0, int working_host_ = 1) :
     linear_solver ("MUMPS", "direct"),
     verbose (verbose_),
-    icntl23 (icntl23_)
+    icntl23 (icntl23_),
+    working_host (working_host_)
   { init (); };
 
   /// Set-up the matrix structure.
