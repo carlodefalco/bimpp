@@ -13,7 +13,7 @@ void
 mumps::init ()
 {
   id.job =  JOB_INIT;
-  id.par =   1;                      // host working
+  id.par =   working_host;           // host working
   id.sym =   0;                      // non symmetric
   id.comm_fortran = F77_COMM_WORLD;  // MPI_COMM_WORLD
 
