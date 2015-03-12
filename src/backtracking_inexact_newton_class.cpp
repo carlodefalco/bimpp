@@ -42,6 +42,11 @@ backtracking_inexact_newton::solve ()
 
   std::vector<double> f_old, f_new, df_gap;
 
+  #ifdef VERIFY_CONVERGENCE
+    std::vector<double> linear_res, nonlinear_res, temp;
+    std::vector<int> nonlinear_iter;
+  #endif
+
   if (rank == 0)
     {
       if (norm_t == L2 || norm_t == H1)
@@ -55,6 +60,12 @@ backtracking_inexact_newton::solve ()
 
       problem->operator () (lhs, rhs, (*initial_guess));
       residual_norm = bim3a_norm2 (rhs);
+
+      #ifdef VERIFY_CONVERGENCE
+        nonlinear_res.push_back (residual_norm);
+        linear_res.push_back (residual_norm);
+        nonlinear_iter.push_back (0);
+      #endif
     }
 
   MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -75,7 +86,7 @@ backtracking_inexact_newton::solve ()
                 << std::endl << std::endl;
     }
   if (rank == 0)
-    { 
+    {
       if (problem->msh.nnodes !=0)
         lin_initial_guess.assign (problem->msh.nnodes, 0.0);
       else
@@ -112,7 +123,7 @@ backtracking_inexact_newton::solve ()
       if (lin_solver->solver_type () == "iterative")
         {
           lin_solver->set_tolerance (forcing_value);
-	  lin_solver->set_initial_guess (lin_initial_guess);
+          lin_solver->set_initial_guess (lin_initial_guess);
         }
 
       lin_solver->solve ();
@@ -131,6 +142,17 @@ backtracking_inexact_newton::solve ()
 
           (*problem) (f_new, unew);
           f_new_norm = bim3a_norm2 (f_new);
+
+          #ifdef VERIFY_CONVERGENCE
+            temp.clear ();
+            bim3a_matrix_vector_product (lhs, rhs, temp);
+            for (unsigned int i = 0; i < temp.size (); ++i)
+              temp[i] += f_old[i];
+
+            linear_res.push_back (bim3a_norm2 (temp));
+            nonlinear_res.push_back (f_new_norm);
+            nonlinear_iter.push_back (iteration);
+          #endif
 
           while (f_new_norm >
             (1 - t * (1 - forcing_value)) * f_old_norm)
@@ -162,6 +184,17 @@ backtracking_inexact_newton::solve ()
 
               f_new_norm = bim3a_norm2 (f_new);
             }
+
+          #ifdef VERIFY_CONVERGENCE
+            temp.clear ();
+            bim3a_matrix_vector_product (lhs, rhs, temp);
+            for (unsigned int i = 0; i < temp.size (); ++i)
+              temp[i] += f_old[i];
+
+            linear_res.push_back (bim3a_norm2 (temp));
+            nonlinear_res.push_back (f_new_norm);
+            nonlinear_iter.push_back (iteration);
+          #endif
 
           if (lin_solver->solver_type () == "iterative")
             lin_initial_guess = rhs;
@@ -227,8 +260,22 @@ backtracking_inexact_newton::solve ()
   else
     {
       if (rank == 0)
-        std::cout << "\nNonlinear solver converged."
-                  << std::endl;
+        {
+          std::cout << "\nNonlinear solver converged."
+                    << std::endl;
+
+          #ifdef VERIFY_CONVERGENCE
+            std::cout << "Convergence of linear residual:" << std::endl;
+            for (int i = 0; i < linear_res.size (); ++i)
+              std::cout << nonlinear_iter[i] << ": "
+                        << linear_res[i] << std::endl;
+
+            std::cout << "Convergence of nonlinear residual:" << std::endl;
+            for (int i = 0; i < nonlinear_res.size (); ++i)
+              std::cout << nonlinear_iter[i] << ": "
+                        << nonlinear_res[i] << std::endl;
+          #endif
+        }
       return 1;
     }
 }
