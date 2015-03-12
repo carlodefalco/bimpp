@@ -168,7 +168,7 @@ run_test_problem (nonlinear_solver *solver)
       solver->set_max_iterations_of_linear_solver (1000);
       solver->set_iterative_method_of_linear_solver
               ("Conjugate Gradient");
-      solver->set_initial_tolerance_of_linear_solver (0.2);
+      solver->set_initial_tolerance_of_linear_solver (0.5);
       solver->set_convergence_condition_of_linear_solver ("norm2_of_rhs");
     }
 
