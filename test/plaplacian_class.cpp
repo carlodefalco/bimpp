@@ -94,12 +94,12 @@ plaplacian::operator () (sparse_matrix& lhs,
       isocoeff[i] = pow (modg[i], p - 2.0);
     }
   bim3a_laplacian (msh, isocoeff, lhs);
-  bim3a_matrix_vector_product (lhs, guess, rhs);
+  rhs = lhs * guess;
   for (unsigned int i = 0; i < rhs.size (); ++i)
     rhs[i] *= -1;
   bim3a_rhs (msh, ecoeff, f, rhs);
   bim3a_laplacian_anisotropic (msh, dcoeff, lhs);
-  bim3a_dirichletBC (lhs, rhs, boundary_nodes, boundary_values);
+  bim3a_dirichlet_bc (lhs, rhs, boundary_nodes, boundary_values);
 }
 
 void

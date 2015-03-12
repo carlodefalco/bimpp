@@ -884,24 +884,6 @@ bim3a_local_rhs (const double shp[16],
 };
 
 void
-bim3a_boundary_nodes (mesh& msh,
-                      const std::vector<int>& sidelist,
-                      std::vector<int>& bnodes)
-{
-  bnodes.clear ();
-  for (int i = 0; i < msh.nfaces; ++i)
-    if (find (sidelist.begin (), sidelist.end (), msh.e (9, i))
-        != sidelist.end ())
-      {
-        for (int j = 0; j < 3; ++j)
-          if (find (bnodes.begin (), bnodes.end (), msh.e (j, i))
-             == bnodes.end ())
-           bnodes.push_back (msh.e (j, i));
-      }
-  sort (bnodes.begin (), bnodes.end ());
-}
-
-void
 bimu_bernoulli (double x, double &bp, double &bn)
 {
   const double xlim = 1.0e-2;
@@ -1004,28 +986,29 @@ bimu_bernoulli_derivative (double x, double &bpp, double &bnp)
 
 };
 
-
 void
-bim3a_dirichletBC (sparse_matrix& M,
-                  std::vector<double>& b,
-                  const std::vector<int>& bnodes,
-                  const std::vector<double>& vnodes)
+bim3a_dirichlet_bc (sparse_matrix& M,
+                    std::vector<double>& b,
+                    const std::vector<int>& bnodes,
+                    const std::vector<double>& vnodes)
 {
   sparse_matrix::col_iterator j;
   for (unsigned int it = 0; it < bnodes.size (); ++it)
     {
       int i = bnodes[it];
-      M[i][i] = 0.0;
       b[i] = vnodes[it];
       if (M[i].size ())
         for (j = M[i].begin (); j != M[i].end (); ++j)
           {
             int jj = M.col_idx (j);
-            M[i][jj] = 0.0;
-            b[jj] -= M[jj][i] * b[i];
-            M[jj][i] = 0.0;
+            if (jj != i)
+              {
+                M[i][jj] = 0.0;
+                b[jj] -= M[jj][i] * b[i];
+                M[jj][i] = 0.0;
+              }
           }
-      M[i][i] = 1.0;
+      b[i]*=M[i][i];
     }
 }
 
@@ -1074,34 +1057,11 @@ bim3a_norm (mesh& msh,
       if (type == H1)
         bim3a_laplacian (msh, ecoeff, M);
       std::vector<double> temp;
-      bim3a_matrix_vector_product (M, v, temp);
+      temp = M * v;
       for (unsigned int i = 0; i < v.size (); ++i)
         norm += v[i] * temp[i];
       norm = sqrt (norm);
     }
 }
 
-
-void
-bim3a_matrix_vector_product (sparse_matrix& M,
-                            const std::vector<double>& x,
-                            std::vector<double>& y)
-{
-  sparse_matrix::col_iterator j;
-  y.assign (x.size (), 0.0);
-  for (unsigned int i = 0; i < M.size (); ++i)
-    if (M[i].size ())
-      for (j = M[i].begin (); j != M[i].end (); ++j)
-        y[i] += M.col_val (j) * x[M.col_idx (j)];
-}
-
-double
-bim3a_norm2 (const std::vector<double>& v)
-{
-  double norm = 0.0;
-  for (unsigned int i = 0; i < v.size (); ++i)
-    norm += v[i] * v[i];
-  norm = sqrt (norm);
-  return norm;
-}
 //}

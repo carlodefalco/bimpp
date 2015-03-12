@@ -127,7 +127,7 @@ run_test_problem (nonlinear_solver *solver)
       sidelist.push_back (5);
       sidelist.push_back (6);
 
-      bim3a_boundary_nodes (plap->msh, sidelist, bnodes);
+      plap->msh.boundary_nodes (sidelist, bnodes);
       vnodes.resize (bnodes.size ());
 
       for (unsigned int i = 0; i < vnodes.size (); ++i)

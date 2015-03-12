@@ -240,42 +240,25 @@ bim3a_local_rhs (const double shp[16],
                  const double coeffn[4],
                  double bLoc[4]);
 
-/// Find nodes in sidelist boundary
+/// Set Dirichlet boundary condition.
 void
-bim3a_boundary_nodes (mesh& msh,
-                      const std::vector<int>& sidelist,
-                      std::vector<int>& bnodes);
+bim3a_dirichlet_bc (sparse_matrix& M,
+                    std::vector<double>& b,
+                    const std::vector<int>& bnodes,
+                    const std::vector<double>& vnodes);
 
-/// Set Dirichlet border condition
-void
-bim3a_dirichletBC (sparse_matrix& M,
-                   std::vector<double>& b,
-                   const std::vector<int>& bnodes,
-                   const std::vector<double>& vnodes);
-
-/// Compute the gradient of a piecewise function
+/// Compute the gradient of a piecewise linear function.
 void
 bim3a_pde_gradient (mesh& msh,
                     const std::vector<double>& u,
                     std::vector<double>& g);
 
-/// Compute the (Inf,L2,H1) norm of a piecewise function
+/// Compute the (Inf,L2,H1) norm of a piecewise linear function.
 void
 bim3a_norm (mesh& msh,
             const std::vector<double>& v,
             double& norm,
             norm_type type);
-
-/// Compute matrix-vector product
-void
-bim3a_matrix_vector_product (sparse_matrix& M,
-                             const std::vector<double>& x,
-                             std::vector<double>& y);
-
-
-/// Return the norm 2 of the vector
-double
-bim3a_norm2 (const std::vector<double>& v);
 
 //}
 #endif

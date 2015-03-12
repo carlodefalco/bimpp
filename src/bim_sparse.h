@@ -290,6 +290,10 @@ public :
   void 
   operator+= (T &adm);
 
+  /// Compute matrix-vector product.
+  friend std::vector<double>
+  operator * (sparse_matrix& M, const std::vector<double>& x);
+
 };
 
 template<class T>

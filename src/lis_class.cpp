@@ -53,10 +53,6 @@ lis::init_lis_objects ()
 int
 lis::assemble_lis_matrix ()
 {
-  // FIXME: whhy do we need 3 copies (xa, data, values)???
-  // ora data non copia più xa
-  // value lo uso  in quanto lis_matrix_set_csr vuole il tipo LIS_SCALAR*
-  // e non double* come quarto argomento
   for (int i = 0; i < nnz ; ++i)
     value[i] = data[i];
   
@@ -76,10 +72,7 @@ lis::invoke_lis_solver ()
     }
 
   char* options = 0;
-  //(commento da rimuovere in seguito)
-  //se si lascia questo controllo
-  //nelle iterazioni dei solutori non lineari option_string
-  //non viene più aggiornata con la nuova tolleranza.
+
   if (! option_string_set)
     {
       std::stringstream opt;

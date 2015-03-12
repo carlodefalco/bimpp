@@ -69,7 +69,7 @@ int main (int argc, char **argv)
       std::vector<int> bnodes;
 
       std::vector<double> vnodes;
-      bim3a_boundary_nodes (msh, sidelist, bnodes);
+      msh.boundary_nodes (sidelist, bnodes);
 
       vnodes.resize (bnodes.size ());
       for (unsigned int i = 0; i < vnodes.size (); ++i)
@@ -80,7 +80,7 @@ int main (int argc, char **argv)
                       msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
         }
 
-      bim3a_dirichletBC (lhs, rhs, bnodes, vnodes);
+      bim3a_dirichlet_bc (lhs, rhs, bnodes, vnodes);
 
       lhs.aij (xa, ir, jc, 1);
 
