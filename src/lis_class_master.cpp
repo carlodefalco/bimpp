@@ -127,12 +127,7 @@ lis::set_lhs_data (std::vector<double> &xa)
 int
 lis::factorize_master ()
 {
-  // partitioning matrix entries
-  // FIXME: reordering should take place here!
 
-  // al momento non riesco a trovare un modo per fare l'ordinamento
-  // sul posto senza una copia del vettore
-  
   if (ordering_map.size () != 0)
     {
       double *temp = new double[ordering_map.size ()];
@@ -142,6 +137,7 @@ lis::factorize_master ()
         data[ordering_map[i]] = temp[i];
       delete [] temp;
       }
+  // partitioning matrix entries
   MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
                 MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 

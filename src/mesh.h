@@ -30,6 +30,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
 
 //namespace bim
 //{
@@ -167,6 +168,11 @@ public:
   inline const double&
   volume (int iel) const
   {return (*(volume_data + iel));};
+
+  /// Find nodes in sidelist boundaries.
+  void
+  boundary_nodes (const std::vector<int>& sidelist,
+                  std::vector<int>& bnodes);
 
   /// mesh textual output.
   friend std::ostream &operator<< (std::ostream &, mesh &);

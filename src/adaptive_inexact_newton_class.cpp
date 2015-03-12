@@ -54,7 +54,10 @@ adaptive_inexact_newton::solve ()
 
       problem->operator () (lhs, rhs, (*initial_guess));
 
-      residual_norm = bim3a_norm2 (rhs);
+      for (unsigned int i = 0; i < rhs.size (); ++i)
+        residual_norm += rhs[i] * rhs[i];
+     
+      residual_norm = sqrt (residual_norm);
     }
 
   MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -129,8 +132,7 @@ adaptive_inexact_newton::solve ()
             (*initial_guess)[i] = rhs[i] + (*initial_guess)[i];
 
           (*problem) (f_new, (*initial_guess));
-          bim3a_matrix_vector_product (lhs, rhs, df_gap);
-
+          df_gap = lhs * rhs;
           forcing_value = (*forcing)
             (f_old, f_new, df_gap, forcing_value);
 
@@ -140,7 +142,7 @@ adaptive_inexact_newton::solve ()
             {
               step_norm = 0.0;
               std::vector<double> temp;
-              bim3a_matrix_vector_product (mass_matrix, rhs, temp);
+              temp = mass_matrix * rhs;
               for (unsigned int i = 0; i < rhs.size (); ++i)
                 step_norm += rhs[i] * temp[i];
               step_norm = sqrt (step_norm);
@@ -148,7 +150,11 @@ adaptive_inexact_newton::solve ()
 
           (*problem) (lhs, rhs, (*initial_guess));
 
-          residual_norm = bim3a_norm2 (rhs);
+          residual_norm = 0.0;
+          for (unsigned int i = 0; i < rhs.size (); ++i)
+            residual_norm += rhs[i] * rhs[i];
+     
+          residual_norm = sqrt (residual_norm);
 
           if (verbose == 2)
             for (unsigned int i = 0; i < initial_guess->size (); ++i)

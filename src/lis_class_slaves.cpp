@@ -49,7 +49,6 @@ int
 lis::factorize_slaves ()
 {
   // partitioning matrix entries
-  // FIXME: reordering should take place here!
   MPI_Scatterv (&data[0], &map_nnz[0], &map_i_s[0], MPI_DOUBLE,
                 &data[0], nnz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 

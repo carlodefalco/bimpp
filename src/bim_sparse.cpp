@@ -45,3 +45,16 @@ void sparse_matrix::reset ()
     for (jj = (*ii).begin (); jj != (*ii).end (); ++jj)
       (*jj).second = 0.0;
 }
+
+std::vector<double>
+operator * (sparse_matrix& M, const std::vector<double>& x)
+{
+  std::vector<double> y (M.rows (), 0.0);
+  sparse_matrix::col_iterator j;
+  for (unsigned int i = 0; i < M.size (); ++i)
+    if (M[i].size ())
+      for (j = M[i].begin (); j != M[i].end (); ++j)
+        y[i] += M.col_val (j) * x[M.col_idx (j)];
+
+  return y;
+}

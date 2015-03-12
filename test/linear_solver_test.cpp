@@ -120,7 +120,7 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
       std::vector<int> bnodes;
 
       std::vector<double> vnodes;
-      bim3a_boundary_nodes (msh, sidelist, bnodes);
+      msh.boundary_nodes (sidelist, bnodes);
 
       vnodes.resize (bnodes.size ());
       for (unsigned int i = 0; i < vnodes.size (); ++i)
@@ -131,7 +131,7 @@ run_test_problem (linear_solver *solver, std::vector<double> &rhs)
                       msh.p (2, bnodes[i]) * msh.p (2, bnodes[i]);
         }
 
-      bim3a_dirichletBC (lhs, rhs, bnodes, vnodes);
+      bim3a_dirichlet_bc (lhs, rhs, bnodes, vnodes);
 
       lhs.aij (xa, ir, jc, base);
       exactsolution.resize (msh.nnodes);

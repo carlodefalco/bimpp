@@ -43,7 +43,7 @@ backtracking_inexact_newton::solve ()
   std::vector<double> f_old, f_new, df_gap;
 
   #ifdef VERIFY_CONVERGENCE
-    std::vector<double> linear_res, nonlinear_res, temp;
+    std::vector<double> linear_res, nonlinear_res, temp_res;
     std::vector<int> nonlinear_iter;
   #endif
 
@@ -59,7 +59,10 @@ backtracking_inexact_newton::solve ()
         }
 
       problem->operator () (lhs, rhs, (*initial_guess));
-      residual_norm = bim3a_norm2 (rhs);
+      for (unsigned int i = 0; i < rhs.size (); ++i)
+        residual_norm += rhs[i] * rhs[i];
+    
+      residual_norm = sqrt (residual_norm);
 
       #ifdef VERIFY_CONVERGENCE
         nonlinear_res.push_back (residual_norm);
@@ -141,15 +144,25 @@ backtracking_inexact_newton::solve ()
           double f_new_norm = 0.0;
 
           (*problem) (f_new, unew);
-          f_new_norm = bim3a_norm2 (f_new);
+
+          for (unsigned int i = 0; i < f_new.size (); ++i)
+            f_new_norm += f_new[i] * f_new[i];
+    
+          f_new_norm = sqrt (f_new_norm);
 
           #ifdef VERIFY_CONVERGENCE
-            temp.clear ();
-            bim3a_matrix_vector_product (lhs, rhs, temp);
-            for (unsigned int i = 0; i < temp.size (); ++i)
-              temp[i] += f_old[i];
+            temp_res.clear ();
+            temp_res = lhs * rhs;
+            for (unsigned int i = 0; i < temp_res.size (); ++i)
+              temp_res[i] += f_old[i];
 
-            linear_res.push_back (bim3a_norm2 (temp));
+            double temp_norm = 0.0;
+            for (unsigned int i = 0; i < temp_res.size (); ++i)
+              temp_norm += temp_res[i] * temp_res[i];
+    
+            temp_norm = sqrt (temp_norm);
+
+            linear_res.push_back (temp_norm);
             nonlinear_res.push_back (f_new_norm);
             nonlinear_iter.push_back (iteration);
           #endif
@@ -160,7 +173,7 @@ backtracking_inexact_newton::solve ()
               std::vector<double> temp;
               double temp_norm = 0.0;
 
-              bim3a_matrix_vector_product (lhs, rhs, temp);
+              temp = lhs * rhs;
               for (unsigned int i = 0; i < rhs.size (); ++i)
                 temp_norm += f_old[i] * temp[i];
 
@@ -182,16 +195,25 @@ backtracking_inexact_newton::solve ()
 
               (*problem) (f_new, unew);
 
-              f_new_norm = bim3a_norm2 (f_new);
+              for (unsigned int i = 0; i < f_new.size (); ++i)
+                f_new_norm += f_new[i] * f_new[i];
+    
+              f_new_norm = sqrt (f_new_norm);
             }
 
           #ifdef VERIFY_CONVERGENCE
-            temp.clear ();
-            bim3a_matrix_vector_product (lhs, rhs, temp);
-            for (unsigned int i = 0; i < temp.size (); ++i)
-              temp[i] += f_old[i];
+            temp_res.clear ();
+            temp_res = lhs * rhs;
+            for (unsigned int i = 0; i < temp_res.size (); ++i)
+              temp_res[i] += f_old[i];
 
-            linear_res.push_back (bim3a_norm2 (temp));
+            temp_norm = 0.0;
+            for (unsigned int i = 0; i < temp_res.size (); ++i)
+              temp_norm += temp_res[i] * temp_res[i];
+    
+            temp_norm = sqrt (temp_norm);
+
+            linear_res.push_back (temp_norm);
             nonlinear_res.push_back (f_new_norm);
             nonlinear_iter.push_back (iteration);
           #endif
@@ -199,7 +221,7 @@ backtracking_inexact_newton::solve ()
           if (lin_solver->solver_type () == "iterative")
             lin_initial_guess = rhs;
 
-          bim3a_matrix_vector_product (lhs, rhs, df_gap);
+          df_gap = lhs * rhs;
           forcing_value = (*forcing)
             (f_old, f_new, df_gap, forcing_value);
 
@@ -212,14 +234,18 @@ backtracking_inexact_newton::solve ()
             {
               step_norm = 0.0;
               std::vector<double> temp;
-              bim3a_matrix_vector_product (mass_matrix, rhs, temp);
+              temp = mass_matrix * rhs;
               for (unsigned int i = 0; i < rhs.size (); ++i)
                 step_norm += rhs[i] * temp[i];
               step_norm = sqrt (step_norm);
             }
 
           (*problem) (lhs, rhs, (*initial_guess));
-          residual_norm = bim3a_norm2 (rhs);
+          residual_norm = 0.0;
+          for (unsigned int i = 0; i < rhs.size (); ++i)
+            residual_norm += rhs[i] * rhs[i];
+
+          residual_norm = sqrt (residual_norm);
 
           if (verbose == 2)
             for (unsigned int i = 0; i < initial_guess->size (); ++i)

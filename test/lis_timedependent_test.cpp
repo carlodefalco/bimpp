@@ -97,7 +97,7 @@ int main (int argc, char **argv)
       sidelist.push_back (5);
       sidelist.push_back (6);
 
-      bim3a_boundary_nodes (msh, sidelist, bnodes);
+      msh.boundary_nodes (sidelist, bnodes);
       vnodes_start.resize (bnodes.size ());
       vnodes.resize (bnodes.size ());
 
@@ -145,7 +145,7 @@ int main (int argc, char **argv)
               vnodes[i] = vnodes_start[i];
             }
 
-          bim3a_dirichletBC (lhs_new, rhs_new, bnodes, vnodes);
+          bim3a_dirichlet_bc (lhs_new, rhs_new, bnodes, vnodes);
 
           for (unsigned int i = 0; i < exactsolution.size (); ++i)
             {

@@ -27,6 +27,8 @@
 #include <fstream>
 #include <new>
 #include <cstring>
+#include <algorithm>
+#include <cmath>
 
 //namespace bim
 //{
@@ -189,6 +191,23 @@ void mesh::precompute_properties ()
       //std::cout << "\tcomputed shg" << std::endl;
     }
 };
+
+void
+mesh::boundary_nodes (const std::vector<int>& sidelist,
+                      std::vector<int>& bnodes)
+{
+  bnodes.clear ();
+  for (int i = 0; i < nfaces; ++i)
+    if (find (sidelist.begin (), sidelist.end (), e (9, i))
+        != sidelist.end ())
+      {
+        for (int j = 0; j < 3; ++j)
+          if (find (bnodes.begin (), bnodes.end (), e (j, i))
+             == bnodes.end ())
+           bnodes.push_back (e (j, i));
+      }
+  sort (bnodes.begin (), bnodes.end ());
+}
 
 std::ostream & operator<< (std::ostream &stream, mesh &msh)
 {

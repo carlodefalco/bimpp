@@ -17,14 +17,18 @@ forcing_type1::operator ()
  double eta_old)
 {
   std::vector<double> temp (f_old.size (), 0.0);
-  double eta_new = 0.0;
-  double eta_temp = 0.0;
+  double eta_new = 0.0, eta_temp = 0.0;
 
   for (unsigned int i = 0; i < temp.size (); ++i)
     temp[i] = f_new[i] - f_old[i] - df_gap[i];
 
-  eta_new = bim3a_norm2 (temp);
-  eta_temp = bim3a_norm2 (f_old);
+  for (unsigned int i = 0; i < temp.size (); ++i)
+    {
+      eta_new += temp[i] * temp[i];
+      eta_temp += f_old[i] * f_old[i];
+    }
+  eta_new = sqrt (eta_new);
+  eta_temp = sqrt (eta_temp);
 
   eta_new /= eta_temp;
 
@@ -43,19 +47,28 @@ forcing_type2::operator ()
  double eta_old)
 {
   std::vector<double> temp (f_old.size (), 0.0);
-  double eta_new, eta_temp;
+  double eta_new = 0.0, eta_temp = 0.0;
 
   for (unsigned int i = 0; i < temp.size (); ++i)
     temp[i] = f_old[i] + df_gap[i];
 
-  eta_new = bim3a_norm2 (f_new);
-  eta_temp = bim3a_norm2 (temp);
+  for (unsigned int i = 0; i < temp.size (); ++i)
+    {
+      eta_new += f_new[i] * f_new[i];
+      eta_temp += temp[i] * temp[i];
+    }
+  eta_new = sqrt (eta_new);
+  eta_temp = sqrt (eta_temp);
 
   eta_new -= eta_temp;
 
   eta_new = fabs (eta_new);
 
-  eta_temp = bim3a_norm2 (f_old);
+  eta_temp = 0.0;
+  for (unsigned int i = 0; i < f_old.size (); ++i)
+    eta_temp += f_old[i] * f_old[i];
+
+  eta_temp = sqrt (eta_temp);
 
   eta_new /= eta_temp;
 
@@ -73,10 +86,15 @@ forcing_type3::operator ()
  double eta_old)
 {
   std::vector<double> temp (f_old.size (), 0.0);
-  double eta_new, eta_temp;
+  double eta_new = 0.0, eta_temp = 0.0;
 
-  eta_new = bim3a_norm2 (f_new);
-  eta_temp = bim3a_norm2 (f_old);
+  for (unsigned int i = 0; i < temp.size (); ++i)
+    {
+      eta_new += f_new[i] * f_new[i];
+      eta_temp += f_old[i] * f_old[i];
+    }
+  eta_new = sqrt (eta_new);
+  eta_temp = sqrt (eta_temp);
 
   eta_new /= eta_temp;
   eta_new = gamma * pow (eta_new, alpha);
