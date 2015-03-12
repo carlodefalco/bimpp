@@ -1008,7 +1008,7 @@ bim3a_dirichlet_bc (sparse_matrix& M,
                 M[jj][i] = 0.0;
               }
           }
-      b[i]*=M[i][i];
+      b[i] *= M[i][i];
     }
 }
 
