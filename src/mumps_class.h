@@ -37,7 +37,7 @@ public :
 
   DMUMPS_STRUC_C id;
 
-  /// Init the (serial) mumps solver instance.
+  /// Init the mumps solver instance.
   void
   init ();
 
