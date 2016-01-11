@@ -5,7 +5,7 @@ AC_PREREQ([2.69])
 AC_CONFIG_MACRO_DIR([m4])
 AC_INIT([libbim], [0.0.1], [])
 AC_CONFIG_SRCDIR([src/mesh.cpp])
-AC_CONFIG_HEADERS([src/config.h])
+AC_CONFIG_HEADERS([src/bim_config.h])
 
 AM_INIT_AUTOMAKE([subdir-objects])
 
@@ -17,6 +17,7 @@ AC_SUBST([LIBTOOL_DEPS])
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
+AC_PROG_F77
 
 AC_CHECK_PROGS([DOXYGEN], [doxygen])
 if test -z "$DOXYGEN";
@@ -26,6 +27,7 @@ fi
 AC_LANG_PUSH([C++])
 
 # Checks for libraries.
+AC_F77_WRAPPERS
 AC_ARG_WITH([blas-lapack],
             [AS_HELP_STRING([--with-blas-lapack=FLAGS],
             [Select the options to use to link the blas/lapack libraries.])],
@@ -181,6 +183,5 @@ dnl fi
 AC_CONFIG_FILES([Makefile
                  src/Makefile
                  data/Makefile     
-                 test/Makefile
-                 src/bim_config.h])
+                 test/Makefile])
 AC_OUTPUT

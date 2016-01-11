@@ -25,6 +25,26 @@ sparse_matrix::extract_block_pointer (const std::vector<int> &rows,
                                       p_sparse_matrix &out)
 {
   size_t  ii, jj;
+  int nrows = rows.size ();
+  out.resize (nrows);
+
+  for (ii = 0; ii < (nrows); ++ii)
+    if (rows[ii] < int ((*this).rows ()) &&
+        (*this)[rows[ii]].size ())
+      for (jj = 0; jj < cols.size (); ++jj)
+        if ((*this)[rows[ii]].count (cols[jj]))
+          out[ii][jj] = & ((*this)[rows[ii]][cols[jj]]);
+
+  out.set_properties ();
+}
+
+void
+sparse_matrix::extract_block_pointer_keep_cols
+(const std::vector<int> &rows,
+ const std::vector<int> &cols,
+ p_sparse_matrix &out)
+{
+  size_t  ii, jj;
   out.resize (rows.size ());
 
   for (ii = 0; ii < rows.size (); ++ii)
@@ -32,7 +52,7 @@ sparse_matrix::extract_block_pointer (const std::vector<int> &rows,
         (*this)[rows[ii]].size ())
       for (jj = 0; jj < cols.size (); ++jj)
         if ((*this)[rows[ii]].count (cols[jj]))
-          out[ii][jj] = & ((*this)[rows[ii]][cols[jj]]);
+          out[ii][cols[jj]] = & ((*this)[rows[ii]][cols[jj]]);
 
   out.set_properties ();
 }

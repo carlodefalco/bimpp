@@ -144,7 +144,8 @@ void sparse_matrix_template<Y>::set_properties ()
 
 
 template<class Y>
-std::ostream & operator<< (std::ostream &stream, sparse_matrix_template<Y> &sp)
+std::ostream & operator<< (std::ostream &stream,
+                           sparse_matrix_template<Y> &sp)
 {
   typename sparse_matrix_template<Y>::col_iterator j;
 
@@ -280,6 +281,12 @@ public :
   extract_block_pointer (const std::vector<int> &rows,
                          const std::vector<int> &cols,
                          p_sparse_matrix &out);
+
+  /// Same as extract_block_pointer but keep column indices in output.
+  void
+  extract_block_pointer_keep_cols (const std::vector<int> &rows,
+                                   const std::vector<int> &cols,
+                                   p_sparse_matrix &out);
 
   /// Set all entries to 0 preserving storage structure.
   void
