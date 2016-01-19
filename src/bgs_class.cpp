@@ -29,7 +29,9 @@ bgs::set_lhs_structure
 {
 
   if (rank == 0)
+
     {
+
       matrix.resize (n);
       if (f == csr)
         for (unsigned int i = 0; i < n; ++i)
@@ -97,9 +99,11 @@ bgs::set_lhs_structure
                                                 dblocks_aij[ii].i,
                                                 dblocks_aij[ii].j);
         }
+
+      RRE = new rre (n, rre_ninit,
+                     rre_nskip, rre_rank);
+
     }
-  RRE = new rre (n, rre_ninit,
-                 rre_nskip, rre_rank);
 }
 
 int
@@ -246,7 +250,11 @@ bgs::solve ()
     etc. ...
 
    */
+
   std::vector<std::vector<double> > x(num_blocks);
+  int retval = 0;
+  int BREAK_LOOP = 0;
+    
   if (rank == 0)
     {
 
@@ -289,7 +297,7 @@ bgs::solve ()
               block_solvers[iblock]->set_rhs (x[iblock]);
             }
 
-          block_solvers[iblock]->solve ();
+          retval = block_solvers[iblock]->solve ();
 
           if (rank == 0)
             {
@@ -302,14 +310,27 @@ bgs::solve ()
                 std::copy (x[iblock].begin (),
                            x[iblock].end (),
                            full_rhs->begin () + iblock * blocks_size);
+               
             }
         }
 
-      RRE->extrapolate (*full_rhs);
-      if (resnorm.back () < tolerance)
-        break;
+
+      if (rank == 0)
+        {
+          if (resnorm.back () < tolerance)
+            BREAK_LOOP = 1;
+          else
+            RRE->extrapolate (*full_rhs);                  
+        }
+
+      MPI_Bcast (&BREAK_LOOP, 1, MPI_INT,
+                 0, MPI_COMM_WORLD);
+
+     if (BREAK_LOOP == 1)
+       break;
     }
-  
+
+  return (retval);
 }
 
 void
