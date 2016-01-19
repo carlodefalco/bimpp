@@ -37,7 +37,7 @@ int main (int argc, char **argv)
           if (ii + bw <= sp.rows () - 1) jend = ii + bw; else jend = sp.rows () - 1;
           for (int jj = jstart; jj <= jend; ++jj)
             if (ii == jj)
-              sp[ii][jj] = 10.0;
+              sp[ii][jj] = 7.0;
             else
               sp[ii][jj] = -1.0;
         }
@@ -59,6 +59,7 @@ int main (int argc, char **argv)
   
   bgs bgs_solver (block_solvers);
 
+  MPI_Barrier (MPI_COMM_WORLD);
   if (rank == 0)
     {
       tic ();
@@ -66,7 +67,8 @@ int main (int argc, char **argv)
       std::cout << "rank = " << rank << std::endl;
       toc ("set lhs struct");
     }
-
+  MPI_Barrier (MPI_COMM_WORLD);
+  
   if (rank == 0)
     tic ();
 
@@ -135,7 +137,7 @@ int main (int argc, char **argv)
       toc ("set lhs data");
     }
 
-  MPI_Barrier (MPI_COMM_WORLD);
+  //MPI_Barrier (MPI_COMM_WORLD);
   
   if (rank == 0)
     tic ();
