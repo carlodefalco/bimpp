@@ -29,13 +29,19 @@ int main (int argc, char **argv)
       tic ();
       sp.resize (21000);
       
-      for (int ii = 0; ii < sp.rows (); ++ii)
+      for (unsigned int ii = 0; ii < sp.rows (); ++ii)
         {
-          int jstart, jend;
-          int bw = 3;
-          if (ii - bw >= 0) jstart = ii - bw; else jstart = 0;
-          if (ii + bw <= sp.rows () - 1) jend = ii + bw; else jend = sp.rows () - 1;
-          for (int jj = jstart; jj <= jend; ++jj)
+          unsigned int jstart, jend;
+          unsigned int bw = 3;
+          if (ii - bw >= 0) 
+            jstart = ii - bw; 
+          else 
+            jstart = 0;
+          if ((ii + bw + 1) <= sp.rows ()) 
+            jend = ii + bw; 
+          else 
+            jend = sp.rows () - 1;
+          for (unsigned int jj = jstart; jj <= jend; ++jj)
             if (ii == jj)
               sp[ii][jj] = 7.0;
             else
@@ -129,7 +135,7 @@ int main (int argc, char **argv)
   if (rank == 0)
     {
       tic ();
-      for (int k = 0; k < sp.rows (); ++k)
+      for (unsigned int k = 0; k < sp.rows (); ++k)
         sp[k][k] = 400.0;
       sp.aij_update (a, i, j);
       bgs_solver.set_lhs_data (a);
