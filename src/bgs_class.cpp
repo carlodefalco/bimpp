@@ -29,7 +29,6 @@ bgs::set_lhs_structure
  std::vector<int> &jc,
  matrix_format_t f)
 {
-
   if (rank == 0)
     {
 
@@ -142,13 +141,18 @@ bgs::set_lhs_structure
       // init rre 
       RRE = new rre (n, rre_ninit,
                      rre_nskip, rre_rank);
-
       rprec.assign ((2 * num_blocks - 1) * blocks_size, 1.0);
       auto ite = rprec.begin() + (num_blocks * blocks_size);
-      memset (&(*ite) , 0, 
-              (num_blocks - 1) * blocks_size * sizeof(double));
-      
 
+      // this is not standard c++ and would need a cstdlib header:
+      // memset (&(*ite) , 0, 
+      //        (num_blocks - 1) * blocks_size * sizeof(double));
+
+      // you probably meant:
+      std::fill (ite, ite + (num_blocks - 1) * blocks_size, 0);
+      // check the "last" iterator!!!
+      // it should point to the eement AFTER the last entry to fill!!
+       
     }
 }
 
