@@ -9,7 +9,9 @@
 */
 
 #include "bgs_class.h"
+#include "bim_timing.h"
 #include <cassert>
+#include <iostream>
 
 void
 bgs::init ()
@@ -29,79 +31,123 @@ bgs::set_lhs_structure
 {
 
   if (rank == 0)
-
     {
 
+      // compute block size
       matrix.resize (n);
+
+      blocks_size = matrix.size() / num_blocks;
+      assert (blocks_size * num_blocks == matrix.size ());
+
+      // create the sparse matrix
       if (f == csr)
-        for (unsigned int i = 0; i < n; ++i)
-          for (unsigned int j = ir[i]; j < ir[i+1]; ++j)
+        for (unsigned int i = 0; i < (unsigned int)n; ++i)
+          for (unsigned int j = ir[i]; 
+               j < (unsigned int)(ir[i+1]); ++j)
+          {
             matrix[i][jc[j]] = 0.0;
+            if (jc[j] >= (int) blocks_size)
+              matrix[i][jc[j] % blocks_size] = 0.0;
+          }
       else
         {
           assert (ir.size () == jc.size ());
           for (unsigned int i = 0; i < ir.size (); ++i)
+          {
             matrix[ir[i]][jc[i]] = 0.0;
+            if (jc[i] >= (int) blocks_size)
+              matrix[i][jc[i] % blocks_size] = 0.0;
+          }
         }
-
-      blocks_size = matrix.size () / num_blocks;
-      assert (blocks_size * num_blocks == matrix.size ());
-
-      std::vector<std::vector<int> > row_indices (num_blocks);
-
       
-      for (int ii = 0; ii < num_blocks; ++ii)
+      // create map from [block,localrow] to [globalrow]
+      std::vector<std::vector<int> > row_indices (num_blocks);
+      for (unsigned int ii = 0; ii < num_blocks; ++ii)
         {
           row_indices[ii].resize (blocks_size);
-          for (int jj = 0; jj < blocks_size; ++jj)
+          for (unsigned int jj = 0; jj < blocks_size; ++jj)
             row_indices[ii][jj] = (jj + ii * blocks_size);
         }
       
+      // create blocks
       dblocks.resize (num_blocks);
       dblocks_aij.resize (num_blocks);
       ndblocks.resize (num_blocks);
-  
+
+      // create maps from local matrices to full matrix
       for (unsigned int ii = 0; ii < num_blocks; ++ii)
         {
 
+      tic ();
+          // set num rows
           dblocks[ii].resize (blocks_size);
           ndblocks[ii].resize (blocks_size);
-      
+      toc ("set num rows");
+
+      tic ();
+          // get indices
           std::vector<int> dcol_indices;
           std::vector<int> ndcol_indices;
+      toc ("get indices");
 
+      tic ();
           dcol_indices.resize (blocks_size);
           ndcol_indices.resize (blocks_size * (num_blocks - 1));
           auto dp = dcol_indices.begin ();
           auto ndp = ndcol_indices.begin ();
-          
+      toc ("init vars");
+
+      tic ();
+          // if on diagonal columns for this block, 
+          // add column in diagonal map
           for (unsigned int jj = 0; jj < matrix.size (); ++jj)
             if (jj / blocks_size == ii)
               *(dp++) = jj;
             else
               *(ndp++) = jj;
+          // else add column in nondiagonal map
+      toc ("split columns");
 
+      tic ();
+          //extract diagonal block as a square matrix
           matrix.extract_block_pointer (row_indices[ii],
                                         dcol_indices,
                                         dblocks[ii]);
-      
+      toc ("extract diagonal");
+
+      tic ();
+          // extract nondiagonal block as blocks_size * n matrix
           matrix.extract_block_pointer_keep_cols
             (row_indices[ii],
              ndcol_indices,
              ndblocks[ii]);
+      toc ("extract nondiagonal");
 
+          // convert diagonal blocks to aij
+      tic ();
           dblocks[ii].aij (dblocks_aij[ii].a,
                            dblocks_aij[ii].i,
                            dblocks_aij[ii].j,
                            block_solvers[ii]->get_index_base ());
-      
+      toc ("convert diag blocks");
+
+          // set diagonal block internal structure 
+      tic ();
           block_solvers[ii]->set_lhs_structure (dblocks[ii].rows (),
                                                 dblocks_aij[ii].i,
                                                 dblocks_aij[ii].j);
+      toc ("pass blocks to resp. solver");
         }
 
+      // init rre 
       RRE = new rre (n, rre_ninit,
                      rre_nskip, rre_rank);
+
+      rprec.assign ((2 * num_blocks - 1) * blocks_size, 1.0);
+      auto ite = rprec.begin() + (num_blocks * blocks_size);
+      memset (&(*ite) , 0, 
+              (num_blocks - 1) * blocks_size * sizeof(double));
+      
 
     }
 }
@@ -115,17 +161,39 @@ bgs::analyze ()
 }
 
 void
+bgs::set_preconditioner_data (std::vector<double> &xd)
+{
+  if (rank == 0)
+    {
+      assert (xd.size () == ((2 * num_blocks - 1) * blocks_size));
+      std::copy (xd.begin (), xd.end (), rprec.begin ());
+    }
+}
+
+void
 bgs::set_lhs_data (std::vector<double> &xa)
 {
   if (rank == 0)
     {
+      // update csr format
       std::vector<double>::iterator kk = xa.begin ();
-      for (sparse_matrix::row_iterator ii = matrix.begin ();
-           ii != matrix.end (); ++ii)
-        for (sparse_matrix::col_iterator jj = ii->begin ();
-             jj != ii->end (); ++jj)
-          jj->second = *(kk++);
+      for (sparse_matrix::row_iterator rr = matrix.begin ();
+           rr != matrix.end (); 
+           ++rr)
+        for (sparse_matrix::col_iterator cc = rr->begin ();
+             cc != rr->end (); 
+             ++kk)
+          {
+            // 1-scale columnwise
+            cc->second = *(kk) * rprec[cc->first];
+            // 2-update first column
+            if (cc->first >= (int) blocks_size)
+              (*rr).at((++cc)->first) += 
+                *kk * rprec[cc->first + 
+                  (num_blocks - 1) * blocks_size] ;
+          }
 
+      // update diagonal blocks and solvers
       for (unsigned int ii = 0; ii < num_blocks; ++ii)
         {
           dblocks[ii].aij_update (dblocks_aij[ii].a,
@@ -175,10 +243,6 @@ bgs::set_initial_guess (std::vector<double> &guess_)
     }
 }
 
-
-
-
-
 int
 bgs::factorize ()
 {
@@ -224,40 +288,42 @@ bgs::solve ()
 
     a * d
 
-    d is a matrix composed of diagonal blocks of the form
+    d is a block matrix of the form
 
     d = [d11    0     0    ...;
          d21    d22   0    ...;
          d31    0     d33  ...;
          ...    ...   ...  ...];
 
-    and the computation of 
+    where blocks are all diagonal matrices; 
+    the computation of 
 
     y = P \ z
 
     is implemented via block-forward substitution
 
-    y(1) = P(1,1) \ z(1) = d11 \ (a11 \ z(1))
-    y(2) = P(2,2) \ (z(2) - P(2,1) * z(1)) = d22 \ (a22 \ ((a21 * d11 + a22 * d22) * z(1)))
-    y(3) = P(3,3) \ (z(3) - P(3,1) * z(1) - P(3,2) * z(2)) = d33 \ (a33 \ ((a11 * d11 + a33 * d33) * z(3)))
+    y(1) = P(1,1) \ z(1) 
+    y(2) = P(2,2) \ (z(2) - P(2,1) * z(1))
+    y(3) = P(3,3) \ (z(3) - P(3,1) * z(1) - P(3,2) * z(2)) 
     etc. ...
 
     currently we use instead
 
-    x1(k+1) = d11 \ (a11 \ (b1 - a12 d22 x2(k) - a13 d33 x3(k)))
-    x2(k+1) = d22 \ (a22 \ (b2 - (a21 d11 x1(k+1) + a22 d22 x1(k+1)) - a33 d33 x3(k))
-    x3(k+1) = d33 \ (a33 \ (b3 - (a31 d11 x1(k+1) + a33 d33 x1(k+1)) - a22 d22 x2(k+1))
+    x1(k+1) = (A11 \ (b1 - A12 x2(k)   - A13 x3(k)))
+    x2(k+1) = (A22 \ (b2 - A21 x1(k+1) - A33 x3(k)))
+    x3(k+1) = (A33 \ (b3 - A31 x1(k+1) - A22 x2(k+1)))
     etc. ...
 
    */
 
   std::vector<std::vector<double> > x(num_blocks);
   int retval = 0;
-  int BREAK_LOOP = 0;
+  int stop_bgs_loop = 0;
     
   if (rank == 0)
     {
 
+      // create initial guess if needed
       if (! have_initial_guess)
         {
           initial_guess.resize (num_blocks);
@@ -267,8 +333,9 @@ bgs::solve ()
               initial_guess[ii].assign (blocks_size, 0.0);
             }
         }
-      
-      for (int ii = 0; ii < num_blocks; ++ii)
+
+      // set initial guess
+      for (unsigned int ii = 0; ii < num_blocks; ++ii)
         {
           x[ii].resize (blocks_size);
           std::copy (initial_guess[ii].begin (),
@@ -278,38 +345,41 @@ bgs::solve ()
     }
 
   resnorm.resize (0);
-  for (int ii = 0; ii < max_iter; ++ii)
+  for (int iter = 0; iter < max_iter; ++iter)
     {
       resnorm.push_back (0);
-      for (int iblock = 0; iblock < num_blocks; ++iblock)
+      for (unsigned int ii = 0; ii < num_blocks; ++ii)
         {
           if (rank == 0)
             {
-              std::copy (rhs[iblock].begin (),
-                         rhs[iblock].end (),
-                         x[iblock].begin ());
+              // copy rhs onto x
+              std::copy (rhs[ii].begin (),
+                         rhs[ii].end (),
+                         x[ii].begin ());
 
-              sparse_dgemv (ndblocks[iblock],
+              // x[ii] <- -nd[ii]*fullrhs + x[ii]
+              sparse_dgemv (ndblocks[ii],
                             *full_rhs,
                             -1.0, 1.0,
-                            x[iblock]);
+                            x[ii]);
 
-              block_solvers[iblock]->set_rhs (x[iblock]);
+              block_solvers[ii]->set_rhs (x[ii]);
             }
 
-          retval = block_solvers[iblock]->solve ();
+          retval = block_solvers[ii]->solve ();
 
           if (rank == 0)
             {
               resnorm.back () +=
-                (vecdiffnorm (x[iblock].begin (),
-                              x[iblock].end (),
-                              full_rhs->begin () + iblock * blocks_size,
-                              full_rhs->begin () + (iblock + 1) * blocks_size));
+                (vecdiffnorm (x[ii].begin (),
+                              x[ii].end (),
+                              full_rhs->begin () + ii * blocks_size,
+                              full_rhs->begin () + 
+                                (ii + 1) * blocks_size));
               
-                std::copy (x[iblock].begin (),
-                           x[iblock].end (),
-                           full_rhs->begin () + iblock * blocks_size);
+                std::copy (x[ii].begin (),
+                           x[ii].end (),
+                           full_rhs->begin () + ii * blocks_size);
                
             }
         }
@@ -318,15 +388,15 @@ bgs::solve ()
       if (rank == 0)
         {
           if (resnorm.back () < tolerance)
-            BREAK_LOOP = 1;
+            stop_bgs_loop = 1;
           else
             RRE->extrapolate (*full_rhs);                  
         }
 
-      MPI_Bcast (&BREAK_LOOP, 1, MPI_INT,
+      MPI_Bcast (&stop_bgs_loop, 1, MPI_INT,
                  0, MPI_COMM_WORLD);
 
-     if (BREAK_LOOP == 1)
+     if (stop_bgs_loop == 1)
        break;
     }
 

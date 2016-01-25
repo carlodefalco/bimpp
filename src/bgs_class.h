@@ -17,27 +17,39 @@
 #include <mpi.h>
 #include <cstdio>
 #include <fstream>
+#include <iostream>
 
 /// Block Gauss Seidel linear solver.
 class bgs: public linear_solver
 {
 private :
 
+  /// Number of blocks.
   const unsigned int num_blocks;
+  /// Size of blocks.
   unsigned int blocks_size;
   
+  /// Solvers for each block.
   std::vector<linear_solver*> block_solvers;
-  // [default = 1000].
+  /// Max iterations in solve [default = 1000].
   int max_iter;
-  // [default = 1e-12].
+  /// Applied relative tolerance [default = 1e-12].
   double tolerance;
 
+  /// Full matrix.
   sparse_matrix matrix;
-  std::vector<p_sparse_matrix> ndblocks, dblocks;
+  /// Diagonal blocks.
+  std::vector<p_sparse_matrix> dblocks;
+  /// Nondiagonal blocks.
+  std::vector<p_sparse_matrix> ndblocks;
+  /// Source term blocks.
   std::vector<std::vector<double> > rhs;
+  /// Full source term.
   std::vector<double> *full_rhs;
+  /// Initial guess blocks. 
   std::vector<std::vector<double> > initial_guess;
   
+  /// Struct for aij format.
   typedef struct
   {
     std::vector<double> a;
@@ -45,16 +57,29 @@ private :
     std::vector<int> j;
   } aij_struct;
 
+  /// Diagonal blocks converted to aij.
   std::vector<aij_struct> dblocks_aij;
 
+  /// Flag for getting initial guess.
   bool have_initial_guess;
-  int rank, size;
+  
+  /// MPI rank.
+  int rank; 
+  /// MPI size.
+  int size;
 
+  /// History of residual norms.
   std::vector<double> resnorm;
+  /// Reference value.
   double refnorm;
+  /// Parameters for rre.
   int rre_ninit, rre_nskip, rre_rank;
+  /// Instance of rre extrapolator.
   rre *RRE;
   static const int index_base = 0;
+
+  /// Values for right preconditioner
+  std::vector<double> rprec;
 
 public :
   
@@ -63,6 +88,12 @@ public :
   init ();
 
   /// Default constructor.
+  /**
+   The instance of bgs accepts a vector of
+   linear solvers, which defines the number of blocks
+   in which the system will be split. Optional parameters
+   are used in setting up the RR extrapolation.
+   */
   bgs (const std::vector<linear_solver*> &block_solvers_,
        int ninit_ = 2, int nskip_ = 0, int rank_ = 3) :
     linear_solver ("BGS", "iterative"),
@@ -73,10 +104,19 @@ public :
     have_initial_guess (false),
     rre_ninit (ninit_),
     rre_nskip (nskip_),
-    rre_rank (rank_)
+    rre_rank (rank_),
+    RRE (0)
   { init (); };
 
   /// Set-up the matrix structure.
+  /**
+   The incoming matrix structure is divided in uniform 
+   blocks. The number of blocks is given by the number 
+   of solvers loaded by the constructor.
+   The matrix is supposed to have blocks with the exact
+   same structure! (so that right preconditioning does 
+   not change the structure of the matrix in this case).
+   */
   void
   set_lhs_structure
   (int n,
@@ -88,6 +128,18 @@ public :
   int
   analyze ();
 
+  /// Set right preconditioner data.
+  /**
+   Set the right preconditioner data, which 
+   is supposed to be:
+   - made of diagonal blocks
+   - have nonzero blocks on the diagonal and first column only
+   and therefore is represented as a vector, with the diagonals
+   stored successively (d11, d22, d33 ... d21, d31 ...)
+   */
+  void
+  set_preconditioner_data (std::vector<double> &xd);
+
   /// Set matrix entries.
   void
   set_lhs_data (std::vector<double> &xa);
@@ -96,7 +148,7 @@ public :
   void
   set_rhs (std::vector<double> &rhs);
 
-
+  /// Set the initial guess.
   void
   set_initial_guess (std::vector<double> &guess_);
 
@@ -112,17 +164,17 @@ public :
   void
   cleanup ();
 
-  /// uses 0-based indexing
+  /// Uses 0-based indexing
   inline int
   get_index_base ()
   { return index_base; }
 
   
-  /// print block-decomposed matrix
+  /// Print block-decomposed matrix
   void
   print_blocks (std::string basename = "block")
   {
-    for (int ii = 0; ii < num_blocks; ++ii)
+    for (unsigned int ii = 0; ii < num_blocks; ++ii)
       {
         char tmp[255];
 
@@ -159,16 +211,18 @@ public :
   get_tolerance (double &tol)
   { tol = tolerance; }
 
+  /// Utility for computing vector norms.
   double
   vecnorm (std::vector<double>::iterator first,
            std::vector<double>::iterator last)
   {
     double n = 0;
-    for (auto i = first; i != last; ++ i)
+    for (auto i = first; i != last; ++i)
       n += (*i) * (*i);
     return (n);
   }
 
+  /// Utility for computing vector distances.
   double
   vecdiffnorm (std::vector<double>::iterator xfirst,
                std::vector<double>::iterator xlast,
@@ -178,7 +232,7 @@ public :
     double n = 0, tt = 0;
     for (auto i = xfirst, j = yfirst;
          i != xlast && j != ylast;
-         ++ i, ++ j)
+         ++i, ++j)
       {
         tt = (*i) - (*j);
         n += tt * tt;
@@ -187,7 +241,7 @@ public :
   }
 
 
-  /// print block-decomposed matrix
+  /// Print residual norm history.
   void
   print_resnorm (std::string basename = "resnorm")
   {
