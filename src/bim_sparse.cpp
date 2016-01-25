@@ -25,10 +25,10 @@ sparse_matrix::extract_block_pointer (const std::vector<int> &rows,
                                       p_sparse_matrix &out)
 {
   size_t  ii, jj;
-  int nrows = rows.size ();
+  unsigned int nrows = rows.size ();
   out.resize (nrows);
 
-  for (ii = 0; ii < (nrows); ++ii)
+  for (ii = 0; ii < nrows; ++ii)
     if (rows[ii] < int ((*this).rows ()) &&
         (*this)[rows[ii]].size ())
       for (jj = 0; jj < cols.size (); ++jj)
