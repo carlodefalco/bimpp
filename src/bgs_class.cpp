@@ -25,12 +25,16 @@ bgs::init ()
 void
 bgs::set_lhs_structure
 (int n,
- std::vector<int> &ir,
- std::vector<int> &jc,
+ std::vector<int> &_ir,
+ std::vector<int> &_jc,
  matrix_format_t f)
 {
   if (rank == 0)
     {
+      // store original structure
+      ir.resize (_ir.size ()); std::copy (_ir.begin (), _ir.end (), ir.begin ());
+      jc.resize (_jc.size ()); std::copy (_jc.begin (), _jc.end (), jc.begin ());
+      matf = f;
 
       // compute block size
       matrix.resize (n);
@@ -45,6 +49,7 @@ bgs::set_lhs_structure
                j < (unsigned int)(ir[i+1]); ++j)
           {
             matrix[i][jc[j]] = 0.0;
+            // add structure due to preconditioning
             if (jc[j] >= (int) blocks_size)
               matrix[i][jc[j] % blocks_size] = 0.0;
           }
@@ -54,8 +59,9 @@ bgs::set_lhs_structure
           for (unsigned int i = 0; i < ir.size (); ++i)
           {
             matrix[ir[i]][jc[i]] = 0.0;
+            // add structure due to preconditioning
             if (jc[i] >= (int) blocks_size)
-              matrix[i][jc[i] % blocks_size] = 0.0;
+              matrix[ir[i]][jc[i] % blocks_size] = 0.0;
           }
         }
       
@@ -141,17 +147,10 @@ bgs::set_lhs_structure
       // init rre 
       RRE = new rre (n, rre_ninit,
                      rre_nskip, rre_rank);
+
       rprec.assign ((2 * num_blocks - 1) * blocks_size, 1.0);
-      auto ite = rprec.begin() + (num_blocks * blocks_size);
-
-      // this is not standard c++ and would need a cstdlib header:
-      // memset (&(*ite) , 0, 
-      //        (num_blocks - 1) * blocks_size * sizeof(double));
-
-      // you probably meant:
-      std::fill (ite, ite + (num_blocks - 1) * blocks_size, 0);
-      // check the "last" iterator!!!
-      // it should point to the eement AFTER the last entry to fill!!
+      auto ite = rprec.begin () + (num_blocks * blocks_size);
+      std::fill (ite, rprec.end (), 0.0);
        
     }
 }
@@ -179,23 +178,42 @@ bgs::set_lhs_data (std::vector<double> &xa)
 {
   if (rank == 0)
     {
-      // update csr format
-      std::vector<double>::iterator kk = xa.begin ();
-      for (sparse_matrix::row_iterator rr = matrix.begin ();
-           rr != matrix.end (); 
-           ++rr)
-        for (sparse_matrix::col_iterator cc = rr->begin ();
-             cc != rr->end (); 
-             ++kk)
+      assert (xa.size () == jc.size ());
+
+      // cleanup data needed if original and
+      // preconditioned matrix have different
+      // structure
+      for (auto rr = matrix.begin (); rr != matrix.end (); ++rr)
+        for (auto cc = rr->begin (); cc != rr->end (); ++cc)
+            cc->second = 0.0;
+      
+      // update the sparse matrix
+      if (matf == csr)
+        for (unsigned int i = 0; i < matrix.size (); ++i)
+          for (unsigned int j = ir[i]; 
+               j < (unsigned int)(ir[i+1]); ++j)
           {
-            // 1-scale columnwise
-            cc->second = *(kk) * rprec[cc->first];
-            // 2-update first column
-            if (cc->first >= (int) blocks_size)
-              (*rr).at((++cc)->first) += 
-                *kk * rprec[cc->first + 
-                  (num_blocks - 1) * blocks_size] ;
+            // diagonal scaling
+            matrix[i].at (jc[j]) = xa[j] * rprec[jc[j]];
+            // nondiagonal part of precond.
+            if (jc[j] >= (int) blocks_size)
+              matrix[i].at (jc[j] % blocks_size) += 
+                xa[j] * rprec[jc[j] + 
+                  blocks_size * (num_blocks - 1)];
           }
+      else // if matf == aij
+        {
+          for (unsigned int i = 0; i < ir.size (); ++i)
+          {
+            // diagonal scaling
+            matrix[ir[i]].at (jc[i]) = xa[i] * rprec[jc[i]];
+            // nondiagonal part of precond.
+            if (jc[i] >= (int) blocks_size)
+              matrix[ir[i]].at (jc[i] % blocks_size) += 
+                xa[i] * rprec[jc[i] + 
+                  blocks_size * (num_blocks - 1)];
+          }
+        }
 
       // update diagonal blocks and solvers
       for (unsigned int ii = 0; ii < num_blocks; ++ii)

@@ -81,6 +81,13 @@ private :
   /// Values for right preconditioner
   std::vector<double> rprec;
 
+  /// Storage for row indices
+  std::vector<int> ir;
+  /// Storage for column indices
+  std::vector<int> jc;
+  /// Storage for structure type (csr or aij)
+  matrix_format_t matf;
+
 public :
   
   /// Init the solver instance.
@@ -113,9 +120,6 @@ public :
    The incoming matrix structure is divided in uniform 
    blocks. The number of blocks is given by the number 
    of solvers loaded by the constructor.
-   The matrix is supposed to have blocks with the exact
-   same structure! (so that right preconditioning does 
-   not change the structure of the matrix in this case).
    */
   void
   set_lhs_structure
