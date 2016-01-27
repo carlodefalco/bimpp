@@ -421,6 +421,44 @@ bgs::solve ()
      if (stop_bgs_loop == 1)
        break;
     }
+  
+  /*
+   * GIVEN THE SHAPE OF PRECONDITIONER,
+   * recovering the original variables consists in:
+   * 1 - recovering the first block
+   * 2 - recovering the remaining blocks, by 
+   *   2a - getting the contribution from the first block
+   *   2b - getting the contribution from current block
+   *
+   * since the inverse of the preconditioner:
+   * 
+   * d11 0   0   0   ...
+   * d21 d22 0   0   ...
+   * d31 0   d33 0   ...
+   * d41 0   0   d44 ...
+   * ...
+   *
+   * is
+   *
+   * 1/d11         0     0     0     ...
+   * -d21/(d22d11) 1/d22 0     0     ...
+   * -d31/(d33d11) 0     1/d33 0     ...
+   * -d41/(d44d11) 0     0     1/d44 ... 
+   */
+  auto xx = full_rhs->begin ();
+  // restore the first block
+  for (unsigned int kk = 0; kk < blocks_size; kk++, xx++)
+    *xx = *xx / rprec[kk];
+  // restore further blocks
+  auto precd = rprec.begin () + blocks_size;
+  auto precnd = rprec.begin () + num_blocks * blocks_size;
+  for (unsigned int ii = 1; ii < num_blocks; ii++)
+    {
+      auto zz = full_rhs->begin ();
+      for (unsigned int jj = 0; jj < blocks_size; 
+        jj++, xx++, zz++, precd++, precnd++)
+        *xx = (*xx - *precnd * *zz) / (*precd);
+    }
 
   return (retval);
 }
