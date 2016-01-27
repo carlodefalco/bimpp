@@ -8,7 +8,8 @@ AUTOMAKE_OPTIONS = nostdinc
 
 CLEANFILES = 
 
-check_PROGRAMS = bgs_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 bim3_stationary_test \
+
+check_PROGRAMS = schur_test bgs_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 bim3_stationary_test \
                  bim3_stationary_test2 bim3_stationary_test2_osc bim3_stationary_test3 \
                  bim3_stationary_test3_osc bim3_stationary_test4 bim3_timedependent_test \
                  bim3_timedependent_test2 bim3_timedependent_test2_osc bim3_timedependent_test3 \
@@ -20,9 +21,13 @@ if HAVE_LIS
                     nonlinear_solver_test3 nonlinear_solver_test4 nonlinear_solver_eq_test
 endif
 
+schur_test_SOURCES = schur_test.cpp
+CLEANFILES += 
+schur_test_LDADD = $(BIMLIB) $(BIMMUMPSLIB) $(BIMLISLIB)
+
 bgs_test_SOURCES = bgs_test.cpp
 CLEANFILES += 
-bgs_test_LDADD = $(BIMLIB) $(BIMBGSLIB) $(BIMMUMPSLIB) $(BIMLISLIB)
+bgs_test_LDADD = $(BIMLIB) $(BIMMUMPSLIB) $(BIMLISLIB)
 
 sparse_test_SOURCES = sparse_test.cpp
 CLEANFILES += first_solve.txt second_solve.txt
@@ -127,8 +132,9 @@ if HAVE_LIS
 
 endif
 
-TESTS = bgs_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
-        bim3_stationary_test bim3_stationary_test2 bim3_stationary_test2_osc \
+
+TESTS = schur_test bgs_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
+	bim3_stationary_test bim3_stationary_test2 bim3_stationary_test2_osc \
         bim3_stationary_test3 bim3_stationary_test3_osc bim3_stationary_test4 \
         bim3_timedependent_test bim3_timedependent_test2 bim3_timedependent_test2_osc \
         bim3_timedependent_test3 bim3_timedependent_test3_osc 
