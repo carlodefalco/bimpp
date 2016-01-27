@@ -27,7 +27,7 @@ int main (int argc, char **argv)
   if (rank == 0)
     {
       tic ();
-      sp.resize (21000);
+      sp.resize (42);
       
       for (unsigned int ii = 0; ii < sp.rows (); ++ii)
         {
@@ -49,7 +49,6 @@ int main (int argc, char **argv)
         }
       
       sp.aij (a, i, j);
-      std::cout << "rank = " << rank << std::endl;
       toc ("build matrix");
       rhs = std::vector<double> (sp.rows (), 1.0);
     }
@@ -70,7 +69,6 @@ int main (int argc, char **argv)
     {
       tic ();
       bgs_solver.set_lhs_structure (sp.rows (), i, j, linear_solver::aij);
-      std::cout << "rank = " << rank << std::endl;
       toc ("set lhs struct");
     }
   MPI_Barrier (MPI_COMM_WORLD);
@@ -82,7 +80,6 @@ int main (int argc, char **argv)
 
   if (rank == 0)
     {
-      std::cout << "rank = " << rank << std::endl;
       toc ("analyze");
     }
   
@@ -92,7 +89,6 @@ int main (int argc, char **argv)
       tic ();
       bgs_solver.set_lhs_data (a);
       bgs_solver.print_blocks ();
-      std::cout << "rank = " << rank << std::endl;
       toc ("set lhs data");
     }
 
@@ -103,7 +99,6 @@ int main (int argc, char **argv)
 
   if (rank == 0)
     {
-      std::cout << "rank = " << rank << std::endl;
       toc ("factorize");
     }
   
@@ -111,7 +106,6 @@ int main (int argc, char **argv)
     {
       tic ();
       bgs_solver.set_rhs (rhs);
-      std::cout << "rank = " << rank << std::endl;
       toc ("set rhs");
     }
 
@@ -123,13 +117,12 @@ int main (int argc, char **argv)
   if (rank == 0)
     {
       bgs_solver.print_resnorm ("first_solve_resnorm");
-      std::cout << "rank = " << rank << std::endl;
       toc ("solve");
     }
 
-  // if (rank == 0)
-  //   for (int k = 0; k < rhs.size (); ++k)
-  //     std::cout << "rhs[" << k << "] = " << rhs[k] << std::endl;
+  if (rank == 0)
+    for (unsigned int k = 0; k < rhs.size (); ++k)
+      std::cout << "rhsone(" << k + 1 << ") = " << rhs[k] << std::endl;
     
   // second solve
   if (rank == 0)
@@ -139,12 +132,9 @@ int main (int argc, char **argv)
         sp[k][k] = 400.0;
       sp.aij_update (a, i, j);
       bgs_solver.set_lhs_data (a);
-      std::cout << "rank = " << rank << std::endl;
       toc ("set lhs data");
     }
 
-  //MPI_Barrier (MPI_COMM_WORLD);
-  
   if (rank == 0)
     tic ();
   
@@ -152,7 +142,6 @@ int main (int argc, char **argv)
 
   if (rank == 0)
     {
-      std::cout << "rank = " << rank << std::endl;
       toc ("factorize");
     }
 
@@ -161,7 +150,6 @@ int main (int argc, char **argv)
       tic ();
       rhs.assign (rhs.size (), 2.0);
       bgs_solver.set_rhs (rhs);
-      std::cout << "rank = " << rank << std::endl;
       toc ("set rhs");
     }  
 
@@ -172,14 +160,57 @@ int main (int argc, char **argv)
 
   if (rank == 0)
     {
-      std::cout << "rank = " << rank << std::endl;
       bgs_solver.print_resnorm ("second_solve_resnorm");
       toc ("solve");
     }
 
-  // if (rank == 0)
-  //   for (int k = 0; k < rhs.size (); ++k)
-  //     std::cout << "rhs[" << k << "] = " << rhs[k] << std::endl;
+  if (rank == 0)
+    for (unsigned int k = 0; k < rhs.size (); ++k)
+      std::cout << "rhstwo(" << k + 1 << ") = " << rhs[k] << std::endl;
+
+  // third solve
+  if (rank == 0)
+    {
+      tic ();
+      auto num_blocks = block_solvers.size ();
+      std::vector<double> prec_vec ((rhs.size () / num_blocks) * (num_blocks * 2 - 1), 1.0);
+      bgs_solver.set_preconditioner_data (prec_vec);
+      bgs_solver.set_lhs_data (a);
+      toc ("set preconditioner and lhs data");
+    }
+
+  if (rank == 0)
+    tic ();
+  
+  bgs_solver.factorize ();
+
+  if (rank == 0)
+    {
+      toc ("factorize");
+    }
+
+  if (rank == 0)
+    {
+      tic ();
+      rhs.assign (rhs.size (), 2.0);
+      bgs_solver.set_rhs (rhs);
+            toc ("set rhs");
+    }  
+
+  if (rank == 0)
+    tic ();
+
+  bgs_solver.solve ();
+
+  if (rank == 0)
+    {
+      bgs_solver.print_resnorm ("third_solve_resnorm");
+      toc ("solve");
+    }
+
+  if (rank == 0)
+    for (unsigned int k = 0; k < rhs.size (); ++k)
+      std::cout << "rhsthree(" << k + 1 << ") = " << rhs[k] << std::endl;
 
   if (rank == 0)
     tic ();
@@ -188,7 +219,6 @@ int main (int argc, char **argv)
 
   if (rank == 0)
     {
-      std::cout << "rank = " << rank << std::endl;
       toc ("cleanup");
       print_timing_report ();
     }
