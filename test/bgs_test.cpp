@@ -33,14 +33,14 @@ int main (int argc, char **argv)
         {
           unsigned int jstart, jend;
           unsigned int bw = 3;
-          if (ii - bw >= 0) 
+          if (ii > bw) 
             jstart = ii - bw; 
           else 
             jstart = 0;
-          if ((ii + bw + 1) <= sp.rows ()) 
+          if ((ii + bw) <= sp.rows ()) 
             jend = ii + bw; 
           else 
-            jend = sp.rows () - 1;
+            jend = sp.rows ();
           for (unsigned int jj = jstart; jj <= jend; ++jj)
             if (ii == jj)
               sp[ii][jj] = 7.0;
@@ -50,7 +50,6 @@ int main (int argc, char **argv)
       
       sp.aij (a, i, j);
       toc ("build matrix");
-      rhs = std::vector<double> (sp.rows (), 1.0);
     }
 
   MPI_Barrier (MPI_COMM_WORLD);
@@ -105,6 +104,7 @@ int main (int argc, char **argv)
   if (rank == 0)
     {
       tic ();
+      rhs = std::vector<double> (sp.rows (), 1.0);
       bgs_solver.set_rhs (rhs);
       toc ("set rhs");
     }
@@ -176,6 +176,7 @@ int main (int argc, char **argv)
       std::vector<double> prec_vec ((rhs.size () / num_blocks) * (num_blocks * 2 - 1), 1.0);
       bgs_solver.set_preconditioner_data (prec_vec);
       bgs_solver.set_lhs_data (a);
+      bgs_solver.print_blocks ();
       toc ("set preconditioner and lhs data");
     }
 
