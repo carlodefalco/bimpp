@@ -50,7 +50,7 @@ bgs::set_lhs_structure
           {
             matrix[i][jc[j]] = 0.0;
             // add structure due to preconditioning
-            if (jc[j] >= (int) blocks_size)
+            if (jc[j] - blocks_size >= 0)
               matrix[i][jc[j] % blocks_size] = 0.0;
           }
       else
@@ -60,7 +60,7 @@ bgs::set_lhs_structure
           {
             matrix[ir[i]][jc[i]] = 0.0;
             // add structure due to preconditioning
-            if (jc[i] >= (int) blocks_size)
+            if (jc[i] - blocks_size >= 0)
               matrix[ir[i]][jc[i] % blocks_size] = 0.0;
           }
         }
@@ -263,6 +263,37 @@ bgs::set_initial_guess (std::vector<double> &guess_)
                      initial_guess[ii].begin ());
         }
     }
+
+  // /* The inverse of the preconditioner:
+  //  * 
+  //  * d11 0   0   0   ...
+  //  * d21 d22 0   0   ...
+  //  * d31 0   d33 0   ...
+  //  * d41 0   0   d44 ...
+  //  * ...
+  //  *
+  //  * is
+  //  *
+  //  * 1/d11         0     0     0     ...
+  //  * -d21/(d22d11) 1/d22 0     0     ...
+  //  * -d31/(d33d11) 0     1/d33 0     ...
+  //  * -d41/(d44d11) 0     0     1/d44 ... 
+  //  */
+  // auto xx = full_rhs->begin ();
+  // // restore the first block
+  // for (unsigned int kk = 0; kk < blocks_size; kk++, xx++)
+  //   *xx = *xx / rprec[kk];
+  // // restore further blocks
+  // auto precd = rprec.begin () + blocks_size;
+  // auto precnd = rprec.begin () + num_blocks * blocks_size;
+  // for (unsigned int ii = 1; ii < num_blocks; ii++)
+  //   {
+  //     auto zz = full_rhs->begin ();
+  //     for (unsigned int jj = 0; jj < blocks_size; 
+  //       jj++, xx++, zz++, precd++, precnd++)
+  //       *xx = (*xx - *precnd * *zz) / (*precd);
+  //   }
+
 }
 
 int
@@ -424,41 +455,33 @@ bgs::solve ()
   
   /*
    * GIVEN THE SHAPE OF PRECONDITIONER,
-   * recovering the original variables consists in:
-   * 1 - recovering the first block
-   * 2 - recovering the remaining blocks, by 
-   *   2a - getting the contribution from the first block
-   *   2b - getting the contribution from current block
+   * recovering the original variables consists in
+   * scaling with the preconditioner:
    *
-   * since the inverse of the preconditioner:
-   * 
-   * d11 0   0   0   ...
-   * d21 d22 0   0   ...
-   * d31 0   d33 0   ...
-   * d41 0   0   d44 ...
-   * ...
-   *
-   * is
-   *
-   * 1/d11         0     0     0     ...
-   * -d21/(d22d11) 1/d22 0     0     ...
-   * -d31/(d33d11) 0     1/d33 0     ...
-   * -d41/(d44d11) 0     0     1/d44 ... 
+   * (A) the first block is given by
+   *           x1 = d11 * y1
+   * (B) the remaining blocks, by
+   *           xk = dk1 * y1 + dkk yk
+   *  
+   * in order to work directly on the array, 
+   * step (B) is performed first, step (A) later.
+   *   
    */
-  auto xx = full_rhs->begin ();
-  // restore the first block
-  for (unsigned int kk = 0; kk < blocks_size; kk++, xx++)
-    *xx = *xx / rprec[kk];
-  // restore further blocks
-  auto precd = rprec.begin () + blocks_size;
-  auto precnd = rprec.begin () + num_blocks * blocks_size;
-  for (unsigned int ii = 1; ii < num_blocks; ii++)
-    {
-      auto zz = full_rhs->begin ();
-      for (unsigned int jj = 0; jj < blocks_size; 
-        jj++, xx++, zz++, precd++, precnd++)
-        *xx = (*xx - *precnd * *zz) / (*precd);
-    }
+   auto xx = full_rhs->begin () + blocks_size;
+   // restore latter blocks
+   auto precd = rprec.begin () + blocks_size;
+   auto precnd = rprec.begin () + num_blocks * blocks_size;
+   for (unsigned int ii = 1; ii < num_blocks; ii++)
+     {
+       auto zz = full_rhs->begin ();
+       for (unsigned int jj = 0; jj < blocks_size; 
+         jj++, xx++, zz++, precd++, precnd++)
+         *xx = *precd * *xx + *precnd * *zz;
+     }
+   // restore the first block
+   xx = full_rhs->begin ();
+   for (auto kk = 0u; kk < blocks_size; kk++, xx++)
+     *xx = *xx * rprec[kk];
 
   return (retval);
 }
