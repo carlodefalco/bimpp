@@ -4,17 +4,18 @@ AUTOMAKE_OPTIONS = nostdinc
 BIMXXHEADERS = bim_timing.h mesh.h operators.h bim_sparse.h linear_solver.h mumps_class.h mumps_solve.h \
 lis_class.h nonlinear_solver.h adaptive_inexact_newton_class.h \
 backtracking_inexact_newton_class.h abstract_nonlinear_problem.h \
-abstract_forcing_term.h forcing_class.h bgs_class.h rre.h
+abstract_forcing_term.h forcing_class.h bgs_class.h schur_class.h rre.h
 
 BIMXXSRC = mesh.cpp operators.cpp bim_sparse.cpp adaptive_inexact_newton_class.cpp \
-backtracking_inexact_newton_class.cpp forcing_class.cpp
+backtracking_inexact_newton_class.cpp forcing_class.cpp bgs_class.cpp rre.cpp \
+schur_class.cpp
 
 BIMXXMUMPSSRC = mumps_class.cpp mumps_solve.cpp
 BIMXXLISSRC = lis_class.cpp lis_class_master.cpp lis_class_slaves.cpp
 BIMXXBGSSRC = bgs_class.cpp rre.cpp
 include_HEADERS = $(BIMXXHEADERS)
 
-lib_LTLIBRARIES = libbim.la libbimmumps.la libbimlis.la libbimbgs.la
+lib_LTLIBRARIES = libbim.la libbimmumps.la libbimlis.la 
 libbim_la_SOURCES = $(BIMXXSRC)
 libbim_la_LDFLAGS =  
 libbim_la_CPPFLAGS = $(AM_CPPFLAGS)
@@ -28,14 +29,3 @@ libbimlis_la_SOURCES = $(BIMXXLISSRC)
 libbimlis_la_LDFLAGS = @LIS_LDFLAGS@
 libbimlis_la_CPPFLAGS = $(AM_CPPFLAGS) @LIS_CPPFLAGS@
 libbimlis_la_LIBADD = @LIS_LIB@
-
-libbimbgs_la_SOURCES = $(BIMXXBGSSRC)
-libbimbgs_la_CPPFLAGS = $(AM_CPPFLAGS) 
-libbimbgs_la_LDFLAGS = $(AM_LDFLAGS) 
-libbimbgs_la_LIBADD = $(AM_LIB) 
-
-
-
-
-
-
