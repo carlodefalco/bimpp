@@ -8,7 +8,7 @@ abstract_forcing_term.h forcing_class.h bgs_class.h schur_class.h rre.h
 
 BIMXXSRC = mesh.cpp operators.cpp bim_sparse.cpp adaptive_inexact_newton_class.cpp \
 backtracking_inexact_newton_class.cpp forcing_class.cpp bgs_class.cpp rre.cpp \
-schur_class.cpp
+ #schur_class.cpp
 
 BIMXXMUMPSSRC = mumps_class.cpp mumps_solve.cpp
 BIMXXLISSRC = lis_class.cpp lis_class_master.cpp lis_class_slaves.cpp

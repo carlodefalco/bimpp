@@ -1,6 +1,5 @@
 BIMMUMPSLIB = ../src/libbimmumps.la @MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@
 BIMLISLIB = ../src/libbimlis.la @LIS_LIB@ @MUMPS_EXTRA_LIBS@
-BIMBGSLIB = ../src/libbimbgs.la 
 BIMLIB = ../src/libbim.la 
 AM_CPPFLAGS =  -I$(top_srcdir)/src -I$(top_builddir)/src @MUMPS_CPPFLAGS@ @LIS_CPPFLAGS@
 AM_LDFLAGS = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
@@ -9,7 +8,7 @@ AUTOMAKE_OPTIONS = nostdinc
 CLEANFILES = 
 
 
-check_PROGRAMS = schur_test bgs_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 bim3_stationary_test \
+check_PROGRAMS = bgs_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 bim3_stationary_test \
                  bim3_stationary_test2 bim3_stationary_test2_osc bim3_stationary_test3 \
                  bim3_stationary_test3_osc bim3_stationary_test4 bim3_timedependent_test \
                  bim3_timedependent_test2 bim3_timedependent_test2_osc bim3_timedependent_test3 \
@@ -21,9 +20,9 @@ if HAVE_LIS
                     nonlinear_solver_test3 nonlinear_solver_test4 nonlinear_solver_eq_test
 endif
 
-schur_test_SOURCES = schur_test.cpp
-CLEANFILES += 
-schur_test_LDADD = $(BIMLIB) $(BIMMUMPSLIB) $(BIMLISLIB)
+# schur_test_SOURCES = schur_test.cpp
+# CLEANFILES += 
+# schur_test_LDADD = $(BIMLIB) $(BIMMUMPSLIB) $(BIMLISLIB)
 
 bgs_test_SOURCES = bgs_test.cpp
 CLEANFILES += 
@@ -133,7 +132,7 @@ if HAVE_LIS
 endif
 
 
-TESTS = schur_test bgs_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
+TESTS = bgs_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
 	bim3_stationary_test bim3_stationary_test2 bim3_stationary_test2_osc \
         bim3_stationary_test3 bim3_stationary_test3_osc bim3_stationary_test4 \
         bim3_timedependent_test bim3_timedependent_test2 bim3_timedependent_test2_osc \
