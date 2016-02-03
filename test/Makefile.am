@@ -26,7 +26,7 @@ endif
 
 bgs_test_SOURCES = bgs_test.cpp
 CLEANFILES += 
-bgs_test_LDADD = $(BIMLIB) $(BIMMUMPSLIB) $(BIMLISLIB)
+bgs_test_LDADD = $(BIMLIB) $(BIMMUMPSLIB) $(BIMLISLIB) 
 
 sparse_test_SOURCES = sparse_test.cpp
 CLEANFILES += first_solve.txt second_solve.txt

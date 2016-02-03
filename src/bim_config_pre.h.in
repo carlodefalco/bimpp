@@ -1,2 +1,5 @@
+#ifndef HAVE_BIM_CONFIG_PRE_H
+#define HAVE_BIM_CONFIG_PRE_H 1
 #include <string>
 const std::string data_dir = "@top_srcdir@/test/";
+#endif

@@ -12,7 +12,6 @@ backtracking_inexact_newton_class.cpp forcing_class.cpp bgs_class.cpp rre.cpp \
 
 BIMXXMUMPSSRC = mumps_class.cpp mumps_solve.cpp
 BIMXXLISSRC = lis_class.cpp lis_class_master.cpp lis_class_slaves.cpp
-BIMXXBGSSRC = bgs_class.cpp rre.cpp
 include_HEADERS = $(BIMXXHEADERS)
 
 lib_LTLIBRARIES = libbim.la libbimmumps.la libbimlis.la 
