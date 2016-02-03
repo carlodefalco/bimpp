@@ -6,6 +6,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_INIT([libbim], [0.0.1], [])
 AC_CONFIG_SRCDIR([src/mesh.cpp])
 AC_CONFIG_HEADERS([src/bim_config.h])
+AH_TOP([const std::string data_dir = "@top_srcdir@/test/";])
 
 AM_INIT_AUTOMAKE([subdir-objects])
 
