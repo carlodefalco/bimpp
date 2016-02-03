@@ -6,7 +6,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_INIT([libbim], [0.0.1], [])
 AC_CONFIG_SRCDIR([src/mesh.cpp])
 AC_CONFIG_HEADERS([src/bim_config.h])
-AH_TOP([const std::string data_dir = "@top_srcdir@/test/";])
+AH_TOP([#include "bim_config_pre.h"])
 
 AM_INIT_AUTOMAKE([subdir-objects])
 
@@ -181,8 +181,9 @@ dnl fi
 
 # Checks for library functions.
 
-AC_CONFIG_FILES([Makefile
+AC_CONFIG_FILES([src/bim_config_pre.h
+                 Makefile
                  src/Makefile
-                 data/Makefile     
+                 data/Makefile
                  test/Makefile])
 AC_OUTPUT
