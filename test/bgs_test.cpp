@@ -129,7 +129,7 @@ int main (int argc, char **argv)
     {
       tic ();
       for (unsigned int k = 0; k < sp.rows (); ++k)
-        sp[k][k] = 400.0;
+        sp[k][k] = 14.0;
       sp.aij_update (a, i, j);
       bgs_solver.set_lhs_data (a);
       toc ("set lhs data");
@@ -149,6 +149,8 @@ int main (int argc, char **argv)
     {
       tic ();
       rhs.assign (rhs.size (), 2.0);
+      for (auto jj = 25u; jj < 30u; ++jj)
+        rhs[jj] = 10;
       bgs_solver.set_rhs (rhs);
       toc ("set rhs");
     }  
@@ -194,6 +196,8 @@ int main (int argc, char **argv)
     {
       tic ();
       rhs.assign (rhs.size (), 2.0);
+      for (auto jj = 25u; jj < 30u; ++jj)
+        rhs[jj] = 10;
       bgs_solver.set_rhs (rhs);
             toc ("set rhs");
     }  
