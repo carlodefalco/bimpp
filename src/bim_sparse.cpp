@@ -25,15 +25,23 @@ sparse_matrix::extract_block_pointer (const std::vector<int> &rows,
                                       p_sparse_matrix &out)
 {
   size_t  ii, jj;
-  unsigned int nrows = rows.size ();
-  out.resize (nrows);
+  out.resize (rows.size ());
+  
+  // create a set of columns to be extracted, for fast search
+  // complexity: ncols * log ncols
+  std::map<int, int> ordcol;
+  for (jj = 0u; jj < cols.size (); ++jj)
+    ordcol.insert (std::pair<int, int> (cols[jj], jj));
 
-  for (ii = 0; ii < nrows; ++ii)
-    if (rows[ii] < int ((*this).rows ()) &&
-        (*this)[rows[ii]].size ())
-      for (jj = 0; jj < cols.size (); ++jj)
-        if ((*this)[rows[ii]].count (cols[jj]))
-          out[ii][jj] = & ((*this)[rows[ii]][cols[jj]]);
+  for (ii = 0; ii < rows.size (); ++ii)
+    if (rows[ii] < int ((*this).rows ()) && // the wanted row is actually in the matrix
+        (*this)[rows[ii]].size ()) // and contains any entry
+      for (auto jout = (*this)[rows[ii]].begin (); //for every column with nonzero entry in such row (constant complexity)
+           jout != (*this)[rows[ii]].end ();
+           ++jout)
+        if (ordcol.count (jout->first)) // check if we want to extract it (log ncols)
+          out[ii][ordcol.at(jout->first)] = // insert in the output matrix 
+            &((*this)[rows[ii]][jout->first]);
 
   out.set_properties ();
 }
@@ -46,13 +54,20 @@ sparse_matrix::extract_block_pointer_keep_cols
 {
   size_t  ii, jj;
   out.resize (rows.size ());
+  
+  std::set<int> setcol;
+  for (jj = 0u; jj < cols.size (); ++jj)
+    setcol.insert (cols[jj]);
 
   for (ii = 0; ii < rows.size (); ++ii)
     if (rows[ii] < int ((*this).rows ()) &&
         (*this)[rows[ii]].size ())
-      for (jj = 0; jj < cols.size (); ++jj)
-        if ((*this)[rows[ii]].count (cols[jj]))
-          out[ii][cols[jj]] = & ((*this)[rows[ii]][cols[jj]]);
+      for (auto jout = (*this)[rows[ii]].begin (); 
+           jout != (*this)[rows[ii]].end (); 
+           ++jout)
+        if (setcol.count (jout->first)) 
+          out[ii][jout->first] = 
+            &((*this)[rows[ii]][jout->first]);
 
   out.set_properties ();
 }

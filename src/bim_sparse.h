@@ -9,6 +9,7 @@
 #define HAVE_SPARSE_H 1
 
 #include <map>
+#include <set>
 #include <vector>
 #include <iostream>
 #include <iomanip>
