@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 Carlo de Falco
+  Copyright (C) 2011,2016 Carlo de Falco
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
@@ -25,23 +25,41 @@ sparse_matrix::extract_block_pointer (const std::vector<int> &rows,
                                       p_sparse_matrix &out)
 {
   size_t  ii, jj;
+  int jcol;
+  std::map<int, double> *irow;
   out.resize (rows.size ());
   
-  // create a set of columns to be extracted, for fast search
-  // complexity: ncols * log ncols
+  // copy the vector with the
+  // list of columns into a map to
+  // reduce the complexit of searches.
+  // with this format the complexity
+  // should be:
+  // cols.size () * log (cols.size ())
+
   std::map<int, int> ordcol;
+  
   for (jj = 0u; jj < cols.size (); ++jj)
     ordcol.insert (std::pair<int, int> (cols[jj], jj));
 
   for (ii = 0; ii < rows.size (); ++ii)
-    if (rows[ii] < int ((*this).rows ()) && // the wanted row is actually in the matrix
-        (*this)[rows[ii]].size ()) // and contains any entry
-      for (auto jout = (*this)[rows[ii]].begin (); //for every column with nonzero entry in such row (constant complexity)
-           jout != (*this)[rows[ii]].end ();
-           ++jout)
-        if (ordcol.count (jout->first)) // check if we want to extract it (log ncols)
-          out[ii][ordcol.at(jout->first)] = // insert in the output matrix 
-            &((*this)[rows[ii]][jout->first]);
+    // proceed only if the current row
+    // is actually in the matrix
+    if (rows[ii] < int ((*this).rows ()))
+      {
+        irow = &((*this)[rows[ii]]);
+        if (irow->size ())
+          // loop through nonzero entries of the current row
+          // (constant complexity)
+          for (auto jout = irow->begin (); jout != irow->end (); ++jout)
+            {
+              jcol = jout->first;
+              // check if the current column is in the
+              // list of selected columns (complexity: log (cols.size ()))
+              if (ordcol.count (jcol))
+                // insert a poiter to this entry in the output
+                out[ii][ordcol.at (jcol)] = &((*irow)[jcol]);
+            }
+      }
 
   out.set_properties ();
 }
@@ -53,21 +71,32 @@ sparse_matrix::extract_block_pointer_keep_cols
  p_sparse_matrix &out)
 {
   size_t  ii, jj;
+  int jcol;
+  std::map<int, double> *irow;  
   out.resize (rows.size ());
   
-  std::set<int> setcol;
+  // same algorithm as for extract_block_pointer
+  // except that we don't need to change the ordering
+  // of columns, therefore we can use a std::set
+  // instead of a std::map
+
+  std::set<int> ordcol;
+  
   for (jj = 0u; jj < cols.size (); ++jj)
-    setcol.insert (cols[jj]);
+    ordcol.insert (cols[jj]);
 
   for (ii = 0; ii < rows.size (); ++ii)
-    if (rows[ii] < int ((*this).rows ()) &&
-        (*this)[rows[ii]].size ())
-      for (auto jout = (*this)[rows[ii]].begin (); 
-           jout != (*this)[rows[ii]].end (); 
-           ++jout)
-        if (setcol.count (jout->first)) 
-          out[ii][jout->first] = 
-            &((*this)[rows[ii]][jout->first]);
+    if ((rows[ii] < (*this).rows ()))
+      {
+        irow = &((*this)[rows[ii]]);
+        if (irow->size ())
+          for (auto jout = irow->begin (); jout != irow->end (); ++jout)
+            {
+              jcol = jout->first;
+              if (ordcol.count (jcol))
+                out[ii][jcol] = &((*irow)[jcol]);
+            }
+      }
 
   out.set_properties ();
 }
