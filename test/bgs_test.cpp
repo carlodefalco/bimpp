@@ -27,7 +27,7 @@ int main (int argc, char **argv)
   if (rank == 0)
     {
       tic ();
-      sp.resize (42);
+      sp.resize (48000);
       
       for (unsigned int ii = 0; ii < sp.rows (); ++ii)
         {
