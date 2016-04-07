@@ -14,7 +14,7 @@
 */
 
 #include <stdio.h>
-#include <lis_config.h>
+//#include <lis_config.h>
 #include <lis.h>
 #include <bim_sparse.h>
 #include <mesh.h>
