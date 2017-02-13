@@ -1,7 +1,8 @@
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src 
 AUTOMAKE_OPTIONS = nostdinc
 
-BIMXXHEADERS = bim_timing.h mesh.h operators.h bim_sparse.h linear_solver.h mumps_class.h mumps_solve.h \
+BIMXXHEADERS = octave_file_io.h bim_timing.h mesh.h operators.h \
+bim_sparse.h linear_solver.h mumps_class.h mumps_solve.h \
 lis_class.h nonlinear_solver.h adaptive_inexact_newton_class.h \
 backtracking_inexact_newton_class.h abstract_nonlinear_problem.h \
 abstract_forcing_term.h forcing_class.h bgs_class.h schur_class.h rre.h
@@ -10,14 +11,20 @@ BIMXXSRC = mesh.cpp operators.cpp bim_sparse.cpp adaptive_inexact_newton_class.c
 backtracking_inexact_newton_class.cpp forcing_class.cpp bgs_class.cpp rre.cpp \
  #schur_class.cpp
 
+BIMXXIOSRC = octave_file_io.cpp
 BIMXXMUMPSSRC = mumps_class.cpp mumps_solve.cpp
 BIMXXLISSRC = lis_class.cpp lis_class_master.cpp lis_class_slaves.cpp
 include_HEADERS = $(BIMXXHEADERS)
 
-lib_LTLIBRARIES = libbim.la libbimmumps.la libbimlis.la 
+lib_LTLIBRARIES = libbim.la libbimio.la libbimmumps.la libbimlis.la 
 libbim_la_SOURCES = $(BIMXXSRC)
-libbim_la_LDFLAGS =  
-libbim_la_CPPFLAGS = $(AM_CPPFLAGS)
+libbim_la_LDFLAGS = @OCTAVE_LINK_FLAGS@  
+libbim_la_CPPFLAGS = @OCTAVE_COMPILE_FLAGS@ $(AM_CPPFLAGS)
+
+libbimio_la_SOURCES = $(BIMXXIOSRC)
+libbimio_la_LDFLAGS = @OCTAVE_LINK_FLAGS@
+libbimio_la_CPPFLAGS = @OCTAVE_COMPILE_FLAGS@ $(AM_CPPFLAGS)
+libbimio_la_LIBADD = @OCTAVE_LINK_ADD@
 
 libbimmumps_la_SOURCES = $(BIMXXMUMPSSRC)
 libbimmumps_la_LDFLAGS = @MUMPS_LDFLAGS@
