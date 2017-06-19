@@ -131,7 +131,7 @@ octave_file_io_intf::read
   
   file.clear ();
   file.seekg (0);
-  if (read_binary_file_header (gzifile, swap, flt_fmt, true) != 0)
+  if (read_binary_file_header (file, swap, flt_fmt, true) != 0)
     return -1;
 
   octave_scalar_map m = do_load (file, filename.c_str (), format, 
