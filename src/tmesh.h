@@ -1,13 +1,12 @@
+/*
+  Copyright (C) 2017 Carlo de Falco
+  This software is distributed under the terms
+  the terms of the GNU/GPL licence v3
+*/
+
 /*! \file tmesh.h
   \brief Interface for p4est library
 */
-
-/*
- * tmesh is the p4est interface for the user: it contains all the necessary 
- * methods to allocate a p4est, refine or coarsen it, and access the mesh 
- * through quadrant iteration.
- * It also has methods for input/output in various formats.
- */
 
 #ifndef TMESH_H
 #define TMESH_H
@@ -16,10 +15,13 @@
 #include <octave_file_io.h>
 #include <p4est_algorithms.h>
 #include <p4est_bits.h>
-#include <p4est_vtk.h>
-#include <p4est_mesh.h>
 #include <p4est_extended.h>
 #include <p4est_lnodes.h>
+#include <p4est_mesh.h>
+#include <p4est_vtk.h>
+
+#include <functional>
+#include <vector>
 
 class
 tmesh
@@ -32,6 +34,8 @@ public:
   class
   quadrant_t
   {
+
+  public:
     double
     p (idx_t i, idx_t j);
 
@@ -46,23 +50,76 @@ public:
 
     idx_t
     e (idx_t i);
+
+    class
+    quadrant_iterator  
+    {
+
+    public:
+
+      void 
+      operator++ ();
+
+      quadrant_t&
+      operator* ();
+
+      const quadrant_t*
+      get_data () const
+      { return this->data; };
+
+      bool
+      operator== (const quadrant_iterator& other)
+      { return (this->get_data () == other.get_data ()); };
+
+      bool
+      operator!= (const quadrant_iterator& other)
+      { return !((*this) == other); };
+
+      quadrant_iterator () : data (nullptr)
+      { };
+      
+    private:
+
+      quadrant_t *data;
+      
+    };
+
+  private:
+    tmesh* the_tmesh;
+
   };
 
-  class
-  quadrant_iterator : public *quadrant_t
-  {
-  public:
-    void 
-    operator++ ();
-  };
+  using quadrant_iterator = quadrant_t::quadrant_iterator;
+  
+  void
+  read_connectivity (const char *filename);
+  
+  tmesh (const char *filename)
+  { read_connectivity (filename); };
 
   quadrant_iterator
   begin_quadrant_sweep ();
   
   quadrant_iterator
-  return_quadrant_sweep ()
-  { return static_cast<quadrant_iterator> nullptr; };
-  
+  end_quadrant_sweep ()
+  { return quadrant_iterator (); };
+
+  void
+  set_refinement_marker
+  (std::function<int (tmesh*, p4est_topidx_t, p4est_quadrant_t*)> fun);
+
+  void
+  set_derefinement_marker
+  (std::function<int (tmesh*, p4est_topidx_t, p4est_quadrant_t* [4])> fun);
+
+private:
+
+  std::function<int (tmesh*, p4est_topidx_t, p4est_quadrant_t*)>
+  refinement_marker;
+
+  std::function<int (tmesh*, p4est_topidx_t, p4est_quadrant_t* [4])>
+  derefinement_marker;
+
 };
 
 
