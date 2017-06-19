@@ -84,7 +84,7 @@ public:
     wjacdet_data (NULL),
     volume_data (NULL)
   {
-    if (! read (filename) == 0) //!< Build a mesh by reading from file.
+    if (read (filename) != 0) //!< Build a mesh by reading from file.
       {
         std::cerr << "could not initialize mesh" << std::endl;
         exit (-1);
