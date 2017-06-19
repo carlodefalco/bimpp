@@ -14,9 +14,8 @@
 //---------------------------------------------------------------------
 //                Methods in the singleton class
 //---------------------------------------------------------------------
-
 const load_save_format format = LS_BINARY;
-static oct_mach_info::float_format flt_fmt = oct_mach_info::flt_fmt_unknown;
+static octave::mach_info::float_format flt_fmt = octave::mach_info::flt_fmt_unknown;
 static bool swap = false;
 
 static bool
