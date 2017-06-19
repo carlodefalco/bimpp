@@ -50,7 +50,7 @@ bgs::set_lhs_structure
           {
             matrix[i][jc[j]] = 0.0;
             // add structure due to preconditioning
-            if (jc[j] - blocks_size >= 0)
+            if (jc[j] >= (int) blocks_size)
               matrix[i][jc[j] % blocks_size] = 0.0;
           }
       else
@@ -60,7 +60,7 @@ bgs::set_lhs_structure
           {
             matrix[ir[i]][jc[i]] = 0.0;
             // add structure due to preconditioning
-            if (jc[i] - blocks_size >= 0)
+            if (jc[i] >= (int) blocks_size)
               matrix[ir[i]][jc[i] % blocks_size] = 0.0;
           }
         }
