@@ -16,7 +16,7 @@ BIMXXMUMPSSRC = mumps_class.cpp mumps_solve.cpp
 BIMXXLISSRC = lis_class.cpp lis_class_master.cpp lis_class_slaves.cpp
 include_HEADERS = $(BIMXXHEADERS)
 
-lib_LTLIBRARIES = libbim.la libbimio.la libbimmumps.la libbimlis.la 
+lib_LTLIBRARIES = libbim.la libbimio.la libbimmumps.la libbimlis.la libbimp4est.la  
 libbim_la_SOURCES = $(BIMXXSRC)
 libbim_la_LDFLAGS = @OCTAVE_LINK_FLAGS@  
 libbim_la_CPPFLAGS = @OCTAVE_COMPILE_FLAGS@ $(AM_CPPFLAGS)
@@ -35,3 +35,8 @@ libbimlis_la_SOURCES = $(BIMXXLISSRC)
 libbimlis_la_LDFLAGS = @LIS_LDFLAGS@
 libbimlis_la_CPPFLAGS = $(AM_CPPFLAGS) @LIS_CPPFLAGS@
 libbimlis_la_LIBADD = @LIS_LIB@
+
+libbimp4est_la_SOURCES = $(BIMXXP4ESTSRC)
+libbimp4est_la_LDFLAGS = @P4EST_LDFLAGS@ @OCTAVE_LINK_FLAGS@
+libbimp4est_la_CPPFLAGS = $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ @OCTAVE_COMPILE_FLAGS@
+libbimp4est_la_LIBADD = @P4EST_LIB@
