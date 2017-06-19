@@ -281,10 +281,10 @@ octave_io_open (const char* fname, const octave_io_mode mode_in,
   if (gziped) 
     {
       if (*mode_out == read_mode)
-        (*mode_out == gz_read_mode);
-      else 
+         (*mode_out = gz_read_mode);
+      else
         if (*mode_out == write_mode)
-          (*mode_out == gz_write_mode);
+          (*mode_out = gz_write_mode);
     }
 
   //std::cout << "mode_out = " << *mode_out << std::endl;
