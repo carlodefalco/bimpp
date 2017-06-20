@@ -13,6 +13,9 @@
 
 
 #include <octave_file_io.h>
+
+#include <mpi.h>
+
 #include <p4est_algorithms.h>
 #include <p4est_bits.h>
 #include <p4est_extended.h>
@@ -20,6 +23,7 @@
 #include <p4est_mesh.h>
 #include <p4est_vtk.h>
 
+#include <cassert>
 #include <functional>
 #include <vector>
 
@@ -36,20 +40,6 @@ public:
   {
 
   public:
-    double
-    p (idx_t i, idx_t j);
-
-    idx_t
-    t (idx_t i);
-
-    bool
-    is_hanging (idx_t i);
-
-    void
-    get_parents (idx_t i, std::vector<idx_t> pv);
-
-    idx_t
-    e (idx_t i);
 
     class
     quadrant_iterator  
@@ -86,16 +76,38 @@ public:
 
   private:
     tmesh* the_tmesh;
-
+    
   };
 
   using quadrant_iterator = quadrant_t::quadrant_iterator;
-  
+
+  tmesh (const char *filename)
+    : p4est (nullptr)
+  { read_connectivity (filename); };
+
+  tmesh ()
+    : p4est (nullptr), conn (nullptr) { };
+
+  double
+  p (idx_t i, idx_t j);
+
+  idx_t
+  t (idx_t i);
+
+  bool
+  is_hanging (idx_t i);
+
+  void
+  get_parents (idx_t i, std::vector<idx_t> pv);
+
+  idx_t
+  e (idx_t i);
+
   void
   read_connectivity (const char *filename);
-  
-  tmesh (const char *filename)
-  { read_connectivity (filename); };
+
+  void
+  bcast_connectivity (int source, MPI_Comm comm);
 
   quadrant_iterator
   begin_quadrant_sweep ();
@@ -112,6 +124,9 @@ public:
   set_derefinement_marker
   (std::function<int (tmesh*, p4est_topidx_t, p4est_quadrant_t* [4])> fun);
 
+  p4est_t              *p4est;
+  p4est_connectivity_t *conn;
+  
 private:
 
   std::function<int (tmesh*, p4est_topidx_t, p4est_quadrant_t*)>
@@ -119,7 +134,7 @@ private:
 
   std::function<int (tmesh*, p4est_topidx_t, p4est_quadrant_t* [4])>
   derefinement_marker;
-
+  
 };
 
 
