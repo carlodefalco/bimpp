@@ -4,6 +4,8 @@
 #ifdef BIM_TIMING
 
 #include <ctime>
+#include <map>
+
 static clock_t c_start, c_diff;
 static double c_msec;
 

@@ -1,9 +1,11 @@
 BIMMUMPSLIB = ../src/libbimmumps.la @MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@
-BIMLISLIB = ../src/libbimlis.la @LIS_LIB@ @MUMPS_EXTRA_LIBS@
-BIMLIB = ../src/libbim.la
-BIMIOLIB = ../src/libbimio.la @OCTAVE_LINK_FLAGS@ @OCTAVE_LINK_ADD@
-AM_CPPFLAGS =  -I$(top_srcdir)/src -I$(top_builddir)/src @MUMPS_CPPFLAGS@ @LIS_CPPFLAGS@ @OCTAVE_COMPILE_FLAGS@ @OCTAVE_LINK_FLAGS@ 
-AM_LDFLAGS = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
+BIMLISLIB   = ../src/libbimlis.la @LIS_LIB@ @MUMPS_EXTRA_LIBS@
+BIMP4ESTLIB = ../src/libbimp4est.la @P4EST_LIB@
+BIMIOLIB    = ../src/libbimio.la @OCTAVE_LINK_FLAGS@ @OCTAVE_LINK_ADD@
+
+BIMLIB           = ../src/libbim.la
+AM_CPPFLAGS      =  -I$(top_srcdir)/src -I$(top_builddir)/src @MUMPS_CPPFLAGS@ @LIS_CPPFLAGS@ @OCTAVE_COMPILE_FLAGS@ @OCTAVE_LINK_FLAGS@ 
+AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
 CLEANFILES = 
@@ -19,6 +21,10 @@ if HAVE_LIS
   check_PROGRAMS += lis_stationary_test lis_timedependent_test linear_solver_test \
                     linear_solver_test_repeated nonlinear_solver_test nonlinear_solver_test2 \
                     nonlinear_solver_test3 nonlinear_solver_test4 nonlinear_solver_eq_test
+endif
+
+if HAVE_P4EST
+  check_PROGRAMS += p4est_ref_test 
 endif
 
 # schur_test_SOURCES = schur_test.cpp
@@ -137,6 +143,13 @@ if HAVE_LIS
 
 endif
 
+if HAVE_P4EST
+  p4est_ref_test_SOURCES =  p4est_ref_test.cpp
+  p4est_ref_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_ref_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_ref_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+  CLEANFILES += p4est_ref_test.octbin.gz p4est_ref_test.pvtu p4est_ref_test.visit p4est_ref_test_*.vtu
+endif
 
 TESTS = io_test bgs_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
 	bim3_stationary_test bim3_stationary_test2 bim3_stationary_test2_osc \
@@ -145,7 +158,11 @@ TESTS = io_test bgs_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 
         bim3_timedependent_test3 bim3_timedependent_test3_osc 
 
 if HAVE_LIS
-  TESTS+=linear_solver_test linear_solver_test_repeated \
-         lis_stationary_test lis_timedependent_test nonlinear_solver_eq_test\
-         nonlinear_solver_test nonlinear_solver_test2 nonlinear_solver_test3 nonlinear_solver_test4
+  TESTS += linear_solver_test linear_solver_test_repeated \
+           lis_stationary_test lis_timedependent_test nonlinear_solver_eq_test\
+           nonlinear_solver_test nonlinear_solver_test2 nonlinear_solver_test3 nonlinear_solver_test4
+endif
+
+if HAVE_P4EST
+  TESTS += p4est_ref_test
 endif
