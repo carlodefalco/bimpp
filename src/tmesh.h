@@ -104,10 +104,9 @@ public:
   e (idx_t i);
 
   void
-  read_connectivity (const char *filename);
-
-  void
-  bcast_connectivity (int source, MPI_Comm comm);
+  read_connectivity (const char *filename,
+                     int source = 0,
+                     MPI_Comm comm = MPI_COMM_WORLD);
 
   quadrant_iterator
   begin_quadrant_sweep ();
@@ -124,6 +123,9 @@ public:
   set_derefinement_marker
   (std::function<int (tmesh*, p4est_topidx_t, p4est_quadrant_t* [4])> fun);
 
+  void
+  refine (int recursive = 0, int partforcoarsen = 0);
+  
   p4est_t              *p4est;
   p4est_connectivity_t *conn;
   
