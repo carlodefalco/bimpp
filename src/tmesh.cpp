@@ -110,18 +110,19 @@ tmesh::read_connectivity (const char *filename,
   
   conn = p4est_connectivity_bcast (conn, source, comm);
   p4est = p4est_new (comm, conn, 0, NULL, NULL);
+  p4est->user_pointer = this;
   
 };
 
-/*
+
 void
-tmesh::refine (int recursive = 0, int partforcoarsen = 0)
+tmesh::refine (int recursive, int partforcoarsen)
 {
-  p4est_refine (p4est, recursive, refine_fn, NULL);
-  p4est_balance (p4est, P4EST_CONNECT_FACE, NULL);
-  p4est_partition (p4est, partforcoarsen, NULL);
-};
-*/
+  p4est_refine (p4est, recursive, refine_callback, nullptr);
+  //p4est_balance (p4est, P4EST_CONNECT_FACE, nullptr);
+  //p4est_partition (p4est, partforcoarsen, nullptr);
+}
+
 
 tmesh::~tmesh ()
 {
@@ -132,6 +133,30 @@ tmesh::~tmesh ()
 double
 tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj) 
 {
+
+  return vxyz[3*ii+jj];
+}
+
+int
+tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt, p4est_quadrant_t* qq)
+{
+  tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
+  tm->update_quadrant (tt, qq);
+  quadrant_iterator qi (&(tm->current_quadrant));
+  return tm->refine_marker (qi);
+  std::cout << "refine_callback" << std::endl;
+};
+
+int
+tmesh::coarsen_callback (p4est_t* p4, p4est_topidx_t tt, p4est_quadrant_t* qq[])
+{
+  tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
+};
+
+void
+tmesh::quadrant_t::update (p4est_topidx_t tree,
+                           p4est_quadrant_t *q)
+{
   p4est_quadrant_t node;
   idx_t i;
   for (i = 0; i < 4; ++i)
@@ -140,6 +165,12 @@ tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj)
       p4est_qcoord_to_vertex (this->the_tmesh->conn, the_tree, node.x, node.y,
                               &(vxyz[3 * i]));
     }
+};
 
-  return vxyz[3*ii+jj];
-}
+void
+tmesh::update_quadrant (p4est_topidx_t tree,
+                        p4est_quadrant_t *q)
+{
+  current_quadrant.update (tree, q);
+};
+

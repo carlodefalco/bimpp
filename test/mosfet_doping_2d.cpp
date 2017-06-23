@@ -62,7 +62,7 @@ signedlog (double x)
 { return (asinh (x / 2.0) / log (10.0)); }
 
 int
-doping_driven_refinement (std::function<double (tmesh:idx_t, tmesh:idx_t)> p);
+doping_driven_refinement (std::function<double (tmesh::idx_t, tmesh::idx_t)> p)
 {
 
   constexpr double L = 3.0e-6;

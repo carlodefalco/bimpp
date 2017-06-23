@@ -28,10 +28,13 @@ refine_fn (p4est_t * p4est, p4est_topidx_t tt,
 */
 
 static int
-refine_fn (tmesh::quadrant_t &quadrant)
+refine_fn (tmesh::quadrant_iterator quadrant)
 {
-  return (doping_driven_refinement ([&quadrant] (tmesh::idx_t i, tmesh::idx_t j)
-                                    {return quadrant.p (i, j); }));
+  auto
+    fun = [quadrant] (tmesh::idx_t i, tmesh::idx_t j) mutable -> int 
+      {return (*quadrant).p (i, j); };
+    
+  return (doping_driven_refinement (fun));
 }
 
 int
@@ -53,20 +56,17 @@ main (int argc, char **argv)
     write_example_connectivity ("p4est_ref_test.octbin.gz");
 
   tmsh.read_connectivity ("p4est_ref_test.octbin.gz");
+  tmsh.set_refine_marker (refine_fn);
 
   recursive = 0;
   partforcoarsen = 0;
-
+ 
   MPI_Barrier (MPI_COMM_WORLD);
   if (rank == 0)
     { tic (); }
 
   for (int k = 0; k < 13 ; ++k)
-    {
-      p4est_refine (tmsh.p4est, recursive, refine_fn, NULL);
-      p4est_balance (tmsh.p4est, P4EST_CONNECT_FACE, NULL);
-      p4est_partition (tmsh.p4est, partforcoarsen, NULL);
-    }
+    tmsh.refine (recursive, partforcoarsen);
 
   MPI_Barrier (MPI_COMM_WORLD);
   if (rank == 0)
