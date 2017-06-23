@@ -3,7 +3,7 @@
 
 #include <tmesh.h>
 
-int
-doping_driven_refinement (std::function<double (tmesh::idx_t, tmesh::idx_t)> p);
+double doping (double x, double y, double L, double H);
+double signedlog (double x);
 
 #endif

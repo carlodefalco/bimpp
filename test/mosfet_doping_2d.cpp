@@ -1,4 +1,5 @@
 #include <cmath>
+#include <limits>
 #include <mosfet_doping_2d.h>
 
 static double
@@ -33,9 +34,9 @@ static inline double
 bool7 (const double x, const double L)
 { return (x <= 3.0 * L / 4.0 ? 1.0 : 0.0); }
 
-static inline double
-doping  (const double x, const double y,
-         const double L, const double H)
+double
+doping  (double x, double y,
+         double L, double H)
 {
   constexpr double N_plus  = 1.0e25;
   constexpr double N_minus = 1.0e24;
@@ -57,31 +58,7 @@ doping  (const double x, const double y,
   return (Nd - Na);
 }
 
-static inline double
+double
 signedlog (double x)
 { return (asinh (x / 2.0) / log (10.0)); }
 
-int
-doping_driven_refinement (std::function<double (tmesh::idx_t, tmesh::idx_t)> p)
-{
-
-  constexpr double L = 3.0e-6;
-  constexpr double H = 1.0e-5;
-
-  double maxy = 0, miny = 0, y = 0;
-  double top = p(1, 0);
-
-  maxy = miny = y = signedlog (doping (p(1, 0), p(1, 1), L, H));
-
-  for (int ii = 1; ii < 4; ++ii)
-    {
-      y = signedlog (doping (p(0, ii), p(1, ii), L, H));
-      maxy = maxy < y ? y : maxy;
-      miny = miny > y ? y : miny;
-      top  = top < p(1, ii) ? p(1, ii) : top;
-    }
-
-  double delta = maxy - miny;
-  return ((top <= 0 && delta > .1) ? 1 : 0);
-  
-}

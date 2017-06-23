@@ -6,36 +6,39 @@
 #include <vector>
 #include <cassert>
 
-/*
 static int
-refine_fn (p4est_t * p4est, p4est_topidx_t tt,
-           p4est_quadrant_t * quadrant)
+doping_driven_refinement (tmesh::quadrant_iterator quadrant)
 {
-  p4est_quadrant_t node;
-  int i;
-  double vxyz[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-  for (i = 0; i < P4EST_CHILDREN; ++i)
+  constexpr double L = 3.0e-6;
+  constexpr double H = 1.0e-5;
+
+  double maxy = 0, miny = 0, y = 0;
+  double xcoord, ycoord;
+  
+  double top = std::numeric_limits<double>::lowest ();
+
+  maxy = std::numeric_limits<double>::lowest ();
+  miny = std::numeric_limits<double>::max ();
+
+  for (int ii = 0; ii < 4; ++ii)
     {
-      p4est_quadrant_corner_node (quadrant, i, &node);
-      p4est_qcoord_to_vertex (p4est->connectivity, tt, node.x, node.y,
-                              &(vxyz[3 * i]));
+
+      xcoord = (*quadrant).p(0, ii);
+      ycoord = (*quadrant).p(1, ii);
+      
+      y = signedlog (doping (xcoord, ycoord, L, H));
+
+      maxy = maxy < y ? y : maxy;
+      miny = miny > y ? y : miny;
+      top  = top < ycoord ? ycoord : top;
     }
 
-  return (doping_driven_refinement (vxyz));
-
+  double delta = maxy - miny;
+  return ((top <= 0 && delta > .1) ? 1 : 0);
+  
 }
-*/
 
-static int
-refine_fn (tmesh::quadrant_iterator quadrant)
-{
-  auto
-    fun = [quadrant] (tmesh::idx_t i, tmesh::idx_t j) mutable -> int 
-      {return (*quadrant).p (i, j); };
-    
-  return (doping_driven_refinement (fun));
-}
 
 int
 main (int argc, char **argv)
@@ -56,7 +59,7 @@ main (int argc, char **argv)
     write_example_connectivity ("p4est_ref_test.octbin.gz");
 
   tmsh.read_connectivity ("p4est_ref_test.octbin.gz");
-  tmsh.set_refine_marker (refine_fn);
+  tmsh.set_refine_marker (doping_driven_refinement);
 
   recursive = 0;
   partforcoarsen = 0;

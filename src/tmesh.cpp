@@ -111,7 +111,7 @@ tmesh::read_connectivity (const char *filename,
   conn = p4est_connectivity_bcast (conn, source, comm);
   p4est = p4est_new (comm, conn, 0, NULL, NULL);
   p4est->user_pointer = this;
-  
+
 };
 
 
@@ -119,8 +119,8 @@ void
 tmesh::refine (int recursive, int partforcoarsen)
 {
   p4est_refine (p4est, recursive, refine_callback, nullptr);
-  //p4est_balance (p4est, P4EST_CONNECT_FACE, nullptr);
-  //p4est_partition (p4est, partforcoarsen, nullptr);
+  p4est_balance (p4est, P4EST_CONNECT_FACE, nullptr);
+  p4est_partition (p4est, partforcoarsen, nullptr);
 }
 
 
@@ -133,9 +133,11 @@ tmesh::~tmesh ()
 double
 tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj) 
 {
+  double retval = vxyz[3*jj+ii];
+  return (retval);
+};
 
-  return vxyz[3*ii+jj];
-}
+
 
 int
 tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt, p4est_quadrant_t* qq)
@@ -144,7 +146,6 @@ tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt, p4est_quadrant_t* qq)
   tm->update_quadrant (tt, qq);
   quadrant_iterator qi (&(tm->current_quadrant));
   return tm->refine_marker (qi);
-  std::cout << "refine_callback" << std::endl;
 };
 
 int
@@ -159,18 +160,17 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
 {
   p4est_quadrant_t node;
   idx_t i;
+  this->the_tree = tree;
+  this->the_quadrant = q;
   for (i = 0; i < 4; ++i)
     {
       p4est_quadrant_corner_node (this->the_quadrant, i, &node);
-      p4est_qcoord_to_vertex (this->the_tmesh->conn, the_tree, node.x, node.y,
-                              &(vxyz[3 * i]));
+      p4est_qcoord_to_vertex (this->the_tmesh->conn, the_tree, node.x, node.y, &(vxyz[3 * i]));
     }
 };
 
 void
 tmesh::update_quadrant (p4est_topidx_t tree,
                         p4est_quadrant_t *q)
-{
-  current_quadrant.update (tree, q);
-};
+{ current_quadrant.update (tree, q); };
 
