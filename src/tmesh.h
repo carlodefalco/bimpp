@@ -25,7 +25,9 @@
 
 #include <cassert>
 #include <functional>
+#include <array>
 #include <vector>
+
 
 class
 tmesh
@@ -41,67 +43,81 @@ public:
 
   public:
 
-    class
-    quadrant_iterator  
-    {
+    quadrant_t (tmesh *_tmesh,
+                p4est_topidx_t _tree,
+                p4est_quadrant_t *_quadrant) :
+      the_tmesh(_tmesh), the_tree(_tree), the_quadrant(_quadrant)
+    { };
 
-    public:
+    double
+    p (idx_t i, idx_t j);
+    
+    idx_t
+    t (idx_t i);
+    
+    bool
+    is_hanging (idx_t i);
 
-      void 
-      operator++ ();
+    void
+    get_parents (idx_t i, std::vector<idx_t> pv);
 
-      quadrant_t&
-      operator* ();
-
-      const quadrant_t*
-      get_data () const
-      { return this->data; };
-
-      bool
-      operator== (const quadrant_iterator& other)
-      { return (this->get_data () == other.get_data ()); };
-
-      bool
-      operator!= (const quadrant_iterator& other)
-      { return !((*this) == other); };
-
-      quadrant_iterator () : data (nullptr)
-      { };
-      
-    private:
-
-      quadrant_t *data;
-      
-    };
+    idx_t
+    e (idx_t i);
 
   private:
-    tmesh* the_tmesh;
-    
+
+    tmesh               *the_tmesh;
+    p4est_topidx_t        the_tree;
+    p4est_quadrant_t *the_quadrant;
+    std::array<double, 12>     vxyz;
   };
 
-  using quadrant_iterator = quadrant_t::quadrant_iterator;
+  class
+  quadrant_iterator  
+  {
+
+  public:
+    
+    void 
+    operator++ ();
+    
+    quadrant_t&
+    operator* ()
+    { return *(this->data); };
+    
+    const quadrant_t&
+    operator* () const
+    { return *(this->data); };
+
+    const quadrant_t*
+    get_data () const
+    { return this->data; };
+
+    bool
+    operator== (const quadrant_iterator& other)
+    { return (this->get_data () == other.get_data ()); };
+    
+    bool
+    operator!= (const quadrant_iterator& other)
+    { return !((*this) == other); };
+    
+    quadrant_iterator () : data (nullptr)
+    { };
+    
+  private:
+    quadrant_t *data;      
+  };
+
+  
+  tmesh ()
+    : p4est (nullptr), conn (nullptr), current_quadrant (this, 0, nullptr)
+  {  };
 
   tmesh (const char *filename)
-    : p4est (nullptr)
+    : p4est (nullptr), current_quadrant (this, 0, nullptr)
   { read_connectivity (filename); };
 
-  tmesh ()
-    : p4est (nullptr), conn (nullptr) { };
-
-  double
-  p (idx_t i, idx_t j);
-
-  idx_t
-  t (idx_t i);
-
-  bool
-  is_hanging (idx_t i);
-
-  void
-  get_parents (idx_t i, std::vector<idx_t> pv);
-
-  idx_t
-  e (idx_t i);
+  ~tmesh ();
 
   void
   read_connectivity (const char *filename,
@@ -125,9 +141,11 @@ public:
 
   void
   refine (int recursive = 0, int partforcoarsen = 0);
-  
+
+  // temporarily public untli the API is stable
   p4est_t              *p4est;
   p4est_connectivity_t *conn;
+  quadrant_t            current_quadrant;
   
 private:
 

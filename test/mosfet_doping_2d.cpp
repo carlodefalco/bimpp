@@ -34,16 +34,13 @@ bool7 (const double x, const double L)
 { return (x <= 3.0 * L / 4.0 ? 1.0 : 0.0); }
 
 static inline double
-doping  (const double vxyz[3],
+doping  (const double x, const double y,
          const double L, const double H)
 {
   constexpr double N_plus  = 1.0e25;
   constexpr double N_minus = 1.0e24;
   constexpr double P_plus  = 1.0e25;
   constexpr double P_minus = 1.0e24;
-
-  double x = vxyz[0];
-  double y = vxyz[1];
 
   double Na  = P_minus;
   Na += P_plus  * gaussian (y, -H / 2.0, H / 10.0) *
@@ -65,25 +62,26 @@ signedlog (double x)
 { return (asinh (x / 2.0) / log (10.0)); }
 
 int
-doping_driven_refinement (const double vxyz[12])
+doping_driven_refinement (std::function<double (tmesh:idx_t, tmesh:idx_t)> p);
 {
 
   constexpr double L = 3.0e-6;
   constexpr double H = 1.0e-5;
 
   double maxy = 0, miny = 0, y = 0;
-  double top = vxyz[1];
+  double top = p(1, 0);
 
-  maxy = miny = y = signedlog (doping (&(vxyz[0]), L, H));
+  maxy = miny = y = signedlog (doping (p(1, 0), p(1, 1), L, H));
 
   for (int ii = 1; ii < 4; ++ii)
     {
-      y = signedlog (doping (&(vxyz[0]) + 3 * ii, L, H));
+      y = signedlog (doping (p(0, ii), p(1, ii), L, H));
       maxy = maxy < y ? y : maxy;
       miny = miny > y ? y : miny;
-      top  = top < vxyz[1 + 3 * ii] ? vxyz[1 + 3 * ii] : top;
+      top  = top < p(1, ii) ? p(1, ii) : top;
     }
 
   double delta = maxy - miny;
   return ((top <= 0 && delta > .1) ? 1 : 0);
+  
 }
