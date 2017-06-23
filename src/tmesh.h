@@ -44,8 +44,8 @@ public:
   public:
 
     quadrant_t (tmesh *_tmesh,
-                p4est_topidx_t _tree,
-                p4est_quadrant_t *_quadrant) :
+                p4est_topidx_t _tree = 0,
+                p4est_quadrant_t *_quadrant = nullptr) :
       the_tmesh(_tmesh), the_tree(_tree), the_quadrant(_quadrant)
     { };
 
@@ -64,6 +64,10 @@ public:
     idx_t
     e (idx_t i);
 
+    void
+    update (p4est_topidx_t tree,
+            p4est_quadrant_t *q);
+    
   private:
 
     tmesh               *the_tmesh;
@@ -93,6 +97,10 @@ public:
     get_data () const
     { return this->data; };
 
+    quadrant_t*
+    get_data ()
+    { return this->data; };
+
     bool
     operator== (const quadrant_iterator& other)
     { return (this->get_data () == other.get_data ()); };
@@ -101,7 +109,8 @@ public:
     operator!= (const quadrant_iterator& other)
     { return !((*this) == other); };
     
-    quadrant_iterator () : data (nullptr)
+    quadrant_iterator (quadrant_t *_data = nullptr) :
+      data (_data)
     { };
     
   private:
@@ -132,12 +141,14 @@ public:
   { return quadrant_iterator (); };
 
   void
-  set_refinement_marker
-  (std::function<int (tmesh*, p4est_topidx_t, p4est_quadrant_t*)> fun);
+  set_refine_marker
+  (std::function<int (quadrant_iterator)> fun)
+  { refine_marker = fun; };
 
   void
-  set_derefinement_marker
-  (std::function<int (tmesh*, p4est_topidx_t, p4est_quadrant_t* [4])> fun);
+  set_coarsen_marker
+  (std::function<int (quadrant_iterator[4])> fun)
+  { coarsen_marker = fun; };
 
   void
   refine (int recursive = 0, int partforcoarsen = 0);
@@ -149,11 +160,18 @@ public:
   
 private:
 
-  std::function<int (tmesh*, p4est_topidx_t, p4est_quadrant_t*)>
-  refinement_marker;
+  std::function<int (quadrant_iterator)> refine_marker;
+  std::function<int (quadrant_iterator[4])> coarsen_marker;
 
-  std::function<int (tmesh*, p4est_topidx_t, p4est_quadrant_t* [4])>
-  derefinement_marker;
+  static int
+  refine_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t*);
+
+  static int
+  coarsen_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t* []);
+
+  void
+  update_quadrant (p4est_topidx_t tree,
+                   p4est_quadrant_t *q);
   
 };
 
