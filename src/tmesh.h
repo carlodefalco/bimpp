@@ -47,11 +47,11 @@ public:
                 p4est_topidx_t _tree = 0,
                 p4est_quadrant_t *_quadrant = nullptr) :
       the_tmesh(_tmesh), the_tree(_tree), the_quadrant(_quadrant)
-    { };
+    {  };
 
     double
     p (idx_t i, idx_t j);
-    
+
     idx_t
     t (idx_t i);
     
@@ -73,7 +73,7 @@ public:
     tmesh               *the_tmesh;
     p4est_topidx_t        the_tree;
     p4est_quadrant_t *the_quadrant;
-    std::array<double, 12>     vxyz;
+    double                vxyz[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
   };
 
   class
