@@ -6,6 +6,7 @@
 #include <vector>
 #include <cassert>
 
+/*
 static int
 refine_fn (p4est_t * p4est, p4est_topidx_t tt,
            p4est_quadrant_t * quadrant)
@@ -24,8 +25,14 @@ refine_fn (p4est_t * p4est, p4est_topidx_t tt,
   return (doping_driven_refinement (vxyz));
 
 }
+*/
 
-
+static int
+refine_fn (tmesh::quadrant_t &quadrant)
+{
+  return (doping_driven_refinement ([&quadrant] (tmesh::idx_t i, tmesh::idx_t j)
+                                    {return quadrant.p (i, j); }));
+}
 
 int
 main (int argc, char **argv)
@@ -76,8 +83,6 @@ main (int argc, char **argv)
   if (rank == 0)
     { toc ("IO"); }
 
-  p4est_destroy (tmsh.p4est);
-  p4est_connectivity_destroy (tmsh.conn);
 
   if (rank == 0)
     { print_timing_report (); }

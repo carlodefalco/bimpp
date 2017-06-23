@@ -113,7 +113,7 @@ tmesh::read_connectivity (const char *filename,
   
 };
 
-
+/*
 void
 tmesh::refine (int recursive = 0, int partforcoarsen = 0)
 {
@@ -121,3 +121,25 @@ tmesh::refine (int recursive = 0, int partforcoarsen = 0)
   p4est_balance (p4est, P4EST_CONNECT_FACE, NULL);
   p4est_partition (p4est, partforcoarsen, NULL);
 };
+*/
+
+tmesh::~tmesh ()
+{
+  p4est_destroy (this->p4est);
+  p4est_connectivity_destroy (this->conn);
+};
+
+double
+tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj) 
+{
+  p4est_quadrant_t node;
+  idx_t i;
+  for (i = 0; i < 4; ++i)
+    {
+      p4est_quadrant_corner_node (this->the_quadrant, i, &node);
+      p4est_qcoord_to_vertex (this->the_tmesh->conn, the_tree, node.x, node.y,
+                              &(vxyz[3 * i]));
+    }
+
+  return vxyz[3*ii+jj];
+}
