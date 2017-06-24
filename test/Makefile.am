@@ -24,7 +24,7 @@ if HAVE_LIS
 endif
 
 if HAVE_P4EST
-  check_PROGRAMS += p4est_ref_test 
+  check_PROGRAMS += p4est_ref_test  p4est_load_save_test 
 endif
 
 # schur_test_SOURCES = schur_test.cpp
@@ -144,11 +144,20 @@ if HAVE_LIS
 endif
 
 if HAVE_P4EST
+
   p4est_ref_test_SOURCES =  p4est_ref_test.cpp mosfet_doping_2d.cpp mosfet_connectivity_2d.cpp
   p4est_ref_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_ref_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_ref_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += p4est_ref_test.octbin.gz p4est_ref_test.pvtu p4est_ref_test.visit p4est_ref_test_*.vtu
+
+  p4est_load_save_test_SOURCES =  p4est_load_save_test.cpp mosfet_doping_2d.cpp mosfet_connectivity_2d.cpp
+  p4est_load_save_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_load_save_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_load_save_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+  CLEANFILES += p4est_load_save_test.octbin.gz p4est_load_save_test.pvtu p4est_load_save_test.visit p4est_load_save_test_*.vtu \
+                p4est_load_save_test.p4est p4est_load_save_test_2.pvtu	p4est_load_save_test_2.visit p4est_load_save_test_2*.vtu
+
 endif
 
 TESTS = io_test bgs_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
@@ -164,5 +173,5 @@ if HAVE_LIS
 endif
 
 if HAVE_P4EST
-  TESTS += p4est_ref_test
+  TESTS += p4est_ref_test p4est_load_save_test
 endif
