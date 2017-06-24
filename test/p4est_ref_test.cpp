@@ -80,7 +80,7 @@ main (int argc, char **argv)
   if (rank == 0)
     { tic (); }
 
-  p4est_vtk_write_file (tmsh.p4est, NULL, "p4est_ref_test");
+  tmsh.vtk_export ("p4est_ref_test");
 
   MPI_Barrier (MPI_COMM_WORLD);
   if (rank == 0)
