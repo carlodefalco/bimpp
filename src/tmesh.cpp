@@ -174,3 +174,14 @@ tmesh::update_quadrant (p4est_topidx_t tree,
                         p4est_quadrant_t *q)
 { current_quadrant.update (tree, q); };
 
+void
+tmesh::save (const char *filename)
+{ p4est_save (filename, p4est, 0); };
+
+void
+tmesh::load (const char *filename, MPI_Comm comm)
+{ p4est = p4est_load (filename, comm, 0, 0, this, &conn); };
+
+void
+tmesh::vtk_export (const char *filename)
+{ p4est_vtk_write_file (p4est, NULL, filename); };

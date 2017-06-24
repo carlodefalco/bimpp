@@ -133,6 +133,16 @@ public:
                      int source = 0,
                      MPI_Comm comm = MPI_COMM_WORLD);
 
+  void
+  save (const char *filename);
+
+  void
+  load (const char *filename,
+        MPI_Comm comm = MPI_COMM_WORLD);
+
+  void
+  vtk_export (const char *filename);
+
   quadrant_iterator
   begin_quadrant_sweep ();
   
