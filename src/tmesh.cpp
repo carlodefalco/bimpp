@@ -184,4 +184,12 @@ tmesh::load (const char *filename, MPI_Comm comm)
 
 void
 tmesh::vtk_export (const char *filename)
-{ p4est_vtk_write_file (p4est, NULL, filename); };
+{
+  p4est_vtk_context_t *context = p4est_vtk_context_new (p4est, filename);
+  assert (context != nullptr);
+  p4est_vtk_context_set_scale (context, 1.0);
+  p4est_vtk_context_set_continuous (context, 1);
+  context = p4est_vtk_write_header (context);
+  context = p4est_vtk_write_cell_dataf (context, 1, 1, 1, 0, 0, 0, context);
+  assert (p4est_vtk_write_footer (context) == 0);
+};
