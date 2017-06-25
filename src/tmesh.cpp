@@ -164,6 +164,21 @@ tmesh::vtk_export (const char *filename)
   assert (p4est_vtk_write_footer (context) == 0);
 };
 
+tmesh::quadrant_iterator
+tmesh::begin_quadrant_sweep ()
+{
+  tree_idx         = p4est->first_local_tree;
+  tree             = p4est_tree_array_index (p4est->trees, tree_idx);
+  forest_quad_idx  = 0;
+  tquadrants       = &tree->quadrants;
+  num_quadrants    = (p4est_locidx_t) tquadrants->elem_count;
+  auto tmp = p4est_quadrant_array_index
+    (tquadrants, forest_quad_idx);
+  current_quadrant.update (tree_idx, tmp);
+  return quadrant_iterator (&current_quadrant);
+};
+
+
 void
 tmesh::refine (int recursive, int partforcoarsen)
 {

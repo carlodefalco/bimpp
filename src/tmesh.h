@@ -84,8 +84,8 @@ public:
     /// A pointer to the owning mesh is needed to get physical mapping. 
     tmesh               *the_tmesh; // FIXME : what is actually used right now is th connectivity only.
 
-    p4est_topidx_t        the_tree;
-    p4est_quadrant_t *the_quadrant;
+    p4est_topidx_t       the_tree;
+    p4est_quadrant_t    *the_quadrant;
 
     /// Buffer used when quering coordinates.
     double                vxyz[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
@@ -138,7 +138,7 @@ public:
     quadrant_iterator (quadrant_t *_data = nullptr) :
       data (_data)
     { };
-    
+
   private:
     quadrant_t *data;      
   };
@@ -207,7 +207,14 @@ public:
   p4est_t              *p4est;
   p4est_connectivity_t *conn;
   quadrant_t            current_quadrant;
-  
+  p4est_tree_t         *tree;
+  sc_array_t           *tquadrants;
+  p4est_locidx_t        num_quadrants;
+  // Local and global indices for looping.
+  p4est_topidx_t        tree_idx;      
+  p4est_locidx_t        forest_quad_idx;
+  p4est_locidx_t        tree_quad_idx;
+
 private:
 
   std::function<int (quadrant_iterator)> refine_marker;
@@ -222,7 +229,7 @@ private:
   void
   update_quadrant (p4est_topidx_t tree,
                    p4est_quadrant_t *q);
-  
+
 };
 
 
