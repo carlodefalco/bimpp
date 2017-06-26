@@ -33,7 +33,7 @@ tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj)
  * \return true if any node is hanging, false otherwise.
  */
 static const int    zero = 0;      /**< Constant zero. */
-static const int    ones = 4 - 1;  /**< One bit per dimension. */
+static const int    ones = P4EST_CHILDREN - 1;  /**< One bit per dimension. */
 static int
 lnodes_decode2 (p4est_lnodes_code_t face_code,
                 int hanging_corner[P4EST_CHILDREN])
