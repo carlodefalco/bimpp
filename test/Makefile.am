@@ -145,7 +145,7 @@ endif
 
 if HAVE_P4EST
 
-  p4est_iterator_test_SOURCES =  p4est_iterator_test.cpp mosfet_connectivity_2d.cpp
+  p4est_iterator_test_SOURCES =  p4est_iterator_test.cpp  mosfet_doping_2d.cpp mosfet_connectivity_2d.cpp
   p4est_iterator_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_iterator_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_iterator_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@

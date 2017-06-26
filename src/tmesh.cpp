@@ -49,10 +49,6 @@ lnodes_decode2 (p4est_lnodes_code_t face_code,
       /* Process face hanging corners. */
       h = c ^ (1 << i);
       hanging_corner[h ^ ones] = (work & 1) ? c : -1;
-#ifdef P4_TO_P8
-      /* Process edge hanging corners. */
-      hanging_corner[h] = (work & P4EST_CHILDREN) ? c : -1;
-#endif
       work >>= 1;
     }
     return 1;
@@ -247,7 +243,7 @@ tmesh::quadrant_iterator::operator++ ()
         &(data->the_tmesh->tree)->quadrants;
       data->the_tmesh->num_quadrants =
         (p4est_locidx_t) data->the_tmesh->tquadrants->elem_count;
-      data->the_tmesh->forest_quad_idx = 0;
+      data->the_tmesh->tree_quad_idx = 0;
     }
 
   auto tmp = p4est_quadrant_array_index
