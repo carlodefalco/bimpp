@@ -230,7 +230,7 @@ tmesh::quadrant_iterator::operator++ ()
   data->the_tmesh->forest_quad_idx++;
   data->the_tmesh->tree_quad_idx++;
 
-  if (data->the_tmesh->forest_quad_idx
+  if (data->the_tmesh->tree_idx
       >= (data->the_tmesh->p4est->last_local_tree))
     {
       this->data = nullptr;
