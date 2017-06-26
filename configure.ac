@@ -234,3 +234,4 @@ AC_CONFIG_FILES([src/bim_config_pre.h
                  data/Makefile
                  test/Makefile])
 AC_OUTPUT
+
