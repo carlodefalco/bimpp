@@ -160,7 +160,13 @@ if HAVE_P4EST
 
 endif
 
-TESTS = io_test bgs_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
+TESTS =
+
+if HAVE_P4EST
+  TESTS += p4est_ref_test p4est_load_save_test
+endif
+
+TESTS += io_test bgs_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
 	bim3_stationary_test bim3_stationary_test2 bim3_stationary_test2_osc \
         bim3_stationary_test3 bim3_stationary_test3_osc bim3_stationary_test4 \
         bim3_timedependent_test bim3_timedependent_test2 bim3_timedependent_test2_osc \
@@ -172,6 +178,3 @@ if HAVE_LIS
            nonlinear_solver_test nonlinear_solver_test2 nonlinear_solver_test3 nonlinear_solver_test4
 endif
 
-if HAVE_P4EST
-  TESTS += p4est_ref_test p4est_load_save_test
-endif
