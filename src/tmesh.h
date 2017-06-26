@@ -78,11 +78,11 @@ public:
     void
     update (p4est_topidx_t tree,
             p4est_quadrant_t *q);
-    
-  private:
 
     /// A pointer to the owning mesh is needed to get physical mapping. 
-    tmesh               *the_tmesh; // FIXME : what is actually used right now is th connectivity only.
+    tmesh               *the_tmesh; 
+
+  private:
 
     p4est_topidx_t       the_tree;
     p4est_quadrant_t    *the_quadrant;
@@ -209,11 +209,11 @@ public:
   quadrant_t            current_quadrant;
   p4est_tree_t         *tree;
   sc_array_t           *tquadrants;
-  p4est_locidx_t        num_quadrants;
+  p4est_locidx_t        num_quadrants;    // Q
   // Local and global indices for looping.
-  p4est_topidx_t        tree_idx;      
-  p4est_locidx_t        forest_quad_idx;
-  p4est_locidx_t        tree_quad_idx;
+  p4est_topidx_t        tree_idx;         // tt
+  p4est_locidx_t        forest_quad_idx;  // k 
+  p4est_locidx_t        tree_quad_idx;    // q
 
 private:
 
@@ -227,7 +227,7 @@ private:
   coarsen_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t* []);
 
   void
-  update_quadrant (p4est_topidx_t tree,
+  update_quadrant (p4est_topidx_t tree_idx,
                    p4est_quadrant_t *q);
 
 };
