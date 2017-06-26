@@ -19,6 +19,49 @@ tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj)
   return (retval);
 };
 
+/** Decode the information from p{4,8}est_lnodes_t for a given element.
+ *
+ * \see p4est_lnodes.h for an in-depth discussion of the encoding.
+ * \param [in] face_code         Bit code as defined in p{4,8}est_lnodes.h.
+ * \param [out] hanging_corner   Undefined if no node is hanging.
+ *                               If any node is hanging, this contains
+ *                               one integer per corner, which is -1
+ *                               for corners that are not hanging,
+ *                               and the number of the non-hanging
+ *                               corner on the hanging face/edge otherwise.
+ *                               For faces in 3D, it is diagonally opposite.
+ * \return true if any node is hanging, false otherwise.
+ */
+static const int    zero = 0;      /**< Constant zero. */
+static const int    ones = 4 - 1;  /**< One bit per dimension. */
+static int
+lnodes_decode2 (p4est_lnodes_code_t face_code,
+                int hanging_corner[P4EST_CHILDREN])
+{
+  if (face_code) {
+    const int           c = (int) (face_code & ones);
+    int                 i, h;
+    int                 work = (int) (face_code >> P4EST_DIM);
+
+    /* These two corners are never hanging by construction. */
+    hanging_corner[c] = hanging_corner[c ^ ones] = -1;
+    for (i = 0; i < P4EST_DIM; ++i) {
+      /* Process face hanging corners. */
+      h = c ^ (1 << i);
+      hanging_corner[h ^ ones] = (work & 1) ? c : -1;
+#ifdef P4_TO_P8
+      /* Process edge hanging corners. */
+      hanging_corner[h] = (work & P4EST_CHILDREN) ? c : -1;
+#endif
+      work >>= 1;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+
+
 void
 tmesh::quadrant_t::update (p4est_topidx_t tree,
                            p4est_quadrant_t *q)
@@ -168,16 +211,51 @@ tmesh::quadrant_iterator
 tmesh::begin_quadrant_sweep ()
 {
   tree_idx         = p4est->first_local_tree;
-  tree             = p4est_tree_array_index (p4est->trees, tree_idx);
   forest_quad_idx  = 0;
+
+  tree             = p4est_tree_array_index (p4est->trees, tree_idx);
   tquadrants       = &tree->quadrants;
   num_quadrants    = (p4est_locidx_t) tquadrants->elem_count;
+  
   auto tmp = p4est_quadrant_array_index
     (tquadrants, forest_quad_idx);
   current_quadrant.update (tree_idx, tmp);
   return quadrant_iterator (&current_quadrant);
 };
 
+void 
+tmesh::quadrant_iterator::operator++ ()
+{
+
+  data->the_tmesh->forest_quad_idx++;
+  data->the_tmesh->tree_quad_idx++;
+
+  if (data->the_tmesh->forest_quad_idx
+      >= (data->the_tmesh->p4est->last_local_tree))
+    {
+      this->data = nullptr;
+      return;
+    }
+  else if (data->the_tmesh->tree_quad_idx
+      >= data->the_tmesh->num_quadrants)
+    {
+      data->the_tmesh->tree_idx++;
+      data->the_tmesh->tree =
+        p4est_tree_array_index (data->the_tmesh->p4est->trees,
+                                data->the_tmesh->tree_idx);
+      data->the_tmesh->tquadrants =
+        &(data->the_tmesh->tree)->quadrants;
+      data->the_tmesh->num_quadrants =
+        (p4est_locidx_t) data->the_tmesh->tquadrants->elem_count;
+      data->the_tmesh->forest_quad_idx = 0;
+    }
+
+  auto tmp = p4est_quadrant_array_index
+    (data->the_tmesh->tquadrants, data->the_tmesh->forest_quad_idx);
+  data->the_tmesh->current_quadrant.update (data->the_tmesh->tree_idx, tmp);
+  this->data = &(data->the_tmesh->current_quadrant);
+  
+};
 
 void
 tmesh::refine (int recursive, int partforcoarsen)
