@@ -50,7 +50,7 @@ public:
     quadrant_t (tmesh *_tmesh,
                 p4est_topidx_t _tree = 0,
                 p4est_quadrant_t *_quadrant = nullptr) :
-      the_tmesh(_tmesh), the_tree(_tree), the_quadrant(_quadrant)
+      the_tmesh(_tmesh), tree_idx(_tree), the_quadrant(_quadrant)
     {  };
 
     /// Get the i-th coordinate of the j-th vertex.
@@ -82,10 +82,17 @@ public:
     /// A pointer to the owning mesh is needed to get physical mapping. 
     tmesh               *the_tmesh; 
 
+    p4est_tree_t         *tree;
+    sc_array_t           *tquadrants;
+    p4est_locidx_t        num_quadrants;    // Q
+    // Local and global indices for looping.
+    p4est_topidx_t        tree_idx;         // tt
+    p4est_locidx_t        forest_quad_idx;  // k 
+    p4est_locidx_t        tree_quad_idx;    // q
+    p4est_quadrant_t     *the_quadrant;
+    
   private:
 
-    p4est_topidx_t       the_tree;
-    p4est_quadrant_t    *the_quadrant;
 
     /// Buffer used when quering coordinates.
     double                vxyz[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
@@ -207,13 +214,6 @@ public:
   p4est_t              *p4est;
   p4est_connectivity_t *conn;
   quadrant_t            current_quadrant;
-  p4est_tree_t         *tree;
-  sc_array_t           *tquadrants;
-  p4est_locidx_t        num_quadrants;    // Q
-  // Local and global indices for looping.
-  p4est_topidx_t        tree_idx;         // tt
-  p4est_locidx_t        forest_quad_idx;  // k 
-  p4est_locidx_t        tree_quad_idx;    // q
 
 private:
 
@@ -225,10 +225,6 @@ private:
 
   static int
   coarsen_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t* []);
-
-  void
-  update_quadrant (p4est_topidx_t tree_idx,
-                   p4est_quadrant_t *q);
 
 };
 
