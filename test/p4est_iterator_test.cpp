@@ -66,8 +66,10 @@ main (int argc, char **argv)
 
   recursive = 0;
   partforcoarsen = 0;
-  tmsh.refine (recursive, partforcoarsen);
 
+  tmsh.refine (recursive, partforcoarsen);
+  tmsh.refine (recursive, partforcoarsen);
+    
   tmsh.vtk_export ("p4est_iterator_test");
   
   double xcoord = 0.0;
