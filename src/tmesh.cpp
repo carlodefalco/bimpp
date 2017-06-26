@@ -56,8 +56,6 @@ lnodes_decode2 (p4est_lnodes_code_t face_code,
   return 0;
 }
 
-
-
 void
 tmesh::quadrant_t::update (p4est_topidx_t tree,
                            p4est_quadrant_t *q)
@@ -203,52 +201,59 @@ tmesh::vtk_export (const char *filename)
   assert (p4est_vtk_write_footer (context) == 0);
 };
 
+void
+tmesh::quadrant_iterator::reset ()
+{
+  p4est_t *p4 = (*data).the_tmesh->p4est;
+  (*data).tree_idx         = p4->first_local_tree;
+  (*data).forest_quad_idx  = 0;
+
+  (*data).tree             = p4est_tree_array_index (p4->trees, (*data).tree_idx);
+  (*data).tquadrants       = &((*data).tree->quadrants);
+  (*data).num_quadrants    = (p4est_locidx_t) (*data).tquadrants->elem_count;
+  
+  auto tmp = p4est_quadrant_array_index ((*data).tquadrants, (*data).forest_quad_idx);
+  (*data).update ((*data).tree_idx, tmp);
+  
+};
+
 tmesh::quadrant_iterator
 tmesh::begin_quadrant_sweep ()
 {
-  current_quadrant.tree_idx         = p4est->first_local_tree;
-  current_quadrant.forest_quad_idx  = 0;
-
-  current_quadrant.tree             = p4est_tree_array_index (p4est->trees, current_quadrant.tree_idx);
-  current_quadrant.tquadrants       = &(current_quadrant.tree->quadrants);
-  current_quadrant.num_quadrants    = (p4est_locidx_t) current_quadrant.tquadrants->elem_count;
-  
-  auto tmp = p4est_quadrant_array_index
-    (current_quadrant.tquadrants, current_quadrant.forest_quad_idx);
-  current_quadrant.update (current_quadrant.tree_idx, tmp);
-
-  return quadrant_iterator (&current_quadrant);
+  quadrant_iterator qi (&current_quadrant);
+  qi.reset ();
+  return qi;
 };
 
 void 
 tmesh::quadrant_iterator::operator++ ()
 {
 
-  p4est_t *p4 = data->the_tmesh->p4est;
+  p4est_t *p4 = (*data).the_tmesh->p4est;
 
-  data->forest_quad_idx++;
-  data->tree_quad_idx++;
+  (*data).forest_quad_idx++;
+  (*data).tree_quad_idx++;
 
 
-  if (data->tree_quad_idx >= data->num_quadrants)
+  if ((*data).tree_quad_idx >= (*data).num_quadrants)
     {
-      //std::cout << "tree_idx = " << data->the_tmesh->tree_idx << std::endl;
-      data->tree_idx++;
-      if ((data->tree_idx) > (p4->last_local_tree))
+      //std::cout << "tree_idx = " << (*data).the_tmesh->tree_idx << std::endl;
+      (*data).tree_idx++;
+      if (((*data).tree_idx) > (p4->last_local_tree))
         {
           this->data = nullptr;
           return;
         }
-      data->tree_quad_idx = 0;
+      (*data).tree_quad_idx = 0;
       
-      data->tree = p4est_tree_array_index (p4->trees, data->tree_idx);
-      data->tquadrants = &(data->tree)->quadrants;
+      (*data).tree = p4est_tree_array_index (p4->trees, (*data).tree_idx);
+      (*data).tquadrants = &((*data).tree)->quadrants;
 
-      data->num_quadrants = (p4est_locidx_t) data->tquadrants->elem_count;
+      (*data).num_quadrants = (p4est_locidx_t) (*data).tquadrants->elem_count;
     }
 
-  auto tmp = p4est_quadrant_array_index (data->tquadrants, data->tree_quad_idx);
-  data->update (data->tree_idx, tmp);
+  auto tmp = p4est_quadrant_array_index ((*data).tquadrants, (*data).tree_quad_idx);
+  (*data).update ((*data).tree_idx, tmp);
   
 };
 
@@ -256,9 +261,17 @@ void
 tmesh::refine (int recursive, int partforcoarsen)
 {
   p4est_refine (p4est, recursive, refine_callback, nullptr);
-  p4est_balance (p4est, P4EST_CONNECT_FACE, nullptr);
+  p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
   p4est_partition (p4est, partforcoarsen, nullptr);
 }
+
+// void
+// tmesh::coarsen (int recursive, int partforcoarsen)
+// {
+//   p4est_coarsen (p4est, recursive, coarsen_callback, nullptr);
+//   p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
+//   p4est_partition (p4est, partforcoarsen, nullptr);
+// }
 
 int
 tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt, p4est_quadrant_t* qq)

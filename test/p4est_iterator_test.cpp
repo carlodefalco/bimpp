@@ -38,7 +38,7 @@ doping_driven_refinement (tmesh::quadrant_iterator quadrant)
 
   double delta = maxy - miny;
   return ((top <= 0 && delta > .1) ? 1 : 0);
-  
+
 }
 
 
@@ -69,7 +69,8 @@ main (int argc, char **argv)
 
   tmsh.refine (recursive, partforcoarsen);
   tmsh.refine (recursive, partforcoarsen);
-    
+  tmsh.refine (recursive, partforcoarsen);
+  
   tmsh.vtk_export ("p4est_iterator_test");
   
   double xcoord = 0.0;
