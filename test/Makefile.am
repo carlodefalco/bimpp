@@ -149,14 +149,13 @@ if HAVE_P4EST
   p4est_coarsen_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_coarsen_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_coarsen_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
-  CLEANFILES += 
-
+  CLEANFILES += p4est_coarsen_test.octbin.gz p4est_coarsen_test.pvtu p4est_coarsen_test.visit p4est_coarsen_test_*.vtu
 
   p4est_iterator_test_SOURCES =  p4est_iterator_test.cpp  mosfet_doping_2d.cpp mosfet_connectivity_2d.cpp
   p4est_iterator_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_iterator_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_iterator_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
-  CLEANFILES += 
+  CLEANFILES += p4est_iterator_test.octbin.gz p4est_iterator_test.pvtu p4est_iterator_test.visit p4est_iterator_test_*.vtu
 
   p4est_ref_test_SOURCES =  p4est_ref_test.cpp mosfet_doping_2d.cpp mosfet_connectivity_2d.cpp
   p4est_ref_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
