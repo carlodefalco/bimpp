@@ -155,17 +155,21 @@ public:
 
     /// Buffer used when quering coordinates.
     double                vxyz[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
+    idx_t                 tbuff[4] = {0,0,0,0};
+    bool                  hbuff[4] = {false,false,false,false};
   };
 
   /// Default constructor, set all pointers to nullptr.
   tmesh ()
     : p4est (nullptr), conn (nullptr),
-      current_quadrant (this, 0, nullptr)
+      current_quadrant (this, 0, nullptr),
+      lnodes (nullptr)
   { };
 
   /// Load a p4est and connectivity from a file.
   tmesh (const char *filename)
-    : p4est (nullptr), current_quadrant (this, 0, nullptr)
+    : p4est (nullptr), current_quadrant (this, 0, nullptr),
+      lnodes (nullptr)
   { load (filename); };
 
 
@@ -222,14 +226,19 @@ public:
   void
   coarsen (int recursive = 0, int partforcoarsen = 1);
 
+  /// Compute lnodes numbering.
+  void
+  update ();
+  
   /// P4EST pointers describing the tmesh,
   /// temporarily public untli the API is stable.
   p4est_t              *p4est;
   p4est_connectivity_t *conn;
   quadrant_t            current_quadrant;
+  p4est_lnodes_t       *lnodes;
   
 private:
-
+  
   std::function<int (quadrant_iterator)> refine_marker;
   std::function<int (std::function<void (idx_t, quadrant_iterator&)>)> coarsen_marker;
 
