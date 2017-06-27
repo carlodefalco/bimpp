@@ -109,7 +109,7 @@ public:
                 p4est_topidx_t _tree = 0,
                 p4est_quadrant_t *_quadrant = nullptr) :
       the_tmesh(_tmesh), tree_idx(_tree), the_quadrant(_quadrant)
-    {  };
+    { };
 
     /// Get the i-th coordinate of the j-th vertex.
     double
@@ -159,8 +159,9 @@ public:
 
   /// Default constructor, set all pointers to nullptr.
   tmesh ()
-    : p4est (nullptr), conn (nullptr), current_quadrant (this, 0, nullptr)
-  {  };
+    : p4est (nullptr), conn (nullptr),
+      current_quadrant (this, 0, nullptr)
+  { };
 
   /// Load a p4est and connectivity from a file.
   tmesh (const char *filename)
@@ -208,7 +209,7 @@ public:
   /// Set functor to mark quadrants for coarsening.
   void
   set_coarsen_marker
-  (std::function<int (quadrant_iterator[4])> fun)
+  (std::function<int (std::function<void (idx_t, quadrant_iterator&)>)> fun)
   { coarsen_marker = fun; };
 
   /// Refine marked quadrants, balance the quadtree and
@@ -216,23 +217,34 @@ public:
   void
   refine (int recursive = 0, int partforcoarsen = 1);
 
+  /// Coarsen marked quadrants, balance the quadtree and
+  /// re-partition over the processors.
+  void
+  coarsen (int recursive = 0, int partforcoarsen = 1);
+
   /// P4EST pointers describing the tmesh,
   /// temporarily public untli the API is stable.
   p4est_t              *p4est;
   p4est_connectivity_t *conn;
   quadrant_t            current_quadrant;
-
+  
 private:
 
   std::function<int (quadrant_iterator)> refine_marker;
-  std::function<int (quadrant_iterator[4])> coarsen_marker;
+  std::function<int (std::function<void (idx_t, quadrant_iterator&)>)> coarsen_marker;
 
   static int
   refine_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t*);
 
   static int
   coarsen_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t* []);
-
+  
+  static void
+  select_quad (tmesh *_tmesh,
+               p4est_topidx_t tree_idx,
+               p4est_quadrant_t* qt [],
+               idx_t ii, quadrant_iterator& qi);
+  
 };
 
 

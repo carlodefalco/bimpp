@@ -265,13 +265,13 @@ tmesh::refine (int recursive, int partforcoarsen)
   p4est_partition (p4est, partforcoarsen, nullptr);
 }
 
-// void
-// tmesh::coarsen (int recursive, int partforcoarsen)
-// {
-//   p4est_coarsen (p4est, recursive, coarsen_callback, nullptr);
-//   p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
-//   p4est_partition (p4est, partforcoarsen, nullptr);
-// }
+void
+tmesh::coarsen (int recursive, int partforcoarsen)
+{
+  p4est_coarsen (p4est, recursive, coarsen_callback, nullptr);
+  p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
+  p4est_partition (p4est, partforcoarsen, nullptr);
+};
 
 int
 tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt, p4est_quadrant_t* qq)
@@ -286,6 +286,18 @@ int
 tmesh::coarsen_callback (p4est_t* p4, p4est_topidx_t tt, p4est_quadrant_t* qq[])
 {
   tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
+  auto fun = [tm, tt, qq] (idx_t ii, quadrant_iterator& qi)
+    { select_quad (tm, tt, qq, ii, qi); };
+  return tm->coarsen_marker (fun);
 };
 
 
+void
+tmesh::select_quad (tmesh *_tmesh,
+                    p4est_topidx_t tree_idx,
+                    p4est_quadrant_t* qt [],
+                    idx_t ii, quadrant_iterator& qi)
+{
+  qi = quadrant_iterator (&(_tmesh->current_quadrant));
+  qi.get_data ()->update (tree_idx, qt[ii]);
+};
