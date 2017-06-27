@@ -83,16 +83,14 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
         {
           lni = ln->element_nodes[4 * forest_quad_idx + i];
           tbuff[i] = lni;
+          hbuff[i] = false;
         }
-      
-      for (i = 0; i <4; ++ i)
-        hbuff[i] = false;
-      
+            
       if (lnodes_decode2
           (ln->face_code[forest_quad_idx], hanging_corner))
         {
           for (i = 0; i < 4; ++i)
-            if (hanging_corner[i] == -1)
+            if (hanging_corner[i] != -1)
               hbuff[i] = true;      
         }
     }
