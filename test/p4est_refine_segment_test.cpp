@@ -1,6 +1,8 @@
 #include <tmesh.h>
 #include <octave_file_io.h>
 #include <vector>
+#include <cstdio>
+char name[255];
 
 using Point = std::array<double, 2>;
 using Segment = std::array<Point, 2>;
@@ -185,6 +187,34 @@ int main(int argc, char ** argv)
                            {Point({0.31, 0.29}),
                             Point({0.95, 0.45})}
                           );
+      segment_list.push_back(
+                           {Point({0.576014, 0.868193}),
+                            Point({0.267873, 0.259006})}
+                          );
+     segment_list.push_back(
+                           {Point({0.883510, 0.915356}),
+                            Point({0.238922, 0.383652})}
+                          );
+     segment_list.push_back(
+                           {Point({0.074955, 0.478928}),
+                            Point({0.952287, 0.362154})}
+                          );
+     segment_list.push_back(
+                           {Point({0.714012, 0.783834}),
+                            Point({0.649018, 0.464346})}
+                          );
+     segment_list.push_back(
+                           {Point({0.823450, 0.783996}),
+                            Point({0.248762, 0.576897})}
+                          );
+     segment_list.push_back(
+                           {Point({0.1, 0.1}),
+                            Point({0.1, 0.9})}
+                          );
+     segment_list.push_back(
+                           {Point({0.1, 0.1}),
+                            Point({0.9, 0.1})}
+                          );
     
     std::function<int (tmesh::quadrant_iterator)> segment_refinement =
     [segment_list] (tmesh::quadrant_iterator qi)
@@ -197,11 +227,14 @@ int main(int argc, char ** argv)
     for (int cycle = 0; cycle < 12; ++cycle)
     {
         tmsh.refine(recursive, partforcoarsen);
+
+        // Export mesh.
+        sprintf (name, "p4est_refine_segment_test_%4.4d", cycle);
+        tmsh.vtk_export(name);
+
     }
     
     
-    // Export mesh.
-    tmsh.vtk_export("p4est_refine_segment_test");
     
     MPI_Finalize();
     return 0;
