@@ -299,5 +299,5 @@ tmesh::select_quad (tmesh *_tmesh,
                     idx_t ii, quadrant_iterator& qi)
 {
   qi = quadrant_iterator (&(_tmesh->current_quadrant));
-  qi.get_data ()->update (tree_idx, qt[ii]);
+  qi->update (tree_idx, qt[ii]);
 };
