@@ -60,21 +60,58 @@ void
 tmesh::quadrant_t::update (p4est_topidx_t tree,
                            p4est_quadrant_t *q)
 {
-  p4est_quadrant_t node;
+  p4est_quadrant_t node, parent;
   idx_t i;
+  int hanging_corner[4];
+  p4est_lnodes_t *ln = the_tmesh->lnodes;
+  p4est_locidx_t lni;
+  
   this->tree_idx = tree;
   this->the_quadrant = q;
   for (i = 0; i < 4; ++i)
     {
       p4est_quadrant_corner_node (this->the_quadrant, i, &node);
-      p4est_qcoord_to_vertex (this->the_tmesh->conn, tree_idx, node.x, node.y, &(vxyz[3 * i]));
+      p4est_qcoord_to_vertex (this->the_tmesh->conn, tree_idx,
+                              node.x, node.y, &(vxyz[3 * i]));
+    }
+
+  if (ln != nullptr)
+    {
+      const p4est_locidx_t nloc = ln->num_local_nodes;
+      
+      for (i = 0; i < 4; ++i)
+        {
+          lni = ln->element_nodes[4 * forest_quad_idx + i];
+          tbuff[i] = lni;
+        }
+      
+      for (i = 0; i <4; ++ i)
+        hbuff[i] = false;
+      
+      if (lnodes_decode2
+          (ln->face_code[forest_quad_idx], hanging_corner))
+        {
+          for (i = 0; i < 4; ++i)
+            if (hanging_corner[i] == -1)
+              hbuff[i] = true;      
+        }
     }
 };
+
+tmesh::idx_t
+tmesh::quadrant_t::t (tmesh::idx_t i)
+{ return tbuff[i]; };
+
+bool
+tmesh::quadrant_t::is_hanging (tmesh::idx_t i)
+{ return hbuff[i]; };
+
 
 tmesh::~tmesh ()
 {
   p4est_destroy (this->p4est);
   p4est_connectivity_destroy (this->conn);
+  if (!(this->lnodes == nullptr)) p4est_lnodes_destroy (this->lnodes);
 };
 
 
@@ -263,6 +300,9 @@ tmesh::refine (int recursive, int partforcoarsen)
   p4est_refine (p4est, recursive, refine_callback, nullptr);
   p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
   p4est_partition (p4est, partforcoarsen, nullptr);
+
+  if (! (lnodes == nullptr)) p4est_lnodes_destroy (lnodes);
+  lnodes = nullptr;
 }
 
 void
@@ -271,6 +311,18 @@ tmesh::coarsen (int recursive, int partforcoarsen)
   p4est_coarsen (p4est, recursive, coarsen_callback, nullptr);
   p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
   p4est_partition (p4est, partforcoarsen, nullptr);
+
+  if (! (lnodes == nullptr)) p4est_lnodes_destroy (lnodes);
+  lnodes = nullptr;  
+};
+
+void
+tmesh::update ()
+{
+  auto ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
+  lnodes = p4est_lnodes_new (p4est, ghost, 1);
+  p4est_ghost_destroy (ghost);
+  ghost = nullptr;  
 };
 
 int
