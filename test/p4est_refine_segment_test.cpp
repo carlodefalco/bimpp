@@ -1,4 +1,5 @@
 #include <tmesh.h>
+#include <bim_timing.h>
 #include <octave_file_io.h>
 #include <vector>
 #include <cstdio>
@@ -157,6 +158,13 @@ int main(int argc, char ** argv)
     tmsh.read_connectivity("p4est_unitsquare.octbin.gz");
     
     
+    // Start timing.
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0)
+    {
+        tic();
+    }
+    
     // Uniform refinement.
     recursive = 0;
     partforcoarsen = 1;
@@ -224,7 +232,7 @@ int main(int argc, char ** argv)
     
     tmsh.set_refine_marker(segment_refinement);
     
-    for (int cycle = 0; cycle < 12; ++cycle)
+    for (int cycle = 0; cycle < 15; ++cycle)
     {
         tmsh.refine(recursive, partforcoarsen);
 
@@ -234,7 +242,28 @@ int main(int argc, char ** argv)
 
     }
     
+    // Stop timing.
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0)
+    {
+        toc("*** Refinement and balancing ***");
+    }
     
+    
+    // Start timing.
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0)
+    {
+        tic();
+    }
+    
+    
+    // Stop timing.
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0)
+    {
+        toc("*** Export ***");
+    }
     
     MPI_Finalize();
     return 0;
