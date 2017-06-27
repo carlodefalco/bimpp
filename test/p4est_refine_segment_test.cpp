@@ -175,11 +175,15 @@ int main(int argc, char ** argv)
                           );
     segment_list.push_back(
                            {Point({0.30, 0.30}),
-                            Point({0.40, 0.75})}
+                            Point({0.40, 0.90})}
                           );
     segment_list.push_back(
-                           {Point({0.40, 0.75}),
-                            Point({0.95, 0.55})}
+                           {Point({0.25, 0.05}),
+                            Point({0.31, 0.29})}
+                          );
+    segment_list.push_back(
+                           {Point({0.31, 0.29}),
+                            Point({0.95, 0.45})}
                           );
     
     std::function<int (tmesh::quadrant_iterator)> segment_refinement =
@@ -190,7 +194,7 @@ int main(int argc, char ** argv)
     
     tmsh.set_refine_marker(segment_refinement);
     
-    for (int cycle = 0; cycle < 15; ++cycle)
+    for (int cycle = 0; cycle < 12; ++cycle)
     {
         tmsh.refine(recursive, partforcoarsen);
     }
