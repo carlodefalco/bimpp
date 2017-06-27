@@ -26,8 +26,8 @@ doping_driven_refinement (tmesh::quadrant_iterator quadrant)
   for (int ii = 0; ii < 4; ++ii)
     {
 
-      xcoord = (*quadrant).p(0, ii);
-      ycoord = (*quadrant).p(1, ii);
+      xcoord = quadrant->p(0, ii);
+      ycoord = quadrant->p(1, ii);
       
       y = signedlog (doping (xcoord, ycoord, L, H));
 
@@ -58,7 +58,7 @@ coarsen_right_half (std::function<void (tmesh::idx_t, tmesh::quadrant_iterator&)
       next (ii, qi);
       for (tmesh::idx_t jj = 0; jj < 4; ++jj)
         {
-          xcoord = (*qi).p(0, jj);
+          xcoord = qi->p(0, jj);
           minx = minx > xcoord ? xcoord : minx;
         }
     }
@@ -113,8 +113,8 @@ main (int argc, char **argv)
       std::cout << ++ii;
       for (int ii = 0; ii < 4; ++ii)
         {
-          xcoord = (*quadrant).p(0, ii);
-          ycoord = (*quadrant).p(1, ii);
+          xcoord = quadrant->p(0, ii);
+          ycoord = quadrant->p(1, ii);
           std::cout << ", " << xcoord << ", " << ycoord;
         }
       std::cout << std::endl;

@@ -26,8 +26,8 @@ doping_driven_refinement (tmesh::quadrant_iterator quadrant)
   for (int ii = 0; ii < 4; ++ii)
     {
 
-      xcoord = (*quadrant).p(0, ii);
-      ycoord = (*quadrant).p(1, ii);
+      xcoord = quadrant->p(0, ii);
+      ycoord = quadrant->p(1, ii);
       
       y = signedlog (doping (xcoord, ycoord, L, H));
 
@@ -82,8 +82,8 @@ main (int argc, char **argv)
       std::cout << ++ii;
       for (int ii = 0; ii < 4; ++ii)
         {
-          xcoord = (*quadrant).p(0, ii);
-          ycoord = (*quadrant).p(1, ii);
+          xcoord = quadrant->p(0, ii);
+          ycoord = quadrant->p(1, ii);
           std::cout << ", " << xcoord << ", " << ycoord;
         }
       std::cout << std::endl;

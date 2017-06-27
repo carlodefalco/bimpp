@@ -51,31 +51,31 @@ public:
     /// Get next quadrant.
     void 
     operator++ ();
-
+    
     /// Dereference.
     quadrant_t&
     operator* ()
     { return *(this->data); };
-
+    
     /// Dereference. const version.
     const quadrant_t&
     operator* () const
     { return *(this->data); };
-
-    /// Get direct access to the wrapped pointer. 
-    quadrant_t*
-    get_data ()
+    
+    /// Operator -> to get access to the wrapped pointer.
+    quadrant_t *
+    operator-> ()
     { return this->data; };
-
-    /// Get direct access to the wrapped pointer. const version.
-    const quadrant_t*
-    get_data () const
+    
+    /// Operator ->. const version.
+    const quadrant_t *
+    operator-> () const
     { return this->data; };
 
     /// Compare two quadrant_iterator objects.
     bool
     operator== (const quadrant_iterator& other)
-    { return (this->get_data () == other.get_data ()); };
+    { return (this->data == other.data); };
 
     /// Return the opposite of ==.
     bool
