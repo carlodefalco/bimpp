@@ -139,26 +139,14 @@ int main(int argc, char ** argv)
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
     
-  MPI_Barrier (MPI_COMM_WORLD);
-  tic ();
+  MPI_Barrier (MPI_COMM_WORLD); { if (rank == 0) tic (); }
   
   // Create mesh.
   if (rank == 0)
-    unit_square ("p4est_unitsquare.octbin.gz");
-    
+    unit_square ("p4est_unitsquare.octbin.gz");    
   tmsh.read_connectivity ("p4est_unitsquare.octbin.gz");
-        
-  // Uniform refinement.
-  recursive = 0;
-  partforcoarsen = 1;
-    
-  tmsh.set_refine_marker (uniform_refinement);
-    
-  for (int cycle = 0; cycle < 2; ++cycle)
-    tmsh.refine(recursive, partforcoarsen);
-    
-    
-  // Refine according to segment_list.
+
+  // Define marking for adaptive refinement.
   std::vector<Segment> segment_list;
   segment_list.push_back ({Point({0.10, 0.10}), Point({0.30, 0.30})});
   segment_list.push_back ({Point({0.30, 0.30}), Point({0.40, 0.90})});
@@ -171,43 +159,53 @@ int main(int argc, char ** argv)
   segment_list.push_back ({Point({0.82, 0.78}), Point({0.24, 0.57})});
   segment_list.push_back ({Point({0.10, 0.10}), Point({0.10, 0.90})});
   segment_list.push_back ({Point({0.10, 0.10}), Point({0.90, 0.10})});
-    
+
   std::function<int (tmesh::quadrant_iterator)> segment_refinement =
     [segment_list] (tmesh::quadrant_iterator qi)
     { return segment_list_refinement(qi, segment_list); };
-    
-  tmsh.set_refine_marker(segment_refinement);
 
-  if (rank == 0)
-    toc ("*** Initialization ***");
+
+  if (rank == 0) { toc ("*** Initialization ***"); }
+
+
+  // Uniform refinement.
+  recursive = 0;
+  partforcoarsen = 1;
+    
+  tmsh.set_refine_marker (uniform_refinement);
+  
+  int file_number = 0;
+  for (int cycle = 0; cycle < 2; ++cycle)
+    {
+        MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+        tmsh.refine(recursive, partforcoarsen);        
+        if (rank == 0) { toc ("*** Refinement and balancing ***"); }
+
+        MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+        sprintf(name,"p4est_refine_segment_test_%4.4d",file_number++);
+        tmsh.vtk_export (name);
+        if (rank == 0) { toc ("*** Export ***"); }
+    }
+  
+  // Refine according to segment_list.  
+  tmsh.set_refine_marker (segment_refinement);
 
   for (int cycle = 0; cycle < 16; ++cycle)
     {
       // Adaptive refinement.
-      MPI_Barrier (MPI_COMM_WORLD);
-      if (rank == 0)
-        { tic (); }
-      
-      tmsh.refine(recursive, partforcoarsen);
-
-      if (rank == 0)
-        { toc ("*** Refinement and balancing ***"); }
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+      tmsh.refine (recursive, partforcoarsen);
+      if (rank == 0) { toc ("*** Refinement and balancing ***"); }
 
       // Export mesh.
-      MPI_Barrier (MPI_COMM_WORLD);
-      if (rank == 0)
-        { tic (); }
-      
-      sprintf (name, "p4est_refine_segment_test_%4.4d", cycle);
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }      
+      sprintf(name,"p4est_refine_segment_test_%4.4d",file_number++);
       tmsh.vtk_export (name);
-
-      if (rank == 0)
-        { toc ("*** Export ***"); }
+      if (rank == 0) { toc ("*** Export ***"); }  
     }
         
   MPI_Barrier (MPI_COMM_WORLD);
-  if (rank == 0)
-    { print_timing_report (); }
+  if (rank == 0) { print_timing_report (); }
   
   MPI_Finalize ();
   return 0;

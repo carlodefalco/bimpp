@@ -46,7 +46,7 @@ static std::map<std::string,event_counter> timing_report;
               << (*ii).second.cumtime / 1.0e3                           \
               << " s. ("                                                \
               << 100 * (*ii).second.cumtime / time_counter              \
-              << "p.c.)" << std::endl;                                             
+              << "%)" << std::endl;                                             
 
 #else 
 
