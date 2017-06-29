@@ -28,24 +28,24 @@ static std::map<std::string,event_counter> timing_report;
     << "ms" << std::endl;                                     
 
 
-#define print_timing_report()                                           \
-  double time_counter = 0;                                              \
-  std::cout << "Timing Report:" << std::endl;                           \
-  for (std::map<std::string,event_counter>::iterator ii =               \
-         timing_report.begin ();                                        \
-       ii != timing_report.end (); ++ii)                                \
-    time_counter += (*ii).second.cumtime;                               \
-  for (std::map<std::string,event_counter>::iterator ii =               \
-         timing_report.begin ();                                        \
-       ii != timing_report.end (); ++ii)                                \
-    std::cout << "Event: "                                              \
-              << (*ii).first                                            \
-              << ", total hits: "                                       \
-              << (*ii).second.count                                     \
-              << ", total time: "                                       \
-              << (*ii).second.cumtime / 1.0e3                           \
-              << " s. ("                                                \
-              << 100 * (*ii).second.cumtime / time_counter              \
+#define print_timing_report()                                \
+  double time_counter = 0;                                   \
+  std::cout << "Timing Report:" << std::endl;                \
+  for (std::map<std::string,event_counter>::iterator ii =    \
+         timing_report.begin ();                             \
+       ii != timing_report.end (); ++ii)                     \
+    time_counter += (*ii).second.cumtime;                    \
+  for (std::map<std::string,event_counter>::iterator ii =    \
+         timing_report.begin ();                             \
+       ii != timing_report.end (); ++ii)                     \
+    std::cout << "Event: "                                   \
+              << (*ii).first                                 \
+              << ", total hits: "                            \
+              << (*ii).second.count                          \
+              << ", total time: "                            \
+              << (*ii).second.cumtime / 1.0e3                \
+              << " s. ("                                     \
+              << 100 * (*ii).second.cumtime / time_counter   \
               << "%)" << std::endl;                                             
 
 #else 
