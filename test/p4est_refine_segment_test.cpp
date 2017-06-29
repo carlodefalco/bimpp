@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdio>
 char name[255];
+char step[255];
 
 using Point = std::array<double, 2>;
 using Segment = std::array<Point, 2>;
@@ -174,12 +175,16 @@ int main(int argc, char ** argv)
     
   tmsh.set_refine_marker (uniform_refinement);
   
-  int file_number = 0;
+  int file_number = 0, refine_number = 0;
   for (int cycle = 0; cycle < 2; ++cycle)
     {
         MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
         tmsh.refine(recursive, partforcoarsen);        
-        if (rank == 0) { toc ("*** Refinement and balancing ***"); }
+        if (rank == 0) 
+          { 
+             sprintf (step, "*** Refinement and balancing %3.3d ***", refine_number++);
+             toc (step); 
+          }
 
         MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
         sprintf(name,"p4est_refine_segment_test_%4.4d",file_number++);
@@ -195,7 +200,11 @@ int main(int argc, char ** argv)
       // Adaptive refinement.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       tmsh.refine (recursive, partforcoarsen);
-      if (rank == 0) { toc ("*** Refinement and balancing ***"); }
+      if (rank == 0) 
+          { 
+             sprintf (step, "*** Refinement and balancing %3.3d ***", refine_number++);
+             toc (step); 
+          }
 
       // Export mesh.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }      
