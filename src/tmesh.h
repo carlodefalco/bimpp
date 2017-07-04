@@ -229,6 +229,23 @@ public:
   /// Compute lnodes numbering.
   void
   update ();
+
+  /// Return number of nodes owned by local process
+  idx_t
+  num_owned_nodes ()
+  {
+    if (! lnodes) update ();
+    return lnodes->owned_count;
+  };
+
+  /// Return number of nodes of quadrants owned by local process
+  idx_t
+  num_local_nodes ()    
+  {
+    if (! lnodes) update ();
+    return lnodes->num_local_nodes;
+  };
+
   
   /// P4EST pointers describing the tmesh,
   /// temporarily public untli the API is stable.
