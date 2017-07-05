@@ -1,46 +1,41 @@
 #include <bim_timing.h>
 #include <tmesh.h>
 
-#include <mosfet_connectivity_2d.h>
-#include <mosfet_doping_2d.h>
+#include <simple_connectivity_2d.h>
 
 #include <vector>
 #include <cassert>
 
 
 static int
-doping_driven_refinement (tmesh::quadrant_iterator quadrant)
+bottom_refinement (tmesh::quadrant_iterator quadrant)
 {
-
-  constexpr double L = 3.0e-6;
-  constexpr double H = 1.0e-5;
-
-  double maxy = 0, miny = 0, y = 0;
-  double xcoord, ycoord;
-  
+  double ycoord;
   double top = std::numeric_limits<double>::lowest ();
-
-  maxy = std::numeric_limits<double>::lowest ();
-  miny = std::numeric_limits<double>::max ();
-
   for (int ii = 0; ii < 4; ++ii)
     {
-
-      xcoord = quadrant->p(0, ii);
       ycoord = quadrant->p(1, ii);
-      
-      y = signedlog (doping (xcoord, ycoord, L, H));
-
-      maxy = maxy < y ? y : maxy;
-      miny = miny > y ? y : miny;
       top  = top < ycoord ? ycoord : top;
     }
-
-  double delta = maxy - miny;
-  return ((top <= 0 && delta > .1) ? 1 : 0);
-
+  return ((top <= 0.5) ? 1 : 0);
 }
 
+static int
+left_refinement (tmesh::quadrant_iterator quadrant)
+{
+  double xcoord;
+  double right = std::numeric_limits<double>::lowest ();
+  for (int ii = 0; ii < 4; ++ii)
+    {
+      xcoord = quadrant->p(0, ii);
+      right  = right < xcoord ? xcoord : right;
+    }
+  return ((right <= 0.5) ? 1 : 0);
+}
+
+static int
+uniform_refinement (tmesh::quadrant_iterator quadrant)
+{ return 1; }
 
 int
 main (int argc, char **argv)
@@ -50,7 +45,9 @@ main (int argc, char **argv)
   MPI_Comm              mpicomm = MPI_COMM_WORLD;  
   int                   rank, size;
   tmesh                 tmsh;
-  
+  double                xcoord = 0.0;
+  double                ycoord = 0.0;
+
   MPI_Init (&argc, &argv);
 
   mpicomm = MPI_COMM_WORLD;
@@ -62,18 +59,48 @@ main (int argc, char **argv)
 
   tmsh.read_connectivity ("p4est_iterator_test.octbin.gz");
 
-  tmsh.set_refine_marker (doping_driven_refinement);
+  tmsh.set_refine_marker (uniform_refinement);
+  recursive = 0; partforcoarsen = 1;
+  tmsh.refine (recursive, partforcoarsen);
 
-  recursive = 0;
-  partforcoarsen = 0;
+  std::cout << "first refinement step"
+            << std::endl;
+  std::cout << "num_local_nodes = "
+            << tmsh.num_local_nodes ()
+            << std::endl;
 
+  std::cout << "num_owned_nodes = "
+            << tmsh.num_owned_nodes ()
+            << std::endl;
+
+  tmsh.set_refine_marker (bottom_refinement);
+  recursive = 0; partforcoarsen = 1;
+  tmsh.refine (recursive, partforcoarsen);
+
+  std::cout << "second refinement step"
+            << std::endl;
+  std::cout << "num_local_nodes = "
+            << tmsh.num_local_nodes ()
+            << std::endl;
+
+  std::cout << "num_owned_nodes = "
+            << tmsh.num_owned_nodes ()
+            << std::endl;
+
+  tmsh.set_refine_marker (left_refinement);
   tmsh.refine (recursive, partforcoarsen);
   tmsh.refine (recursive, partforcoarsen);
-  tmsh.refine (recursive, partforcoarsen);
+  
+  std::cout << "third refinement step"
+            << std::endl;
+  std::cout << "num_local_nodes = "
+            << tmsh.num_local_nodes ()
+            << std::endl;
+
+  std::cout << "num_owned_nodes = "
+            << tmsh.num_owned_nodes ()
+            << std::endl;
     
-  double xcoord = 0.0;
-  double ycoord = 0.0;
-
   int ii = 0;
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep ();
@@ -82,9 +109,11 @@ main (int argc, char **argv)
       std::cout << ++ii;
       for (int ii = 0; ii < 4; ++ii)
         {
-          xcoord = quadrant->p(0, ii);
-          ycoord = quadrant->p(1, ii);
-          std::cout << ", " << xcoord << ", " << ycoord;
+          std::cout << ", ";
+          if (quadrant->is_hanging (ii))
+            std::cout << "*";
+          else
+            std::cout << quadrant->t(ii);
         }
       std::cout << std::endl;
     }
