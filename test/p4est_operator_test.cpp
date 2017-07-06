@@ -52,7 +52,7 @@ main (int argc, char **argv)
        quadrant != tmsh.end_quadrant_sweep ();
        ++quadrant)
     {
-      alpha.push_back( 0.5 * (quadrant->p(0, 0) + quadrant->p(0, 1)) );
+      alpha[quadrant->idx()] = 0.5 * (quadrant->p(0, 0) + quadrant->p(0, 1));
       
       for (int ii = 0; ii < 4; ++ii)
         {
