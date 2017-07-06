@@ -47,18 +47,18 @@ main (int argc, char **argv)
   std::vector<double> alpha(tmsh.num_local_elems (), 1);
   std::vector<double> psi(tmsh.num_local_nodes (), 0);
   
-  // alpha = x; psi(x, y) = x * y;
+  // alpha(x, y) = x; psi(x, y) = x * y;
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep ();
        ++quadrant)
     {
-      alpha[quadrant->idx()] = 0.5 * (quadrant->p(0, 0) + quadrant->p(0, 1));
+      alpha[quadrant->get_forest_quad_idx()] = 0.5 * (quadrant->p(0, 0) + quadrant->p(0, 1));
       
       for (int ii = 0; ii < 4; ++ii)
         {
-          psi[quadrant->t(ii)] = 0;
+           psi[quadrant->t(ii)] = quadrant->p(0, ii) * quadrant->p(1, ii);
         }
-    };
+    }
   
   bim2a_advection_diffusion (tmsh, alpha, psi, A);
   

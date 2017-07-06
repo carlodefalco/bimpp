@@ -134,7 +134,7 @@ public:
 
     /// Returns global index of current quadrant.
     p4est_locidx_t
-    idx(void)
+    get_forest_quad_idx(void)
     { return forest_quad_idx; };
     
     /// Update stored data.
