@@ -241,6 +241,7 @@ tmesh::quadrant_iterator::reset ()
 {
   p4est_t *p4 = data->the_tmesh->p4est;
   data->tree_idx         = p4->first_local_tree;
+  data->tree_quad_idx    = 0;
   data->forest_quad_idx  = 0;
 
   data->tree             = p4est_tree_array_index (p4->trees, data->tree_idx);
@@ -269,11 +270,10 @@ tmesh::quadrant_iterator::operator++ ()
   data->forest_quad_idx++;
   data->tree_quad_idx++;
 
-
   if (data->tree_quad_idx >= data->num_quadrants)
     {
-      //std::cout << "tree_idx = " << data->the_tmesh->tree_idx << std::endl;
       data->tree_idx++;
+      
       if ((data->tree_idx) > (p4->last_local_tree))
         {
           this->data = nullptr;

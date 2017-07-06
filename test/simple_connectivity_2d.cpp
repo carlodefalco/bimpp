@@ -4,8 +4,8 @@
 int
 write_example_connectivity (const char* filename)
 {
-  std::vector<double> p = {0., 0., 1., 1.,
-                           0., 1., 1., 0.};
+  std::vector<double> p = {0., 1., 1., 0.,
+                           0., 0., 1., 1.};
 
   std::vector<int> t = {1, 2, 3, 4, 1};
 
