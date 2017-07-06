@@ -73,6 +73,23 @@ main (int argc, char **argv)
             << tmsh.num_owned_nodes ()
             << std::endl;
 
+  int ii = 0;
+  for (auto quadrant = tmsh.begin_quadrant_sweep ();
+       quadrant != tmsh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      std::cout << ++ii;
+      for (int jj = 0; jj < 4; ++jj)
+        {
+          std::cout << ", ";
+          if (quadrant->is_hanging (jj))
+            std::cout << "*";
+          else
+            std::cout << quadrant->t(jj);
+        }
+      std::cout << std::endl;
+    }
+
   tmsh.set_refine_marker (bottom_refinement);
   recursive = 0; partforcoarsen = 1;
   tmsh.refine (recursive, partforcoarsen);
@@ -86,6 +103,24 @@ main (int argc, char **argv)
   std::cout << "num_owned_nodes = "
             << tmsh.num_owned_nodes ()
             << std::endl;
+
+
+  ii = 0;
+  for (auto quadrant = tmsh.begin_quadrant_sweep ();
+       quadrant != tmsh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      std::cout << ++ii;
+      for (int jj = 0; jj < 4; ++jj)
+        {
+          std::cout << ", ";
+          if (quadrant->is_hanging (jj))
+            std::cout << "*";
+          else
+            std::cout << quadrant->t(jj);
+        }
+      std::cout << std::endl;
+    }
 
   tmsh.set_refine_marker (left_refinement);
   tmsh.refine (recursive, partforcoarsen);
@@ -101,19 +136,19 @@ main (int argc, char **argv)
             << tmsh.num_owned_nodes ()
             << std::endl;
     
-  int ii = 0;
+  ii = 0;
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep ();
        ++quadrant)
     {
       std::cout << ++ii;
-      for (int ii = 0; ii < 4; ++ii)
+      for (int jj = 0; jj < 4; ++jj)
         {
           std::cout << ", ";
-          if (quadrant->is_hanging (ii))
+          if (quadrant->is_hanging (jj))
             std::cout << "*";
           else
-            std::cout << quadrant->t(ii);
+            std::cout << quadrant->t(jj);
         }
       std::cout << std::endl;
     }

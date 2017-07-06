@@ -77,8 +77,6 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
 
   if (ln != nullptr)
     {
-      const p4est_locidx_t nloc = ln->num_local_nodes;
-      
       for (i = 0; i < 4; ++i)
         {
           tbuff[i] = ln->element_nodes[4 * forest_quad_idx + i];
