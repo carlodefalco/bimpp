@@ -79,3 +79,31 @@ bim2a_advection_diffusion(tmesh & mesh,
         }
     }
 }
+
+void bim2a_rhs (tmesh & mesh,
+                const std::vector<double> & f,
+                const std::vector<double> & g,
+                std::vector<double> & rhs)
+{
+   double hx = 0, hy = 0;
+   
+   unsigned int iel = 0;
+   unsigned int row = 0;
+   
+   for (auto quadrant = mesh.begin_quadrant_sweep ();
+        quadrant != mesh.end_quadrant_sweep ();
+        ++quadrant)
+     {
+        hx = quadrant->p(0, 1) - quadrant->p(0, 0);
+        hy = quadrant->p(1, 2) - quadrant->p(1, 0);
+        
+        iel = quadrant->get_forest_quad_idx();
+        
+        for(int ii = 0; ii < 4; ++ii)
+        {
+           row = quadrant->t(ii);
+           
+           rhs[row] += f[iel] * g[quadrant->t(ii)] * hx * hy / 4;
+        }
+     }
+}

@@ -11,7 +11,7 @@ void bim2a_advection_diffusion (tmesh & mesh,
                                 const std::vector<double> & psi,
                                 sparse_matrix & A);
 
-void bim2a_rhs (const tmesh & mesh,
+void bim2a_rhs (tmesh & mesh,
                 const std::vector<double> & f,
                 const std::vector<double> & g,
                 std::vector<double> & rhs);
