@@ -132,6 +132,11 @@ public:
     idx_t
     e (idx_t i);
 
+    /// Returns global index of current quadrant.
+    p4est_locidx_t
+    idx(void)
+    { return forest_quad_idx; };
+    
     /// Update stored data.
     void
     update (p4est_topidx_t tree,
@@ -242,10 +247,18 @@ public:
   idx_t
   num_local_nodes ()    
   {
-    if (! lnodes) update ();
-    return lnodes->num_local_nodes;
+      if (! lnodes) update ();
+      return lnodes->num_local_nodes;
   };
-
+  
+  /// Return number of quadrants owned by local process
+  idx_t
+  num_local_elems ()    
+  {
+      if (! lnodes) update ();
+      return lnodes->num_local_elements;
+  };
+  
   
   /// P4EST pointers describing the tmesh,
   /// temporarily public untli the API is stable.
