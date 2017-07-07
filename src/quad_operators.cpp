@@ -18,7 +18,7 @@ bim2a_advection_diffusion(tmesh & mesh,
   
   double hx = 0, hy = 0;
   
-  std::array<std::array<double, 4>, 4> Aloc{};
+  std::array<std::array<double, 4>, 4> Aloc;
   
   unsigned int iel = 0;
   unsigned int row = 0, col = 0;
@@ -51,21 +51,10 @@ bim2a_advection_diffusion(tmesh & mesh,
       bp20 *= alpha[iel] * hx / (4 * hy);
       bm20 *= alpha[iel] * hx / (4 * hy);
       
-      Aloc[0][0] = bm01 + bp20;
-      Aloc[0][1] = -bp01;
-      Aloc[0][2] = -bm20;
-      
-      Aloc[1][0] = -bm01;
-      Aloc[1][1] = bp01 + bm13;
-      Aloc[1][3] = -bp13;
-      
-      Aloc[2][0] = -bp20;
-      Aloc[2][2] = bp32 + bm20;
-      Aloc[2][3] = -bm32;
-      
-      Aloc[3][1] = -bm13;
-      Aloc[3][2] = -bp32;
-      Aloc[3][3] = bm32 + bp13;
+      Aloc[0] = { bm01 + bp20, -bp01,        -bm20,         0          };
+      Aloc[1] = {-bm01,         bp01 + bm13,  0,           -bp13       };
+      Aloc[2] = {-bp20,         0,            bp32 + bm20, -bm32       };
+      Aloc[3] = { 0,           -bm13,        -bp32,         bm32 + bp13};
       
       for(int ii = 0; ii < 4; ++ii)
         {
