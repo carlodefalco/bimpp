@@ -131,11 +131,16 @@ public:
     /// 0 for interior vertices.
     idx_t
     e (idx_t i);
-
+    
     /// Returns global index of current quadrant.
     p4est_locidx_t
     get_forest_quad_idx(void)
     { return forest_quad_idx; };
+    
+    /// Returns index of current tree.
+    p4est_locidx_t
+    get_tree_idx(void)
+    { return tree_idx; };
     
     /// Update stored data.
     void
