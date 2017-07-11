@@ -123,6 +123,25 @@ tmesh::quadrant_t::parent (tmesh::idx_t ip, tmesh::idx_t in)
 }
 
 
+tmesh::idx_t
+tmesh::quadrant_t::e (idx_t i)
+{  
+  assert (i < 4);
+  idx_t retval = NOT_ON_BOUNDARY;
+  p4est_quadrant_t node;
+  p4est_quadrant_corner_node (this->the_quadrant, i, &node);
+
+  if (node.x == 0)
+    retval = 2;
+  else if (node.x == 1)
+    retval = 3;
+  else if (node.y == 0)
+    retval = 0;
+  else if (node.y == 1)
+    retval = 1;
+
+  return retval;
+};
 
 
 

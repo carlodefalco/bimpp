@@ -123,12 +123,14 @@ public:
     bool
     is_hanging (idx_t i);
 
-    /// Return the ip-th parents for the in-th vertex.
+    /// Return the ip-th parent for the in-th vertex.
     int
     parent (idx_t ip, idx_t in);
-       
-    /// Index of the boundary side on which the i-th vertex lies,
-    /// 0 for interior vertices.
+      
+    /// Index of the edge of the current tree
+    //  on which the i-th vertex lies, return
+    //  NOT_ON_BOUNDARY if an interior vertex.
+    static const idx_t NOT_ON_BOUNDARY = 10000;
     idx_t
     e (idx_t i);
     
