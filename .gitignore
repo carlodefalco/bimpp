@@ -2,6 +2,7 @@
 autom4te.cache/
 build/
 m4/
+test/output/
 
 # Files.
 *in
