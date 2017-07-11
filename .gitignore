@@ -1,0 +1,17 @@
+# Directories.
+autom4te.cache/
+build/
+m4/
+
+# Files.
+*in
+aclocal.m4
+compile
+config.guess
+config.sub
+configure
+depcomp
+install-sh
+ltmain.sh
+missing
+test-driver
