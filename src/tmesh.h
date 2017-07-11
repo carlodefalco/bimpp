@@ -123,6 +123,10 @@ public:
     bool
     is_hanging (idx_t i);
 
+    /// Return the ip-th parents for the in-th vertex.
+    int
+    parent (idx_t ip, idx_t in);
+       
     /// Return the list of parents for a hanging vertex.
     void
     get_parents (idx_t i, std::vector<idx_t> &pv);
@@ -167,6 +171,7 @@ public:
     double                vxyz[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
     idx_t                 tbuff[4] = {0,0,0,0};
     bool                  hbuff[4] = {false,false,false,false};
+    int                   pbuff[8] = {-1,-1,-1,-1,-1,-1,-1,-1};
   };
 
   /// Default constructor, set all pointers to nullptr.

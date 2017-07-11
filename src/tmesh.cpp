@@ -34,6 +34,9 @@ tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj)
  */
 static const int    zero = 0;      /**< Constant zero. */
 static const int    ones = P4EST_CHILDREN - 1;  /**< One bit per dimension. */
+static const int   *corner_to_hanging[4];
+static const int    corner_num_hanging[4] = { 1, 2, 2, 1 };
+
 static int
 lnodes_decode2 (p4est_lnodes_code_t face_code,
                 int hanging_corner[P4EST_CHILDREN])
@@ -61,10 +64,18 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
                            p4est_quadrant_t *q)
 {
   p4est_quadrant_t node, parent;
-  idx_t i;
+  idx_t i, j;
   int hanging_corner[4];
   p4est_lnodes_t *ln = the_tmesh->lnodes;
   p4est_locidx_t lni;
+
+  int c, h, num_parents;
+  const int *base_corner;
+  
+  corner_to_hanging[0]        = &zero;
+  corner_to_hanging[ones - 2] = p4est_face_corners[2];
+  corner_to_hanging[ones - 1] = p4est_face_corners[0];
+  corner_to_hanging[ones]     = &ones;
   
   this->tree_idx = tree;
   this->the_quadrant = q;
@@ -81,6 +92,8 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
         {
           tbuff[i] = ln->element_nodes[4 * forest_quad_idx + i];
           hbuff[i] = false;
+          pbuff[i] = -1;
+          pbuff[i+1] = -1;
         }
 
       bool any_hanging =
@@ -88,11 +101,30 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
                         hanging_corner);
       if (any_hanging)
         for (i = 0; i < 4; ++i)
-          if (hanging_corner[i] != -1)
-            hbuff[i] = true;      
-
+          if (hanging_corner[i] >= 0)
+            {
+              hbuff[i] = true;
+              c = hanging_corner[i];
+              num_parents = corner_num_hanging[i ^ c];
+              base_corner = corner_to_hanging[i ^ c];
+              for (j = 0; j < num_parents; ++j)
+                pbuff[j + 2 * i] = base_corner[j] ^ c;
+            }
     }
 };
+
+
+
+int
+tmesh::quadrant_t::parent (tmesh::idx_t ip, tmesh::idx_t in)
+{
+  assert (pbuff[ip + in * 2] >= 0);
+  return tbuff[pbuff[ip + in * 2]];
+}
+
+
+
+
 
 tmesh::idx_t
 tmesh::quadrant_t::t (tmesh::idx_t i)
@@ -349,3 +381,8 @@ tmesh::select_quad (tmesh *_tmesh,
   qi = quadrant_iterator (&(_tmesh->current_quadrant));
   qi->update (tree_idx, qt[ii]);
 };
+
+
+    
+
+
