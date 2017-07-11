@@ -131,14 +131,14 @@ tmesh::quadrant_t::e (idx_t i)
   p4est_quadrant_t node;
   p4est_quadrant_corner_node (this->the_quadrant, i, &node);
 
-  if (node.x == 0)
-    retval = 2;
-  else if (node.x == 1)
-    retval = 3;
-  else if (node.y == 0)
+  if (node.y == 0)
     retval = 0;
   else if (node.y == 1)
     retval = 1;
+  else if (node.x == 0)
+    retval = 2;
+  else if (node.x == 1)
+    retval = 3;
 
   return retval;
 };
