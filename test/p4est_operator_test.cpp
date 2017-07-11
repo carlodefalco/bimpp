@@ -62,6 +62,20 @@ main (int argc, char **argv)
   
   bim2a_advection_diffusion (tmsh, alpha, psi, A);
   
+  // Assemble right-hand side.
+  std::vector<double> rhs(tmsh.num_local_nodes (), 0);
+  
+  std::vector<double> f(tmsh.num_local_elems (), 1);
+  std::vector<double> g(tmsh.num_local_nodes (), 1);
+    
+  bim2a_rhs (tmsh, f, g, rhs);
+  
+  // Set boundary conditions.
+  dirichlet_bcs bcs;
+  bcs.push_back (std::make_tuple(0, 0, [] (const double & x, const double & y) { return x; }));
+  
+  bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
+  
   std::cout << A << std::endl;
   
   MPI_Finalize ();
