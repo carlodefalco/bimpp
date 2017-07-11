@@ -1,4 +1,6 @@
-#include <quad_operators.h>
+#include "quad_operators.h"
+
+#include <set>
 
 void 
 bim2a_advection_diffusion(tmesh & mesh,
@@ -95,4 +97,66 @@ void bim2a_rhs (tmesh & mesh,
            rhs[row] += f[iel] * g[quadrant->t(ii)] * hx * hy / 4;
         }
      }
+}
+
+void bim2a_dirichlet_bc (tmesh & mesh, const dirichlet_bcs & bcs,
+                         sparse_matrix & A, std::vector<double> & rhs)
+{
+  int boundary_idx, tree_idx;
+  unsigned int row, col;
+  
+  std::set<unsigned int> marked;
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      tree_idx = quadrant->get_tree_idx();
+      
+      for (int i = 0; i < 4; ++i)
+        {
+          //boundary_idx = quadrant->e(i); //TODO
+          row = quadrant->t(i);
+          
+          // If current node is on boundary and has not been handled before.
+          if (boundary_idx != 0
+              && marked.count(row) == 0)
+            {
+              marked.insert(row); // Mark current node so to avoid duplicate operations.
+              
+              // Loop over all the boundary conditions.
+              for (size_t bc = 0; bc < bcs.size(); ++bc)
+                {
+                  // If this boundary condition matches with the current node.
+                  if (std::get<0>(bcs[bc]) == tree_idx
+                      && std::get<1>(bcs[bc]) == boundary_idx)
+                    {
+                      // Impose boundary condition at rhs by evaluating it at the current node.
+                      rhs[row] = (std::get<2>(bcs[bc]))(quadrant->p(0, i), quadrant->p(1, i));
+                      
+                      // Move non-diagonal entries from column "row" to rhs.
+                      if (A[row].size ())
+                        {
+                          for (sparse_matrix::col_iterator j = A[row].begin ();
+                               j != A[row].end ();
+                               ++j)
+                            {
+                              col = A.col_idx(j);
+                              
+                              if (row != col)
+                                {
+                                  A[row][col] = 0.0;
+                                  rhs[col] -= A[col][row] * rhs[row];
+                                  A[col][row] = 0.0;
+                                }
+                            }
+                        }
+                      
+                      // Multiply rhs by the diagonal entry.
+                      rhs[row] *= A[row][row];
+                    }
+                }
+            }
+        }
+    }
 }
