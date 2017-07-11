@@ -127,10 +127,6 @@ public:
     int
     parent (idx_t ip, idx_t in);
        
-    /// Return the list of parents for a hanging vertex.
-    void
-    get_parents (idx_t i, std::vector<idx_t> &pv);
-
     /// Index of the boundary side on which the i-th vertex lies,
     /// 0 for interior vertices.
     idx_t
