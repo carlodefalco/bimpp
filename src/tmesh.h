@@ -123,21 +123,21 @@ public:
     bool
     is_hanging (idx_t i);
 
-    /// Return the list of parents for a hanging vertex.
-    void
-    get_parents (idx_t i, std::vector<idx_t> &pv);
-
+    /// Return the ip-th parents for the in-th vertex.
+    int
+    parent (idx_t ip, idx_t in);
+       
     /// Index of the boundary side on which the i-th vertex lies,
     /// 0 for interior vertices.
     idx_t
     e (idx_t i);
     
-    /// Returns global index of current quadrant.
+    /// Return global index of current quadrant.
     p4est_locidx_t
     get_forest_quad_idx(void)
     { return forest_quad_idx; };
     
-    /// Returns index of current tree.
+    /// Return index of current tree.
     p4est_locidx_t
     get_tree_idx(void)
     { return tree_idx; };
@@ -167,6 +167,7 @@ public:
     double                vxyz[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
     idx_t                 tbuff[4] = {0,0,0,0};
     bool                  hbuff[4] = {false,false,false,false};
+    int                   pbuff[8] = {-1,-1,-1,-1,-1,-1,-1,-1};
   };
 
   /// Default constructor, set all pointers to nullptr.
