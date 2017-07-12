@@ -79,7 +79,7 @@ void bim2a_reaction (tmesh & mesh,
   double hx = 0, hy = 0;
   
   unsigned int iel = 0;
-  unsigned int row = 0, col = 0;
+  unsigned int row = 0;
   
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
