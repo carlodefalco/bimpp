@@ -44,14 +44,14 @@ bim2a_advection_diffusion(tmesh & mesh,
       
       iel = quadrant->get_forest_quad_idx();
       
-      bp01 *= alpha[iel] * hy / (4 * hx);
-      bm01 *= alpha[iel] * hy / (4 * hx);
-      bp13 *= alpha[iel] * hx / (4 * hy);
-      bm13 *= alpha[iel] * hx / (4 * hy);
-      bp32 *= alpha[iel] * hy / (4 * hx);
-      bm32 *= alpha[iel] * hy / (4 * hx);
-      bp20 *= alpha[iel] * hx / (4 * hy);
-      bm20 *= alpha[iel] * hx / (4 * hy);
+      bp01 *= alpha[iel] * hy / (2 * hx);
+      bm01 *= alpha[iel] * hy / (2 * hx);
+      bp13 *= alpha[iel] * hx / (2 * hy);
+      bm13 *= alpha[iel] * hx / (2 * hy);
+      bp32 *= alpha[iel] * hy / (2 * hx);
+      bm32 *= alpha[iel] * hy / (2 * hx);
+      bp20 *= alpha[iel] * hx / (2 * hy);
+      bm20 *= alpha[iel] * hx / (2 * hy);
       
       Aloc[0] = { bm01 + bp20, -bp01,        -bm20,         0          };
       Aloc[1] = {-bm01,         bp01 + bm13,  0,           -bp13       };
@@ -67,6 +67,34 @@ bim2a_advection_diffusion(tmesh & mesh,
               
               A[row][col] += Aloc[ii][jj];
             }
+        }
+    }
+}
+
+void bim2a_reaction (tmesh & mesh,
+                     const std::vector<double> & delta,
+                     const std::vector<double> & zeta,
+                     sparse_matrix & A)
+{
+  double hx = 0, hy = 0;
+  
+  unsigned int iel = 0;
+  unsigned int row = 0, col = 0;
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      hx = quadrant->p(0, 1) - quadrant->p(0, 0);
+      hy = quadrant->p(1, 2) - quadrant->p(1, 0);
+      
+      iel = quadrant->get_forest_quad_idx();
+      
+      for(int ii = 0; ii < 4; ++ii)
+        {
+          row = quadrant->t(ii);
+          
+          A[row][row] += delta[iel] * zeta[quadrant->t(ii)] * hx * hy / 4;
         }
     }
 }
@@ -115,11 +143,11 @@ void bim2a_dirichlet_bc (tmesh & mesh, const dirichlet_bcs & bcs,
       
       for (int i = 0; i < 4; ++i)
         {
-          //boundary_idx = quadrant->e(i); //TODO
+          boundary_idx = quadrant->e(i);
           row = quadrant->t(i);
           
           // If current node is on boundary and has not been handled before.
-          if (boundary_idx != 0
+          if (boundary_idx != tmesh::quadrant_t::NOT_ON_BOUNDARY
               && marked.count(row) == 0)
             {
               marked.insert(row); // Mark current node so to avoid duplicate operations.
