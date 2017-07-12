@@ -1,4 +1,5 @@
 #include <bim_sparse.h>
+#include <mumps_class.h>
 #include <quad_operators.h>
 #include <tmesh.h>
 
@@ -35,8 +36,8 @@ main (int argc, char **argv)
   
   recursive = 0; partforcoarsen = 1;
   tmsh.refine (recursive, partforcoarsen);
-  tmsh.refine (recursive, partforcoarsen);
-  tmsh.refine (recursive, partforcoarsen);
+  //tmsh.refine (recursive, partforcoarsen);
+  //tmsh.refine (recursive, partforcoarsen);
   
   tmsh.vtk_export ("p4est_operator_test");
   
@@ -52,12 +53,12 @@ main (int argc, char **argv)
        quadrant != tmsh.end_quadrant_sweep ();
        ++quadrant)
     {
-      alpha[quadrant->get_forest_quad_idx()] = 0.5 * (quadrant->p(0, 0) + quadrant->p(0, 1));
+      alpha[quadrant->get_forest_quad_idx()] = 1; //0.5 * (quadrant->p(0, 0) + quadrant->p(0, 1));
       
-      for (int ii = 0; ii < 4; ++ii)
+      /*for (int ii = 0; ii < 4; ++ii)
         {
            psi[quadrant->t(ii)] = quadrant->p(0, ii) * quadrant->p(1, ii);
-        }
+        }*/
     }
   
   bim2a_advection_diffusion (tmsh, alpha, psi, A);
@@ -67,16 +68,54 @@ main (int argc, char **argv)
   
   std::vector<double> f(tmsh.num_local_elems (), 1);
   std::vector<double> g(tmsh.num_local_nodes (), 1);
-    
+  
   bim2a_rhs (tmsh, f, g, rhs);
   
   // Set boundary conditions.
   dirichlet_bcs bcs;
-  bcs.push_back (std::make_tuple(0, 0, [] (const double & x, const double & y) { return x; }));
+  for (int side = 0; side < 4; ++side)
+    {
+      bcs.push_back (std::make_tuple(0, side, [] (double x, double y) { return 0; }));
+    }
   
   bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
   
+  
   std::cout << A << std::endl;
+  for (int i = 0; i < rhs.size(); ++i)
+  {
+    std::cout << rhs[i] << std::endl;
+  }
+  
+  // Solve problem.
+  std::vector<double> vals;
+  std::vector<int> irow, jcol;
+  
+  A.aij(vals, irow, jcol, 1);
+  
+  MPI_Barrier(MPI_COMM_WORLD);
+  
+  std::cout << "Solving linear system." << std::endl;
+  
+  mumps mumps_solver;
+  
+  if (rank == 0)
+    mumps_solver.set_lhs_structure(A.rows(), irow, jcol);
+  
+  mumps_solver.analyze();
+  
+  if (rank == 0)
+    mumps_solver.set_lhs_data(vals);
+  
+  mumps_solver.factorize();
+  
+  if (rank == 0)
+    mumps_solver.set_rhs(rhs);
+  
+  mumps_solver.solve();
+  
+  // Export solution.
+  tmsh.octbin_export ("p4est_operator_test_output", rhs);
   
   MPI_Finalize ();
   
