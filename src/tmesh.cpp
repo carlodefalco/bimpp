@@ -131,13 +131,15 @@ tmesh::quadrant_t::e (idx_t i)
   p4est_quadrant_t node;
   p4est_quadrant_corner_node (this->the_quadrant, i, &node);
 
+  //std::cout << node.x << " " << node.y << std::endl;
+    
   if (node.y == 0)
     retval = 0;
-  else if (node.y == 1)
+  else if (node.y ==  P4EST_ROOT_LEN)
     retval = 1;
   else if (node.x == 0)
     retval = 2;
-  else if (node.x == 1)
+  else if (node.x ==  P4EST_ROOT_LEN)
     retval = 3;
 
   return retval;

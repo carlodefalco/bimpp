@@ -130,7 +130,7 @@ public:
     /// Index of the edge of the current tree
     //  on which the i-th vertex lies, return
     //  NOT_ON_BOUNDARY if an interior vertex.
-    static const idx_t NOT_ON_BOUNDARY = 10000;
+    static const idx_t NOT_ON_BOUNDARY =  P4EST_ROOT_LEN + 1;
     idx_t
     e (idx_t i);
     
