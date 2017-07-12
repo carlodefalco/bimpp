@@ -51,8 +51,6 @@ main (int argc, char **argv)
   std::vector<double> alpha(tmsh.num_local_elems (), 1);
   std::vector<double> psi(tmsh.num_local_nodes (), 0);
   
-  double x = 0, y = 0, rho = 0;
-  
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep ();
        ++quadrant)
