@@ -61,7 +61,7 @@ main (int argc, char **argv)
 
   tmsh.set_refine_marker (uniform_refinement);
   recursive = 0; partforcoarsen = 1;
-  tmsh.refine (recursive, partforcoarsen);
+  //  tmsh.refine (recursive, partforcoarsen);
 
   std::cout << "first refinement step"
             << std::endl;
@@ -75,7 +75,7 @@ main (int argc, char **argv)
 
   tmsh.set_refine_marker (bottom_refinement);
   recursive = 0; partforcoarsen = 1;
-  tmsh.refine (recursive, partforcoarsen);
+  //  tmsh.refine (recursive, partforcoarsen);
 
   std::cout << "second refinement step"
             << std::endl;
