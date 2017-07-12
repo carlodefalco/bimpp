@@ -122,10 +122,10 @@ main (int argc, char **argv)
   
   // Set boundary conditions.
   dirichlet_bcs bcs;
-  bcs.push_back (std::make_tuple( 0, 0, [] (double x, double y) { return 0.3; }));
-  bcs.push_back (std::make_tuple( 0, 2, [] (double x, double y) { return 0.3; }));
-  bcs.push_back (std::make_tuple(15, 1, [] (double x, double y) { return 0; }));
-  bcs.push_back (std::make_tuple(15, 3, [] (double x, double y) { return 0; }));
+  bcs.push_back (std::make_tuple(0, 0, [] (double x, double y) { return 0.3; }));
+  bcs.push_back (std::make_tuple(0, 2, [] (double x, double y) { return 0.3; }));
+  bcs.push_back (std::make_tuple(8, 1, [] (double x, double y) { return 0; }));
+  bcs.push_back (std::make_tuple(8, 3, [] (double x, double y) { return 0; }));
   
   bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
   
