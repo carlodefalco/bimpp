@@ -130,7 +130,7 @@ public:
     /// Index of the edge of the current tree
     //  on which the i-th vertex lies, return
     //  NOT_ON_BOUNDARY if an interior vertex.
-    static const idx_t NOT_ON_BOUNDARY = 10000;
+    static const idx_t NOT_ON_BOUNDARY = P4EST_ROOT_LEN + 1;
     idx_t
     e (idx_t i);
     
@@ -208,6 +208,12 @@ public:
   void
   vtk_export (const char *filename);
 
+  /// Export nodal field f to a octbin.gz file for visualization.
+  void
+  octbin_export (const char * filename,
+                 const std::vector<double> & f,
+                 MPI_Comm comm = MPI_COMM_WORLD);
+  
   /// Get an iterator to the first quadrant of the mesh.
   quadrant_iterator
   begin_quadrant_sweep ();
