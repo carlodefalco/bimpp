@@ -24,9 +24,9 @@ if HAVE_LIS
 endif
 
 if HAVE_P4EST
-  check_PROGRAMS += p4est_conn_test_hanging p4est_hanging_test_2 p4est_operator_test p4est_conn_test p4est_hanging_test \
-                    p4est_refine_segment_test p4est_coarsen_test p4est_iterator_test p4est_ref_test  p4est_load_save_test \
-                    p4est_edge_id_test
+  check_PROGRAMS += p4est_operator_test_2 p4est_conn_test_hanging p4est_hanging_test_2 p4est_operator_test \
+                    p4est_conn_test p4est_hanging_test p4est_refine_segment_test p4est_coarsen_test \
+                    p4est_iterator_test p4est_ref_test  p4est_load_save_test p4est_edge_id_test
 endif
 
 # schur_test_SOURCES = schur_test.cpp
@@ -147,6 +147,12 @@ endif
 
 if HAVE_P4EST
 
+  p4est_operator_test_2_SOURCES =  p4est_operator_test_2.cpp  simple_connectivity_2d.cpp
+  p4est_operator_test_2_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_operator_test_2_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_operator_test_2_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+  CLEANFILES += p4est_operator_test_2*.octbin.gz p4est_operator_test_2.pvtu p4est_operator_test_2.visit p4est_operator_test_2_*.vtu
+  
   p4est_conn_test_hanging_SOURCES =  p4est_conn_test_hanging.cpp  simple_connectivity_2d.cpp
   p4est_conn_test_hanging_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_conn_test_hanging_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
@@ -159,10 +165,10 @@ if HAVE_P4EST
   p4est_hanging_test_2_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += p4est_hanging_test_2.octbin.gz p4est_hanging_test_2.pvtu p4est_hanging_test_2.visit p4est_hanging_test_2_*.vtu
 
-  p4est_operator_test_SOURCES =  p4est_operator_test.cpp  simple_connectivity_2d.cpp
+  p4est_operator_test_SOURCES =  p4est_operator_test.cpp
   p4est_operator_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_operator_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_operator_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+  p4est_operator_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
   CLEANFILES += p4est_operator_test*.octbin.gz p4est_operator_test.pvtu p4est_operator_test.visit p4est_operator_test_*.vtu
 
   p4est_conn_test_SOURCES =  p4est_conn_test.cpp  mosfet_doping_2d.cpp mosfet_connectivity_2d.cpp
@@ -220,9 +226,10 @@ TESTS =
 
 if HAVE_P4EST
 
-TESTS += p4est_conn_test_hanging p4est_hanging_test_2 p4est_conn_test \
-           p4est_refine_segment_test p4est_hanging_test p4est_coarsen_test \
-           p4est_iterator_test p4est_ref_test p4est_load_save_test p4est_edge_id_test
+TESTS += p4est_operator_test_2 p4est_conn_test_hanging p4est_hanging_test_2 \
+         p4est_conn_test p4est_refine_segment_test p4est_hanging_test \
+         p4est_coarsen_test p4est_iterator_test p4est_ref_test \
+         p4est_load_save_test p4est_edge_id_test
 
 endif
 
