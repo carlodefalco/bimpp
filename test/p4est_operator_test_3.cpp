@@ -9,6 +9,32 @@
 #include <cassert>
 
 static int
+top_refinement (tmesh::quadrant_iterator quadrant)
+{
+  double ycoord;
+  double bottom = std::numeric_limits<double>::max ();
+  for (int ii = 0; ii < 4; ++ii)
+  {
+    ycoord = quadrant->p(1, ii);
+    bottom = bottom > ycoord ? ycoord : bottom;
+  }
+  return ((bottom >= 0.9) ? 1 : 0);
+}
+
+static int
+right_refinement (tmesh::quadrant_iterator quadrant)
+{
+  double xcoord;
+  double left = std::numeric_limits<double>::max ();
+  for (int ii = 0; ii < 4; ++ii)
+  {
+    xcoord = quadrant->p(0, ii);
+    left = left > xcoord ? xcoord : left;
+  }
+  return ((left >= 0.9) ? 1 : 0);
+}
+
+static int
 uniform_refinement (tmesh::quadrant_iterator quadrant)
 { return 1; }
 
@@ -31,13 +57,24 @@ main (int argc, char **argv)
 
   tmsh.read_connectivity ("p4est_operator_test_3.octbin.gz");
   
-  // Uniform refinement.
   tmsh.set_refine_marker (uniform_refinement);
-  
   recursive = 0; partforcoarsen = 1;
   tmsh.refine (recursive, partforcoarsen);
   tmsh.refine (recursive, partforcoarsen);
   tmsh.refine (recursive, partforcoarsen);
+  tmsh.refine (recursive, partforcoarsen);
+  tmsh.refine (recursive, partforcoarsen);
+  tmsh.refine (recursive, partforcoarsen);
+  tmsh.refine (recursive, partforcoarsen);
+  tmsh.refine (recursive, partforcoarsen);
+  
+  tmsh.set_refine_marker (top_refinement);
+  recursive = 0; partforcoarsen = 1;
+  tmsh.refine (recursive, partforcoarsen);
+  tmsh.refine (recursive, partforcoarsen);
+  
+  tmsh.set_refine_marker (right_refinement);
+  recursive = 0; partforcoarsen = 1;
   tmsh.refine (recursive, partforcoarsen);
   tmsh.refine (recursive, partforcoarsen);
   
