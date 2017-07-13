@@ -476,8 +476,3 @@ tmesh::select_quad (tmesh *_tmesh,
   qi = quadrant_iterator (&(_tmesh->current_quadrant));
   qi->update (tree_idx, qt[ii]);
 };
-
-
-    
-
-
