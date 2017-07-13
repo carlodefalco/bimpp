@@ -120,20 +120,19 @@ int main(int argc, char ** argv)
   segment_list.push_back ({Point({0.10, 0.10}), Point({0.30, 0.30})});
   segment_list.push_back ({Point({0.30, 0.30}), Point({0.40, 0.90})});
   segment_list.push_back ({Point({0.25, 0.05}), Point({0.31, 0.29})});
-  segment_list.push_back ({Point({0.31, 0.29}), Point({0.95, 0.45})});
+  //segment_list.push_back ({Point({0.31, 0.29}), Point({0.95, 0.45})});
   segment_list.push_back ({Point({0.57, 0.86}), Point({0.26, 0.25})});
-  segment_list.push_back ({Point({0.88, 0.91}), Point({0.23, 0.38})});
-  segment_list.push_back ({Point({0.07, 0.47}), Point({0.95, 0.36})});
+  segment_list.push_back ({Point({0.88, 1.00}), Point({0.23, 0.00})});
+  //segment_list.push_back ({Point({0.07, 0.47}), Point({0.95, 0.36})});
   segment_list.push_back ({Point({0.71, 0.78}), Point({0.64, 0.46})});
   segment_list.push_back ({Point({0.82, 0.78}), Point({0.24, 0.57})});
-  segment_list.push_back ({Point({0.10, 0.10}), Point({0.10, 0.90})});
-  segment_list.push_back ({Point({0.10, 0.10}), Point({0.90, 0.10})});
+  //segment_list.push_back ({Point({0.10, 0.10}), Point({0.10, 0.90})});
+  //segment_list.push_back ({Point({0.10, 0.10}), Point({0.90, 0.10})});
 
   std::function<int (tmesh::quadrant_iterator)> segment_refinement =
     [segment_list] (tmesh::quadrant_iterator qi)
     { return segment_list_refinement(qi, segment_list); };
-
-
+  
   // Uniform refinement.
   recursive = 0;
   partforcoarsen = 1;
