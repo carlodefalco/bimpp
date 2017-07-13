@@ -23,7 +23,7 @@ bim2a_advection_diffusion(tmesh & mesh,
   std::array<std::array<double, 4>, 4> Aloc;
   
   unsigned int iel = 0;
-  unsigned int row = 0, col = 0;
+  std::vector<unsigned int> rows, cols;
   
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
@@ -58,14 +58,35 @@ bim2a_advection_diffusion(tmesh & mesh,
       Aloc[2] = {-bp20,         0,            bp32 + bm20, -bm32       };
       Aloc[3] = { 0,           -bm13,        -bp32,         bm32 + bp13};
       
-      for(int ii = 0; ii < 4; ++ii)
+      for(int i = 0; i < 4; ++i)
         {
-          for(int jj = 0; jj < 4; ++jj)
+          rows.clear();
+          
+          if (!quadrant->is_hanging(i))
+            rows.push_back (quadrant->t(i));
+          else
             {
-              row = quadrant->t(ii);
-              col = quadrant->t(jj);
+              rows.push_back (quadrant->parent(0, i));
+              rows.push_back (quadrant->parent(1, i));
+            }
+          
+          for(int j = 0; j < 4; ++j)
+            {
+              cols.clear();
               
-              A[row][col] += Aloc[ii][jj];
+              if (!quadrant->is_hanging(j))
+                cols.push_back (quadrant->t(j));
+              else
+                {
+                  cols.push_back (quadrant->parent(0, j));
+                  cols.push_back (quadrant->parent(1, j));
+                }
+              
+              for (int r = 0; r < rows.size(); ++r)
+                for (int c = 0; c < cols.size(); ++c)
+                  {
+                    A[rows[r]][cols[c]] += Aloc[i][j] / (rows.size() * cols.size());
+                  }
             }
         }
     }
@@ -79,7 +100,7 @@ void bim2a_reaction (tmesh & mesh,
   double hx = 0, hy = 0;
   
   unsigned int iel = 0;
-  unsigned int row = 0;
+  std::vector<unsigned int> rows;
   
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
@@ -90,11 +111,20 @@ void bim2a_reaction (tmesh & mesh,
       
       iel = quadrant->get_forest_quad_idx();
       
-      for(int ii = 0; ii < 4; ++ii)
+      for(int i = 0; i < 4; ++i)
         {
-          row = quadrant->t(ii);
+          rows.clear();
           
-          A[row][row] += delta[iel] * zeta[quadrant->t(ii)] * hx * hy / 4;
+          if (!quadrant->is_hanging(i))
+            rows.push_back (quadrant->t(i));
+          else
+            {
+              rows.push_back (quadrant->parent(0, i));
+              rows.push_back (quadrant->parent(1, i));
+            }
+          
+          for (int r = 0; r < rows.size(); ++r)
+            A[rows[r]][rows[r]] += (delta[iel] * zeta[quadrant->t(i)] * hx * hy / 4) / rows.size();
         }
     }
 }
@@ -107,7 +137,7 @@ void bim2a_rhs (tmesh & mesh,
    double hx = 0, hy = 0;
    
    unsigned int iel = 0;
-   unsigned int row = 0;
+   std::vector<unsigned int> rows;
    
    for (auto quadrant = mesh.begin_quadrant_sweep ();
         quadrant != mesh.end_quadrant_sweep ();
@@ -118,12 +148,21 @@ void bim2a_rhs (tmesh & mesh,
         
         iel = quadrant->get_forest_quad_idx();
         
-        for(int ii = 0; ii < 4; ++ii)
-        {
-           row = quadrant->t(ii);
-           
-           rhs[row] += f[iel] * g[quadrant->t(ii)] * hx * hy / 4;
-        }
+        for(int i = 0; i < 4; ++i)
+          {
+            rows.clear();
+            
+            if (!quadrant->is_hanging(i))
+              rows.push_back (quadrant->t(i));
+            else
+              {
+                rows.push_back (quadrant->parent(0, i));
+                rows.push_back (quadrant->parent(1, i));
+              }
+            
+            for (int r = 0; r < rows.size(); ++r)
+              rhs[rows[r]] += (f[iel] * g[quadrant->t(i)] * hx * hy / 4) / rows.size();
+          }
      }
 }
 
