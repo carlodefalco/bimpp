@@ -130,8 +130,6 @@ tmesh::quadrant_t::e (idx_t i)
   idx_t retval = NOT_ON_BOUNDARY;
   p4est_quadrant_t node;
   p4est_quadrant_corner_node (this->the_quadrant, i, &node);
-
-  //std::cout << node.x << " " << node.y << std::endl;
     
   if (node.y == 0)
     retval = 0;
