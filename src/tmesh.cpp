@@ -130,14 +130,18 @@ tmesh::quadrant_t::e (idx_t i)
   idx_t retval = NOT_ON_BOUNDARY;
   p4est_quadrant_t node;
   p4est_quadrant_corner_node (this->the_quadrant, i, &node);
+<<<<<<< HEAD
     
+=======
+  
+>>>>>>> f7a25f095da9c3bbbf0f3ec77c26228cd465b581
   if (node.y == 0)
     retval = 0;
-  else if (node.y ==  P4EST_ROOT_LEN)
+  else if (node.y == P4EST_ROOT_LEN)
     retval = 1;
   else if (node.x == 0)
     retval = 2;
-  else if (node.x ==  P4EST_ROOT_LEN)
+  else if (node.x == P4EST_ROOT_LEN)
     retval = 3;
 
   return retval;
@@ -283,6 +287,82 @@ tmesh::vtk_export (const char *filename)
   context = p4est_vtk_write_header (context);
   context = p4est_vtk_write_cell_dataf (context, 1, 1, 1, 0, 0, 0, context);
   assert (p4est_vtk_write_footer (context) == 0);
+};
+
+void
+tmesh::octbin_export (const char * basename,
+                      const std::vector<double> & f,
+                      MPI_Comm comm)
+{
+  if (f.size () != num_local_nodes() )
+    {
+      std::cerr << "[TMESH] Error in tmesh::octbin_export. Wrong input vector size. "
+                   "f.size() must equal num_local_nodes()" << std::endl;
+      return;
+    }
+  
+  std::vector<double> p(2 * num_local_nodes());
+  Cell oct_t(4, num_local_elems());
+  ColumnVector parents(2, 0);
+  
+  std::array<int, 4> local_idx = {0, 1, 3, 2};
+  
+  int row = 0;
+  
+  for (auto quadrant = begin_quadrant_sweep ();
+       quadrant != end_quadrant_sweep ();
+       ++quadrant)
+    {
+      row = 0;
+      for (auto ii : local_idx)
+        {
+          if (! quadrant->is_hanging(ii))
+            {
+              oct_t(row++, quadrant->get_forest_quad_idx()) = octave_value(quadrant->t(ii));
+              
+              p[2 * quadrant->t(ii) + 0] = quadrant->p(0, ii);
+              p[2 * quadrant->t(ii) + 1] = quadrant->p(1, ii);
+            }
+          else
+            {
+              parents(0) = quadrant->parent(0, ii);
+              parents(1) = quadrant->parent(1, ii);
+              
+              oct_t(row++, quadrant->get_forest_quad_idx()) = octave_value(parents);
+            }
+        }
+    }
+    
+  Matrix oct_p(2, p.size() / 2, 0.0);
+  Matrix oct_f(1, f.size(), 0.0);
+  Array<int> oct_children (dim_vector(4, num_local_elems()), 0);
+  
+  std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
+  std::copy_n (f.begin (), f.size (), oct_f.fortran_vec ());
+  
+  octave_scalar_map the_map;
+  the_map.assign ("p", oct_p);
+  the_map.assign ("f", oct_f);
+  the_map.assign ("t", oct_t);
+  the_map.assign ("children", oct_children);
+  
+  octave_io_mode m = gz_write_mode;
+  
+  // Define filename.
+  int rank;
+  MPI_Comm_rank (comm, &rank);
+  
+  char suffix[16];
+  sprintf(suffix, "_%04d.octbin.gz", rank);
+  
+  char * filename = (char *) malloc(strlen(basename) + strlen(suffix));
+  
+  sprintf(filename, "%s%s", basename, suffix);
+  
+  // Save to filename.
+  assert (octave_io_open (filename, m, &m) == 0);
+  assert (octave_save ("msh", octave_value (the_map)) == 0);
+  assert (octave_io_close () == 0);
 };
 
 void
