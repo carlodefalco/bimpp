@@ -35,7 +35,7 @@ tmesh
 
 public:
 
-  using idx_t = unsigned int;
+  using idx_t = p4est_gloidx_t;
 
   // forward declaration of friend class
   class  quadrant_t;
@@ -134,14 +134,24 @@ public:
     idx_t
     e (idx_t i);
     
-    /// Return global index of current quadrant.
+    /// Return index of current quadrant across all trees on current process.
     p4est_locidx_t
-    get_forest_quad_idx(void)
+    get_forest_quad_idx ()
     { return forest_quad_idx; };
-    
+
+    /// Return index of current quadrant across all trees on current process.
+    p4est_gloidx_t
+    get_global_quad_idx (MPI_Comm comm = MPI_COMM_WORLD)
+    {
+      int rank;
+      MPI_Comm_rank (comm, &rank);
+      return forest_quad_idx +
+        the_tmesh->p4est->global_first_quadrant[rank];
+    };
+
     /// Return index of current tree.
     p4est_locidx_t
-    get_tree_idx(void)
+    get_tree_idx ()
     { return tree_idx; };
     
     /// Update stored data.
