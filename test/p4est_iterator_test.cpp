@@ -74,21 +74,22 @@ main (int argc, char **argv)
             << std::endl;
 
   int ii = 0;
-  for (auto quadrant = tmsh.begin_quadrant_sweep ();
-       quadrant != tmsh.end_quadrant_sweep ();
-       ++quadrant)
-    {
-      std::cout << ++ii;
-      for (int jj = 0; jj < 4; ++jj)
-        {
-          std::cout << ", ";
-          if (quadrant->is_hanging (jj))
-            std::cout << "*";
-          else
-            std::cout << quadrant->t(jj);
-        }
-      std::cout << std::endl;
-    }
+  if (tmsh.num_local_nodes () > 0)
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
+      {
+        std::cout << ++ii;
+        for (int jj = 0; jj < 4; ++jj)
+          {
+            std::cout << ", ";
+            if (quadrant->is_hanging (jj))
+              std::cout << "*";
+            else
+              std::cout << quadrant->t(jj);
+          }
+        std::cout << std::endl;
+      }
 
   tmsh.set_refine_marker (bottom_refinement);
   recursive = 0; partforcoarsen = 1;
@@ -106,21 +107,22 @@ main (int argc, char **argv)
 
 
   ii = 0;
-  for (auto quadrant = tmsh.begin_quadrant_sweep ();
-       quadrant != tmsh.end_quadrant_sweep ();
-       ++quadrant)
-    {
-      std::cout << ++ii;
-      for (int jj = 0; jj < 4; ++jj)
-        {
-          std::cout << ", ";
-          if (quadrant->is_hanging (jj))
-            std::cout << "*";
-          else
-            std::cout << quadrant->t(jj);
-        }
-      std::cout << std::endl;
-    }
+  if (tmsh.num_local_nodes () > 0)
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
+      {
+        std::cout << ++ii;
+        for (int jj = 0; jj < 4; ++jj)
+          {
+            std::cout << ", ";
+            if (quadrant->is_hanging (jj))
+              std::cout << "*";
+            else
+              std::cout << quadrant->t(jj);
+          }
+        std::cout << std::endl;
+      }
 
   tmsh.set_refine_marker (left_refinement);
   tmsh.refine (recursive, partforcoarsen);
@@ -137,20 +139,30 @@ main (int argc, char **argv)
             << std::endl;
     
   ii = 0;
-  for (auto quadrant = tmsh.begin_quadrant_sweep ();
-       quadrant != tmsh.end_quadrant_sweep ();
-       ++quadrant)
+  for (int irank = 0; irank < size; ++irank)
     {
-      std::cout << ++ii;
-      for (int jj = 0; jj < 4; ++jj)
+      if (irank == rank)
         {
-          std::cout << ", ";
-          if (quadrant->is_hanging (jj))
-            std::cout << "*";
-          else
-            std::cout << quadrant->t(jj);
+          std::cout << "rank = " << rank << std::endl;
+          for (auto quadrant = tmsh.begin_quadrant_sweep ();
+               quadrant != tmsh.end_quadrant_sweep ();
+               ++quadrant)
+            {
+              std::cout << ++ii;
+              for (int jj = 0; jj < 4; ++jj)
+                {
+                  std::cout << ", ";
+                  if (quadrant->is_hanging (jj))
+                    std::cout << "*";
+                  else
+                    std::cout << quadrant->t(jj)
+                              << " (" << quadrant->gt(jj)
+                              << ")";
+                }
+              std::cout << std::endl;
+            }
         }
-      std::cout << std::endl;
+      MPI_Barrier (mpicomm);
     }
   
   

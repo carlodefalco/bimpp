@@ -115,9 +115,13 @@ public:
     double
     p (idx_t i, idx_t j);
 
-    /// Get global index of the i-th vertex
+    /// Get rank-local index of the i-th vertex
     idx_t
     t (idx_t i);
+
+    /// Get global index of the i-th vertex
+    idx_t
+    gt (idx_t i);
 
     /// True if the i-th vertex is hanging.
     bool
