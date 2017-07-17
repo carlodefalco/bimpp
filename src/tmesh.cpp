@@ -143,11 +143,17 @@ tmesh::quadrant_t::e (idx_t i)
   return retval;
 };
 
-
-
 tmesh::idx_t
 tmesh::quadrant_t::t (tmesh::idx_t i)
 { return tbuff[i]; };
+
+tmesh::idx_t
+tmesh::quadrant_t::gt (tmesh::idx_t i)
+{
+  return p4est_lnodes_global_index
+    (the_tmesh->lnodes,
+     static_cast<p4est_locidx_t> (tbuff[i]));
+};
 
 bool
 tmesh::quadrant_t::is_hanging (tmesh::idx_t i)
