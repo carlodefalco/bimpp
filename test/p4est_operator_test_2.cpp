@@ -84,7 +84,7 @@ main (int argc, char **argv)
   A.resize(tmsh.num_owned_nodes());
   
   double lambda = 25;
-  std::vector<double> alpha(tmsh.num_local_elems (), 1);
+  std::vector<double> alpha(tmsh.num_local_quadrants (), 1);
   std::vector<double> psi(tmsh.num_local_nodes (), 0);
   
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -102,7 +102,7 @@ main (int argc, char **argv)
   // Assemble right-hand side.
   std::vector<double> rhs(tmsh.num_local_nodes (), 0);
   
-  std::vector<double> f(tmsh.num_local_elems (), 0);
+  std::vector<double> f(tmsh.num_local_quadrants (), 0);
   std::vector<double> g(tmsh.num_local_nodes (), 0);
   
   bim2a_rhs (tmsh, f, g, rhs);

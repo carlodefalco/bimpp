@@ -86,10 +86,10 @@ main (int argc, char **argv)
   M.resize(tmsh.num_owned_nodes());
   
   double epsilon = 1e-3;
-  std::vector<double> alpha(tmsh.num_local_elems (), epsilon);
+  std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
   std::vector<double> psi(tmsh.num_local_nodes (), 0);
   
-  std::vector<double> delta(tmsh.num_local_elems (), 1);
+  std::vector<double> delta(tmsh.num_local_quadrants (), 1);
   std::vector<double> zeta(tmsh.num_local_nodes (), 1);
   
   bim2a_advection_diffusion (tmsh, alpha, psi, A);
@@ -99,7 +99,7 @@ main (int argc, char **argv)
   // Assemble right-hand side.
   std::vector<double> rhs(tmsh.num_local_nodes (), 0);
   
-  std::vector<double> f(tmsh.num_local_elems (), 1);
+  std::vector<double> f(tmsh.num_local_quadrants (), 1);
   std::vector<double> g(tmsh.num_local_nodes (), 0);
   
   double x = 0, y = 0;
