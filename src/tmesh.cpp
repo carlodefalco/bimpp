@@ -304,7 +304,7 @@ tmesh::octbin_export (const char * basename,
     }
   
   std::vector<double> p(2 * num_local_nodes());
-  Cell oct_t(4, num_local_elems());
+  Cell oct_t(4, num_local_quadrants());
   ColumnVector parents(2, 0);
   
   std::array<int, 4> local_idx = {0, 1, 3, 2};
@@ -337,7 +337,7 @@ tmesh::octbin_export (const char * basename,
     
   Matrix oct_p(2, p.size() / 2, 0.0);
   Matrix oct_f(1, f.size(), 0.0);
-  Array<int> oct_children (dim_vector(4, num_local_elems()), 0);
+  Array<int> oct_children (dim_vector(4, num_local_quadrants()), 0);
   
   std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
   std::copy_n (f.begin (), f.size (), oct_f.fortran_vec ());
