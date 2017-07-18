@@ -120,7 +120,18 @@ tmesh::quadrant_t::parent (tmesh::idx_t ip, tmesh::idx_t in)
 {
   assert (pbuff[ip + in * 2] >= 0);
   return tbuff[pbuff[ip + in * 2]];
-}
+};
+
+int
+tmesh::quadrant_t::gparent (tmesh::idx_t ip, tmesh::idx_t in)
+{
+  assert (pbuff[ip + in * 2] >= 0);
+
+  return p4est_lnodes_global_index
+    (the_tmesh->lnodes,
+     static_cast<p4est_locidx_t>
+     (tbuff[pbuff[ip + in * 2]]));
+};
 
 
 tmesh::idx_t
