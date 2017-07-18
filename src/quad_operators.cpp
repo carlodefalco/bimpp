@@ -63,7 +63,7 @@ bim2a_advection_diffusion(tmesh & mesh,
           rows.clear();
           
           if (!quadrant->is_hanging(i))
-            rows.push_back (quadrant->t(i));
+            rows.push_back (quadrant->gt(i));
           else
             {
               rows.push_back (quadrant->parent(0, i));
@@ -75,7 +75,7 @@ bim2a_advection_diffusion(tmesh & mesh,
               cols.clear();
               
               if (!quadrant->is_hanging(j))
-                cols.push_back (quadrant->t(j));
+                cols.push_back (quadrant->gt(j));
               else
                 {
                   cols.push_back (quadrant->parent(0, j));
@@ -116,7 +116,7 @@ void bim2a_reaction (tmesh & mesh,
           rows.clear();
           
           if (!quadrant->is_hanging(i))
-            rows.push_back (quadrant->t(i));
+            rows.push_back (quadrant->gt(i));
           else
             {
               rows.push_back (quadrant->parent(0, i));
@@ -153,7 +153,7 @@ void bim2a_rhs (tmesh & mesh,
             rows.clear();
             
             if (!quadrant->is_hanging(i))
-              rows.push_back (quadrant->t(i));
+              rows.push_back (quadrant->gt(i));
             else
               {
                 rows.push_back (quadrant->parent(0, i));
@@ -183,7 +183,7 @@ void bim2a_dirichlet_bc (tmesh & mesh, const dirichlet_bcs & bcs,
       for (int i = 0; i < 4; ++i)
         {
           boundary_idx = quadrant->e(i);
-          row = quadrant->t(i);
+          row = quadrant->gt(i);
           
           // If current node is on boundary and has not been handled before.
           if (boundary_idx != tmesh::quadrant_t::NOT_ON_BOUNDARY

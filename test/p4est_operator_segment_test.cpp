@@ -156,7 +156,7 @@ int main(int argc, char ** argv)
   
   // Assemble matrix.
   sparse_matrix A;
-  A.resize(tmsh.num_owned_nodes());
+  A.resize(tmsh.num_global_nodes());
   
   std::vector<double> alpha(tmsh.num_local_quadrants (), 1e-2);
   std::vector<double> psi(tmsh.num_local_nodes (), 0);
@@ -174,7 +174,7 @@ int main(int argc, char ** argv)
   bim2a_advection_diffusion (tmsh, alpha, psi, A);
   
   // Assemble right-hand side.
-  std::vector<double> rhs(tmsh.num_local_nodes (), 0);
+  std::vector<double> rhs(tmsh.num_global_nodes (), 0);
   
   std::vector<double> f(tmsh.num_local_quadrants (), 0);
   std::vector<double> g(tmsh.num_local_nodes (), 0);
@@ -189,34 +189,36 @@ int main(int argc, char ** argv)
   bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
   
   // Solve problem.
-  std::vector<double> vals;
-  std::vector<int> irow, jcol;
-  
-  A.aij(vals, irow, jcol, 1);
-  
-  MPI_Barrier(MPI_COMM_WORLD);
-  
   std::cout << "Solving linear system." << std::endl;
   
   mumps mumps_solver;
   
+  std::vector<double> vals;
+  std::vector<int> irow, jcol;
+  
+  A.aij(vals, irow, jcol, mumps_solver.get_index_base ());
+  
+  mumps_solver.set_lhs_distributed ();
+  mumps_solver.set_distributed_lhs_structure (A.rows (), irow, jcol);
+  mumps_solver.set_distributed_lhs_data (vals);
+  
+  // Reduce rhs (so that rank 0 has the actual rhs).
+  std::vector<double> global_rhs(tmsh.num_global_nodes(), 0);
+  MPI_Allreduce(rhs.data(), global_rhs.data(), rhs.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  
   if (rank == 0)
-    mumps_solver.set_lhs_structure(A.rows(), irow, jcol);
+    mumps_solver.set_rhs (global_rhs);
   
-  mumps_solver.analyze();
-  
-  if (rank == 0)
-    mumps_solver.set_lhs_data(vals);
-  
-  mumps_solver.factorize();
-  
-  if (rank == 0)
-    mumps_solver.set_rhs(rhs);
-  
-  mumps_solver.solve();
+  // Solve.
+  mumps_solver.analyze ();
+  mumps_solver.factorize ();
+  mumps_solver.solve ();
+  mumps_solver.cleanup ();
   
   // Export solution.
-  tmsh.octbin_export ("p4est_operator_segment_test_output", rhs);
+  MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  
+  tmsh.octbin_export ("p4est_operator_segment_test_output", global_rhs);
   
   MPI_Finalize ();
   return 0;
