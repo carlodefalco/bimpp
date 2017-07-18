@@ -290,7 +290,7 @@ public:
 
   /// Return total number of quadrants owned by all process
   idx_t
-  num_global_nodes (MPI_Comm comm);
+  num_global_nodes (MPI_Comm comm)
   {
     idx_t retval = 0;
     int size;
@@ -303,7 +303,7 @@ public:
 
   /// Return number of quadrants owned by local process
   idx_t
-  num_local_elems ()    
+  num_local_quadrants ()    
   {
       if (! lnodes) update ();
       return lnodes->num_local_elements;
