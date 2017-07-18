@@ -78,7 +78,7 @@ main (int argc, char **argv)
   tmsh.vtk_export ("p4est_conn_test_hanging");
 
   std::vector<double> p(2 * tmsh.num_local_nodes());
-  Cell oct_t(4, tmsh.num_local_elems());
+  Cell oct_t(4, tmsh.num_local_quadrants());
   ColumnVector parents(2, 0);
   
   std::array<int, 4> local_idx = {0, 1, 3, 2};
@@ -113,7 +113,7 @@ main (int argc, char **argv)
     }
   
   Matrix oct_p(2, p.size() / 2, 0.0);
-  Array<int> oct_children (dim_vector(4, tmsh.num_local_elems()), 0);
+  Array<int> oct_children (dim_vector(4, tmsh.num_local_quadrants()), 0);
   
   std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
   
