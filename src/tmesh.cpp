@@ -297,14 +297,15 @@ tmesh::octbin_export (const char * basename,
                       const std::vector<double> & f,
                       MPI_Comm comm)
 {
-  if (f.size () != num_local_nodes() )
+  if (f.size () != num_global_nodes() )
     {
       std::cerr << "[TMESH] Error in tmesh::octbin_export. Wrong input vector size. "
-                   "f.size() must equal num_local_nodes()" << std::endl;
+                   "f.size() must equal num_global_nodes()" << std::endl;
       return;
     }
-  
+    
   std::vector<double> p(2 * num_local_nodes());
+  std::vector<double> f_loc(num_local_nodes());
   Cell oct_t(4, num_local_quadrants());
   ColumnVector parents(2, 0);
   
@@ -325,6 +326,8 @@ tmesh::octbin_export (const char * basename,
               
               p[2 * quadrant->t(ii) + 0] = quadrant->p(0, ii);
               p[2 * quadrant->t(ii) + 1] = quadrant->p(1, ii);
+              
+              f_loc[quadrant->t(ii)] = f[quadrant->gt(ii)];
             }
           else
             {
@@ -337,11 +340,11 @@ tmesh::octbin_export (const char * basename,
     }
     
   Matrix oct_p(2, p.size() / 2, 0.0);
-  Matrix oct_f(1, f.size(), 0.0);
+  Matrix oct_f(1, f_loc.size(), 0.0);
   Array<int> oct_children (dim_vector(4, num_local_quadrants()), 0);
   
   std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
-  std::copy_n (f.begin (), f.size (), oct_f.fortran_vec ());
+  std::copy_n (f_loc.begin (), f_loc.size (), oct_f.fortran_vec ());
   
   octave_scalar_map the_map;
   the_map.assign ("p", oct_p);
