@@ -281,7 +281,7 @@ public:
   
   /// Return number of quadrants owned by local process
   idx_t
-  num_local_elems ()    
+  num_local_quadrants ()    
   {
       if (! lnodes) update ();
       return lnodes->num_local_elements;
