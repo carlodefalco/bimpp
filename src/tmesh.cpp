@@ -19,7 +19,7 @@ tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj)
   return (retval);
 };
 
-/** Decode the information from p{4,8}est_lnodes_t for a given element.
+/** Decode the information from p4est_lnodes_t for a given element.
  *
  * \see p4est_lnodes.h for an in-depth discussion of the encoding.
  * \param [in] face_code         Bit code as defined in p{4,8}est_lnodes.h.
@@ -165,6 +165,7 @@ tmesh::~tmesh ()
   p4est_destroy (this->p4est);
   p4est_connectivity_destroy (this->conn);
   if (!(this->lnodes == nullptr)) p4est_lnodes_destroy (this->lnodes);
+  if (!(this->mesh == nullptr)) p4est_mesh_destroy (this->mesh);
 };
 
 
@@ -436,6 +437,10 @@ tmesh::refine (int recursive, int partforcoarsen)
 
   if (! (lnodes == nullptr)) p4est_lnodes_destroy (lnodes);
   lnodes = nullptr;
+
+  if (! (mesh == nullptr)) p4est_mesh_destroy (mesh);
+  mesh = nullptr;
+
 }
 
 void
@@ -447,6 +452,10 @@ tmesh::coarsen (int recursive, int partforcoarsen)
 
   if (! (lnodes == nullptr)) p4est_lnodes_destroy (lnodes);
   lnodes = nullptr;  
+
+  if (! (mesh == nullptr)) p4est_mesh_destroy (mesh);
+  mesh = nullptr;  
+
 };
 
 void
@@ -454,6 +463,7 @@ tmesh::update ()
 {
   auto ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
   lnodes = p4est_lnodes_new (p4est, ghost, 1);
+  mesh   = p4est_mesh_new (p4est, ghost, P4EST_CONNECT_FULL); 
   p4est_ghost_destroy (ghost);
   ghost = nullptr;  
 };

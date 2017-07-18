@@ -190,13 +190,13 @@ public:
   tmesh ()
     : p4est (nullptr), conn (nullptr),
       current_quadrant (this, 0, nullptr),
-      lnodes (nullptr)
+      lnodes (nullptr), mesh (nullptr)
   { };
 
   /// Load a p4est and connectivity from a file.
   tmesh (const char *filename)
     : p4est (nullptr), current_quadrant (this, 0, nullptr),
-      lnodes (nullptr)
+      lnodes (nullptr), mesh (nullptr)
   { load (filename); };
 
 
@@ -237,6 +237,15 @@ public:
   end_quadrant_sweep ()
   { return quadrant_iterator (); };
 
+  /// Get an iterator to the first neighbor of the current quadrant.
+  quadrant_iterator
+  begin_neighbor_sweep ();
+
+  /// Get a null quadrant iterator to signal end of the sweep.
+  quadrant_iterator
+  end_neighbor_sweep ()
+  { return quadrant_iterator (); };
+
   /// Set functor to mark quadrants for refinement.
   void
   set_refine_marker
@@ -259,7 +268,7 @@ public:
   void
   coarsen (int recursive = 0, int partforcoarsen = 1);
 
-  /// Compute lnodes numbering.
+  /// Compute nodes numbering and quadrant neighbours.
   void
   update ();
 
@@ -271,14 +280,27 @@ public:
     return lnodes->owned_count;
   };
 
-  /// Return number of nodes of quadrants owned by local process
+  /// Return number of nodes of quadrants owned or shared by local process
   idx_t
   num_local_nodes ()    
   {
       if (! lnodes) update ();
       return lnodes->num_local_nodes;
   };
-  
+
+  /// Return total number of quadrants owned by all process
+  idx_t
+  num_global_nodes (MPI_Comm comm);
+  {
+    idx_t retval = 0;
+    int size;
+    MPI_Comm_size (comm, &size);
+    if (! lnodes) update ();
+    for (int i = 0; i < size; ++i)
+      retval += lnodes->global_owned_count[i];
+    return retval;
+  };
+
   /// Return number of quadrants owned by local process
   idx_t
   num_local_elems ()    
@@ -287,13 +309,13 @@ public:
       return lnodes->num_local_elements;
   };
   
-  
   /// P4EST pointers describing the tmesh,
   /// temporarily public untli the API is stable.
   p4est_t              *p4est;
   p4est_connectivity_t *conn;
   quadrant_t            current_quadrant;
   p4est_lnodes_t       *lnodes;
+  p4est_mesh_t         *mesh;
   
 private:
   
