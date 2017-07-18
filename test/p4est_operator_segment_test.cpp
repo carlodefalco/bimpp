@@ -158,7 +158,7 @@ int main(int argc, char ** argv)
   sparse_matrix A;
   A.resize(tmsh.num_owned_nodes());
   
-  std::vector<double> alpha(tmsh.num_local_elems (), 1e-2);
+  std::vector<double> alpha(tmsh.num_local_quadrants (), 1e-2);
   std::vector<double> psi(tmsh.num_local_nodes (), 0);
   
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -176,7 +176,7 @@ int main(int argc, char ** argv)
   // Assemble right-hand side.
   std::vector<double> rhs(tmsh.num_local_nodes (), 0);
   
-  std::vector<double> f(tmsh.num_local_elems (), 0);
+  std::vector<double> f(tmsh.num_local_quadrants (), 0);
   std::vector<double> g(tmsh.num_local_nodes (), 0);
   
   bim2a_rhs (tmsh, f, g, rhs);
