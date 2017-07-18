@@ -131,6 +131,10 @@ public:
     int
     parent (idx_t ip, idx_t in);
       
+    /// Return the ip-th parent for the in-th vertex, use global numbering.
+    int
+    gparent (idx_t ip, idx_t in);
+
     /// Index of the edge of the current tree
     //  on which the i-th vertex lies, return
     //  NOT_ON_BOUNDARY if an interior vertex.
@@ -179,6 +183,9 @@ public:
     p4est_locidx_t        forest_quad_idx;  // k 
     p4est_locidx_t        tree_quad_idx;    // q
 
+    //quadrant_t           *current_neighbor;
+    //int                   current_neighbor_face;
+    
     /// Buffer used when quering coordinates.
     double                vxyz[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
     idx_t                 tbuff[4] = {0,0,0,0};
