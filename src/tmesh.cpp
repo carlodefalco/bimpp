@@ -351,7 +351,7 @@ tmesh::octbin_export (const char * basename,
     }
     
   Matrix oct_p(2, p.size() / 2, 0.0);
-  Matrix oct_f(1, f_loc.size(), 0.0);
+  Matrix oct_f(f_loc.size(), 1, 0.0);
   Array<int> oct_children (dim_vector(4, num_local_quadrants()), 0);
   
   std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
