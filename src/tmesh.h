@@ -187,10 +187,10 @@ public:
     //int                   current_neighbor_face;
     
     /// Buffer used when quering coordinates.
-    double                vxyz[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
+    double                vxyz[12] = {0,0,0, 0,0,0, 0,0,0, 0,0,0};
     idx_t                 tbuff[4] = {0,0,0,0};
     bool                  hbuff[4] = {false,false,false,false};
-    int                   pbuff[8] = {-1,-1,-1,-1,-1,-1,-1,-1};
+    int                   pbuff[8] = {-1,-1, -1,-1, -1,-1, -1,-1};
   };
 
   /// Default constructor, set all pointers to nullptr.

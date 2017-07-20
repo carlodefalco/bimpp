@@ -91,6 +91,7 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
       for (i = 0; i < 4; ++i)
         {
           tbuff[i] = ln->element_nodes[4 * forest_quad_idx + i];
+          assert (tbuff[i] < ln->num_local_nodes);
           hbuff[i] = false;
           pbuff[i] = -1;
           pbuff[i+1] = -1;
@@ -308,51 +309,54 @@ tmesh::octbin_export (const char * basename,
                       const std::vector<double> & f,
                       MPI_Comm comm)
 {
-  if (f.size () != num_global_nodes() )
-    {
-      std::cerr << "[TMESH] Error in tmesh::octbin_export. Wrong input vector size. "
-                   "f.size() must equal num_global_nodes()" << std::endl;
-      return;
-    }
+  assert (f.size () == num_global_nodes ());
     
-  std::vector<double> p(2 * num_local_nodes());
-  std::vector<double> f_loc(num_local_nodes());
-  Cell oct_t(4, num_local_quadrants());
-  ColumnVector parents(2, 0);
-  
+  std::vector<double> p (2 * num_owned_nodes ());
+  std::vector<double> f_loc (num_owned_nodes ());  
+
+  Array<octave_idx_type> oct_t (dim_vector (4, num_local_quadrants ()), 0);
+  octave_idx_type *t = oct_t.fortran_vec ();
+
+  std::array<tmesh::idx_t, 2> parents;    
   std::array<int, 4> local_idx = {0, 1, 3, 2};
-  
-  int row = 0;
-  
+
+  octave_idx_type ij = 0;
   for (auto quadrant = begin_quadrant_sweep ();
        quadrant != end_quadrant_sweep ();
        ++quadrant)
     {
-      row = 0;
+      ij = 0;
       for (auto ii : local_idx)
         {
-          if (! quadrant->is_hanging(ii))
-            {
-              oct_t(row++, quadrant->get_forest_quad_idx()) = octave_value(quadrant->t(ii));
-              
-              p[2 * quadrant->t(ii) + 0] = quadrant->p(0, ii);
-              p[2 * quadrant->t(ii) + 1] = quadrant->p(1, ii);
-              
-              f_loc[quadrant->t(ii)] = f[quadrant->gt(ii)];
+          if ((! quadrant->is_hanging (ii)) && quadrant->t (ii) < num_owned_nodes ())
+            {            
+              p[2 * quadrant->t (ii) + 0] = quadrant->p (0, ii);
+              p[2 * quadrant->t (ii) + 1] = quadrant->p (1, ii);            
+              f_loc[quadrant->t (ii)] = f[quadrant->gt (ii)];
+              t[4 * quadrant->get_forest_quad_idx () + (ij++)] = quadrant->t (ii);
             }
-          else
+          else if (! quadrant->is_hanging (ii))
             {
-              parents(0) = quadrant->parent(0, ii);
-              parents(1) = quadrant->parent(1, ii);
-              
-              oct_t(row++, quadrant->get_forest_quad_idx()) = octave_value(parents);
+              p.push_back (quadrant->p (0, ii));
+              p.push_back (quadrant->p (1, ii));
+              f_loc.push_back (f[quadrant->gt (ii)]);
+              t[4 * quadrant->get_forest_quad_idx () + (ij++)] = f_loc.size ();
+            }
+          else if (quadrant->is_hanging (ii))
+            {
+              p.push_back (quadrant->p (0, ii));
+              p.push_back (quadrant->p (1, ii));
+              parents[0] = quadrant->gparent (0, ii);
+              parents[1] = quadrant->gparent (1, ii);
+              f_loc.push_back ((f[parents[0]] + f[parents[1]]) / 2.0);
+              t[4 * quadrant->get_forest_quad_idx () + (ij++)] = f_loc.size ();
             }
         }
     }
+
     
-  Matrix oct_p(2, p.size() / 2, 0.0);
-  Matrix oct_f(1, f_loc.size(), 0.0);
-  Array<int> oct_children (dim_vector(4, num_local_quadrants()), 0);
+  Matrix oct_p (2, p.size () / 2, 0.0);
+  Matrix oct_f (1, f_loc.size(), 0.0);
   
   std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
   std::copy_n (f_loc.begin (), f_loc.size (), oct_f.fortran_vec ());
@@ -361,25 +365,21 @@ tmesh::octbin_export (const char * basename,
   the_map.assign ("p", oct_p);
   the_map.assign ("f", oct_f);
   the_map.assign ("t", oct_t);
-  the_map.assign ("children", oct_children);
   
   octave_io_mode m = gz_write_mode;
   
   // Define filename.
   int rank;
   MPI_Comm_rank (comm, &rank);
-  
-  char suffix[16];
-  sprintf(suffix, "_%04d.octbin.gz", rank);
-  
-  char * filename = (char *) malloc(strlen(basename) + strlen(suffix));
-  
-  sprintf(filename, "%s%s", basename, suffix);
+
+  char filename[255] = "";
+  sprintf(filename, "%s_%4.4d.octbin.gz", basename, rank);
   
   // Save to filename.
   assert (octave_io_open (filename, m, &m) == 0);
   assert (octave_save ("msh", octave_value (the_map)) == 0);
   assert (octave_io_close () == 0);
+
 };
 
 void
