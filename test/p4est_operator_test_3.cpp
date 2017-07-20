@@ -82,8 +82,8 @@ main (int argc, char **argv)
   
   // Assemble matrix.
   sparse_matrix A, M;
-  A.resize(tmsh.num_owned_nodes());
-  M.resize(tmsh.num_owned_nodes());
+  A.resize(tmsh.num_global_nodes());
+  M.resize(tmsh.num_global_nodes());
   
   double epsilon = 1e-3;
   std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
@@ -97,7 +97,7 @@ main (int argc, char **argv)
   A += M;
   
   // Assemble right-hand side.
-  std::vector<double> rhs(tmsh.num_local_nodes (), 0);
+  std::vector<double> rhs(tmsh.num_global_nodes (), 0);
   
   std::vector<double> f(tmsh.num_local_quadrants (), 1);
   std::vector<double> g(tmsh.num_local_nodes (), 0);
@@ -134,31 +134,35 @@ main (int argc, char **argv)
   bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
   
   // Solve problem.
-  std::vector<double> vals;
-  std::vector<int> irow, jcol;
-  
-  A.aij(vals, irow, jcol, 1);
-  
-  MPI_Barrier(MPI_COMM_WORLD);
-  
   std::cout << "Solving linear system." << std::endl;
   
   mumps mumps_solver;
   
+  std::vector<double> vals;
+  std::vector<int> irow, jcol;
+  
+  A.aij(vals, irow, jcol, mumps_solver.get_index_base ());
+  
+  mumps_solver.set_lhs_distributed ();
+  mumps_solver.set_distributed_lhs_structure (A.rows (), irow, jcol);
+  mumps_solver.set_distributed_lhs_data (vals);
+  
+  // Reduce rhs (so that rank 0 has the actual rhs).
+  std::vector<double> global_rhs(tmsh.num_global_nodes(), 0);
+  MPI_Allreduce(rhs.data(), global_rhs.data(), rhs.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  
   if (rank == 0)
-    mumps_solver.set_lhs_structure(A.rows(), irow, jcol);
+    mumps_solver.set_rhs (global_rhs);
   
-  mumps_solver.analyze();
+  // Solve.
+  mumps_solver.analyze ();
+  mumps_solver.factorize ();
+  mumps_solver.solve ();
+  mumps_solver.cleanup ();
   
-  if (rank == 0)
-    mumps_solver.set_lhs_data(vals);
-  
-  mumps_solver.factorize();
-  
-  if (rank == 0)
-    mumps_solver.set_rhs(rhs);
-  
-  mumps_solver.solve();
+  // Export solution.
+  MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  tmsh.octbin_export ("p4est_operator_test_3_output", global_rhs);
   
   // Compute error.
   double local_error = 0;
@@ -170,15 +174,16 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
         {
-          local_error = std::abs(u_ex(quadrant->p(0, ii), quadrant->p(1, ii)) - rhs[quadrant->t(ii)]);
+          local_error = std::abs(u_ex(quadrant->p(0, ii), quadrant->p(1, ii)) - global_rhs[quadrant->gt(ii)]);
           error = error < local_error ? local_error : error;
         }
     }
   
-  std::cout << "L^inf-norm error: " << error << "." << std::endl;
+  double global_error = 0;
+  MPI_Allreduce(&error, &global_error, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
   
-  // Export solution.
-  tmsh.octbin_export ("p4est_operator_test_3_output", rhs);
+  if (rank == 0)
+    std::cout << "L^inf-norm error: " << global_error << "." << std::endl;
   
   MPI_Finalize ();
   

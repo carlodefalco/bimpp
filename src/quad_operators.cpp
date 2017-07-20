@@ -66,8 +66,8 @@ bim2a_advection_diffusion(tmesh & mesh,
             rows.push_back (quadrant->gt(i));
           else
             {
-              rows.push_back (quadrant->parent(0, i));
-              rows.push_back (quadrant->parent(1, i));
+              rows.push_back (quadrant->gparent(0, i));
+              rows.push_back (quadrant->gparent(1, i));
             }
           
           for(int j = 0; j < 4; ++j)
@@ -78,8 +78,8 @@ bim2a_advection_diffusion(tmesh & mesh,
                 cols.push_back (quadrant->gt(j));
               else
                 {
-                  cols.push_back (quadrant->parent(0, j));
-                  cols.push_back (quadrant->parent(1, j));
+                  cols.push_back (quadrant->gparent(0, j));
+                  cols.push_back (quadrant->gparent(1, j));
                 }
               
               for (int r = 0; r < rows.size(); ++r)
@@ -119,8 +119,8 @@ void bim2a_reaction (tmesh & mesh,
             rows.push_back (quadrant->gt(i));
           else
             {
-              rows.push_back (quadrant->parent(0, i));
-              rows.push_back (quadrant->parent(1, i));
+              rows.push_back (quadrant->gparent(0, i));
+              rows.push_back (quadrant->gparent(1, i));
             }
           
           for (int r = 0; r < rows.size(); ++r)
@@ -156,8 +156,8 @@ void bim2a_rhs (tmesh & mesh,
               rows.push_back (quadrant->gt(i));
             else
               {
-                rows.push_back (quadrant->parent(0, i));
-                rows.push_back (quadrant->parent(1, i));
+                rows.push_back (quadrant->gparent(0, i));
+                rows.push_back (quadrant->gparent(1, i));
               }
             
             for (int r = 0; r < rows.size(); ++r)

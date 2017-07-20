@@ -217,7 +217,6 @@ int main(int argc, char ** argv)
   
   // Export solution.
   MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-  
   tmsh.octbin_export ("p4est_operator_segment_test_output", global_rhs);
   
   MPI_Finalize ();
