@@ -328,7 +328,7 @@ tmesh::octbin_export (const char * basename,
       ij = 0;
       for (auto ii : local_idx)
         {
-          if ((! quadrant->is_hanging (ii)) && quadrant->t (ii) < num_owned_nodes ())
+          if ((! quadrant->is_hanging (ii)) && (quadrant->t (ii) < num_owned_nodes ()))
             {            
               p[2 * quadrant->t (ii) + 0] = quadrant->p (0, ii);
               p[2 * quadrant->t (ii) + 1] = quadrant->p (1, ii);            
@@ -340,7 +340,7 @@ tmesh::octbin_export (const char * basename,
               p.push_back (quadrant->p (0, ii));
               p.push_back (quadrant->p (1, ii));
               f_loc.push_back (f[quadrant->gt (ii)]);
-              t[4 * quadrant->get_forest_quad_idx () + (ij++)] = f_loc.size ();
+              t[4 * quadrant->get_forest_quad_idx () + (ij++)] = f_loc.size () - 1;
             }
           else if (quadrant->is_hanging (ii))
             {
@@ -349,7 +349,7 @@ tmesh::octbin_export (const char * basename,
               parents[0] = quadrant->gparent (0, ii);
               parents[1] = quadrant->gparent (1, ii);
               f_loc.push_back ((f[parents[0]] + f[parents[1]]) / 2.0);
-              t[4 * quadrant->get_forest_quad_idx () + (ij++)] = f_loc.size ();
+              t[4 * quadrant->get_forest_quad_idx () + (ij++)] = f_loc.size () - 1;
             }
         }
     }
