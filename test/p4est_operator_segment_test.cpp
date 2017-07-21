@@ -239,6 +239,7 @@ int main(int argc, char ** argv)
   
   // Solve.
   MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+  mumps_solver.id.icntl[27] = 2; // Parallel analysis.
   mumps_solver.analyze ();
   if (rank == 0) { toc ("*** Solver - Analyze ***"); }
   
