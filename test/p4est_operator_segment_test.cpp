@@ -235,7 +235,7 @@ int main(int argc, char ** argv)
   if (rank == 0) { toc ("*** Solver - Analyze ***"); }
   
   mumps_solver.factorize ();
-  if (rank == 0) { toc ("*** Solver - Factorize  ***"); }
+  if (rank == 0) { toc ("*** Solver - Factorize ***"); }
   
   mumps_solver.solve ();
   if (rank == 0) { toc ("*** Solver - Solve ***"); }
