@@ -2,6 +2,7 @@
 #include <mumps_class.h>
 #include <quad_operators.h>
 #include <simple_connectivity_2d.h>
+#include <bim_timing.h>
 #include <vector>
 
 using Point = std::array<double, 2>;
@@ -109,6 +110,8 @@ int main(int argc, char ** argv)
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
   
+  MPI_Barrier (MPI_COMM_WORLD); { if (rank == 0) tic (); }
+  
   // Create mesh.
   if (rank == 0)
     write_example_connectivity ("p4est_operator_segment_test.octbin.gz");    
@@ -147,14 +150,16 @@ int main(int argc, char ** argv)
   // Refine according to segment_list.  
   tmsh.set_refine_marker (segment_refinement);
   
-  for (int cycle = 0; cycle < 8; ++cycle)
+  for (int cycle = 0; cycle < 16; ++cycle)
     {
       tmsh.refine (recursive, partforcoarsen);
     }
   
-  tmsh.vtk_export ("p4est_operator_segment_test");
+  if (rank == 0) { toc ("Mesh creation and refinement"); }
   
   // Assemble matrix.
+  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+  
   sparse_matrix A;
   A.resize(tmsh.num_global_nodes());
   
@@ -173,7 +178,11 @@ int main(int argc, char ** argv)
     
   bim2a_advection_diffusion (tmsh, alpha, psi, A);
   
+  if (rank == 0) { toc ("Matrix assembly"); }
+  
   // Assemble right-hand side.
+  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+  
   std::vector<double> rhs(tmsh.num_global_nodes (), 0);
   
   std::vector<double> f(tmsh.num_local_quadrants (), 0);
@@ -181,14 +190,22 @@ int main(int argc, char ** argv)
   
   bim2a_rhs (tmsh, f, g, rhs);
   
+  if (rank == 0) { toc ("Right-hand side assembly"); }
+  
   // Set boundary conditions.
+  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+  
   dirichlet_bcs bcs;
   bcs.push_back (std::make_tuple(0, 0, [] (double x, double y) { return 0; }));
   bcs.push_back (std::make_tuple(0, 1, [] (double x, double y) { return 1; }));
   
   bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
   
+  if (rank == 0) { toc ("Boundary conditions"); }
+  
   // Solve problem.
+  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+  
   std::cout << "Solving linear system." << std::endl;
   
   mumps mumps_solver;
@@ -215,9 +232,19 @@ int main(int argc, char ** argv)
   mumps_solver.solve ();
   mumps_solver.cleanup ();
   
+  if (rank == 0) { toc ("Solving"); }
+  
   // Export solution.
+  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+  
+  tmsh.vtk_export ("p4est_operator_segment_test");
+  
   MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
   tmsh.octbin_export ("p4est_operator_segment_test_output", global_rhs);
+  
+  if (rank == 0) { toc ("Export"); }
+  
+  if (rank == 0) { print_timing_report (); }
   
   MPI_Finalize ();
   return 0;
