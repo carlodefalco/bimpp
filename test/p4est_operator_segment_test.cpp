@@ -212,6 +212,9 @@ int main(int argc, char ** argv)
   
   if (rank == 0) { toc ("*** Solver - Initialize ***"); }
   
+  // Set lhs.
+  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+  
   std::vector<double> vals;
   std::vector<int> irow, jcol;
   
@@ -220,26 +223,34 @@ int main(int argc, char ** argv)
   mumps_solver.set_lhs_distributed ();
   mumps_solver.set_distributed_lhs_structure (A.rows (), irow, jcol);
   mumps_solver.set_distributed_lhs_data (vals);
+  
   if (rank == 0) { toc ("*** Solver - Set lhs ***"); }
   
   // Reduce rhs (so that rank 0 has the actual rhs).
+  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+  
   std::vector<double> global_rhs(tmsh.num_global_nodes(), 0);
   MPI_Allreduce(rhs.data(), global_rhs.data(), rhs.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   
   if (rank == 0)
     mumps_solver.set_rhs (global_rhs);
+  
   if (rank == 0) { toc ("*** Solver - Set rhs ***"); }
   
   // Solve.
+  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
   mumps_solver.analyze ();
   if (rank == 0) { toc ("*** Solver - Analyze ***"); }
   
+  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
   mumps_solver.factorize ();
   if (rank == 0) { toc ("*** Solver - Factorize ***"); }
   
+  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
   mumps_solver.solve ();
   if (rank == 0) { toc ("*** Solver - Solve ***"); }
   
+  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
   mumps_solver.cleanup ();
   if (rank == 0) { toc ("*** Solver - Cleanup ***"); }
   
