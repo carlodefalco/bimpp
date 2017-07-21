@@ -24,6 +24,8 @@ bim2a_advection_diffusion(tmesh & mesh,
   
   unsigned int iel = 0;
   std::vector<unsigned int> rows, cols;
+  rows.reserve(2);
+  cols.reserve(2);
   
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
@@ -101,6 +103,7 @@ void bim2a_reaction (tmesh & mesh,
   
   unsigned int iel = 0;
   std::vector<unsigned int> rows;
+  rows.reserve(2);
   
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
@@ -138,6 +141,7 @@ void bim2a_rhs (tmesh & mesh,
    
    unsigned int iel = 0;
    std::vector<unsigned int> rows;
+   rows.reserve(2);
    
    for (auto quadrant = mesh.begin_quadrant_sweep ();
         quadrant != mesh.end_quadrant_sweep ();
