@@ -155,7 +155,7 @@ int main(int argc, char ** argv)
       tmsh.refine (recursive, partforcoarsen);
     }
   
-  if (rank == 0) { toc ("Mesh creation and refinement"); }
+  if (rank == 0) { toc ("*** Mesh creation and refinement ***"); }
   
   // Assemble matrix.
   MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
@@ -178,7 +178,7 @@ int main(int argc, char ** argv)
     
   bim2a_advection_diffusion (tmsh, alpha, psi, A);
   
-  if (rank == 0) { toc ("Matrix assembly"); }
+  if (rank == 0) { toc ("*** Matrix assembly ***"); }
   
   // Assemble right-hand side.
   MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
@@ -190,7 +190,7 @@ int main(int argc, char ** argv)
   
   bim2a_rhs (tmsh, f, g, rhs);
   
-  if (rank == 0) { toc ("Right-hand side assembly"); }
+  if (rank == 0) { toc ("*** Right-hand side assembly ***"); }
   
   // Set boundary conditions.
   MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
@@ -201,7 +201,7 @@ int main(int argc, char ** argv)
   
   bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
   
-  if (rank == 0) { toc ("Boundary conditions"); }
+  if (rank == 0) { toc ("*** Boundary conditions ***"); }
   
   // Solve problem.
   MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
@@ -209,6 +209,8 @@ int main(int argc, char ** argv)
   std::cout << "Solving linear system." << std::endl;
   
   mumps mumps_solver;
+  
+  if (rank == 0) { toc ("*** Solver - Initialize ***"); }
   
   std::vector<double> vals;
   std::vector<int> irow, jcol;
@@ -218,6 +220,7 @@ int main(int argc, char ** argv)
   mumps_solver.set_lhs_distributed ();
   mumps_solver.set_distributed_lhs_structure (A.rows (), irow, jcol);
   mumps_solver.set_distributed_lhs_data (vals);
+  if (rank == 0) { toc ("*** Solver - Set lhs ***"); }
   
   // Reduce rhs (so that rank 0 has the actual rhs).
   std::vector<double> global_rhs(tmsh.num_global_nodes(), 0);
@@ -225,14 +228,20 @@ int main(int argc, char ** argv)
   
   if (rank == 0)
     mumps_solver.set_rhs (global_rhs);
+  if (rank == 0) { toc ("*** Solver - Set rhs ***"); }
   
   // Solve.
   mumps_solver.analyze ();
-  mumps_solver.factorize ();
-  mumps_solver.solve ();
-  mumps_solver.cleanup ();
+  if (rank == 0) { toc ("*** Solver - Analyze ***"); }
   
-  if (rank == 0) { toc ("Solving"); }
+  mumps_solver.factorize ();
+  if (rank == 0) { toc ("*** Solver - Factorize  ***"); }
+  
+  mumps_solver.solve ();
+  if (rank == 0) { toc ("*** Solver - Solve ***"); }
+  
+  mumps_solver.cleanup ();
+  if (rank == 0) { toc ("*** Solver - Cleanup ***"); }
   
   // Export solution.
   MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
@@ -242,7 +251,7 @@ int main(int argc, char ** argv)
   MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
   tmsh.octbin_export ("p4est_operator_segment_test_output", global_rhs);
   
-  if (rank == 0) { toc ("Export"); }
+  if (rank == 0) { toc ("*** Export ***"); }
   
   if (rank == 0) { print_timing_report (); }
   
