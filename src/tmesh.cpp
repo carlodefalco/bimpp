@@ -91,7 +91,6 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
       for (i = 0; i < 4; ++i)
         {
           tbuff[i] = ln->element_nodes[4 * forest_quad_idx + i];
-          assert (tbuff[i] < ln->num_local_nodes);
           hbuff[i] = false;
           pbuff[i] = -1;
           pbuff[i+1] = -1;
