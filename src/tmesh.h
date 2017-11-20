@@ -91,10 +91,26 @@ public:
     void
     reset ();
 
-  private:
+  protected:
     quadrant_t *data;      
   };
+  
+  /// Iterator to sweep through the quadrants of a tmesh.
+  /// This is essentially a decorator of quadrant_t*.
+  class
+  neighbor_iterator : public quadrant_iterator
+  {
+  public:
+    /// Get next neighbor.
+    void
+    operator++ ();
 
+    /// Default constructor.
+    neighbor_iterator (quadrant_t *_data = nullptr) :
+      quadrant_iterator (_data)
+    { };
+  };
+  
   /// C++ interface class to access properties of the
   /// current quadrant.
   class
@@ -108,7 +124,8 @@ public:
     quadrant_t (tmesh *_tmesh,
                 p4est_topidx_t _tree = 0,
                 p4est_quadrant_t *_quadrant = nullptr) :
-      the_tmesh(_tmesh), tree_idx(_tree), the_quadrant(_quadrant)
+      the_tmesh(_tmesh), tree_idx(_tree), the_quadrant(_quadrant),
+      face_neighbor(new p4est_mesh_face_neighbor_t())
     { };
 
     /// Get the i-th coordinate of the j-th vertex.
@@ -142,6 +159,15 @@ public:
     idx_t
     e (idx_t i);
     
+    /// Get an iterator to the first neighbor of the current quadrant.
+    neighbor_iterator
+    begin_neighbor_sweep ();
+    
+    /// Get a null quadrant iterator to signal end of the sweep.
+    neighbor_iterator
+    end_neighbor_sweep ()
+    { return neighbor_iterator (); };
+    
     /// Return index of current quadrant across all trees on current process.
     p4est_locidx_t
     get_forest_quad_idx ()
@@ -156,7 +182,7 @@ public:
       return forest_quad_idx +
         the_tmesh->p4est->global_first_quadrant[rank];
     };
-
+    
     /// Return index of current tree.
     p4est_locidx_t
     get_tree_idx ()
@@ -168,11 +194,13 @@ public:
             p4est_quadrant_t *q);
     
     /// A pointer to the owning mesh is needed to get physical mapping. 
-    tmesh               *the_tmesh; 
-    p4est_tree_t        *tree;
-    p4est_quadrant_t    *the_quadrant;
-
+    tmesh                      *the_tmesh; 
+    p4est_tree_t               *tree;
+    p4est_quadrant_t           *the_quadrant;
+    p4est_mesh_face_neighbor_t *face_neighbor; // mfn
+    
     friend class tmesh::quadrant_iterator;
+    friend class tmesh::neighbor_iterator;
     
   private:
 
@@ -182,9 +210,8 @@ public:
     p4est_topidx_t        tree_idx;         // tt
     p4est_locidx_t        forest_quad_idx;  // k 
     p4est_locidx_t        tree_quad_idx;    // q
-
-    //quadrant_t           *current_neighbor;
-    //int                   current_neighbor_face;
+    
+    quadrant_t           *current_neighbor;
     
     /// Buffer used when quering coordinates.
     double                vxyz[12] = {0,0,0, 0,0,0, 0,0,0, 0,0,0};
@@ -242,15 +269,6 @@ public:
   /// Get a null quadrant iterator to signal end of the sweep.
   quadrant_iterator
   end_quadrant_sweep ()
-  { return quadrant_iterator (); };
-
-  /// Get an iterator to the first neighbor of the current quadrant.
-  quadrant_iterator
-  begin_neighbor_sweep ();
-
-  /// Get a null quadrant iterator to signal end of the sweep.
-  quadrant_iterator
-  end_neighbor_sweep ()
   { return quadrant_iterator (); };
 
   /// Set functor to mark quadrants for refinement.
@@ -317,12 +335,13 @@ public:
   };
   
   /// P4EST pointers describing the tmesh,
-  /// temporarily public untli the API is stable.
+  /// temporarily public until the API is stable.
   p4est_t              *p4est;
   p4est_connectivity_t *conn;
   quadrant_t            current_quadrant;
   p4est_lnodes_t       *lnodes;
   p4est_mesh_t         *mesh;
+  p4est_ghost_t        *ghost;
   
 private:
   
