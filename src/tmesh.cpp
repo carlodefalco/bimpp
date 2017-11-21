@@ -109,11 +109,15 @@ tmesh::neighbor_iterator::operator++ ()
       data->tree_idx = which_tree;
       data->forest_quad_idx = tree->quadrants_offset + which_quad;
       data->tree_quad_idx = which_quad;
+      this->face_idx = nface;
       
       data->update(which_tree, neighbor);
     }
   else
-    data = nullptr;
+    {
+      data = nullptr;
+      this->face_idx = -1;
+    }
 };
 
 void
@@ -242,7 +246,7 @@ tmesh::quadrant_t::begin_neighbor_sweep ()
   
   current_neighbor->update(which_tree, neighbor);
   
-  neighbor_iterator ni (current_neighbor);
+  neighbor_iterator ni (current_neighbor, nface);
   return ni;
 }
 
@@ -268,7 +272,8 @@ tmesh::~tmesh ()
   p4est_destroy (this->p4est);
   p4est_connectivity_destroy (this->conn);
   if (!(this->lnodes == nullptr)) p4est_lnodes_destroy (this->lnodes);
-  if (!(this->mesh == nullptr)) p4est_mesh_destroy (this->mesh);
+  if (!(this->mesh   == nullptr)) p4est_mesh_destroy   (this->mesh);
+  if (!(this->ghost  == nullptr)) p4est_ghost_destroy  (this->ghost);
 };
 
 
@@ -508,13 +513,12 @@ tmesh::refine (int recursive, int partforcoarsen)
   p4est_refine (p4est, recursive, refine_callback, nullptr);
   p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
   p4est_partition (p4est, partforcoarsen, nullptr);
-
+  
   if (! (lnodes == nullptr)) p4est_lnodes_destroy (lnodes);
   lnodes = nullptr;
 
   if (! (mesh == nullptr)) p4est_mesh_destroy (mesh);
   mesh = nullptr;
-
 }
 
 void
@@ -528,10 +532,7 @@ tmesh::coarsen (int recursive, int partforcoarsen)
   lnodes = nullptr;  
 
   if (! (mesh == nullptr)) p4est_mesh_destroy (mesh);
-  mesh = nullptr;  
-
-  if (! (ghost == nullptr)) p4est_ghost_destroy (ghost);
-  ghost = nullptr;
+  mesh = nullptr;
 };
 
 void
