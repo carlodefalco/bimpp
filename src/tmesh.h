@@ -106,9 +106,16 @@ public:
     operator++ ();
 
     /// Default constructor.
-    neighbor_iterator (quadrant_t *_data = nullptr) :
-      quadrant_iterator (_data)
+    neighbor_iterator (quadrant_t *_data = nullptr, int _face_idx = -1) :
+      quadrant_iterator (_data), face_idx (_face_idx)
     { };
+    
+    /// Get the face index associated to the current neighbor.
+    int get_face_idx()
+    { return face_idx; };
+    
+  private:
+    int face_idx; /// Face index in 0...3 (-1 if not defined).
   };
   
   /// C++ interface class to access properties of the

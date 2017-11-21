@@ -52,9 +52,7 @@ main (int argc, char **argv)
   recursive = 0; partforcoarsen = 1;
   tmsh.set_refine_marker (uniform_refinement);
   tmsh.refine (recursive, partforcoarsen);
-  tmsh.refine (recursive, partforcoarsen);
   tmsh.set_refine_marker (corner_refinement);
-  tmsh.refine (recursive, partforcoarsen);
   tmsh.refine (recursive, partforcoarsen);
 
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -67,6 +65,7 @@ main (int argc, char **argv)
         {
           std::cout << "Element " << quadrant->get_global_quad_idx()
                     << ", neighbor " << neighbor->get_global_quad_idx()
+                    << " (face " << neighbor.get_face_idx() << ")"
                     << ", vertices: ";
           for (int node = 0; node < 4; ++node)
             {
