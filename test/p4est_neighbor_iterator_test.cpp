@@ -6,31 +6,23 @@
 #include <vector>
 #include <cassert>
 
-
 static int
-bottom_refinement (tmesh::quadrant_iterator quadrant)
+corner_refinement (tmesh::quadrant_iterator quadrant)
 {
-  double ycoord;
+  double xcoord, ycoord;
   double top = std::numeric_limits<double>::lowest ();
-  for (int ii = 0; ii < 4; ++ii)
-    {
-      ycoord = quadrant->p(1, ii);
-      top  = top < ycoord ? ycoord : top;
-    }
-  return ((top <= 0.5) ? 1 : 0);
-}
-
-static int
-left_refinement (tmesh::quadrant_iterator quadrant)
-{
-  double xcoord;
   double right = std::numeric_limits<double>::lowest ();
+  
   for (int ii = 0; ii < 4; ++ii)
     {
       xcoord = quadrant->p(0, ii);
-      right  = right < xcoord ? xcoord : right;
+      ycoord = quadrant->p(1, ii);
+      
+      right = right < xcoord ? xcoord : right;
+      top   = top   < ycoord ? ycoord : top;
     }
-  return ((right <= 0.5) ? 1 : 0);
+  
+  return ((right <= 0.5 && top <= 0.5) ? 1 : 0);
 }
 
 static int
@@ -45,8 +37,6 @@ main (int argc, char **argv)
   MPI_Comm              mpicomm = MPI_COMM_WORLD;  
   int                   rank, size;
   tmesh                 tmsh;
-  double                xcoord = 0.0;
-  double                ycoord = 0.0;
 
   MPI_Init (&argc, &argv);
 
@@ -59,8 +49,11 @@ main (int argc, char **argv)
 
   tmsh.read_connectivity ("p4est_neighbor_iterator_test.octbin.gz");
 
-  tmsh.set_refine_marker (uniform_refinement);
   recursive = 0; partforcoarsen = 1;
+  tmsh.set_refine_marker (uniform_refinement);
+  tmsh.refine (recursive, partforcoarsen);
+  tmsh.refine (recursive, partforcoarsen);
+  tmsh.set_refine_marker (corner_refinement);
   tmsh.refine (recursive, partforcoarsen);
   tmsh.refine (recursive, partforcoarsen);
 
@@ -74,10 +67,16 @@ main (int argc, char **argv)
         {
           std::cout << "Element " << quadrant->get_global_quad_idx()
                     << ", neighbor " << neighbor->get_global_quad_idx()
-                    << ", vertices: " << neighbor->t(0) << ", " << neighbor->t(1)
-                    << ", " << neighbor->t(2) << ", " << neighbor->t(3)
-                    << std::endl;
-
+                    << ", vertices: ";
+          for (int node = 0; node < 4; ++node)
+            {
+              if (!neighbor->is_hanging(node))
+                  std::cout << neighbor->t(node) << ", ";
+              else
+                  std::cout << "(" << neighbor->parent(0, node) << ", " << neighbor->parent(1, node) << "), ";
+            }
+          
+          std::cout << std::endl;
         }
       
       std::cout << std::endl;
