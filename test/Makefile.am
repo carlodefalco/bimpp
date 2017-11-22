@@ -29,7 +29,7 @@ if HAVE_P4EST
                     p4est_conn_test p4est_hanging_test p4est_refine_segment_test p4est_coarsen_test \
                     p4est_iterator_test p4est_ref_test  p4est_load_save_test p4est_edge_id_test \
                     p4est_operator_test_2 p4est_operator_test_3 p4est_operator_segment_test \
-                    p4est_neighbor_iterator_test
+                    p4est_neighbor_iterator_test p4est_estimator_test_1
 
 endif
 
@@ -247,6 +247,12 @@ if HAVE_P4EST
   p4est_neighbor_iterator_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_neighbor_iterator_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += p4est_neighbor_iterator_test.octbin.gz p4est_neighbor_iterator_test.pvtu p4est_neighbor_iterator_test.visit p4est_neighbor_iterator_test_*.vtu
+
+  p4est_estimator_test_1_SOURCES =  p4est_estimator_test_1.cpp simple_connectivity_2d.cpp
+  p4est_estimator_test_1_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_estimator_test_1_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_estimator_test_1_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+  CLEANFILES += p4est_estimator_test.octbin.gz p4est_estimator_test.pvtu p4est_estimator_test.visit p4est_estimator_test_*.vtu
 endif
 
 TESTS =
@@ -257,7 +263,7 @@ TESTS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 p4es
          p4est_refine_segment_test p4est_hanging_test p4est_coarsen_test \
          p4est_iterator_test p4est_ref_test p4est_load_save_test p4est_edge_id_test \
          p4est_operator_test_2 p4est_operator_test_3 p4est_operator_segment_test \
-         p4est_neighbor_iterator_test
+         p4est_neighbor_iterator_test p4est_estimator_test_1
 
 endif
 
