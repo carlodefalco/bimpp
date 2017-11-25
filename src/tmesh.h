@@ -240,13 +240,20 @@ public:
       lnodes (nullptr), mesh (nullptr)
   { load (filename); };
 
-
   ~tmesh ();
 
   /// Load a connectivity from a compressed binary
   /// Octave file then init the p4est.
   void
   read_connectivity (const char *filename,
+                     int source = 0,
+                     MPI_Comm comm = MPI_COMM_WORLD);
+
+  /// Load a p4est and connectivity from a set of arrays
+  /// then init the p4est.
+  void
+  read_connectivity (const double *p, const p4est_topidx_t num_vertices,
+                     const p4est_topidx_t *t, const p4est_topidx_t num_trees,
                      int source = 0,
                      MPI_Comm comm = MPI_COMM_WORLD);
 

@@ -113,10 +113,8 @@ int main(int argc, char ** argv)
   MPI_Barrier (MPI_COMM_WORLD); { if (rank == 0) tic (); }
   
   // Create mesh.
-  if (rank == 0)
-    write_example_connectivity ("p4est_operator_segment_test.octbin.gz");    
-  
-  tmsh.read_connectivity ("p4est_operator_segment_test.octbin.gz");
+  tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
+                          simple_conn_t, simple_conn_num_trees);
 
   // Define marking for adaptive refinement.
   std::vector<Segment> segment_list;

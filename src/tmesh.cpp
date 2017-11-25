@@ -277,6 +277,63 @@ tmesh::~tmesh ()
 };
 
 
+template <class p_type, class p_type_count, class t_type, class t_type_count>
+static void
+arrays2connectivity (const p_type *p_matrix_start,
+                     const p_type_count num_vertices,
+                     const t_type *t_matrix_start,
+                     const t_type_count num_trees,
+                     p4est_connectivity_t **conn)
+{
+
+  std::array<t_type, 4> v = {0, 0, 0, 0};
+  int face = 0;
+
+  *conn =
+    p4est_connectivity_new (num_vertices, num_trees, 0, 0);
+
+  const p_type *p_iter = p_matrix_start;
+  double *v_iter = &((*conn)->vertices[0]);
+
+  auto p_matrix_end = p_matrix_start + num_vertices * 2;
+  while (p_iter < p_matrix_end)
+    {
+      *(v_iter++) = *(p_iter++);
+      *(v_iter++) = *(p_iter++);      
+      *(v_iter++) = 0;
+    }
+
+  const t_type *t_iter = t_matrix_start;
+  p4est_topidx_t *tv_iter = &((*conn)->tree_to_vertex[0]);
+
+  auto t_matrix_end = t_matrix_start + num_trees * 5;
+  while (t_iter < t_matrix_end)
+    {
+
+      for (int n = 0; n < 4; ++n)
+        v[n] = *(t_iter++);
+      ++t_iter;
+      
+      *(tv_iter++) = v[0] - 1;
+      *(tv_iter++) = v[1] - 1;
+      *(tv_iter++) = v[3] - 1;
+      *(tv_iter++) = v[2] - 1;
+
+    }
+
+  for (t_type tree = 0; tree < (*conn)->num_trees; ++tree)
+    for (face = 0; face < 4; ++face)
+      {
+        (*conn)->tree_to_tree[4 * tree + face] = tree;
+        (*conn)->tree_to_face[4 * tree + face] = face;
+      }
+
+  assert (p4est_connectivity_is_valid (*conn));
+  p4est_connectivity_complete (*conn);
+};
+
+
+
 /* Read a 2d p4est connectivity from a compressed octave
  * binary file. The file should contain a struct
  * named "msh" with fields "p" and "t". The former
@@ -317,47 +374,10 @@ octbingz2connectivity (const char *filename, p4est_connectivity_t **conn)
   p4est_topidx_t num_vertices = p_matrix.cols (),
     num_trees = t_matrix.cols ();
 
-  std::array<int, 4> v = {0, 0, 0, 0};
-  int face = 0;
-
-  *conn =
-    p4est_connectivity_new (num_vertices, num_trees, 0, 0);
-
-  for (int node = 1; node <= num_vertices; ++node)
-    {
-      (*conn)->vertices [3 * (node - 1) + 0] =
-        p_matrix.fortran_vec ()[2 * (node - 1) + 0];
-      
-      (*conn)->vertices [3 * (node - 1) + 1] =
-        p_matrix.fortran_vec ()[2 * (node - 1) + 1];
-      
-      (*conn)->vertices [3 * (node - 1) + 2] = 0;
-    }
-
-  for (int element_number = 1;
-       element_number <= num_trees;
-       ++element_number)
-    {
-
-      for (int n = 0; n < 4; ++n)
-        v[n] = t_matrix.fortran_vec ()[5 * (element_number - 1) + n];
-
-      (*conn)->tree_to_vertex[4 * (element_number - 1) + 0] = v[0] - 1;
-      (*conn)->tree_to_vertex[4 * (element_number - 1) + 1] = v[1] - 1;
-      (*conn)->tree_to_vertex[4 * (element_number - 1) + 2] = v[3] - 1;
-      (*conn)->tree_to_vertex[4 * (element_number - 1) + 3] = v[2] - 1;
-
-    }
-
-  for (p4est_topidx_t tree = 0; tree < (*conn)->num_trees; ++tree)
-    for (face = 0; face < 4; ++face)
-      {
-        (*conn)->tree_to_tree[4 * tree + face] = tree;
-        (*conn)->tree_to_face[4 * tree + face] = face;
-      }
-
-  assert (p4est_connectivity_is_valid ((*conn)));
-  p4est_connectivity_complete ((*conn));
+  arrays2connectivity (p_matrix.fortran_vec (),
+                       num_vertices,
+                       t_matrix.fortran_vec (),
+                       num_trees, conn);
 };
 
 
@@ -373,6 +393,29 @@ tmesh::read_connectivity (const char *filename,
 
   if (rank == source)
     octbingz2connectivity (filename, &conn);
+  
+  conn = p4est_connectivity_bcast (conn, source, comm);
+  p4est = p4est_new (comm, conn, 0, NULL, NULL);
+  p4est->user_pointer = this;
+
+};
+
+void
+tmesh::read_connectivity (const double *p,
+                          const p4est_topidx_t num_vertices,
+                          const p4est_topidx_t *t,
+                          const p4est_topidx_t num_trees,
+                          int source,
+                          MPI_Comm comm)
+{
+
+  int rank, size;
+  MPI_Comm_rank (comm, &rank);
+  MPI_Comm_size (comm, &size);
+
+  if (rank == source)
+    arrays2connectivity (p, num_vertices,
+                         t, num_trees, &conn);
   
   conn = p4est_connectivity_bcast (conn, source, comm);
   p4est = p4est_new (comm, conn, 0, NULL, NULL);
