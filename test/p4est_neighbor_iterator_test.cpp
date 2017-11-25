@@ -44,10 +44,8 @@ main (int argc, char **argv)
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
 
-  if (rank == 0)
-    write_example_connectivity ("p4est_neighbor_iterator_test.octbin.gz");
-
-  tmsh.read_connectivity ("p4est_neighbor_iterator_test.octbin.gz");
+  tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
+                          simple_conn_t, simple_conn_num_trees);
 
   recursive = 0; partforcoarsen = 1;
   tmsh.set_refine_marker (uniform_refinement);

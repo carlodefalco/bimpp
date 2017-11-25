@@ -2,6 +2,7 @@
 #include <mumps_class.h>
 #include <quad_operators.h>
 #include <tmesh.h>
+#include <numeric>
 
 #include <simple_connectivity_2d.h>
 
@@ -26,10 +27,8 @@ main (int argc, char **argv)
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
 
-  if (rank == 0)
-    write_example_connectivity ("p4est_estimator_test_1.octbin.gz");
-
-  tmsh.read_connectivity ("p4est_estimator_test_1.octbin.gz");
+  tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
+                          simple_conn_t, simple_conn_num_trees);
   
   tmsh.set_refine_marker (uniform_refinement);
   recursive = 0; partforcoarsen = 1;
