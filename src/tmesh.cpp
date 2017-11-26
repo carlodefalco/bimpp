@@ -96,22 +96,22 @@ tmesh::neighbor_iterator::operator++ ()
   p4est_topidx_t which_tree;
   p4est_locidx_t which_quad;
   int nface, nrank;
-  p4est_quadrant_t * neighbor = p4est_mesh_face_neighbor_next (data->face_neighbor,
-                                                               &which_tree,
-                                                               &which_quad,
-                                                               &nface,
-                                                               &nrank);
+  p4est_quadrant_t * neighbor =
+    p4est_mesh_face_neighbor_next (data->face_neighbor, &which_tree,
+                                   &which_quad, &nface, &nrank);
   
   if (neighbor != nullptr)
     {
-      p4est_tree_t * tree = p4est_tree_array_index(data->the_tmesh->p4est->trees, which_tree);
+      p4est_tree_t * tree =
+        p4est_tree_array_index (data->the_tmesh->p4est->trees,
+                                which_tree);
       
       data->tree_idx = which_tree;
       data->forest_quad_idx = tree->quadrants_offset + which_quad;
       data->tree_quad_idx = which_quad;
       this->face_idx = nface;
       
-      data->update(which_tree, neighbor);
+      data->update (which_tree, neighbor);
     }
   else
     {
@@ -231,16 +231,20 @@ tmesh::quadrant_t::begin_neighbor_sweep ()
   p4est_locidx_t which_quad;
   int nface, nrank;
   
-  p4est_quadrant_t * neighbor = p4est_mesh_face_neighbor_next (face_neighbor,
-                                                               &which_tree, &which_quad,
-                                                               &nface, &nrank);
+  p4est_quadrant_t * neighbor =
+    p4est_mesh_face_neighbor_next (face_neighbor, &which_tree,
+                                   &which_quad, &nface, &nrank);
   
-  current_neighbor = new quadrant_t(this->the_tmesh, which_tree, neighbor);
+  current_neighbor =
+    new quadrant_t(this->the_tmesh, which_tree, neighbor);
 
-  p4est_tree_t * tree = p4est_tree_array_index(this->the_tmesh->p4est->trees, which_tree);
+  p4est_tree_t * tree =
+    p4est_tree_array_index (this->the_tmesh->p4est->trees,
+                            which_tree);
   
   current_neighbor->tree_idx = which_tree;
-  current_neighbor->forest_quad_idx = tree->quadrants_offset + which_quad;
+  current_neighbor->forest_quad_idx =
+    tree->quadrants_offset + which_quad;
   current_neighbor->tree_quad_idx = which_quad;
   current_neighbor->face_neighbor = this->face_neighbor;
   
@@ -277,7 +281,8 @@ tmesh::~tmesh ()
 };
 
 
-template <class p_type, class p_type_count, class t_type, class t_type_count>
+template <class p_type, class p_type_count,
+          class t_type, class t_type_count>
 static void
 arrays2connectivity (const p_type *p_matrix_start,
                      const p_type_count num_vertices,
@@ -356,7 +361,8 @@ arrays2connectivity (const p_type *p_matrix_start,
  */
 
 static void
-octbingz2connectivity (const char *filename, p4est_connectivity_t **conn)
+octbingz2connectivity
+(const char *filename, p4est_connectivity_t **conn)
 {
     
   // load data from file
@@ -434,12 +440,14 @@ tmesh::load (const char *filename, MPI_Comm comm)
 void
 tmesh::vtk_export (const char *filename)
 {
-  p4est_vtk_context_t *context = p4est_vtk_context_new (p4est, filename);
+  p4est_vtk_context_t *context =
+    p4est_vtk_context_new (p4est, filename);
   assert (context != nullptr);
   p4est_vtk_context_set_scale (context, 1.0);
   p4est_vtk_context_set_continuous (context, 1);
   context = p4est_vtk_write_header (context);
-  context = p4est_vtk_write_cell_dataf (context, 1, 1, 1, 0, 0, 0, context);
+  context =
+    p4est_vtk_write_cell_dataf (context, 1, 1, 1, 0, 0, 0, context);
   assert (p4est_vtk_write_footer (context) == 0);
 };
 
@@ -453,7 +461,8 @@ tmesh::octbin_export (const char * basename,
   std::vector<double> p (2 * num_owned_nodes ());
   std::vector<double> f_loc (num_owned_nodes ());  
 
-  Array<octave_idx_type> oct_t (dim_vector (4, num_local_quadrants ()), 0);
+  Array<octave_idx_type>
+    oct_t (dim_vector (4, num_local_quadrants ()), 0);
   octave_idx_type *t = oct_t.fortran_vec ();
 
   std::array<tmesh::idx_t, 2> parents;    
@@ -467,19 +476,22 @@ tmesh::octbin_export (const char * basename,
       ij = 0;
       for (auto ii : local_idx)
         {
-          if ((! quadrant->is_hanging (ii)) && (quadrant->t (ii) < num_owned_nodes ()))
+          if ((! quadrant->is_hanging (ii))
+              && (quadrant->t (ii) < num_owned_nodes ()))
             {            
               p[2 * quadrant->t (ii) + 0] = quadrant->p (0, ii);
               p[2 * quadrant->t (ii) + 1] = quadrant->p (1, ii);            
               f_loc[quadrant->t (ii)] = f[quadrant->gt (ii)];
-              t[4 * quadrant->get_forest_quad_idx () + (ij++)] = quadrant->t (ii);
+              t[4 * quadrant->get_forest_quad_idx () + (ij++)] =
+                quadrant->t (ii);
             }
           else if (! quadrant->is_hanging (ii))
             {
               p.push_back (quadrant->p (0, ii));
               p.push_back (quadrant->p (1, ii));
               f_loc.push_back (f[quadrant->gt (ii)]);
-              t[4 * quadrant->get_forest_quad_idx () + (ij++)] = f_loc.size () - 1;
+              t[4 * quadrant->get_forest_quad_idx () + (ij++)] =
+                f_loc.size () - 1;
             }
           else if (quadrant->is_hanging (ii))
             {
@@ -488,7 +500,8 @@ tmesh::octbin_export (const char * basename,
               parents[0] = quadrant->gparent (0, ii);
               parents[1] = quadrant->gparent (1, ii);
               f_loc.push_back ((f[parents[0]] + f[parents[1]]) / 2.0);
-              t[4 * quadrant->get_forest_quad_idx () + (ij++)] = f_loc.size () - 1;
+              t[4 * quadrant->get_forest_quad_idx () + (ij++)] =
+                f_loc.size () - 1;
             }
         }
     }
