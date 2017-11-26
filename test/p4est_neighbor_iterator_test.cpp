@@ -53,32 +53,46 @@ main (int argc, char **argv)
   tmsh.set_refine_marker (corner_refinement);
   tmsh.refine (recursive, partforcoarsen);
 
-  for (auto quadrant = tmsh.begin_quadrant_sweep ();
-       quadrant != tmsh.end_quadrant_sweep ();
-       ++quadrant)
+  for (int iproc = 0; iproc < size; ++ iproc)
     {
-      for (auto neighbor = quadrant->begin_neighbor_sweep ();
-           neighbor != quadrant->end_neighbor_sweep ();
-           ++neighbor)
+      MPI_Barrier (MPI_COMM_WORLD);
+      if ((tmsh.num_local_quadrants () > 0) && (iproc == rank))
         {
-          std::cout << "Element " << quadrant->get_global_quad_idx()
-                    << ", neighbor " << neighbor->get_global_quad_idx()
-                    << " (face " << neighbor.get_face_idx() << ")"
-                    << ", vertices: ";
-          for (int node = 0; node < 4; ++node)
+          std::cout << "rank = " << rank << std::endl;
+          for (auto quadrant = tmsh.begin_quadrant_sweep ();
+               quadrant != tmsh.end_quadrant_sweep ();
+               ++quadrant)
             {
-              if (!neighbor->is_hanging(node))
-                  std::cout << neighbor->t(node) << ", ";
-              else
-                  std::cout << "(" << neighbor->parent(0, node) << ", " << neighbor->parent(1, node) << "), ";
-            }
-          
-          std::cout << std::endl;
-        }
+              for (auto neighbor = quadrant->begin_neighbor_sweep ();
+                   neighbor != quadrant->end_neighbor_sweep ();
+                   ++neighbor)
+                {
+                  std::cout
+                    << "Element "
+                    << quadrant->get_global_quad_idx ()
+                    << ", neighbor "
+                    << neighbor->get_global_quad_idx ()
+                    << " (face " << neighbor.get_face_idx ()
+                    << ")"
+                    << ", vertices: ";
+
+                  for (int node = 0; node < 4; ++node)
+                    {
+                      if (!neighbor->is_hanging(node))
+                        std::cout << neighbor->t(node) << ", ";
+                      else
+                        std::cout
+                          << "(" << neighbor->parent (0, node)
+                          << ", " << neighbor->parent (1, node)
+                          << "), ";
+                    }          
+                  std::cout << std::endl;
+                }
       
-      std::cout << std::endl;
+              std::cout << std::endl;
+            }
+        }
     }
-  
   tmsh.vtk_export ("p4est_neighbor_iterator_test");
 
   MPI_Finalize ();
