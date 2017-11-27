@@ -40,15 +40,14 @@ uniform_refinement (tmesh::quadrant_iterator quadrant)
 int
 main (int argc, char **argv)
 {
-
+  MPI_Init (&argc, &argv);
+  
   int                   recursive, partforcoarsen, balance;
   MPI_Comm              mpicomm = MPI_COMM_WORLD;  
   int                   rank, size;
   tmesh                 tmsh;
   double                xcoord = 0.0;
   double                ycoord = 0.0;
-
-  MPI_Init (&argc, &argv);
 
   mpicomm = MPI_COMM_WORLD;
   MPI_Comm_rank (mpicomm, &rank);
