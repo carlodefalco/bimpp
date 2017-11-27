@@ -71,14 +71,13 @@ coarsen_right_half (std::function<void (tmesh::idx_t, tmesh::quadrant_iterator&)
 int
 main (int argc, char **argv)
 {
-
+  MPI_Init (&argc, &argv);
+  
   int                   recursive, partforcoarsen, balance;
   MPI_Comm              mpicomm = MPI_COMM_WORLD;  
   int                   rank, size;
   tmesh                 tmsh;
   
-  MPI_Init (&argc, &argv);
-
   mpicomm = MPI_COMM_WORLD;
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);

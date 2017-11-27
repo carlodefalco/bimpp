@@ -182,12 +182,10 @@ public:
 
     /// Return index of current quadrant across all trees on current process.
     p4est_gloidx_t
-    get_global_quad_idx (MPI_Comm comm = MPI_COMM_WORLD)
+    get_global_quad_idx ()
     {
-      int rank;
-      MPI_Comm_rank (comm, &rank);
       return forest_quad_idx +
-        the_tmesh->p4est->global_first_quadrant[rank];
+        the_tmesh->p4est->global_first_quadrant[the_tmesh->rank];
     };
     
     /// Return index of current tree.
@@ -228,16 +226,19 @@ public:
   };
 
   /// Default constructor, set all pointers to nullptr.
-  tmesh ()
+  tmesh (MPI_Comm _comm = MPI_COMM_WORLD)
     : p4est (nullptr), conn (nullptr),
       current_quadrant (this, 0, nullptr),
-      lnodes (nullptr), mesh (nullptr)
-  { };
+      lnodes (nullptr), mesh (nullptr), ghost(nullptr),
+      comm(_comm), rank(0), size(1)
+  {
+    MPI_Comm_rank (comm, &rank);
+    MPI_Comm_size (comm, &size);
+  };
 
   /// Load a p4est and connectivity from a file.
-  tmesh (const char *filename)
-    : p4est (nullptr), current_quadrant (this, 0, nullptr),
-      lnodes (nullptr), mesh (nullptr)
+  tmesh (const char *filename, MPI_Comm _comm = MPI_COMM_WORLD)
+    : tmesh ()
   { load (filename); };
 
   ~tmesh ();
@@ -246,16 +247,14 @@ public:
   /// Octave file then init the p4est.
   void
   read_connectivity (const char *filename,
-                     int source = 0,
-                     MPI_Comm comm = MPI_COMM_WORLD);
+                     int source = 0);
 
   /// Load a p4est and connectivity from a set of arrays
   /// then init the p4est.
   void
   read_connectivity (const double *p, const p4est_topidx_t num_vertices,
                      const p4est_topidx_t *t, const p4est_topidx_t num_trees,
-                     int source = 0,
-                     MPI_Comm comm = MPI_COMM_WORLD);
+                     int source = 0);
 
   /// Save the p4est and connectivity to a file.
   void
@@ -263,8 +262,7 @@ public:
 
   /// Load the p4est and connectivity from a file.
   void
-  load (const char *filename,
-        MPI_Comm comm = MPI_COMM_WORLD);
+  load (const char *filename);
 
   /// Export exploded mesh to a vtk file for visualization.
   void
@@ -273,8 +271,7 @@ public:
   /// Export nodal field f to a octbin.gz file for visualization.
   void
   octbin_export (const char * filename,
-                 const std::vector<double> & f,
-                 MPI_Comm comm = MPI_COMM_WORLD);
+                 const std::vector<double> & f);
   
   /// Get an iterator to the first quadrant of the mesh.
   quadrant_iterator
@@ -329,11 +326,9 @@ public:
 
   /// Return total number of quadrants owned by all process
   idx_t
-  num_global_nodes (MPI_Comm comm = MPI_COMM_WORLD)
+  num_global_nodes ()
   {
     idx_t retval = 0;
-    int size;
-    MPI_Comm_size (comm, &size);
     if (! lnodes) update ();
     for (int i = 0; i < size; ++i)
       retval += lnodes->global_owned_count[i];
@@ -356,6 +351,10 @@ public:
   p4est_lnodes_t       *lnodes;
   p4est_mesh_t         *mesh;
   p4est_ghost_t        *ghost;
+  
+  MPI_Comm comm;
+  int      rank;
+  int      size;
   
 private:
   

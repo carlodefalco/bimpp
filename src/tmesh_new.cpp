@@ -93,25 +93,40 @@ tmesh::quadrant_iterator::operator++ ()
 void 
 tmesh::neighbor_iterator::operator++ ()
 {
+  int rank;
+  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   p4est_topidx_t which_tree;
   p4est_locidx_t which_quad;
   int nface, nrank;
-  p4est_quadrant_t * neighbor =
-    p4est_mesh_face_neighbor_next (data->face_neighbor, &which_tree,
-                                   &which_quad, &nface, &nrank);
+  p4est_quadrant_t * neighbor = p4est_mesh_face_neighbor_next (data->face_neighbor,
+                                                               &which_tree,
+                                                               &which_quad,
+                                                               &nface,
+                                                               &nrank);
   
   if (neighbor != nullptr)
     {
-      p4est_tree_t * tree =
-        p4est_tree_array_index (data->the_tmesh->p4est->trees,
-                                which_tree);
+      p4est_tree_t * tree = p4est_tree_array_index(data->the_tmesh->p4est->trees, which_tree);
       
       data->tree_idx = which_tree;
+      
+      if (data->face_neighbor->current_qtq < data->the_tmesh->num_local_quadrants())
+        {
+          data->forest_quad_idx = tree->quadrants_offset + which_quad;
+          data->tree_quad_idx = which_quad;
+        }
+      else
+        {
+          data->forest_quad_idx = neighbor->p.piggy3.local_num +
+                                  (data->the_tmesh->p4est->global_first_quadrant[nrank] -
+                                   data->the_tmesh->p4est->global_first_quadrant[rank]);
+          data->tree_quad_idx = neighbor->p.piggy3.local_num - tree->quadrants_offset;
+        }
       data->forest_quad_idx = tree->quadrants_offset + which_quad;
-      data->tree_quad_idx = which_quad;
+      
       this->face_idx = nface;
       
-      data->update (which_tree, neighbor);
+      data->update(which_tree, neighbor);
     }
   else
     {
@@ -128,6 +143,7 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
   idx_t i, j;
   int hanging_corner[4];
   p4est_lnodes_t *ln = the_tmesh->lnodes;
+
   p4est_locidx_t lni;
 
   int c, h, num_parents;
@@ -215,6 +231,9 @@ tmesh::quadrant_t::e (idx_t i)
 tmesh::neighbor_iterator
 tmesh::quadrant_t::begin_neighbor_sweep ()
 {
+  int rank;
+  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+  
   if (! this->the_tmesh->mesh)
     {
       this->the_tmesh->update ();
@@ -231,21 +250,29 @@ tmesh::quadrant_t::begin_neighbor_sweep ()
   p4est_locidx_t which_quad;
   int nface, nrank;
   
-  p4est_quadrant_t * neighbor =
-    p4est_mesh_face_neighbor_next (face_neighbor, &which_tree,
-                                   &which_quad, &nface, &nrank);
+  p4est_quadrant_t * neighbor = p4est_mesh_face_neighbor_next (face_neighbor,
+                                                               &which_tree, &which_quad,
+                                                               &nface, &nrank);
   
-  current_neighbor =
-    new quadrant_t(this->the_tmesh, which_tree, neighbor);
+  current_neighbor = new quadrant_t(this->the_tmesh, which_tree, neighbor);
 
-  p4est_tree_t * tree =
-    p4est_tree_array_index (this->the_tmesh->p4est->trees,
-                            which_tree);
+  p4est_tree_t * tree = p4est_tree_array_index(this->the_tmesh->p4est->trees, which_tree);
   
   current_neighbor->tree_idx = which_tree;
-  current_neighbor->forest_quad_idx =
-    tree->quadrants_offset + which_quad;
-  current_neighbor->tree_quad_idx = which_quad;
+  
+  if (face_neighbor->current_qtq < the_tmesh->num_local_quadrants())
+    {
+      current_neighbor->forest_quad_idx = tree->quadrants_offset + which_quad;
+      current_neighbor->tree_quad_idx = which_quad;
+    }
+  else
+    {
+      current_neighbor->forest_quad_idx = neighbor->p.piggy3.local_num +
+                                          (the_tmesh->p4est->global_first_quadrant[nrank] -
+                                           the_tmesh->p4est->global_first_quadrant[rank]);
+      current_neighbor->tree_quad_idx = neighbor->p.piggy3.local_num - tree->quadrants_offset;
+    }
+  current_neighbor->forest_quad_idx = tree->quadrants_offset + which_quad;
   current_neighbor->face_neighbor = this->face_neighbor;
   
   current_neighbor->update(which_tree, neighbor);
@@ -281,64 +308,6 @@ tmesh::~tmesh ()
 };
 
 
-template <class p_type, class p_type_count,
-          class t_type, class t_type_count>
-static void
-arrays2connectivity (const p_type *p_matrix_start,
-                     const p_type_count num_vertices,
-                     const t_type *t_matrix_start,
-                     const t_type_count num_trees,
-                     p4est_connectivity_t **conn)
-{
-
-  std::array<t_type, 4> v = {0, 0, 0, 0};
-  int face = 0;
-
-  *conn =
-    p4est_connectivity_new (num_vertices, num_trees, 0, 0);
-
-  const p_type *p_iter = p_matrix_start;
-  double *v_iter = &((*conn)->vertices[0]);
-
-  auto p_matrix_end = p_matrix_start + num_vertices * 2;
-  while (p_iter < p_matrix_end)
-    {
-      *(v_iter++) = *(p_iter++);
-      *(v_iter++) = *(p_iter++);      
-      *(v_iter++) = 0;
-    }
-
-  const t_type *t_iter = t_matrix_start;
-  p4est_topidx_t *tv_iter = &((*conn)->tree_to_vertex[0]);
-
-  auto t_matrix_end = t_matrix_start + num_trees * 5;
-  while (t_iter < t_matrix_end)
-    {
-
-      for (int n = 0; n < 4; ++n)
-        v[n] = *(t_iter++);
-      ++t_iter;
-      
-      *(tv_iter++) = v[0] - 1;
-      *(tv_iter++) = v[1] - 1;
-      *(tv_iter++) = v[3] - 1;
-      *(tv_iter++) = v[2] - 1;
-
-    }
-
-  for (t_type tree = 0; tree < (*conn)->num_trees; ++tree)
-    for (face = 0; face < 4; ++face)
-      {
-        (*conn)->tree_to_tree[4 * tree + face] = tree;
-        (*conn)->tree_to_face[4 * tree + face] = face;
-      }
-
-  assert (p4est_connectivity_is_valid (*conn));
-  p4est_connectivity_complete (*conn);
-};
-
-
-
 /* Read a 2d p4est connectivity from a compressed octave
  * binary file. The file should contain a struct
  * named "msh" with fields "p" and "t". The former
@@ -361,8 +330,7 @@ arrays2connectivity (const p_type *p_matrix_start,
  */
 
 static void
-octbingz2connectivity
-(const char *filename, p4est_connectivity_t **conn)
+octbingz2connectivity (const char *filename, p4est_connectivity_t **conn)
 {
     
   // load data from file
@@ -380,36 +348,62 @@ octbingz2connectivity
   p4est_topidx_t num_vertices = p_matrix.cols (),
     num_trees = t_matrix.cols ();
 
-  arrays2connectivity (p_matrix.fortran_vec (),
-                       num_vertices,
-                       t_matrix.fortran_vec (),
-                       num_trees, conn);
+  std::array<int, 4> v = {0, 0, 0, 0};
+  int face = 0;
+
+  *conn =
+    p4est_connectivity_new (num_vertices, num_trees, 0, 0);
+
+  for (int node = 1; node <= num_vertices; ++node)
+    {
+      (*conn)->vertices [3 * (node - 1) + 0] =
+        p_matrix.fortran_vec ()[2 * (node - 1) + 0];
+      
+      (*conn)->vertices [3 * (node - 1) + 1] =
+        p_matrix.fortran_vec ()[2 * (node - 1) + 1];
+      
+      (*conn)->vertices [3 * (node - 1) + 2] = 0;
+    }
+
+  for (int element_number = 1;
+       element_number <= num_trees;
+       ++element_number)
+    {
+
+      for (int n = 0; n < 4; ++n)
+        v[n] = t_matrix.fortran_vec ()[5 * (element_number - 1) + n];
+
+      (*conn)->tree_to_vertex[4 * (element_number - 1) + 0] = v[0] - 1;
+      (*conn)->tree_to_vertex[4 * (element_number - 1) + 1] = v[1] - 1;
+      (*conn)->tree_to_vertex[4 * (element_number - 1) + 2] = v[3] - 1;
+      (*conn)->tree_to_vertex[4 * (element_number - 1) + 3] = v[2] - 1;
+
+    }
+
+  for (p4est_topidx_t tree = 0; tree < (*conn)->num_trees; ++tree)
+    for (face = 0; face < 4; ++face)
+      {
+        (*conn)->tree_to_tree[4 * tree + face] = tree;
+        (*conn)->tree_to_face[4 * tree + face] = face;
+      }
+
+  assert (p4est_connectivity_is_valid ((*conn)));
+  p4est_connectivity_complete ((*conn));
 };
 
 
 void
 tmesh::read_connectivity (const char *filename,
-                          int source)
+                          int source,
+                          MPI_Comm comm)
 {
+
+  int rank, size;
+  MPI_Comm_rank (comm, &rank);
+  MPI_Comm_size (comm, &size);
+
   if (rank == source)
     octbingz2connectivity (filename, &conn);
-  
-  conn = p4est_connectivity_bcast (conn, source, comm);
-  p4est = p4est_new (comm, conn, 0, NULL, NULL);
-  p4est->user_pointer = this;
-
-};
-
-void
-tmesh::read_connectivity (const double *p,
-                          const p4est_topidx_t num_vertices,
-                          const p4est_topidx_t *t,
-                          const p4est_topidx_t num_trees,
-                          int source)
-{
-  if (rank == source)
-    arrays2connectivity (p, num_vertices,
-                         t, num_trees, &conn);
   
   conn = p4est_connectivity_bcast (conn, source, comm);
   p4est = p4est_new (comm, conn, 0, NULL, NULL);
@@ -422,34 +416,32 @@ tmesh::save (const char *filename)
 { p4est_save (filename, p4est, 0); };
 
 void
-tmesh::load (const char *filename)
+tmesh::load (const char *filename, MPI_Comm comm)
 { p4est = p4est_load (filename, comm, 0, 0, this, &conn); };
 
 void
 tmesh::vtk_export (const char *filename)
 {
-  p4est_vtk_context_t *context =
-    p4est_vtk_context_new (p4est, filename);
+  p4est_vtk_context_t *context = p4est_vtk_context_new (p4est, filename);
   assert (context != nullptr);
   p4est_vtk_context_set_scale (context, 1.0);
   p4est_vtk_context_set_continuous (context, 1);
   context = p4est_vtk_write_header (context);
-  context =
-    p4est_vtk_write_cell_dataf (context, 1, 1, 1, 0, 0, 0, context);
+  context = p4est_vtk_write_cell_dataf (context, 1, 1, 1, 0, 0, 0, context);
   assert (p4est_vtk_write_footer (context) == 0);
 };
 
 void
 tmesh::octbin_export (const char * basename,
-                      const std::vector<double> & f)
+                      const std::vector<double> & f,
+                      MPI_Comm comm)
 {
   assert (f.size () == num_global_nodes ());
     
   std::vector<double> p (2 * num_owned_nodes ());
   std::vector<double> f_loc (num_owned_nodes ());  
 
-  Array<octave_idx_type>
-    oct_t (dim_vector (4, num_local_quadrants ()), 0);
+  Array<octave_idx_type> oct_t (dim_vector (4, num_local_quadrants ()), 0);
   octave_idx_type *t = oct_t.fortran_vec ();
 
   std::array<tmesh::idx_t, 2> parents;    
@@ -463,22 +455,19 @@ tmesh::octbin_export (const char * basename,
       ij = 0;
       for (auto ii : local_idx)
         {
-          if ((! quadrant->is_hanging (ii))
-              && (quadrant->t (ii) < num_owned_nodes ()))
+          if ((! quadrant->is_hanging (ii)) && (quadrant->t (ii) < num_owned_nodes ()))
             {            
               p[2 * quadrant->t (ii) + 0] = quadrant->p (0, ii);
               p[2 * quadrant->t (ii) + 1] = quadrant->p (1, ii);            
               f_loc[quadrant->t (ii)] = f[quadrant->gt (ii)];
-              t[4 * quadrant->get_forest_quad_idx () + (ij++)] =
-                quadrant->t (ii);
+              t[4 * quadrant->get_forest_quad_idx () + (ij++)] = quadrant->t (ii);
             }
           else if (! quadrant->is_hanging (ii))
             {
               p.push_back (quadrant->p (0, ii));
               p.push_back (quadrant->p (1, ii));
               f_loc.push_back (f[quadrant->gt (ii)]);
-              t[4 * quadrant->get_forest_quad_idx () + (ij++)] =
-                f_loc.size () - 1;
+              t[4 * quadrant->get_forest_quad_idx () + (ij++)] = f_loc.size () - 1;
             }
           else if (quadrant->is_hanging (ii))
             {
@@ -487,8 +476,7 @@ tmesh::octbin_export (const char * basename,
               parents[0] = quadrant->gparent (0, ii);
               parents[1] = quadrant->gparent (1, ii);
               f_loc.push_back ((f[parents[0]] + f[parents[1]]) / 2.0);
-              t[4 * quadrant->get_forest_quad_idx () + (ij++)] =
-                f_loc.size () - 1;
+              t[4 * quadrant->get_forest_quad_idx () + (ij++)] = f_loc.size () - 1;
             }
         }
     }
@@ -508,6 +496,9 @@ tmesh::octbin_export (const char * basename,
   octave_io_mode m = gz_write_mode;
   
   // Define filename.
+  int rank;
+  MPI_Comm_rank (comm, &rank);
+
   char filename[255] = "";
   sprintf(filename, "%s_%4.4d.octbin.gz", basename, rank);
   
@@ -559,9 +550,6 @@ tmesh::refine (int recursive, int partforcoarsen)
 
   if (! (mesh == nullptr)) p4est_mesh_destroy (mesh);
   mesh = nullptr;
-  
-  if (! (ghost == nullptr)) p4est_ghost_destroy (ghost);
-  ghost = nullptr;
 }
 
 void
@@ -576,17 +564,14 @@ tmesh::coarsen (int recursive, int partforcoarsen)
 
   if (! (mesh == nullptr)) p4est_mesh_destroy (mesh);
   mesh = nullptr;
-  
-  if (! (ghost == nullptr)) p4est_ghost_destroy (ghost);
-  ghost = nullptr;
 };
 
 void
 tmesh::update ()
 {
-  ghost  = p4est_ghost_new  (p4est, P4EST_CONNECT_FULL);
+  ghost  = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
   lnodes = p4est_lnodes_new (p4est, ghost, 1);
-  mesh   = p4est_mesh_new   (p4est, ghost, P4EST_CONNECT_FULL);
+  mesh   = p4est_mesh_new (p4est, ghost, P4EST_CONNECT_FULL);
 };
 
 int
