@@ -7,25 +7,6 @@
 #include <cassert>
 
 static int
-corner_refinement (tmesh::quadrant_iterator quadrant)
-{
-  double xcoord, ycoord;
-  double top = std::numeric_limits<double>::lowest ();
-  double right = std::numeric_limits<double>::lowest ();
-  
-  for (int ii = 0; ii < 4; ++ii)
-    {
-      xcoord = quadrant->p(0, ii);
-      ycoord = quadrant->p(1, ii);
-      
-      right = right < xcoord ? xcoord : right;
-      top   = top   < ycoord ? ycoord : top;
-    }
-  
-  return ((right <= 0.5 && top <= 0.5) ? 1 : 0);
-}
-
-static int
 uniform_refinement (tmesh::quadrant_iterator quadrant)
 { return 1; }
 
@@ -49,15 +30,12 @@ main (int argc, char **argv)
   recursive = 0; partforcoarsen = 1;
   tmsh.set_refine_marker (uniform_refinement);
   tmsh.refine (recursive, partforcoarsen);
-  tmsh.set_refine_marker (corner_refinement);
   tmsh.refine (recursive, partforcoarsen);
-
-  for (int iproc = 0; iproc < size; ++ iproc)
+  
+  for (int iproc = 0; iproc < size; ++iproc)
     {
-      MPI_Barrier (MPI_COMM_WORLD);
       if ((tmsh.num_local_quadrants () > 0) && (iproc == rank))
         {
-          std::cout << "rank = " << rank << std::endl;
           for (auto quadrant = tmsh.begin_quadrant_sweep ();
                quadrant != tmsh.end_quadrant_sweep ();
                ++quadrant)
@@ -78,20 +56,20 @@ main (int argc, char **argv)
                   for (int node = 0; node < 4; ++node)
                     {
                       if (!neighbor->is_hanging(node))
-                        std::cout << neighbor->t(node) << ", ";
+                        std::cout << neighbor->gt(node) << ", ";
                       else
                         std::cout
-                          << "(" << neighbor->parent (0, node)
-                          << ", " << neighbor->parent (1, node)
+                          << "(" << neighbor->gparent (0, node)
+                          << ", " << neighbor->gparent (1, node)
                           << "), ";
                     }          
                   std::cout << std::endl;
                 }
-      
-              std::cout << std::endl;
             }
         }
+      MPI_Barrier (mpicomm);
     }
+  
   tmsh.vtk_export ("p4est_neighbor_iterator_test");
 
   MPI_Finalize ();

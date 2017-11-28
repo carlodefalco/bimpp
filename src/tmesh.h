@@ -139,7 +139,7 @@ public:
     double
     p (idx_t i, idx_t j);
 
-    /// Get rank-local index of the i-th vertex
+    /// Get rank-local index of the i-th vertex, or global index for ghosts.
     idx_t
     t (idx_t i);
 
@@ -151,7 +151,8 @@ public:
     bool
     is_hanging (idx_t i);
 
-    /// Return the ip-th parent for the in-th vertex.
+    /// Return the rank-local (or global for ghosts)
+    /// ip-th parent for the in-th vertex.
     int
     parent (idx_t ip, idx_t in);
       
@@ -206,6 +207,7 @@ public:
     
     friend class tmesh::quadrant_iterator;
     friend class tmesh::neighbor_iterator;
+    friend class tmesh;
     
   private:
 
@@ -230,7 +232,8 @@ public:
     : p4est (nullptr), conn (nullptr),
       current_quadrant (this, 0, nullptr),
       lnodes (nullptr), mesh (nullptr), ghost(nullptr),
-      comm(_comm), rank(0), size(1)
+      mirror_data (nullptr), ghost_data (nullptr),
+      comm (_comm), rank (0), size (1)
   {
     MPI_Comm_rank (comm, &rank);
     MPI_Comm_size (comm, &size);
@@ -308,6 +311,10 @@ public:
   void
   update ();
 
+  /// Send mirrors and receive ghosts from other ranks.
+  void
+  update_ghosts ();
+
   /// Return number of nodes owned by local process
   idx_t
   num_owned_nodes ()
@@ -351,6 +358,9 @@ public:
   p4est_lnodes_t       *lnodes;
   p4est_mesh_t         *mesh;
   p4est_ghost_t        *ghost;
+  
+  p4est_topidx_t * mirror_data;
+  p4est_topidx_t * ghost_data;
   
   MPI_Comm comm;
   int      rank;

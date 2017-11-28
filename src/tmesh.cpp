@@ -96,22 +96,32 @@ tmesh::neighbor_iterator::operator++ ()
   p4est_topidx_t which_tree;
   p4est_locidx_t which_quad;
   int nface, nrank;
+  
   p4est_quadrant_t * neighbor =
     p4est_mesh_face_neighbor_next (data->face_neighbor, &which_tree,
                                    &which_quad, &nface, &nrank);
   
   if (neighbor != nullptr)
     {
-      p4est_tree_t * tree =
-        p4est_tree_array_index (data->the_tmesh->p4est->trees,
-                                which_tree);
+      p4est_tree_t * tree = p4est_tree_array_index(data->the_tmesh->p4est->trees, which_tree);
       
-      data->tree_idx = which_tree;
-      data->forest_quad_idx = tree->quadrants_offset + which_quad;
-      data->tree_quad_idx = which_quad;
+      if (data->face_neighbor->current_qtq < data->the_tmesh->num_local_quadrants())
+        {
+          data->forest_quad_idx = tree->quadrants_offset + which_quad;
+          data->tree_quad_idx = which_quad;
+        }
+      else
+        {
+          data->forest_quad_idx =
+            neighbor->p.piggy3.local_num +
+            (data->the_tmesh->p4est->global_first_quadrant[nrank] -
+             data->the_tmesh->p4est->global_first_quadrant[data->the_tmesh->rank]);
+          data->tree_quad_idx = data->forest_quad_idx - tree->quadrants_offset;
+        }
+      
       this->face_idx = nface;
       
-      data->update (which_tree, neighbor);
+      data->update(which_tree, neighbor);
     }
   else
     {
@@ -140,37 +150,60 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
   
   this->tree_idx = tree;
   this->the_quadrant = q;
+  
   for (i = 0; i < 4; ++i)
     {
       p4est_quadrant_corner_node (this->the_quadrant, i, &node);
       p4est_qcoord_to_vertex (this->the_tmesh->conn, tree_idx,
                               node.x, node.y, &(vxyz[3 * i]));
     }
-  
+
   if (ln != nullptr)
     {
-      for (i = 0; i < 4; ++i)
+      // Non-ghost elements.
+      if (face_neighbor != nullptr &&
+          face_neighbor->current_qtq < the_tmesh->num_local_quadrants())
         {
-          tbuff[i] = ln->element_nodes[4 * forest_quad_idx + i];
-          hbuff[i] = false;
-          pbuff[i] = -1;
-          pbuff[i+1] = -1;
-        }
-
-      bool any_hanging =
-        lnodes_decode2 (ln->face_code[forest_quad_idx],
-                        hanging_corner);
-      if (any_hanging)
-        for (i = 0; i < 4; ++i)
-          if (hanging_corner[i] >= 0)
+          for (i = 0; i < 4; ++i)
             {
-              hbuff[i] = true;
-              c = hanging_corner[i];
-              num_parents = corner_num_hanging[i ^ c];
-              base_corner = corner_to_hanging[i ^ c];
-              for (j = 0; j < num_parents; ++j)
-                pbuff[j + 2 * i] = base_corner[j] ^ c;
+              tbuff[i] = ln->element_nodes[4 * forest_quad_idx + i];
+              hbuff[i] = false;
+              pbuff[i] = -1;
+              pbuff[i+1] = -1;
             }
+
+          bool any_hanging =
+            lnodes_decode2 (ln->face_code[forest_quad_idx],
+                            hanging_corner);
+          if (any_hanging)
+            for (i = 0; i < 4; ++i)
+              if (hanging_corner[i] >= 0)
+                {
+                  hbuff[i] = true;
+                  c = hanging_corner[i];
+                  num_parents = corner_num_hanging[i ^ c];
+                  base_corner = corner_to_hanging[i ^ c];
+                  for (j = 0; j < num_parents; ++j)
+                    pbuff[j + 2 * i] = base_corner[j] ^ c;
+                }
+        }
+      // Ghost elements.
+      else
+        {
+          p4est_locidx_t idx = face_neighbor->current_qtq - the_tmesh->num_local_quadrants();
+          
+          for (i = 0; i < 4; ++i)
+            {
+              tbuff[i] = the_tmesh->ghost_data[12*idx + i];
+              
+              pbuff[2*i]   = the_tmesh->ghost_data[12*idx + 4 + 2*i];
+              pbuff[2*i+1] = the_tmesh->ghost_data[12*idx + 5 + 2*i];
+              
+              if (pbuff[2*i]   != -1 ||
+                  pbuff[2*i+1] != -1)
+                hbuff[i] = true;
+            }
+        }
     }
 };
 
@@ -183,13 +216,19 @@ tmesh::quadrant_t::parent (tmesh::idx_t ip, tmesh::idx_t in)
 
 int
 tmesh::quadrant_t::gparent (tmesh::idx_t ip, tmesh::idx_t in)
-{
-  assert (pbuff[ip + in * 2] >= 0);
+{  
+  if (face_neighbor != nullptr &&
+      face_neighbor->current_qtq < the_tmesh->num_local_quadrants())
+    {
+      assert (pbuff[ip + in * 2] >= 0);
 
-  return p4est_lnodes_global_index
-    (the_tmesh->lnodes,
-     static_cast<p4est_locidx_t>
-     (tbuff[pbuff[ip + in * 2]]));
+      return p4est_lnodes_global_index
+        (the_tmesh->lnodes,
+         static_cast<p4est_locidx_t>
+         (tbuff[pbuff[ip + in * 2]]));
+    }
+  else
+      return pbuff[2*in + ip];
 };
 
 tmesh::idx_t
@@ -215,10 +254,8 @@ tmesh::quadrant_t::e (idx_t i)
 tmesh::neighbor_iterator
 tmesh::quadrant_t::begin_neighbor_sweep ()
 {
-  if (! this->the_tmesh->mesh)
-    {
-      this->the_tmesh->update ();
-    }
+  if (this->the_tmesh->mesh == nullptr)
+    this->the_tmesh->update ();
   
   p4est_mesh_face_neighbor_init (face_neighbor,
                                  this->the_tmesh->p4est,
@@ -235,17 +272,24 @@ tmesh::quadrant_t::begin_neighbor_sweep ()
     p4est_mesh_face_neighbor_next (face_neighbor, &which_tree,
                                    &which_quad, &nface, &nrank);
   
-  current_neighbor =
-    new quadrant_t(this->the_tmesh, which_tree, neighbor);
-
-  p4est_tree_t * tree =
-    p4est_tree_array_index (this->the_tmesh->p4est->trees,
-                            which_tree);
+  current_neighbor = new quadrant_t(this->the_tmesh, which_tree, neighbor);
   
-  current_neighbor->tree_idx = which_tree;
-  current_neighbor->forest_quad_idx =
-    tree->quadrants_offset + which_quad;
-  current_neighbor->tree_quad_idx = which_quad;
+  p4est_tree_t * tree = p4est_tree_array_index(this->the_tmesh->p4est->trees, which_tree);
+  
+  if (face_neighbor->current_qtq < the_tmesh->num_local_quadrants())
+    {
+      current_neighbor->forest_quad_idx = tree->quadrants_offset + which_quad;
+      current_neighbor->tree_quad_idx = which_quad;
+    }
+  else
+    {
+      current_neighbor->forest_quad_idx =
+        neighbor->p.piggy3.local_num +
+        (the_tmesh->p4est->global_first_quadrant[nrank] -
+         the_tmesh->p4est->global_first_quadrant[this->the_tmesh->rank]);
+      current_neighbor->tree_quad_idx = current_neighbor->forest_quad_idx - tree->quadrants_offset;
+    }
+  
   current_neighbor->face_neighbor = this->face_neighbor;
   
   current_neighbor->update(which_tree, neighbor);
@@ -261,9 +305,15 @@ tmesh::quadrant_t::t (tmesh::idx_t i)
 tmesh::idx_t
 tmesh::quadrant_t::gt (tmesh::idx_t i)
 {
-  return p4est_lnodes_global_index
-    (the_tmesh->lnodes,
-     static_cast<p4est_locidx_t> (tbuff[i]));
+  if (face_neighbor != nullptr &&
+      face_neighbor->current_qtq < the_tmesh->num_local_quadrants())
+    {
+      return p4est_lnodes_global_index
+        (the_tmesh->lnodes,
+         static_cast<p4est_locidx_t> (tbuff[i]));
+    }
+  else
+    return tbuff[i];
 };
 
 bool
@@ -278,6 +328,9 @@ tmesh::~tmesh ()
   if (!(this->lnodes == nullptr)) p4est_lnodes_destroy (this->lnodes);
   if (!(this->mesh   == nullptr)) p4est_mesh_destroy   (this->mesh);
   if (!(this->ghost  == nullptr)) p4est_ghost_destroy  (this->ghost);
+  
+  if (!(this->mirror_data == nullptr)) delete this->mirror_data;
+  if (!(this->ghost_data  == nullptr)) delete this->ghost_data;
 };
 
 
@@ -587,6 +640,112 @@ tmesh::update ()
   ghost  = p4est_ghost_new  (p4est, P4EST_CONNECT_FULL);
   lnodes = p4est_lnodes_new (p4est, ghost, 1);
   mesh   = p4est_mesh_new   (p4est, ghost, P4EST_CONNECT_FULL);
+  
+  update_ghosts ();
+}
+
+void
+tmesh::update_ghosts ()
+{
+  // Send mirror data.
+  mirror_data = new p4est_topidx_t[ghost->mirror_proc_offsets[size] * 12];
+  int mirror_end = 0;
+  int mirror_begin = 0;
+  
+  std::vector<MPI_Request> req_s;
+  
+  p4est_locidx_t start, end, n_mirror;
+  
+  // Loop over ranks.
+  for (int i = 0; i < size; ++i)
+    {
+      start    = ghost->mirror_proc_offsets[i];
+      end      = ghost->mirror_proc_offsets[i+1];
+      n_mirror = end - start;
+      
+      p4est_quadrant_t * q;
+      
+      // Loop over mirrors.
+      for (p4est_locidx_t j = start; j < end; ++j)
+        {
+          q = p4est_quadrant_array_index(&ghost->mirrors, ghost->mirror_proc_mirrors[j]);
+          
+          p4est_tree_t * tree = p4est_tree_array_index(p4est->trees, q->p.which_tree);
+      
+          idx_t global_idx = p4est->global_first_quadrant[rank] + q->p.piggy3.local_num;
+          
+          quadrant_t current_mirror(this, q->p.which_tree, q);
+          current_mirror.forest_quad_idx = q->p.piggy3.local_num;
+          current_mirror.tree_quad_idx = current_mirror.forest_quad_idx - tree->quadrants_offset;
+          current_mirror.update(q->p.which_tree, q);
+          
+          for (int node = 0; node < 4; ++node)
+            {
+              mirror_data[mirror_end++] = current_mirror.gt(node);
+            }
+          
+          for (int node = 0; node < 4; ++node)
+            {
+              if (current_mirror.is_hanging(node))
+                {
+                  mirror_data[mirror_end++] = current_mirror.gparent(0, node);
+                  mirror_data[mirror_end++] = current_mirror.gparent(1, node);
+                }
+              else
+                {
+                  mirror_data[mirror_end++] = -1;
+                  mirror_data[mirror_end++] = -1;
+                }
+            }
+        }
+      
+      if (n_mirror > 0)
+        {
+          MPI_Request req;
+          int tag = rank + size * i;
+          MPI_Isend(&(mirror_data[mirror_begin]), 12 * n_mirror * sizeof(p4est_topidx_t),
+                    MPI_CHAR, i, tag, comm, &req);
+          req_s.push_back(req);
+          
+          std::cout << "Rank " << rank
+                    << " is sending mirrors to rank "
+                    << i << "." << std::endl;
+        }
+      
+      mirror_begin = mirror_end;
+    }
+  
+  // Receive ghost data.
+  ghost_data = new p4est_topidx_t[ghost->ghosts.elem_count * 12];
+  int ghost_begin = 0;
+  
+  p4est_locidx_t n_ghosts;
+  
+  // Loop over ranks.
+  for (int i = 0; i < size; ++i)
+    {
+      start    = ghost->proc_offsets[i];
+      end      = ghost->proc_offsets[i+1];
+      n_ghosts = end - start;
+      
+      if (n_ghosts > 0)
+        {
+          MPI_Request req;
+          int tag = i + size * rank;
+          MPI_Irecv (&(ghost_data[ghost_begin]), 12 * n_ghosts * sizeof(p4est_topidx_t),
+                     MPI_CHAR, i, tag, comm, &req);
+          req_s.push_back(req);
+          
+          std::cout << "Rank " << rank
+                    << " is receiving ghosts from rank "
+                    << i << "." << std::endl;
+        }
+      
+      ghost_begin += 12 * n_ghosts;
+    }
+  
+  std::vector<MPI_Status> stats (req_s.size());
+  MPI_Waitall (req_s.size(), &(req_s[0]), &(stats[0]));
 };
 
 int
