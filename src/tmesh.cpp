@@ -82,10 +82,12 @@ tmesh::quadrant_iterator::operator++ ()
       data->tree = p4est_tree_array_index (p4->trees, data->tree_idx);
       data->tquadrants = &(data->tree)->quadrants;
 
-      data->num_quadrants = (p4est_locidx_t) data->tquadrants->elem_count;
+      data->num_quadrants =
+        (p4est_locidx_t) data->tquadrants->elem_count;
     }
 
-  auto tmp = p4est_quadrant_array_index (data->tquadrants, data->tree_quad_idx);
+  auto tmp = p4est_quadrant_array_index (data->tquadrants,
+                                         data->tree_quad_idx);
   data->update (data->tree_idx, tmp);
   
 };
@@ -103,9 +105,12 @@ tmesh::neighbor_iterator::operator++ ()
   
   if (neighbor != nullptr)
     {
-      p4est_tree_t * tree = p4est_tree_array_index(data->the_tmesh->p4est->trees, which_tree);
+      p4est_tree_t * tree =
+        p4est_tree_array_index (data->the_tmesh->p4est->trees,
+                                which_tree);
       
-      if (data->face_neighbor->current_qtq < data->the_tmesh->num_local_quadrants())
+      if (data->face_neighbor->current_qtq <
+          data->the_tmesh->num_local_quadrants ())
         {
           data->forest_quad_idx = tree->quadrants_offset + which_quad;
           data->tree_quad_idx = which_quad;
@@ -116,7 +121,9 @@ tmesh::neighbor_iterator::operator++ ()
             neighbor->p.piggy3.local_num +
             (data->the_tmesh->p4est->global_first_quadrant[nrank] -
              data->the_tmesh->p4est->global_first_quadrant[data->the_tmesh->rank]);
-          data->tree_quad_idx = data->forest_quad_idx - tree->quadrants_offset;
+          
+          data->tree_quad_idx = data->forest_quad_idx -
+            tree->quadrants_offset;
         }
       
       this->face_idx = nface;
@@ -161,8 +168,9 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
   if (ln != nullptr)
     {
       // Non-ghost elements.
-      if (face_neighbor != nullptr &&
-          face_neighbor->current_qtq < the_tmesh->num_local_quadrants())
+      if ((face_neighbor != nullptr)
+          && (face_neighbor->current_qtq <
+              the_tmesh->num_local_quadrants ()))
         {
           for (i = 0; i < 4; ++i)
             {
@@ -190,7 +198,8 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
       // Ghost elements.
       else
         {
-          p4est_locidx_t idx = face_neighbor->current_qtq - the_tmesh->num_local_quadrants();
+          p4est_locidx_t idx = face_neighbor->current_qtq -
+            the_tmesh->num_local_quadrants ();
           
           for (i = 0; i < 4; ++i)
             {
@@ -199,8 +208,8 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
               pbuff[2*i]   = the_tmesh->ghost_data[12*idx + 4 + 2*i];
               pbuff[2*i+1] = the_tmesh->ghost_data[12*idx + 5 + 2*i];
               
-              if (pbuff[2*i]   != -1 ||
-                  pbuff[2*i+1] != -1)
+              if (pbuff[2*i] != -1
+                  || pbuff[2*i+1] != -1)
                 hbuff[i] = true;
             }
         }
@@ -648,13 +657,21 @@ void
 tmesh::update_ghosts ()
 {
   // Send mirror data.
-  mirror_data = new p4est_topidx_t[ghost->mirror_proc_offsets[size] * 12];
+  constexpr p4est_locidx_t chunk_len = 12;
+  constexpr size_t data_size = sizeof (p4est_gloidx_t);
+  
+  p4est_locidx_t mirror_data_len =
+    ghost->mirror_proc_offsets[size] * chunk_len;
+  mirror_data = new p4est_gloidx_t[mirror_data_len];
+  
   int mirror_end = 0;
   int mirror_begin = 0;
   
   std::vector<MPI_Request> req_s;
-  
   p4est_locidx_t start, end, n_mirror;
+
+  int tag = 0;
+  int send_size = 0;
   
   // Loop over ranks.
   for (int i = 0; i < size; ++i)
@@ -668,43 +685,48 @@ tmesh::update_ghosts ()
       // Loop over mirrors.
       for (p4est_locidx_t j = start; j < end; ++j)
         {
-          q = p4est_quadrant_array_index(&ghost->mirrors, ghost->mirror_proc_mirrors[j]);
+          q =
+            p4est_quadrant_array_index (&ghost->mirrors,
+                                        ghost->mirror_proc_mirrors[j]);
           
-          p4est_tree_t * tree = p4est_tree_array_index(p4est->trees, q->p.which_tree);
+          p4est_tree_t * tree =
+            p4est_tree_array_index (p4est->trees, q->p.which_tree);
       
-          idx_t global_idx = p4est->global_first_quadrant[rank] + q->p.piggy3.local_num;
+          idx_t global_idx =
+            p4est->global_first_quadrant[rank] +
+            q->p.piggy3.local_num;
           
           quadrant_t current_mirror(this, q->p.which_tree, q);
           current_mirror.forest_quad_idx = q->p.piggy3.local_num;
-          current_mirror.tree_quad_idx = current_mirror.forest_quad_idx - tree->quadrants_offset;
+          current_mirror.tree_quad_idx =
+            current_mirror.forest_quad_idx - tree->quadrants_offset;
           current_mirror.update(q->p.which_tree, q);
           
           for (int node = 0; node < 4; ++node)
-            {
-              mirror_data[mirror_end++] = current_mirror.gt(node);
-            }
+            mirror_data[mirror_end++] = current_mirror.gt (node);
           
           for (int node = 0; node < 4; ++node)
-            {
-              if (current_mirror.is_hanging(node))
-                {
-                  mirror_data[mirror_end++] = current_mirror.gparent(0, node);
-                  mirror_data[mirror_end++] = current_mirror.gparent(1, node);
-                }
-              else
-                {
-                  mirror_data[mirror_end++] = -1;
-                  mirror_data[mirror_end++] = -1;
-                }
-            }
+            if (current_mirror.is_hanging (node))
+              {
+                mirror_data[mirror_end++] =
+                  current_mirror.gparent (0, node);
+                mirror_data[mirror_end++] =
+                  current_mirror.gparent (1, node);
+              }
+            else
+              {
+                mirror_data[mirror_end++] = -1;
+                mirror_data[mirror_end++] = -1;
+              }
         }
       
       if (n_mirror > 0)
         {
           MPI_Request req;
-          int tag = rank + size * i;
-          MPI_Isend(&(mirror_data[mirror_begin]), 12 * n_mirror * sizeof(p4est_topidx_t),
-                    MPI_CHAR, i, tag, comm, &req);
+          tag = rank + size * i;
+          send_size = chunk_len * data_size * n_mirror;
+          MPI_Isend (&(mirror_data[mirror_begin]), send_size,
+                     MPI_CHAR, i, tag, comm, &req);
           req_s.push_back(req);
           
           std::cout << "Rank " << rank
@@ -716,11 +738,13 @@ tmesh::update_ghosts ()
     }
   
   // Receive ghost data.
-  ghost_data = new p4est_topidx_t[ghost->ghosts.elem_count * 12];
-  int ghost_begin = 0;
+  p4est_locidx_t ghosts_data_len =
+    ghost->ghosts.elem_count * chunk_len;
   
-  p4est_locidx_t n_ghosts;
-  
+  ghost_data = new p4est_gloidx_t[ghosts_data_len];
+  int ghost_begin = 0;  
+  p4est_locidx_t n_ghosts = 0;
+  int recv_size = 0;
   // Loop over ranks.
   for (int i = 0; i < size; ++i)
     {
@@ -731,8 +755,9 @@ tmesh::update_ghosts ()
       if (n_ghosts > 0)
         {
           MPI_Request req;
-          int tag = i + size * rank;
-          MPI_Irecv (&(ghost_data[ghost_begin]), 12 * n_ghosts * sizeof(p4est_topidx_t),
+          tag = i + size * rank;
+          recv_size = chunk_len * data_size * n_ghosts;
+          MPI_Irecv (&(ghost_data[ghost_begin]), recv_size,
                      MPI_CHAR, i, tag, comm, &req);
           req_s.push_back(req);
           
@@ -741,10 +766,10 @@ tmesh::update_ghosts ()
                     << i << "." << std::endl;
         }
       
-      ghost_begin += 12 * n_ghosts;
+      ghost_begin += chunk_len * n_ghosts;
     }
   
-  std::vector<MPI_Status> stats (req_s.size());
+  std::vector<MPI_Status> stats (req_s.size ());
   MPI_Waitall (req_s.size(), &(req_s[0]), &(stats[0]));
 };
 
