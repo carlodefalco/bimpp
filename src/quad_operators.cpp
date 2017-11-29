@@ -1,12 +1,15 @@
 #include "quad_operators.h"
 
 #include <set>
+#include <functional>
+#include <iostream>
+#include <cmath>
 
 void 
-bim2a_advection_diffusion(tmesh & mesh,
-                          const std::vector<double> & alpha,
-                          const std::vector<double> & psi,
-                          sparse_matrix & A)
+bim2a_advection_diffusion (tmesh & mesh,
+                           const std::vector<double> & alpha,
+                           const std::vector<double> & psi,
+                           sparse_matrix & A)
 {
   double psi01 = 0;
   double psi13 = 0;
@@ -231,3 +234,139 @@ void bim2a_dirichlet_bc (tmesh & mesh, const dirichlet_bcs & bcs,
         }
     }
 }
+
+static constexpr double gn[4] =
+  {6.94318442029737e-02, 3.30009478207572e-01,
+   6.69990521792428e-01, 9.30568155797026e-01};
+static constexpr double gw[4] =
+  {1.73927422568727e-01, 3.26072577431273e-01,
+   3.26072577431273e-01, 1.73927422568727e-01};
+
+static inline double
+xformx (const double *x, const double X)
+{ return (X * (x[1] - x[0]) + x[0]); }
+
+static inline double
+xformw (const double *x, const double w)
+{ return (w * (x[1] - x[0])); }
+
+static double
+quad_integral (const double *x, const double *y,
+               std::function<double (double, double)> fun)
+{
+  int ix, jy, ipt;
+  double wx = 0,
+    sum = 0;
+  for (ix = 0; ix < 4; ++ix)
+    {
+      wx = xformw (x, gw[ix]);
+      for (jy = 0; jy < 4; ++jy)
+        sum += fun (xformx (x, gn[ix]), xformx (y, gn[jy])) *
+          wx * xformw (y, gw[jy]);
+    }
+  return (sum);
+}
+
+static double
+dudx (double X, double Y, const double *x, const double *y, const double *u)
+{
+  double dx = (x[1] - x[0]);
+  double dy = (y[1] - y[0]);
+  double dl = (u[1] - u[0]) / dx;
+  double dr = (u[3] - u[2]) / dx;
+  return (dl * (y[1] - Y) + dr * (Y - y[0])) / dy;
+}
+
+static double
+dudy (double X, double Y, const double *x, const double *y, const double *u)
+{
+  double dx = (x[1] - x[0]);
+  double dy = (y[1] - y[0]);
+  double dl = (u[2] - u[0]) / dy;
+  double dr = (u[3] - u[1]) / dy;
+  return (dl * (x[1] - X) + dr * (X - x[0])) / dx;
+}
+
+static double
+q1 (double X, double Y, const double *x, const double *y, const double *u)
+{
+  double dx = (x[1] - x[0]);
+  double dy = (y[1] - y[0]);
+
+  return ((u[0] * (x[1] - X) * (y[1] - Y) +
+          u[1]  * (X - x[0]) * (y[1] - Y) +
+          u[2]  * (X - x[0]) * (Y - y[0]) +
+          u[3]  * (x[1] - X) * (Y - y[0])) /
+          (dx * dy));
+}
+
+int 
+zz_marker_grad (tmesh::quadrant_iterator q,
+                const std::vector<double> &dudxstar,
+                const std::vector<double> &dudystar,
+                const std::vector<double> &u,
+                double limit)
+{
+  double
+    x[2] = {q->p(0,0), q->p(0,1)},
+    y[2] = {q->p(1,0), q->p(1,3)};
+
+  double dudxstar_loc[4] = {0,0,0,0};
+  double dudystar_loc[4] = {0,0,0,0};
+  double u_loc[4] = {0,0,0,0};
+
+  for (int ii = 0; ii < 4; ++ii)
+    {
+      dudxstar_loc[ii] = dudxstar[quadrant->gt[ii]];
+      dudystar_loc[ii] = dudystar[quadrant->gt[ii]];
+      u_loc[ii] = u[quadrant->gt[ii]];
+    }
+
+  auto fun =
+    [x, y, dudxstar_loc, dudystar_loc, u_loc]
+    (double X, double Y) -> double
+    {
+      double err =
+      std::pow (dudy (X, Y, x, y, u_loc) -
+                q1 (X, Y, x, y, dudystar_loc), 2) +
+      std::pow (dudx (X, Y, x, y, u_loc) -
+                q1 (X, Y, x, y, dudxstar_loc), 2);
+
+    }
+    
+  double err = quad_integral (x, y, fun);
+  return err > limit ? 1 : 0;
+};
+
+int 
+zz_marker_sol (tmesh::quadrant_iterator q,
+               const std::vector<double> &ustar,
+               const std::vector<double> &u,
+               double limit)
+{
+  double
+    x[2] = {q->p(0,0), q->p(0,1)},
+    y[2] = {q->p(1,0), q->p(1,3)};
+
+  double ustar_loc[4] = {0,0,0,0};
+  double u_loc[4] = {0,0,0,0};
+
+  for (int ii = 0; ii < 4; ++ii)
+    {
+      ustar_loc[ii] = ustar[quadrant->gt[ii]];
+      u_loc[ii] = u[quadrant->gt[ii]];
+    }
+
+  auto fun =
+    [x, y, ustar_loc, u_loc]
+    (double X, double Y) -> double
+    {
+      double err =
+      std::pow (q1 (X, Y, x, y, u_loc), 2) -
+                q1 (X, Y, x, y, ustar_loc), 2);
+
+    }
+    
+  double err = quad_integral (x, y, fun);
+  return err > limit ? 1 : 0;
+};
