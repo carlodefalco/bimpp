@@ -104,17 +104,23 @@ public:
     /// Get next neighbor.
     void
     operator++ ();
-
+    
     /// Default constructor.
     neighbor_iterator (quadrant_t *_data = nullptr, int _face_idx = -1) :
-      quadrant_iterator (_data), face_idx (_face_idx)
+      quadrant_iterator (_data),
+      face_neighbor (new p4est_mesh_face_neighbor_t),
+      face_idx (_face_idx)
     { };
     
     /// Get the face index associated to the current neighbor.
     int get_face_idx()
     { return face_idx; };
     
+    friend class tmesh::quadrant_t;
+    
   private:
+    p4est_mesh_face_neighbor_t * face_neighbor; // mfn
+    
     int face_idx; /// Face index in 0...3 (-1 if not defined).
   };
   
@@ -132,7 +138,7 @@ public:
                 p4est_topidx_t _tree = 0,
                 p4est_quadrant_t *_quadrant = nullptr) :
       the_tmesh(_tmesh), tree_idx(_tree), the_quadrant(_quadrant),
-      face_neighbor(new p4est_mesh_face_neighbor_t())
+      is_ghost(false), qtq(-1)
     { };
 
     /// Get the i-th coordinate of the j-th vertex.
@@ -203,7 +209,6 @@ public:
     tmesh                      *the_tmesh; 
     p4est_tree_t               *tree;
     p4est_quadrant_t           *the_quadrant;
-    p4est_mesh_face_neighbor_t *face_neighbor; // mfn
     
     friend class tmesh::quadrant_iterator;
     friend class tmesh::neighbor_iterator;
@@ -218,7 +223,8 @@ public:
     p4est_locidx_t        forest_quad_idx;  // k 
     p4est_locidx_t        tree_quad_idx;    // q
     
-    quadrant_t           *current_neighbor;
+    bool           is_ghost; // True if current quadrant is a ghost.
+    p4est_locidx_t qtq;      // qtq index if current quadrant is a ghost, -1 otherwise.
     
     /// Buffer used when quering coordinates.
     double                vxyz[12] = {0,0,0, 0,0,0, 0,0,0, 0,0,0};
@@ -294,7 +300,7 @@ public:
   /// Set functor to mark quadrants for coarsening.
   void
   set_coarsen_marker
-  (std::function<int (std::function<void (idx_t, quadrant_iterator&)>)> fun)
+  (std::function<int (std::function<quadrant_iterator (idx_t)>)> fun)
   { coarsen_marker = fun; };
 
   /// Refine marked quadrants, balance the quadtree and
@@ -369,7 +375,7 @@ public:
 private:
   
   std::function<int (quadrant_iterator)> refine_marker;
-  std::function<int (std::function<void (idx_t, quadrant_iterator&)>)> coarsen_marker;
+  std::function<int (std::function<quadrant_iterator (idx_t)>)> coarsen_marker;
 
   static int
   refine_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t*);
@@ -377,11 +383,11 @@ private:
   static int
   coarsen_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t* []);
   
-  static void
+  static quadrant_iterator
   select_quad (tmesh *_tmesh,
                p4est_topidx_t tree_idx,
                p4est_quadrant_t* qt [],
-               idx_t ii, quadrant_iterator& qi);
+               idx_t ii);
   
 };
 

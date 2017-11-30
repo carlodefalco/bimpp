@@ -11,6 +11,9 @@
 
 using func = std::function<double (double, double)>; // f(x, y).
 using dirichlet_bcs = std::vector<std::tuple<int, int, func>>;
+using q1_vec = std::vector<double>;
+using gradient = std::pair<q1_vec, q1_vec>;
+using q2_vec = std::vector<std::array<double, 9>>; // Nodes, faces, cell midpoint dofs.
 
 void
 bim2a_advection_diffusion (tmesh & mesh,
@@ -34,17 +37,22 @@ void
 bim2a_dirichlet_bc (tmesh & mesh, const dirichlet_bcs & bcs,
                     sparse_matrix & A, std::vector<double> & rhs);
 
+gradient bim2c_quadtree_pde_recovered_gradient(tmesh & mesh,
+                                               const q1_vec & u);
+
+q2_vec   bim2c_quadtree_pde_recovered_solution(tmesh & mesh,
+                                               const gradient & du);
+
 int 
 zz_marker_grad (tmesh::quadrant_iterator q,
-                const std::vector<double> &dudxstar,
-                const std::vector<double> &dudystar,
-                const std::vector<double> &u,
+                const gradient & du_star,
+                const q1_vec & u,
                 double limit);
 
 int 
 zz_marker_sol (tmesh::quadrant_iterator q,
-               const std::vector<double> &ustar,
-               const std::vector<double> &u,
+               const q2_vec & ustar,
+               const q1_vec & u,
                double limit);
 
 #endif
