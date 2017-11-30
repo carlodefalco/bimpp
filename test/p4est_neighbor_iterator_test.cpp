@@ -47,7 +47,21 @@ main (int argc, char **argv)
                   std::cout
                     << "Element "
                     << quadrant->get_global_quad_idx ()
-                    << ", neighbor "
+                    << ", vertices: ";
+
+                  for (int node = 0; node < 4; ++node)
+                    {
+                      if (!quadrant->is_hanging(node))
+                        std::cout << quadrant->gt(node) << ", ";
+                      else
+                        std::cout
+                          << "(" << quadrant->gparent (0, node)
+                          << ", " << quadrant->gparent (1, node)
+                          << "), ";
+                    }          
+                    
+                  std::cout
+                    << "neighbor "
                     << neighbor->get_global_quad_idx ()
                     << " (face " << neighbor.get_face_idx ()
                     << ")"
@@ -62,9 +76,10 @@ main (int argc, char **argv)
                           << "(" << neighbor->gparent (0, node)
                           << ", " << neighbor->gparent (1, node)
                           << "), ";
-                    }          
+                    }
                   std::cout << std::endl;
                 }
+              std::cout << std::endl;
             }
         }
       MPI_Barrier (mpicomm);

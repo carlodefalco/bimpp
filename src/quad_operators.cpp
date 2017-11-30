@@ -235,6 +235,295 @@ void bim2a_dirichlet_bc (tmesh & mesh, const dirichlet_bcs & bcs,
     }
 }
 
+gradient bim2c_quadtree_pde_recovered_gradient(tmesh & mesh,
+                                               const q1_vec & u)
+{
+  std::vector<double> du_x_star(mesh.num_global_nodes(), 0);
+  std::vector<double> du_y_star(mesh.num_global_nodes(), 0);
+  
+  std::vector<bool> assigned(mesh.num_global_nodes(), 0);
+  
+  double hx = 0, hy = 0;
+  
+  int node_n = 0, node_side = 0;
+  std::vector<double> du_x, weights_x;
+  std::vector<double> du_y, weights_y;
+  std::vector<double> u_aux;
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      hx = quadrant->p(0, 1) - quadrant->p(0, 0);
+      hy = quadrant->p(1, 2) - quadrant->p(1, 0);
+      
+      // Loop over vertices of current quadrant that
+      // are non-hanging and have not been processed yet.
+      for (int node = 0; node < 4; ++node)
+        {
+          if (quadrant->is_hanging(node) ||
+              assigned[quadrant->gt(node)])
+            continue;
+          
+          du_x.clear(); weights_x.clear();
+          du_y.clear(); weights_y.clear();
+          u_aux.clear(); u_aux.resize(4);
+          
+          // Compute Nédélec gradient on current element.
+          for (int n = 0; n < 4; ++n)
+            {
+              if (! quadrant->is_hanging(n))
+                u_aux[n] = u[quadrant->gt(n)];
+              else
+                u_aux[n] = 0.5 * (u[quadrant->gparent(0, n)] + u[quadrant->gparent(1, n)]);
+            }
+          
+          switch (node)
+            {
+              case 0:
+                du_x.push_back((u_aux[1] - u[quadrant->gt(0)]) / hx);
+                du_y.push_back((u_aux[2] - u[quadrant->gt(0)]) / hy);
+                break;
+              case 1:
+                du_x.push_back((u[quadrant->gt(1)] - u_aux[0]) / hx);
+                du_y.push_back((u_aux[3] - u[quadrant->gt(1)]) / hy);
+                break;
+              case 2:
+                du_x.push_back((u_aux[3] - u[quadrant->gt(2)]) / hx);
+                du_y.push_back((u[quadrant->gt(2)] - u_aux[0]) / hy);
+                break;
+              case 3:
+                du_x.push_back((u[quadrant->gt(3)] - u_aux[2]) / hx);
+                du_y.push_back((u[quadrant->gt(3)] - u_aux[1]) / hy);
+                break;
+            }
+          
+          weights_x.push_back(1 / hx);
+          weights_y.push_back(1 / hy);
+           
+          // Loop over face neighbors of current quadrant.
+          for (auto neighbor = quadrant->begin_neighbor_sweep ();
+               neighbor != quadrant->end_neighbor_sweep ();
+               ++neighbor)
+            {
+              // Skip missing neighbors.
+              if (neighbor->get_global_quad_idx() == quadrant->get_global_quad_idx())
+                continue;
+              
+              // Check if neighbor contains current vertex ("node").
+              for (node_n = 0; node_n < 4; ++node_n)
+                if (neighbor->gt(node_n) == quadrant->gt(node))
+                  break;
+              
+              // If not, or if node_n is hanging, switch to the next neighbor.
+              if (node_n == 4 || neighbor->is_hanging(node_n))
+                continue;
+              
+              hx = neighbor->p(0, 1) - neighbor->p(0, 0);
+              hy = neighbor->p(1, 2) - neighbor->p(1, 0);
+              
+              switch (node_n)
+                {
+                  case 0:
+                    if (node == 1)
+                      du_x.push_back((u[neighbor->gt(1)] - u[neighbor->gt(0)]) / hx);
+                    if (node == 2)
+                      du_y.push_back((u[neighbor->gt(2)] - u[neighbor->gt(0)]) / hy);
+                    break;
+                  case 1:
+                    if (node == 0)
+                      du_x.push_back((u[neighbor->gt(1)] - u[neighbor->gt(0)]) / hx);
+                    if (node == 3)
+                      du_y.push_back((u[neighbor->gt(3)] - u[neighbor->gt(1)]) / hy);
+                    break;
+                  case 2:
+                    if (node == 3)
+                      du_x.push_back((u[neighbor->gt(3)] - u[neighbor->gt(2)]) / hx);
+                    if (node == 0)
+                      du_y.push_back((u[neighbor->gt(2)] - u[neighbor->gt(0)]) / hy);
+                    break;
+                  case 3:
+                    if (node == 2)
+                      du_x.push_back((u[neighbor->gt(3)] - u[neighbor->gt(2)]) / hx);
+                    if (node == 1)
+                      du_y.push_back((u[neighbor->gt(3)] - u[neighbor->gt(1)]) / hy);
+                    break;
+                }
+              
+              if (weights_x.size() < du_x.size())
+                weights_x.push_back(1 / hx);
+              
+              if (weights_y.size() < du_y.size())
+                weights_y.push_back(1 / hy);
+            }
+          
+          // If on any vertical boundary/interface.
+          if (du_x.size() < 2)
+            {
+              for (auto neighbor = quadrant->begin_neighbor_sweep ();
+                   neighbor != quadrant->end_neighbor_sweep ();
+                   ++neighbor)
+                {
+                  // Skip missing neighbors.
+                  if (neighbor->get_global_quad_idx() == quadrant->get_global_quad_idx())
+                    continue;
+                  
+                  // Check if neighbor contains the opposite vertex
+                  // of the horizontal side containing "node".
+                  switch (node)
+                    {
+                      case 0:
+                        node_side = 1;
+                        break;
+                      case 1:
+                        node_side = 0;
+                        break;
+                      case 2:
+                        node_side = 3;
+                        break;
+                      case 3:
+                        node_side = 2;
+                        break;
+                    }
+                  
+                  for (node_n = 0; node_n < 4; ++node_n)
+                    if (neighbor->gt(node_n) == quadrant->gt(node_side))
+                      break;
+                  
+                  // If not, or if node_n is hanging, switch to the next neighbor.
+                  if (node_n == 4 || neighbor->is_hanging(node_n))
+                    continue;
+                  
+                  hx = neighbor->p(0, 1) - neighbor->p(0, 0);
+                  
+                  switch (node_n)
+                    {
+                      case 0:
+                        if (node_side == 1)
+                          du_x.push_back((u[neighbor->gt(1)] - u[neighbor->gt(0)]) / hx);
+                        break;
+                      case 1:
+                        if (node_side == 0)
+                          du_x.push_back((u[neighbor->gt(1)] - u[neighbor->gt(0)]) / hx);
+                        break;
+                      case 2:
+                        if (node_side == 3)
+                          du_x.push_back((u[neighbor->gt(3)] - u[neighbor->gt(2)]) / hx);
+                        break;
+                      case 3:
+                        if (node_side == 2)
+                          du_x.push_back((u[neighbor->gt(3)] - u[neighbor->gt(2)]) / hx);
+                        break;
+                    }
+                  
+                  if (weights_x.size() < du_x.size())
+                    {
+                      weights_x[0] += 2 / hx;
+                      weights_x.push_back(-1 / hx);
+                    }
+                }
+            }
+          
+          // If on any horizontal boundary/interface.
+          if (du_y.size() < 2)
+            {
+              for (auto neighbor = quadrant->begin_neighbor_sweep ();
+                   neighbor != quadrant->end_neighbor_sweep ();
+                   ++neighbor)
+                {
+                  // Skip missing neighbors.
+                  if (neighbor->get_global_quad_idx() == quadrant->get_global_quad_idx())
+                    continue;
+                  
+                  // Check if neighbor contains the opposite vertex
+                  // of the vertical side containing "node".
+                  switch (node)
+                    {
+                      case 0:
+                        node_side = 2;
+                        break;
+                      case 1:
+                        node_side = 3;
+                        break;
+                      case 2:
+                        node_side = 0;
+                        break;
+                      case 3:
+                        node_side = 1;
+                        break;
+                    }
+                  
+                  for (node_n = 0; node_n < 4; ++node_n)
+                    if (neighbor->gt(node_n) == quadrant->gt(node_side))
+                      break;
+                  
+                  // If not, or if node_n is hanging, switch to the next neighbor.
+                  if (node_n == 4 || neighbor->is_hanging(node_n))
+                    continue;
+                  
+                  hy = neighbor->p(1, 2) - neighbor->p(1, 0);
+                  
+                  switch (node_n)
+                    {
+                      case 0:
+                        if (node_side == 2)
+                          du_y.push_back((u[neighbor->gt(2)] - u[neighbor->gt(0)]) / hy);
+                        break;
+                      case 1:
+                        if (node_side == 3)
+                          du_y.push_back((u[neighbor->gt(3)] - u[neighbor->gt(1)]) / hy);
+                        break;
+                      case 2:
+                        if (node_side == 0)
+                          du_y.push_back((u[neighbor->gt(2)] - u[neighbor->gt(0)]) / hy);
+                        break;
+                      case 3:
+                        if (node_side == 1)
+                          du_y.push_back((u[neighbor->gt(3)] - u[neighbor->gt(1)]) / hy);
+                        break;
+                    }
+                  
+                  if (weights_y.size() < du_y.size())
+                    {
+                      weights_y[0] += 2 / hy;
+                      weights_y.push_back(-1 / hy);
+                    }
+                }
+            }
+          
+          assert(du_x.size() <= 2 && du_y.size() <= 2);
+          
+          if (du_x.size() < 2 || du_y.size() < 2)
+            continue;
+          else
+            assigned[quadrant->gt(node)] = true;
+          
+          for (unsigned int ix = 0; ix < du_x.size(); ++ix)
+            {
+              du_x_star[quadrant->gt(node)] += du_x[ix] * weights_x[ix];
+            }
+          
+          du_x_star[quadrant->gt(node)] /= std::accumulate(weights_x.begin(), weights_x.end(), 0.0);
+          
+          for (unsigned int iy = 0; iy < du_y.size(); ++iy)
+            {
+              du_y_star[quadrant->gt(node)] += du_y[iy] * weights_y[iy];
+            }
+          
+          du_y_star[quadrant->gt(node)] /= std::accumulate(weights_y.begin(), weights_y.end(), 0.0);
+        }
+    }
+  
+  return std::make_pair(du_x_star, du_y_star);
+}
+
+q2_vec bim2c_quadtree_pde_recovered_solution(tmesh & mesh,
+                                             const gradient & du)
+{
+    //TODO
+}
+
+// 4-points Gauss quadature nodes and weights (in [0, 1]).
 static constexpr double gn[4] =
   {6.94318442029737e-02, 3.30009478207572e-01,
    6.69990521792428e-01, 9.30568155797026e-01};
@@ -242,14 +531,17 @@ static constexpr double gw[4] =
   {1.73927422568727e-01, 3.26072577431273e-01,
    3.26072577431273e-01, 1.73927422568727e-01};
 
+// Transform nodes from [0, 1] to [x[0], x[1]].
 static inline double
 xformx (const double *x, const double X)
 { return (X * (x[1] - x[0]) + x[0]); }
 
+// Transform weights from [0, 1] to [x[0], x[1]].
 static inline double
 xformw (const double *x, const double w)
 { return (w * (x[1] - x[0])); }
 
+// Approximate integral of fun on [x[0], x[1]] x [y[0], y[1]].
 static double
 quad_integral (const double *x, const double *y,
                std::function<double (double, double)> fun)
@@ -267,44 +559,67 @@ quad_integral (const double *x, const double *y,
   return (sum);
 }
 
+// Evaluate Nédelec x-gradient of u
+// (on quadrant [x[0], x[1]] x [y[0], y[1]])
+// at (X, Y).
 static double
 dudx (double X, double Y, const double *x, const double *y, const double *u)
 {
-  double dx = (x[1] - x[0]);
-  double dy = (y[1] - y[0]);
-  double dl = (u[1] - u[0]) / dx;
-  double dr = (u[3] - u[2]) / dx;
-  return (dl * (y[1] - Y) + dr * (Y - y[0])) / dy;
+  double hx = (x[1] - x[0]);
+  double hy = (y[1] - y[0]);
+  
+  double db = (u[1] - u[0]) / hx;
+  double dt = (u[3] - u[2]) / hx;
+  
+  return (db * (y[1] - Y) + dt * (Y - y[0])) / hy;
 }
 
+// Evaluate Nédelec y-gradient of u
+// (on quadrant [x[0], x[1]] x [y[0], y[1]])
+// at (X, Y).
 static double
 dudy (double X, double Y, const double *x, const double *y, const double *u)
 {
-  double dx = (x[1] - x[0]);
-  double dy = (y[1] - y[0]);
-  double dl = (u[2] - u[0]) / dy;
-  double dr = (u[3] - u[1]) / dy;
-  return (dl * (x[1] - X) + dr * (X - x[0])) / dx;
+  double hx = (x[1] - x[0]);
+  double hy = (y[1] - y[0]);
+  
+  double dl = (u[2] - u[0]) / hy;
+  double dr = (u[3] - u[1]) / hy;
+  
+  return (dl * (x[1] - X) + dr * (X - x[0])) / hx;
 }
 
+// Evaluate u (using Q1 basis functions
+// on quadrant [x[0], x[1]] x [y[0], y[1]])
+// at (X, Y).
 static double
 q1 (double X, double Y, const double *x, const double *y, const double *u)
 {
-  double dx = (x[1] - x[0]);
-  double dy = (y[1] - y[0]);
+  double hx = (x[1] - x[0]);
+  double hy = (y[1] - y[0]);
 
   return ((u[0] * (x[1] - X) * (y[1] - Y) +
-          u[1]  * (X - x[0]) * (y[1] - Y) +
-          u[2]  * (X - x[0]) * (Y - y[0]) +
-          u[3]  * (x[1] - X) * (Y - y[0])) /
-          (dx * dy));
+           u[1] * (X - x[0]) * (y[1] - Y) +
+           u[2] * (X - x[0]) * (Y - y[0]) +
+           u[3] * (x[1] - X) * (Y - y[0])) /
+          (hx * hy));
 }
 
+// Evaluate u (using Q2 basis functions
+// on quadrant [x[0], x[1]] x [y[0], y[1]])
+// at (X, Y).
+static double
+q2 (double X, double Y, const double *x, const double *y, const double *u)
+{
+  //TODO
+}
+
+// Refinement marker function based on ZZ estimator
+// for the recovered gradient du*.
 int 
 zz_marker_grad (tmesh::quadrant_iterator q,
-                const std::vector<double> &dudxstar,
-                const std::vector<double> &dudystar,
-                const std::vector<double> &u,
+                const gradient & du_star,
+                const q1_vec & u,
                 double limit)
 {
   double
@@ -317,9 +632,9 @@ zz_marker_grad (tmesh::quadrant_iterator q,
 
   for (int ii = 0; ii < 4; ++ii)
     {
-      dudxstar_loc[ii] = dudxstar[quadrant->gt[ii]];
-      dudystar_loc[ii] = dudystar[quadrant->gt[ii]];
-      u_loc[ii] = u[quadrant->gt[ii]];
+      dudxstar_loc[ii] = (du_star.first)[q->gt(ii)];
+      dudystar_loc[ii] = (du_star.second)[q->gt(ii)];
+      u_loc[ii] = u[q->gt(ii)];
     }
 
   auto fun =
@@ -331,30 +646,35 @@ zz_marker_grad (tmesh::quadrant_iterator q,
                 q1 (X, Y, x, y, dudystar_loc), 2) +
       std::pow (dudx (X, Y, x, y, u_loc) -
                 q1 (X, Y, x, y, dudxstar_loc), 2);
-
-    }
+    };
     
-  double err = quad_integral (x, y, fun);
+  double err = std::sqrt(quad_integral (x, y, fun));
   return err > limit ? 1 : 0;
-};
+}
 
+// Refinement marker function based on ZZ estimator
+// for the recovered solution u*.
 int 
 zz_marker_sol (tmesh::quadrant_iterator q,
-               const std::vector<double> &ustar,
-               const std::vector<double> &u,
+               const q2_vec & ustar,
+               const q1_vec & u,
                double limit)
 {
   double
     x[2] = {q->p(0,0), q->p(0,1)},
     y[2] = {q->p(1,0), q->p(1,3)};
 
-  double ustar_loc[4] = {0,0,0,0};
+  double ustar_loc[9] = {0,0,0,0,0,0,0,0,0};
   double u_loc[4] = {0,0,0,0};
 
+  for (int ii = 0; ii < 9; ++ii)
+    {
+      ustar_loc[ii] = (ustar[q->get_global_quad_idx()])[ii];
+    }
+  
   for (int ii = 0; ii < 4; ++ii)
     {
-      ustar_loc[ii] = ustar[quadrant->gt[ii]];
-      u_loc[ii] = u[quadrant->gt[ii]];
+      u_loc[ii] = u[q->gt(ii)];
     }
 
   auto fun =
@@ -362,11 +682,11 @@ zz_marker_sol (tmesh::quadrant_iterator q,
     (double X, double Y) -> double
     {
       double err =
-      std::pow (q1 (X, Y, x, y, u_loc), 2) -
-                q1 (X, Y, x, y, ustar_loc), 2);
-
-    }
+      std::pow (q1 (X, Y, x, y, u_loc) -
+                q2 (X, Y, x, y, ustar_loc), 2);
+    };
     
-  double err = quad_integral (x, y, fun);
+  double err = std::sqrt(quad_integral (x, y, fun));
   return err > limit ? 1 : 0;
-};
+}
+

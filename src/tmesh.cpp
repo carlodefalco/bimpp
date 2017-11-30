@@ -100,7 +100,7 @@ tmesh::neighbor_iterator::operator++ ()
   int nface, nrank;
   
   p4est_quadrant_t * neighbor =
-    p4est_mesh_face_neighbor_next (data->face_neighbor, &which_tree,
+    p4est_mesh_face_neighbor_next (face_neighbor, &which_tree,
                                    &which_quad, &nface, &nrank);
   
   if (neighbor != nullptr)
@@ -109,14 +109,22 @@ tmesh::neighbor_iterator::operator++ ()
         p4est_tree_array_index (data->the_tmesh->p4est->trees,
                                 which_tree);
       
-      if (data->face_neighbor->current_qtq <
+      // If non-ghost.
+      if (face_neighbor->current_qtq <
           data->the_tmesh->num_local_quadrants ())
         {
+          data->is_ghost = false;
+          data->qtq = -1;
+          
           data->forest_quad_idx = tree->quadrants_offset + which_quad;
           data->tree_quad_idx = which_quad;
         }
+      // If ghost.
       else
         {
+          data->is_ghost = true;
+          data->qtq = face_neighbor->current_qtq;
+          
           data->forest_quad_idx =
             neighbor->p.piggy3.local_num +
             (data->the_tmesh->p4est->global_first_quadrant[nrank] -
@@ -168,9 +176,7 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
   if (ln != nullptr)
     {
       // Non-ghost elements.
-      if ((face_neighbor != nullptr)
-          && (face_neighbor->current_qtq <
-              the_tmesh->num_local_quadrants ()))
+      if (! is_ghost)
         {
           for (i = 0; i < 4; ++i)
             {
@@ -198,8 +204,7 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
       // Ghost elements.
       else
         {
-          p4est_locidx_t idx = face_neighbor->current_qtq -
-            the_tmesh->num_local_quadrants ();
+          p4est_locidx_t idx = this->qtq - the_tmesh->num_local_quadrants ();
           
           for (i = 0; i < 4; ++i)
             {
@@ -226,8 +231,7 @@ tmesh::quadrant_t::parent (tmesh::idx_t ip, tmesh::idx_t in)
 int
 tmesh::quadrant_t::gparent (tmesh::idx_t ip, tmesh::idx_t in)
 {  
-  if (face_neighbor != nullptr &&
-      face_neighbor->current_qtq < the_tmesh->num_local_quadrants())
+  if (! is_ghost)
     {
       assert (pbuff[ip + in * 2] >= 0);
 
@@ -263,10 +267,12 @@ tmesh::quadrant_t::e (idx_t i)
 tmesh::neighbor_iterator
 tmesh::quadrant_t::begin_neighbor_sweep ()
 {
+  neighbor_iterator ni;
+  
   if (this->the_tmesh->mesh == nullptr)
     this->the_tmesh->update ();
   
-  p4est_mesh_face_neighbor_init (face_neighbor,
+  p4est_mesh_face_neighbor_init (ni.face_neighbor,
                                  this->the_tmesh->p4est,
                                  this->the_tmesh->ghost,
                                  this->the_tmesh->mesh,
@@ -278,32 +284,37 @@ tmesh::quadrant_t::begin_neighbor_sweep ()
   int nface, nrank;
   
   p4est_quadrant_t * neighbor =
-    p4est_mesh_face_neighbor_next (face_neighbor, &which_tree,
+    p4est_mesh_face_neighbor_next (ni.face_neighbor, &which_tree,
                                    &which_quad, &nface, &nrank);
   
-  current_neighbor = new quadrant_t(this->the_tmesh, which_tree, neighbor);
+  ni.data = new quadrant_t(this->the_tmesh, which_tree, neighbor);
   
   p4est_tree_t * tree = p4est_tree_array_index(this->the_tmesh->p4est->trees, which_tree);
   
-  if (face_neighbor->current_qtq < the_tmesh->num_local_quadrants())
+  // If non-ghost.
+  if (ni.face_neighbor->current_qtq < the_tmesh->num_local_quadrants())
     {
-      current_neighbor->forest_quad_idx = tree->quadrants_offset + which_quad;
-      current_neighbor->tree_quad_idx = which_quad;
+      ni.data->forest_quad_idx = tree->quadrants_offset + which_quad;
+      ni.data->tree_quad_idx = which_quad;
     }
+  // If ghost.
   else
     {
-      current_neighbor->forest_quad_idx =
+      ni.data->is_ghost = true;
+      ni.data->qtq = ni.face_neighbor->current_qtq;
+      
+      ni.data->forest_quad_idx =
         neighbor->p.piggy3.local_num +
         (the_tmesh->p4est->global_first_quadrant[nrank] -
          the_tmesh->p4est->global_first_quadrant[this->the_tmesh->rank]);
-      current_neighbor->tree_quad_idx = current_neighbor->forest_quad_idx - tree->quadrants_offset;
+      
+      ni.data->tree_quad_idx =
+        ni.data->forest_quad_idx - tree->quadrants_offset;
     }
   
-  current_neighbor->face_neighbor = this->face_neighbor;
+  ni.data->update(which_tree, neighbor);
   
-  current_neighbor->update(which_tree, neighbor);
-  
-  neighbor_iterator ni (current_neighbor, nface);
+  ni.face_idx = nface;
   return ni;
 }
 
@@ -314,8 +325,7 @@ tmesh::quadrant_t::t (tmesh::idx_t i)
 tmesh::idx_t
 tmesh::quadrant_t::gt (tmesh::idx_t i)
 {
-  if (face_neighbor != nullptr &&
-      face_neighbor->current_qtq < the_tmesh->num_local_quadrants())
+  if (! is_ghost)
     {
       return p4est_lnodes_global_index
         (the_tmesh->lnodes,
@@ -786,18 +796,19 @@ int
 tmesh::coarsen_callback (p4est_t* p4, p4est_topidx_t tt, p4est_quadrant_t* qq[])
 {
   tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
-  auto fun = [tm, tt, qq] (idx_t ii, quadrant_iterator& qi)
-    { select_quad (tm, tt, qq, ii, qi); };
+  auto fun = [tm, tt, qq] (idx_t ii) -> quadrant_iterator
+    { return select_quad (tm, tt, qq, ii); };
   return tm->coarsen_marker (fun);
 };
 
 
-void
+tmesh::quadrant_iterator
 tmesh::select_quad (tmesh *_tmesh,
                     p4est_topidx_t tree_idx,
                     p4est_quadrant_t* qt [],
-                    idx_t ii, quadrant_iterator& qi)
+                    idx_t ii)
 {
-  qi = quadrant_iterator (&(_tmesh->current_quadrant));
+  quadrant_iterator qi (&(_tmesh->current_quadrant));
   qi->update (tree_idx, qt[ii]);
+  return qi;
 };

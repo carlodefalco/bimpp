@@ -42,7 +42,7 @@ doping_driven_refinement (tmesh::quadrant_iterator quadrant)
 }
 
 static int
-coarsen_right_half (std::function<void (tmesh::idx_t, tmesh::quadrant_iterator&)> next)
+coarsen_right_half (std::function<tmesh::quadrant_iterator (tmesh::idx_t)> next)
 {
 
   constexpr double L = 3.0e-6;
@@ -55,7 +55,7 @@ coarsen_right_half (std::function<void (tmesh::idx_t, tmesh::quadrant_iterator&)
   
   for (tmesh::idx_t ii = 0; ii < 4; ++ii)
     {
-      next (ii, qi);
+      qi = next (ii);
       for (tmesh::idx_t jj = 0; jj < 4; ++jj)
         {
           xcoord = qi->p(0, jj);
