@@ -1,9 +1,10 @@
 #include "quad_operators.h"
 
-#include <set>
+#include <cmath>
 #include <functional>
 #include <iostream>
-#include <cmath>
+#include <numeric>
+#include <set>
 
 void 
 bim2a_advection_diffusion (tmesh & mesh,
@@ -612,6 +613,8 @@ static double
 q2 (double X, double Y, const double *x, const double *y, const double *u)
 {
   //TODO
+  double ret = 0;
+  return ret;
 }
 
 // Refinement marker function based on ZZ estimator
@@ -646,6 +649,7 @@ zz_marker_grad (tmesh::quadrant_iterator q,
                 q1 (X, Y, x, y, dudystar_loc), 2) +
       std::pow (dudx (X, Y, x, y, u_loc) -
                 q1 (X, Y, x, y, dudxstar_loc), 2);
+      return err;
     };
     
   double err = std::sqrt(quad_integral (x, y, fun));
@@ -684,6 +688,7 @@ zz_marker_sol (tmesh::quadrant_iterator q,
       double err =
       std::pow (q1 (X, Y, x, y, u_loc) -
                 q2 (X, Y, x, y, ustar_loc), 2);
+      return err;
     };
     
   double err = std::sqrt(quad_integral (x, y, fun));
