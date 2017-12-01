@@ -187,6 +187,11 @@ public:
     get_forest_quad_idx ()
     { return forest_quad_idx; };
 
+    /// Return index of current quadrant in current tree on current process.
+    p4est_locidx_t
+    get_tree_quad_idx ()
+    { return tree_quad_idx; };
+    
     /// Return index of current quadrant across all trees on current process.
     p4est_gloidx_t
     get_global_quad_idx ()

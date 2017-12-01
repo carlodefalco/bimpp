@@ -622,6 +622,8 @@ tmesh::begin_quadrant_sweep ()
 void
 tmesh::refine (int recursive, int partforcoarsen)
 {
+  quadrant_iterator qi (&current_quadrant);
+  qi.reset ();
   p4est_refine (p4est, recursive, refine_callback, nullptr);
   p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
   p4est_partition (p4est, partforcoarsen, nullptr);
@@ -789,7 +791,9 @@ tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt, p4est_quadrant_t* qq)
   tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
   tm->current_quadrant.update (tt, qq);
   quadrant_iterator qi (&(tm->current_quadrant));
-  return tm->refine_marker (qi);
+  int ret = tm->refine_marker (qi);
+  ++qi;
+  return ret;
 };
 
 int
