@@ -261,8 +261,10 @@ public:
   /// Load a p4est and connectivity from a set of arrays
   /// then init the p4est.
   void
-  read_connectivity (const double *p, const p4est_topidx_t num_vertices,
-                     const p4est_topidx_t *t, const p4est_topidx_t num_trees,
+  read_connectivity (const double *p,
+                     const p4est_topidx_t num_vertices,
+                     const p4est_topidx_t *t,
+                     const p4est_topidx_t num_trees,
                      int source = 0);
 
   /// Save the p4est and connectivity to a file.
@@ -329,7 +331,8 @@ public:
     return lnodes->owned_count;
   };
 
-  /// Return number of nodes of quadrants owned or shared by local process
+  /// Return number of nodes of quadrants owned
+  /// or shared by local process
   idx_t
   num_local_nodes ()    
   {
