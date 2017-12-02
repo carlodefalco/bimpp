@@ -8,12 +8,22 @@
 static int
 fake_refinement (tmesh::quadrant_iterator quadrant)
 {
+  int         rank, size;
+
+  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+  MPI_Comm_size (MPI_COMM_WORLD, &size);
   static int pippo = 0;
+  std::cout << "rank " << rank << std::endl;
   std::cout << "call #" << pippo++ << " level #"
             << (int) quadrant->the_quadrant->level << " tree #"
             << (int) quadrant->get_tree_idx () << " forest_quad_idx #"
             << (int) quadrant->get_forest_quad_idx () << " tree_quad_idx #"
-            << (int) quadrant->get_tree_quad_idx () 
+            << (int) quadrant->get_tree_quad_idx () << " vertices (local numbering) "
+            << (int) quadrant->t (0) << " " << (int) quadrant->t (1) << " "
+            << (int) quadrant->t (2) << " " << (int) quadrant->t (3) << " "
+            << " vertices (global numbering) "
+            << (int) quadrant->gt (0) << " " << (int) quadrant->gt (1) << " "
+            << (int) quadrant->gt (2) << " " << (int) quadrant->gt (3) << " "
             << std::endl;
   return 1;
 }
@@ -44,11 +54,13 @@ main (int argc, char **argv)
   if (rank == 0)
     { tic (); }
 
-  for (int k = 0; k < 5 ; ++k)
+  for (int k = 0; k < 3 ; ++k)
     {
       std::cout << "refinement step #" << k << std::endl;
+      tmsh.update ();
       tmsh.refine (recursive, partforcoarsen);
     }
+
 
   MPI_Barrier (MPI_COMM_WORLD);
   if (rank == 0)
