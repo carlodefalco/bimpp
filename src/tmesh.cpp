@@ -593,22 +593,34 @@ tmesh::octbin_export (const char * basename,
 void
 tmesh::quadrant_iterator::reset ()
 {
-  p4est_t *p4 = data->the_tmesh->p4est;
-  data->tree_idx         = p4->first_local_tree;
-  data->tree_quad_idx    = 0;
-  data->forest_quad_idx  = 0;
-
-  data->tree             = p4est_tree_array_index (p4->trees, data->tree_idx);
-  data->tquadrants       = &(data->tree->quadrants);
-  data->num_quadrants    = (p4est_locidx_t) data->tquadrants->elem_count;
-
-  if (data->num_quadrants > 0)
+  if (data != nullptr)
     {
-      auto tmp = p4est_quadrant_array_index (data->tquadrants, data->forest_quad_idx);
-      data->update (data->tree_idx, tmp);
+      p4est_t *p4 = data->the_tmesh->p4est;
+      data->tree_idx         = p4->first_local_tree;
+      data->tree_quad_idx    = 0;
+      data->forest_quad_idx  = 0;
+      
+      if (data->tree_idx != -1)
+        {
+          data->tree             = p4est_tree_array_index (p4->trees, data->tree_idx);
+          data->tquadrants       = &(data->tree->quadrants);
+          data->num_quadrants    = (p4est_locidx_t) data->tquadrants->elem_count;
+        }
+      else
+        {
+          data->tree             = nullptr;
+          data->tquadrants       = nullptr;
+          data->num_quadrants    = 0;
+        }
+          
+      if (data->num_quadrants > 0)
+        {
+          auto tmp = p4est_quadrant_array_index (data->tquadrants, data->forest_quad_idx);
+          data->update (data->tree_idx, tmp);
+        }
+      else
+        data = nullptr;
     }
-  else
-    data = nullptr;  
 };
 
 tmesh::quadrant_iterator
