@@ -357,6 +357,7 @@ public:
   };
 
   /// Return number of quadrants owned by local process
+  /// across all trees
   idx_t
   num_local_quadrants ()    
   {
