@@ -204,7 +204,8 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
       // Ghost elements.
       else
         {
-          p4est_locidx_t idx = this->qtq - the_tmesh->num_local_quadrants ();
+          p4est_locidx_t idx = this->qtq -
+            the_tmesh->num_local_quadrants ();
           
           for (i = 0; i < 4; ++i)
             {
@@ -289,10 +290,13 @@ tmesh::quadrant_t::begin_neighbor_sweep ()
   
   ni.data = new quadrant_t(this->the_tmesh, which_tree, neighbor);
   
-  p4est_tree_t * tree = p4est_tree_array_index(this->the_tmesh->p4est->trees, which_tree);
+  p4est_tree_t *tree =
+    p4est_tree_array_index (this->the_tmesh->p4est->trees,
+                            which_tree);
   
   // If non-ghost.
-  if (ni.face_neighbor->current_qtq < the_tmesh->num_local_quadrants())
+  if (ni.face_neighbor->current_qtq <
+      the_tmesh->num_local_quadrants ())
     {
       ni.data->forest_quad_idx = tree->quadrants_offset + which_quad;
       ni.data->tree_quad_idx = which_quad;
@@ -602,9 +606,11 @@ tmesh::quadrant_iterator::reset ()
       
       if (data->tree_idx != -1)
         {
-          data->tree             = p4est_tree_array_index (p4->trees, data->tree_idx);
+          data->tree             =
+            p4est_tree_array_index (p4->trees, data->tree_idx);
           data->tquadrants       = &(data->tree->quadrants);
-          data->num_quadrants    = (p4est_locidx_t) data->tquadrants->elem_count;
+          data->num_quadrants    =
+            (p4est_locidx_t) data->tquadrants->elem_count;
         }
       else
         {
@@ -615,7 +621,9 @@ tmesh::quadrant_iterator::reset ()
           
       if (data->num_quadrants > 0)
         {
-          auto tmp = p4est_quadrant_array_index (data->tquadrants, data->forest_quad_idx);
+          auto tmp =
+            p4est_quadrant_array_index (data->tquadrants,
+                                        data->forest_quad_idx);
           data->update (data->tree_idx, tmp);
         }
       else
@@ -798,7 +806,8 @@ tmesh::update_ghosts ()
 };
 
 int
-tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt, p4est_quadrant_t* qq)
+tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt,
+                        p4est_quadrant_t* qq)
 {
   tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
   tm->current_quadrant.update (tt, qq);
@@ -809,7 +818,8 @@ tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt, p4est_quadrant_t* qq)
 };
 
 int
-tmesh::coarsen_callback (p4est_t* p4, p4est_topidx_t tt, p4est_quadrant_t* qq[])
+tmesh::coarsen_callback (p4est_t* p4, p4est_topidx_t tt,
+                         p4est_quadrant_t* qq[])
 {
   tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
   auto fun = [tm, tt, qq] (idx_t ii) -> quadrant_iterator
