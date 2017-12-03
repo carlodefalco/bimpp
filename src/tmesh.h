@@ -399,9 +399,10 @@ private:
   
 };
 
+/// TODO : class for distributed arrays
 template<class T, class data_location>
 class
-distributed_vector
+distributed_array
 {
 
 public :
