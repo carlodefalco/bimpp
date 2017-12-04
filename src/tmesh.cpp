@@ -679,26 +679,16 @@ tmesh::refine (int recursive, int partforcoarsen)
 void
 tmesh::coarsen (int recursive, int partforcoarsen)
 {
-  tmesh_qdata_t *ud;
+  int *ud;
   for (auto q = begin_quadrant_sweep ();
        q != end_quadrant_sweep ();
        ++q)
     {
-      ud = (tmesh_qdata_t *) (q->the_quadrant->p.user_data);
-      for (int ii = 0; ii < 4; ++ii)
-        {
-          ud->is_hanging[ii] = q->is_hanging (ii);
-          if (! q->is_hanging (ii))
-            ud->t[ii] = q->t (ii);
-          else
-            {
-              ud->t[ii] = q->parent (0, ii);
-              ud->t[4+ii] = q->parent (1, ii);
-            }
-        }
+      ud = (int *) (q->the_quadrant->p.user_int);
+      (*ud) = coarsen_marker_2 (this, q);
     }
   
-  p4est_coarsen (p4est, recursive, coarsen_callback, nullptr);
+  p4est_coarsen (p4est, recursive, coarsen_callback_2, nullptr);
   p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
   p4est_partition (p4est, partforcoarsen, nullptr);
 
@@ -862,6 +852,16 @@ tmesh::coarsen_callback (p4est_t* p4, p4est_topidx_t tt,
   auto fun = [tm, tt, qq] (idx_t ii) -> quadrant_iterator
     { return select_quad (tm, tt, qq, ii); };
   return tm->coarsen_marker (fun);
+};
+
+int
+tmesh::coarsen_callback_2 (p4est_t* p4, p4est_topidx_t tt,
+                         p4est_quadrant_t* qq[])
+{
+  return (qq[0]->p.user_int == 1
+          && qq[1]->p.user_int == 1
+          && qq[2]->p.user_int == 1
+          && qq[3]->p.user_int == 1)
 };
 
 
