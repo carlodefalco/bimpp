@@ -96,7 +96,7 @@ main (int argc, char **argv)
   partforcoarsen = 1;
  
 
-  for (int k = 0; k < 6 ; ++k)
+  for (int k = 0; k < 22 ; ++k)
     {
       std::vector<double>
         y(tmsh.num_local_nodes ()),
@@ -121,7 +121,7 @@ main (int argc, char **argv)
         }
 
 
-      if (k < 5)
+      if (k < 11)
         {
 
           MPI_Barrier (MPI_COMM_WORLD);
