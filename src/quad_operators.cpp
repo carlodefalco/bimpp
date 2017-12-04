@@ -252,7 +252,7 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u)
 {
   std::vector<double> du_x_star (mesh.num_global_nodes (), 0);
   std::vector<double> du_y_star (mesh.num_global_nodes (), 0);  
-  std::vector<bool> assigned (mesh.num_global_nodes (), 0);
+  std::vector<bool> assigned (mesh.num_global_nodes (), false);
   
   double hx = 0, hy = 0;
   
