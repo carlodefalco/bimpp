@@ -200,7 +200,7 @@ public:
     { return tree_quad_idx; };
     
     /// Return index of current quadrant across all
-    /// trees on current process.
+    /// trees on all processes.
     p4est_gloidx_t
     get_global_quad_idx ()
     {
