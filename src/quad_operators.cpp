@@ -646,8 +646,8 @@ q1 (double X, double Y, const double *x,
 
   return ((u[0] * (x[1] - X) * (y[1] - Y) +
            u[1] * (X - x[0]) * (y[1] - Y) +
-           u[2] * (X - x[0]) * (Y - y[0]) +
-           u[3] * (x[1] - X) * (Y - y[0])) /
+           u[2] * (x[1] - X) * (Y - y[0]) +
+           u[3] * (X - x[0]) * (Y - y[0])) /
           (hx * hy));
 }
 
