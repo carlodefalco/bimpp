@@ -45,6 +45,7 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
 
 q2_vec
 bim2c_quadtree_pde_recovered_solution (tmesh& mesh,
+                                       const q1_vec& u,
                                        const gradient& du);
 
 double

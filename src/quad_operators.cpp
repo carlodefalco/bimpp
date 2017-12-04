@@ -561,9 +561,64 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u)
 
 q2_vec
 bim2c_quadtree_pde_recovered_solution (tmesh& mesh,
+                                       const q1_vec& u,
                                        const gradient& du)
 {
-    //TODO
+  q2_vec u_star (mesh.num_local_quadrants (),
+                 std::array<double, 9>({0,0,0,0,0,0,0,0,0}));
+  
+  double hx = 0, hy = 0;
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      hx = quadrant->p (0, 1) - quadrant->p (0, 0);
+      hy = quadrant->p (1, 2) - quadrant->p (1, 0);
+      
+      // Compute values at vertices.
+      for (int i = 0; i < 4; ++i)
+        u_star[quadrant->get_forest_quad_idx ()][i] =
+          u[quadrant->gt(i)];
+      
+      // Compute values at faces.
+      u_star[quadrant->get_forest_quad_idx ()][4] =
+        0.5 * (u[quadrant->gt(0)] + u[quadrant->gt(1)])
+        + hx * (du.first[quadrant->gt(0)]
+                - du.first[quadrant->gt(1)]) / 8;
+      
+      u_star[quadrant->get_forest_quad_idx ()][5] =
+        0.5 * (u[quadrant->gt(2)] + u[quadrant->gt(3)])
+        + hx * (du.first[quadrant->gt(2)]
+                - du.first[quadrant->gt(3)]) / 8;
+      
+      u_star[quadrant->get_forest_quad_idx ()][6] =
+        0.5 * (u[quadrant->gt(0)] + u[quadrant->gt(2)])
+        + hy * (du.second[quadrant->gt(0)]
+                - du.second[quadrant->gt(2)]) / 8;
+      
+      u_star[quadrant->get_forest_quad_idx ()][7] =
+        0.5 * (u[quadrant->gt(1)] + u[quadrant->gt(3)])
+        + hy * (du.second[quadrant->gt(1)]
+                - du.second[quadrant->gt(3)]) / 8;
+      
+      // Compute value at cell midpoint.
+      u_star[quadrant->get_forest_quad_idx ()][8] =
+        0.25 * (u_star[quadrant->get_forest_quad_idx ()][4] +
+                u_star[quadrant->get_forest_quad_idx ()][5] +
+                u_star[quadrant->get_forest_quad_idx ()][6] +
+                u_star[quadrant->get_forest_quad_idx ()][7])
+        + hx * 0.5 * (du.first[quadrant->gt(0)]
+                      + du.first[quadrant->gt(2)]
+                      - du.first[quadrant->gt(1)]
+                      - du.first[quadrant->gt(3)]) / 16
+        + hy * 0.5 * (du.second[quadrant->gt(0)]
+                      + du.second[quadrant->gt(1)]
+                      - du.second[quadrant->gt(2)]
+                      - du.second[quadrant->gt(3)]) / 16;
+    }
+  
+  return u_star;
 }
 
 // 4-points Gauss quadature nodes and weights (in [0, 1]).
@@ -644,9 +699,9 @@ q1 (double X, double Y, const double *x,
   double hx = (x[1] - x[0]);
   double hy = (y[1] - y[0]);
 
-  return ((u[0] * (x[1] - X) * (y[1] - Y) +
-           u[1] * (X - x[0]) * (y[1] - Y) +
-           u[2] * (x[1] - X) * (Y - y[0]) +
+  return ((u[0] * (X - x[1]) * (Y - y[1]) +
+           u[1] * -(X - x[0]) * (Y - y[1]) +
+           u[2] * -(X - x[1]) * (Y - y[0]) +
            u[3] * (X - x[0]) * (Y - y[0])) /
           (hx * hy));
 }
@@ -658,9 +713,22 @@ static double
 q2 (double X, double Y, const double *x,
     const double *y, const double *u)
 {
-  //TODO
-  double ret = 0;
-  return ret;
+  double xc = 0.5 * (x[0] + x[1]);
+  double yc = 0.5 * (y[0] + y[1]);
+
+  double hx = (x[1] - x[0]);
+  double hy = (y[1] - y[0]);
+
+  return (u[0] * 4 * (X - xc) * (X - x[1]) * (Y - yc) * (Y - y[1]) +
+          u[1] * 4 * (X - x[0]) * (X - xc) * (Y - yc) * (Y - y[1]) +
+          u[2] * 4 * (X - xc) * (X - x[1]) * (Y - y[0]) * (Y - yc) +
+          u[3] * 4 * (X - x[0]) * (X - xc) * (Y - y[0]) * (Y - yc) +
+          u[4] * -8 * (X - x[0]) * (X - x[1]) * (Y - yc) * (Y - y[1]) +
+          u[5] * -8 * (X - x[0]) * (X - x[1]) * (Y - y[0]) * (Y - yc) +
+          u[6] * -8 * (X - xc) * (X - x[1]) * (Y - y[0]) * (Y - y[1]) +
+          u[7] * -8 * (X - x[0]) * (X - xc) * (Y - y[0]) * (Y - y[1]) +
+          u[8] * 16 * (X - x[0]) * (X - x[1]) * (Y - y[0]) * (Y - y[1])) /
+         (hx * hx * hy * hy);
 }
 
 // Compute ||grad^* u - grad u||_L^2(q).
@@ -722,7 +790,7 @@ double estimator_sol(tmesh::quadrant_iterator q,
 
   for (int ii = 0; ii < 9; ++ii)
     {
-      ustar_loc[ii] = (ustar[q->get_global_quad_idx()])[ii];
+      ustar_loc[ii] = (ustar[q->get_forest_quad_idx()])[ii];
     }
   
   for (int ii = 0; ii < 4; ++ii)
