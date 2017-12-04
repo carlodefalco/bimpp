@@ -472,7 +472,7 @@ tmesh::read_connectivity (const char *filename,
     octbingz2connectivity (filename, &conn);
   
   conn = p4est_connectivity_bcast (conn, source, comm);
-  p4est = p4est_new (comm, conn, 0, NULL, NULL);
+  p4est = p4est_new (comm, conn, 0, NULL, this);
 };
 
 void
@@ -487,9 +487,7 @@ tmesh::read_connectivity (const double *p,
                          t, num_trees, &conn);
   
   conn = p4est_connectivity_bcast (conn, source, comm);
-  p4est = p4est_new (comm, conn, 0, NULL, NULL);
-  p4est->user_pointer = this;
-
+  p4est = p4est_new (comm, conn, 0, NULL, this);
 };
 
 void
