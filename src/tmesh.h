@@ -318,7 +318,7 @@ public:
   /// Set functor to mark quadrants for coarsening.
   void
   set_coarsen_marker
-  (std::function<int (std::function<quadrant_iterator (idx_t)>)> fun)
+  (std::function<int (quadrant_iterator)> fun)
   { coarsen_marker = fun; };
 
   /// Refine marked quadrants, balance the quadtree and
@@ -395,20 +395,13 @@ public:
 private:
   
   std::function<int (quadrant_iterator)> refine_marker;
-  std::function<int (std::function<quadrant_iterator (idx_t)>)> coarsen_marker;
+  std::function<int (quadrant_iterator)> coarsen_marker;
 
   static int
   refine_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t*);
 
   static int
   coarsen_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t* []);
-  
-  static quadrant_iterator
-  select_quad (tmesh *_tmesh,
-               p4est_topidx_t tree_idx,
-               p4est_quadrant_t* qt [],
-               idx_t ii);
-  
 };
 
 /// TODO : class for distributed arrays

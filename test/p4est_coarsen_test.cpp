@@ -42,27 +42,20 @@ doping_driven_refinement (tmesh::quadrant_iterator quadrant)
 }
 
 static int
-coarsen_right_half (std::function<tmesh::quadrant_iterator (tmesh::idx_t)> next)
+coarsen_right_half (tmesh::quadrant_iterator quadrant)
 {
-
   constexpr double L = 3.0e-6;
   constexpr double H = 1.0e-5;
 
   double minx = std::numeric_limits<double>::max ();
   double xcoord, ycoord;
-
-  tmesh::quadrant_iterator qi;
   
-  for (tmesh::idx_t ii = 0; ii < 4; ++ii)
+  for (tmesh::idx_t jj = 0; jj < 4; ++jj)
     {
-      qi = next (ii);
-      for (tmesh::idx_t jj = 0; jj < 4; ++jj)
-        {
-          xcoord = qi->p(0, jj);
-          minx = minx > xcoord ? xcoord : minx;
-        }
+      xcoord = quadrant->p(0, jj);
+      minx = minx > xcoord ? xcoord : minx;
     }
-
+  
   return (minx > L/2.0 ? 1 : 0);
   
 }
@@ -86,6 +79,8 @@ main (int argc, char **argv)
     write_example_connectivity ("p4est_coarsen_test.octbin.gz");
 
   tmsh.read_connectivity ("p4est_coarsen_test.octbin.gz");
+  
+  tmsh.vtk_export ("p4est_coarsen_test");
 
   tmsh.set_refine_marker (doping_driven_refinement);
   tmsh.set_coarsen_marker (coarsen_right_half);
