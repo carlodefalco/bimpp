@@ -28,6 +28,15 @@
 #include <array>
 #include <vector>
 
+
+struct
+tmesh_qdata_t
+{
+  bool is_hanging[4];
+  p4est_locidx_t t[8];
+  p4est_gloidx_t qid;
+};
+
 /// C++ interface class for p4est 2d quadrant meshes.
 class
 tmesh
@@ -113,7 +122,7 @@ public:
     { };
     
     /// Get the face index associated to the current neighbor.
-    int get_face_idx()
+    int get_face_idx ()
     { return face_idx; };
     
     friend class tmesh::quadrant_t;
@@ -159,21 +168,25 @@ public:
 
     /// Return the rank-local (or global for ghosts)
     /// ip-th parent for the in-th vertex.
+    /// TODO : type should be p4est_gloidx_t
     int
     parent (idx_t ip, idx_t in);
       
-    /// Return the ip-th parent for the in-th vertex, use global numbering.
+    /// Return the ip-th parent for the in-th vertex,
+    /// use global numbering.
+    /// TODO : type should be p4est_gloidx_t
     int
     gparent (idx_t ip, idx_t in);
 
+    static const idx_t NOT_ON_BOUNDARY = P4EST_ROOT_LEN + 1;
     /// Index of the edge of the current tree
     //  on which the i-th vertex lies, return
     //  NOT_ON_BOUNDARY if an interior vertex.
-    static const idx_t NOT_ON_BOUNDARY = P4EST_ROOT_LEN + 1;
     idx_t
     e (idx_t i);
     
-    /// Get an iterator to the first neighbor of the current quadrant.
+    /// Get an iterator to the first neighbor
+    /// of the current quadrant.
     neighbor_iterator
     begin_neighbor_sweep ();
     
@@ -182,17 +195,20 @@ public:
     end_neighbor_sweep ()
     { return neighbor_iterator (); };
     
-    /// Return index of current quadrant across all trees on current process.
+    /// Return index of current quadrant across all
+    /// trees on current process.
     p4est_locidx_t
     get_forest_quad_idx ()
     { return forest_quad_idx; };
 
-    /// Return index of current quadrant in current tree on current process.
+    /// Return index of current quadrant in current
+    /// tree on current process.
     p4est_locidx_t
     get_tree_quad_idx ()
     { return tree_quad_idx; };
     
-    /// Return index of current quadrant across all trees on current process.
+    /// Return index of current quadrant across all
+    /// trees on current process.
     p4est_gloidx_t
     get_global_quad_idx ()
     {
@@ -210,7 +226,8 @@ public:
     update (p4est_topidx_t tree,
             p4est_quadrant_t *q);
     
-    /// A pointer to the owning mesh is needed to get physical mapping. 
+    /// A pointer to the owning mesh is needed
+    /// to get physical mapping.
     tmesh                      *the_tmesh; 
     p4est_tree_t               *tree;
     p4est_quadrant_t           *the_quadrant;
@@ -227,9 +244,11 @@ public:
     p4est_topidx_t        tree_idx;         // tt
     p4est_locidx_t        forest_quad_idx;  // k 
     p4est_locidx_t        tree_quad_idx;    // q
-    
-    bool           is_ghost; // True if current quadrant is a ghost.
-    p4est_locidx_t qtq;      // qtq index if current quadrant is a ghost, -1 otherwise.
+
+    // True if current quadrant is a ghost.
+    bool           is_ghost;
+    // qtq index if current quadrant is a ghost, -1 otherwise.
+    p4est_locidx_t qtq;      
     
     /// Buffer used when quering coordinates.
     double                vxyz[12] = {0,0,0, 0,0,0, 0,0,0, 0,0,0};

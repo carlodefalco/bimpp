@@ -46,6 +46,31 @@ doping_driven_refinement (tmesh::quadrant_iterator quadrant,
   
 }
 
+static int
+coarsen_right_half (std::function<tmesh::quadrant_iterator (tmesh::idx_t)> next,
+                    const std::vector<double> &xcoord)
+{
+  double left = L;
+  tmesh::quadrant_iterator qi;
+  for (tmesh::idx_t ii = 0; ii < 4; ++ii)
+    {
+      qi = next (ii);
+      auto ud = (tmesh_qdata_t *) (qi->the_quadrant->p.user_data);
+      for (int jj = 0; jj < 4; ++jj)
+        {
+          double tmp = 0;
+          
+          if (! ud->is_hanging[ii])
+            tmp = xcoord[ud->t[ii]];
+          else
+            tmp = (xcoord[ud->t[ii]] +
+                   xcoord[ud->t[ii+4]]) / 2.;
+
+          left  = left > tmp ? tmp : left;   
+        }     
+    }
+  return (left > L/2.0 ? 1 : 0);
+}
 
 int
 main (int argc, char **argv)
@@ -75,7 +100,8 @@ main (int argc, char **argv)
     {
       std::vector<double>
         y(tmsh.num_local_nodes ()),
-        ycoord(tmsh.num_local_nodes ());
+        ycoord(tmsh.num_local_nodes ()),
+        xcoord(tmsh.num_local_nodes ());
 
 
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -85,33 +111,62 @@ main (int argc, char **argv)
           for (int jj = 0; jj < 4; ++jj)
             if (! quadrant->is_hanging (jj))
               {
-                double xcoord = quadrant->p(0, jj);
                 ycoord[quadrant->t(jj)] = quadrant->p(1, jj);
+                xcoord[quadrant->t(jj)] = quadrant->p(0, jj);
                 y[quadrant->t(jj)] =
-                  signedlog (doping (xcoord,
+                  signedlog (doping (xcoord[quadrant->t(jj)],
                                      ycoord[quadrant->t(jj)],
                                      L, H));                
               }
         }
 
-      MPI_Barrier (MPI_COMM_WORLD);
-      if (rank == 0)
-        { tic (); }
 
-      auto
-        refmark = [&y, &ycoord]
-        (tmesh::quadrant_iterator quadrant) -> int
+      if (k < 5)
         {
-          return doping_driven_refinement (quadrant, y, ycoord);
-        };
-      
-      tmsh.set_refine_marker (refmark);
-      tmsh.update ();
-      tmsh.refine (recursive, partforcoarsen);
 
-      MPI_Barrier (MPI_COMM_WORLD);
-      if (rank == 0)
-        { toc ("refinement and balancing"); }
+          MPI_Barrier (MPI_COMM_WORLD);
+          if (rank == 0)
+            { tic (); }
+          
+          auto
+            refmark = [&y, &ycoord]
+            (tmesh::quadrant_iterator quadrant) -> int
+            {
+              return doping_driven_refinement (quadrant, y, ycoord);
+            };
+      
+          tmsh.set_refine_marker (refmark);
+          tmsh.update ();
+          tmsh.refine (recursive, partforcoarsen);
+
+            MPI_Barrier (MPI_COMM_WORLD);
+            if (rank == 0)
+              { toc ("refinement and balancing"); }
+        }
+      else
+        {
+
+          MPI_Barrier (MPI_COMM_WORLD);
+          if (rank == 0)
+            { tic (); }
+          
+          auto
+            coamark = [&xcoord]
+            (std::function<tmesh::quadrant_iterator (tmesh::idx_t)> next) -> int
+            {
+              return coarsen_right_half (next, xcoord);
+            };
+      
+          tmsh.set_coarsen_marker (coamark);
+          tmsh.update ();
+          tmsh.coarsen (recursive, partforcoarsen);
+
+           MPI_Barrier (MPI_COMM_WORLD);
+            if (rank == 0)
+              { toc ("coarsening"); }
+        }
+      
+    
 
       MPI_Barrier (MPI_COMM_WORLD);
       if (rank == 0)
