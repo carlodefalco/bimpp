@@ -11,6 +11,18 @@
 #include <tmesh.h>
 #include <array>
 
+static void
+dummy_init_fn (p4est_t *p4est,
+               p4est_topidx_t which_tree,
+               p4est_quadrant_t *quadrant)
+{
+  tmesh_qdata_t *data =
+    (tmesh_qdata_t*) quadrant->p.user_data;
+  for (int i = 0; i < 8; ++i)
+    data->t[i] = 0;
+  data->qid = 0;
+};
+
 
 double
 tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj) 
@@ -471,8 +483,11 @@ tmesh::read_connectivity (const char *filename,
     octbingz2connectivity (filename, &conn);
   
   conn = p4est_connectivity_bcast (conn, source, comm);
-  p4est = p4est_new (comm, conn, 0, NULL, NULL);
-  p4est->user_pointer = this;
+  // p4est = p4est_new (comm, conn, 0, NULL, NULL);
+  p4est = p4est_new (comm, conn,
+                     sizeof (tmesh_qdata_t),
+                     dummy_init_fn, (void *) this);
+
 
 };
 
@@ -488,7 +503,10 @@ tmesh::read_connectivity (const double *p,
                          t, num_trees, &conn);
   
   conn = p4est_connectivity_bcast (conn, source, comm);
-  p4est = p4est_new (comm, conn, 0, NULL, NULL);
+  // p4est = p4est_new (comm, conn, 0, NULL, NULL);
+  p4est = p4est_new (comm, conn,
+                     sizeof (tmesh_qdata_t),
+                     dummy_init_fn, (void *) this);
   p4est->user_pointer = this;
 
 };
@@ -661,6 +679,25 @@ tmesh::refine (int recursive, int partforcoarsen)
 void
 tmesh::coarsen (int recursive, int partforcoarsen)
 {
+  tmesh_qdata_t *ud;
+  for (auto q = begin_quadrant_sweep ();
+       q != end_quadrant_sweep ();
+       ++q)
+    {
+      ud = (tmesh_qdata_t *) (q->the_quadrant->p.user_data);
+      for (int ii = 0; ii < 4; ++ii)
+        {
+          ud->is_hanging[ii] = q->is_hanging (ii);
+          if (! q->is_hanging (ii))
+            ud->t[ii] = q->t (ii);
+          else
+            {
+              ud->t[ii] = q->parent (0, ii);
+              ud->t[4+ii] = q->parent (1, ii);
+            }
+        }
+    }
+  
   p4est_coarsen (p4est, recursive, coarsen_callback, nullptr);
   p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
   p4est_partition (p4est, partforcoarsen, nullptr);
