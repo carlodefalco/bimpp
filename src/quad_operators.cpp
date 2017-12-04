@@ -252,7 +252,7 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u)
 {
   std::vector<double> du_x_star (mesh.num_global_nodes (), 0);
   std::vector<double> du_y_star (mesh.num_global_nodes (), 0);  
-  std::vector<bool> assigned (mesh.num_global_nodes (), 0);
+  std::vector<bool> assigned (mesh.num_global_nodes (), false);
   
   double hx = 0, hy = 0;
   
@@ -646,8 +646,8 @@ q1 (double X, double Y, const double *x,
 
   return ((u[0] * (x[1] - X) * (y[1] - Y) +
            u[1] * (X - x[0]) * (y[1] - Y) +
-           u[2] * (X - x[0]) * (Y - y[0]) +
-           u[3] * (x[1] - X) * (Y - y[0])) /
+           u[2] * (x[1] - X) * (Y - y[0]) +
+           u[3] * (X - x[0]) * (Y - y[0])) /
           (hx * hy));
 }
 
@@ -663,29 +663,26 @@ q2 (double X, double Y, const double *x,
   return ret;
 }
 
-// Refinement marker function based on ZZ estimator
-// for the recovered gradient du*.
-int 
-zz_marker_grad (tmesh::quadrant_iterator q,
-                const gradient & du_star,
-                const q1_vec & u,
-                double limit)
+// Compute ||grad^* u - grad u||_L^2(q).
+double estimator_grad(tmesh::quadrant_iterator q,
+                      const gradient & du_star,
+                      const q1_vec & u)
 {
   double
-    x[2] = {q->p (0,0), q->p (0,1)},
-    y[2] = {q->p (1,0), q->p (1,3)};
-
+    x[2] = {q->p(0,0), q->p(0,1)},
+    y[2] = {q->p(1,0), q->p(1,3)};
+  
   double dudxstar_loc[4] = {0,0,0,0};
   double dudystar_loc[4] = {0,0,0,0};
   double u_loc[4] = {0,0,0,0};
-
+  
   for (int ii = 0; ii < 4; ++ii)
     {
-      dudxstar_loc[ii] = (du_star.first)[q->gt (ii)];
-      dudystar_loc[ii] = (du_star.second)[q->gt (ii)];
-      u_loc[ii] = u[q->gt (ii)];
+      dudxstar_loc[ii] = (du_star.first)[q->gt(ii)];
+      dudystar_loc[ii] = (du_star.second)[q->gt(ii)];
+      u_loc[ii] = u[q->gt(ii)];
     }
-
+  
   auto fun =
     [x, y, dudxstar_loc, dudystar_loc, u_loc]
     (double X, double Y) -> double
@@ -695,11 +692,54 @@ zz_marker_grad (tmesh::quadrant_iterator q,
                 q1 (X, Y, x, y, dudystar_loc), 2) +
       std::pow (dudx (X, Y, x, y, u_loc) -
                 q1 (X, Y, x, y, dudxstar_loc), 2);
-      return err;
+    };
+  
+  return std::sqrt(quad_integral (x, y, fun));
+}
+
+// Refinement marker function based on ZZ estimator
+// for the recovered gradient du*.
+int 
+zz_marker_grad (tmesh::quadrant_iterator q,
+                const gradient & du_star,
+                const q1_vec & u,
+                double limit)
+{
+  return estimator_grad(q, du_star, u) > limit ? 1 : 0;
+}
+
+// Compute ||u^* - u||_L^2(q).
+double estimator_sol(tmesh::quadrant_iterator q,
+                     const q2_vec & ustar,
+                     const q1_vec & u)
+{
+  double
+    x[2] = {q->p(0,0), q->p(0,1)},
+    y[2] = {q->p(1,0), q->p(1,3)};
+
+  double ustar_loc[9] = {0,0,0,0,0,0,0,0,0};
+  double u_loc[4] = {0,0,0,0};
+
+  for (int ii = 0; ii < 9; ++ii)
+    {
+      ustar_loc[ii] = (ustar[q->get_global_quad_idx()])[ii];
+    }
+  
+  for (int ii = 0; ii < 4; ++ii)
+    {
+      u_loc[ii] = u[q->gt(ii)];
+    }
+
+  auto fun =
+    [x, y, ustar_loc, u_loc]
+    (double X, double Y) -> double
+    {
+      double err =
+      std::pow (q1 (X, Y, x, y, u_loc) -
+                q2 (X, Y, x, y, ustar_loc), 2);
     };
     
-  double err = std::sqrt (quad_integral (x, y, fun));
-  return err > limit ? 1 : 0;
+  return std::sqrt(quad_integral (x, y, fun));
 }
 
 // Refinement marker function based on ZZ estimator
@@ -710,34 +750,6 @@ zz_marker_sol (tmesh::quadrant_iterator q,
                const q1_vec & u,
                double limit)
 {
-  double
-    x[2] = {q->p (0,0), q->p (0,1)},
-    y[2] = {q->p (1,0), q->p (1,3)};
-
-  double ustar_loc[9] = {0,0,0,0,0,0,0,0,0};
-  double u_loc[4] = {0,0,0,0};
-
-  for (int ii = 0; ii < 9; ++ii)
-    {
-      ustar_loc[ii] = (ustar[q->get_global_quad_idx ()])[ii];
-    }
-  
-  for (int ii = 0; ii < 4; ++ii)
-    {
-      u_loc[ii] = u[q->gt (ii)];
-    }
-
-  auto fun =
-    [x, y, ustar_loc, u_loc]
-    (double X, double Y) -> double
-    {
-      double err =
-      std::pow (q1 (X, Y, x, y, u_loc) -
-                q2 (X, Y, x, y, ustar_loc), 2);
-      return err;
-    };
-    
-  double err = std::sqrt (quad_integral (x, y, fun));
-  return err > limit ? 1 : 0;
+  return estimator_sol(q, ustar, u) > limit ? 1 : 0;
 }
 

@@ -259,7 +259,7 @@ if HAVE_P4EST
   p4est_estimator_test_1_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_estimator_test_1_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_estimator_test_1_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_estimator_test_1*.octbin.gz p4est_estimator_test_1.pvtu p4est_estimator_test_1.visit p4est_estimator_test_1*.vtu
+  CLEANFILES += p4est_estimator_test_1*.octbin.gz p4est_estimator_test_1*.pvtu p4est_estimator_test_1*.visit p4est_estimator_test_1*.vtu
 
   p4est_up_test_SOURCES =  p4est_up_test.cpp 
   p4est_up_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
