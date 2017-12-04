@@ -265,13 +265,13 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u)
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
     {
-      hx = quadrant->p (0, 1) - quadrant->p (0, 0);
-      hy = quadrant->p (1, 2) - quadrant->p (1, 0);
-      
       // Loop over vertices of current quadrant that
       // are non-hanging and have not been processed yet.
       for (int node = 0; node < 4; ++node)
         {
+          hx = quadrant->p (0, 1) - quadrant->p (0, 0);
+          hy = quadrant->p (1, 2) - quadrant->p (1, 0);
+      
           if (quadrant->is_hanging (node) ||
               assigned[quadrant->gt (node)])
             continue;
@@ -312,7 +312,7 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u)
           
           weights_x.push_back (1 / hx);
           weights_y.push_back (1 / hy);
-           
+          
           // Loop over face neighbors of current quadrant.
           for (auto neighbor = quadrant->begin_neighbor_sweep ();
                neighbor != quadrant->end_neighbor_sweep ();
