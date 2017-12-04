@@ -29,14 +29,6 @@
 #include <vector>
 
 
-struct
-tmesh_qdata_t
-{
-  bool is_hanging[4];
-  p4est_locidx_t t[8];
-  p4est_gloidx_t qid;
-};
-
 /// C++ interface class for p4est 2d quadrant meshes.
 class
 tmesh
