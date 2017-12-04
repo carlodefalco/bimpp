@@ -42,27 +42,20 @@ doping_driven_refinement (tmesh::quadrant_iterator quadrant)
 }
 
 static int
-coarsen_right_half (std::function<void (tmesh::idx_t, tmesh::quadrant_iterator&)> next)
+coarsen_right_half (tmesh::quadrant_iterator quadrant)
 {
-
   constexpr double L = 3.0e-6;
   constexpr double H = 1.0e-5;
 
   double minx = std::numeric_limits<double>::max ();
   double xcoord, ycoord;
-
-  tmesh::quadrant_iterator qi;
   
-  for (tmesh::idx_t ii = 0; ii < 4; ++ii)
+  for (tmesh::idx_t jj = 0; jj < 4; ++jj)
     {
-      next (ii, qi);
-      for (tmesh::idx_t jj = 0; jj < 4; ++jj)
-        {
-          xcoord = qi->p(0, jj);
-          minx = minx > xcoord ? xcoord : minx;
-        }
+      xcoord = quadrant->p(0, jj);
+      minx = minx > xcoord ? xcoord : minx;
     }
-
+  
   return (minx > L/2.0 ? 1 : 0);
   
 }

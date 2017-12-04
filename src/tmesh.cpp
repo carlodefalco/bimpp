@@ -11,19 +11,6 @@
 #include <tmesh.h>
 #include <array>
 
-static void
-dummy_init_fn (p4est_t *p4est,
-               p4est_topidx_t which_tree,
-               p4est_quadrant_t *quadrant)
-{
-  tmesh_qdata_t *data =
-    (tmesh_qdata_t*) quadrant->p.user_data;
-  for (int i = 0; i < 8; ++i)
-    data->t[i] = 0;
-  data->qid = 0;
-};
-
-
 double
 tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj) 
 {
@@ -229,6 +216,8 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
               if (pbuff[2*i] != -1
                   || pbuff[2*i+1] != -1)
                 hbuff[i] = true;
+              else
+                hbuff[i] = false;
             }
         }
     }
@@ -483,12 +472,7 @@ tmesh::read_connectivity (const char *filename,
     octbingz2connectivity (filename, &conn);
   
   conn = p4est_connectivity_bcast (conn, source, comm);
-  // p4est = p4est_new (comm, conn, 0, NULL, NULL);
-  p4est = p4est_new (comm, conn,
-                     sizeof (tmesh_qdata_t),
-                     dummy_init_fn, (void *) this);
-
-
+  p4est = p4est_new (comm, conn, 0, NULL, NULL);
 };
 
 void
@@ -503,10 +487,7 @@ tmesh::read_connectivity (const double *p,
                          t, num_trees, &conn);
   
   conn = p4est_connectivity_bcast (conn, source, comm);
-  // p4est = p4est_new (comm, conn, 0, NULL, NULL);
-  p4est = p4est_new (comm, conn,
-                     sizeof (tmesh_qdata_t),
-                     dummy_init_fn, (void *) this);
+  p4est = p4est_new (comm, conn, 0, NULL, NULL);
   p4est->user_pointer = this;
 
 };
@@ -662,6 +643,7 @@ tmesh::refine (int recursive, int partforcoarsen)
 {
   quadrant_iterator qi (&current_quadrant);
   qi.reset ();
+  
   p4est_refine (p4est, recursive, refine_callback, nullptr);
   p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
   p4est_partition (p4est, partforcoarsen, nullptr);
@@ -679,16 +661,15 @@ tmesh::refine (int recursive, int partforcoarsen)
 void
 tmesh::coarsen (int recursive, int partforcoarsen)
 {
-  int *ud;
+  // Fill quadrant user_int.
   for (auto q = begin_quadrant_sweep ();
        q != end_quadrant_sweep ();
        ++q)
     {
-      ud = (int *) (q->the_quadrant->p.user_int);
-      (*ud) = coarsen_marker_2 (this, q);
+      q->the_quadrant->p.user_int = coarsen_marker (q);
     }
   
-  p4est_coarsen (p4est, recursive, coarsen_callback_2, nullptr);
+  p4est_coarsen (p4est, recursive, coarsen_callback, nullptr);
   p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
   p4est_partition (p4est, partforcoarsen, nullptr);
 
@@ -788,9 +769,9 @@ tmesh::update_ghosts ()
                      MPI_CHAR, i, tag, comm, &req);
           req_s.push_back(req);
           
-          std::cout << "Rank " << rank
+          /*std::cout << "Rank " << rank
                     << " is sending mirrors to rank "
-                    << i << "." << std::endl;
+                    << i << "." << std::endl;*/
         }
       
       mirror_begin = mirror_end;
@@ -820,9 +801,9 @@ tmesh::update_ghosts ()
                      MPI_CHAR, i, tag, comm, &req);
           req_s.push_back(req);
           
-          std::cout << "Rank " << rank
+          /*std::cout << "Rank " << rank
                     << " is receiving ghosts from rank "
-                    << i << "." << std::endl;
+                    << i << "." << std::endl;*/
         }
       
       ghost_begin += chunk_len * n_ghosts;
@@ -837,8 +818,10 @@ tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt,
                         p4est_quadrant_t* qq)
 {
   tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
-  tm->current_quadrant.update (tt, qq);
+  
   quadrant_iterator qi (&(tm->current_quadrant));
+  qi->update (tt, qq);
+  
   int ret = tm->refine_marker (qi);
   ++qi;
   return ret;
@@ -846,32 +829,11 @@ tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt,
 
 int
 tmesh::coarsen_callback (p4est_t* p4, p4est_topidx_t tt,
-                         p4est_quadrant_t* qq[])
-{
-  tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
-  auto fun = [tm, tt, qq] (idx_t ii) -> quadrant_iterator
-    { return select_quad (tm, tt, qq, ii); };
-  return tm->coarsen_marker (fun);
-};
-
-int
-tmesh::coarsen_callback_2 (p4est_t* p4, p4est_topidx_t tt,
-                         p4est_quadrant_t* qq[])
+                         p4est_quadrant_t* qq [])
 {
   return (qq[0]->p.user_int == 1
           && qq[1]->p.user_int == 1
           && qq[2]->p.user_int == 1
-          && qq[3]->p.user_int == 1)
+          && qq[3]->p.user_int == 1);
 };
 
-
-tmesh::quadrant_iterator
-tmesh::select_quad (tmesh *_tmesh,
-                    p4est_topidx_t tree_idx,
-                    p4est_quadrant_t* qt [],
-                    idx_t ii)
-{
-  quadrant_iterator qi (&(_tmesh->current_quadrant));
-  qi->update (tree_idx, qt[ii]);
-  return qi;
-};

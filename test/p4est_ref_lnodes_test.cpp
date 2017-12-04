@@ -47,28 +47,24 @@ doping_driven_refinement (tmesh::quadrant_iterator quadrant,
 }
 
 static int
-coarsen_right_half (std::function<tmesh::quadrant_iterator (tmesh::idx_t)> next,
+coarsen_right_half (tmesh::quadrant_iterator quadrant,
                     const std::vector<double> &xcoord)
 {
   double left = L;
-  tmesh::quadrant_iterator qi;
-  for (tmesh::idx_t ii = 0; ii < 4; ++ii)
+  
+  for (int ii = 0; ii < 4; ++ii)
     {
-      qi = next (ii);
-      auto ud = (tmesh_qdata_t *) (qi->the_quadrant->p.user_data);
-      for (int jj = 0; jj < 4; ++jj)
-        {
-          double tmp = 0;
-          
-          if (! ud->is_hanging[ii])
-            tmp = xcoord[ud->t[ii]];
-          else
-            tmp = (xcoord[ud->t[ii]] +
-                   xcoord[ud->t[ii+4]]) / 2.;
+      double tmp = 0;
+      
+      if (! quadrant->is_hanging(ii))
+        tmp = xcoord[quadrant->t(ii)];
+      else
+        tmp = (xcoord[quadrant->parent(0, ii)] +
+               xcoord[quadrant->parent(1, ii)]) / 2.;
 
-          left  = left > tmp ? tmp : left;   
-        }     
+      left = left > tmp ? tmp : left;
     }
+  
   return (left > L/2.0 ? 1 : 0);
 }
 
@@ -152,9 +148,9 @@ main (int argc, char **argv)
           
           auto
             coamark = [&xcoord]
-            (std::function<tmesh::quadrant_iterator (tmesh::idx_t)> next) -> int
+            (tmesh::quadrant_iterator quadrant) -> int
             {
-              return coarsen_right_half (next, xcoord);
+              return coarsen_right_half (quadrant, xcoord);
             };
       
           tmsh.set_coarsen_marker (coamark);
