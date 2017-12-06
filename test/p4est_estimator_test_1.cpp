@@ -62,7 +62,10 @@ main (int argc, char **argv)
   
   tmsh.vtk_export ("p4est_estimator_test_1");
   
-  for (int adapt = 0; adapt < 7; ++adapt)
+  double delta1 = 1.5;
+  double delta2 = 0.5;
+  
+  for (int adapt = 0; adapt < 15; ++adapt)
     {
       std::cout << "*** Step " << adapt << " ***" << std::endl;
       
@@ -160,24 +163,36 @@ main (int argc, char **argv)
       gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
       q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du);
       
-      auto refine_fun = [& du, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
-        { return zz_marker_grad (q, du, global_rhs,
-                                 1e-2 / std::sqrt(tmsh.num_global_nodes())); };
-      
-      auto refine_fun_sol = [& u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
-        { return zz_marker_sol (q, u_star, global_rhs,
-                                 1e-4 / std::sqrt(tmsh.num_global_nodes())); };
-      
       tmsh.octbin_export ((std::string("p4est_estimator_test_1_du_x_")
                            + std::to_string(adapt)).c_str(), du.first);
       tmsh.octbin_export ((std::string("p4est_estimator_test_1_du_y_")
                            + std::to_string(adapt)).c_str(), du.first);
       
-      // Refine according to refine_fun.
-      tmsh.set_refine_marker (refine_fun_sol);
-      tmsh.refine (recursive, partforcoarsen);
+      auto refine_fun = [& delta1, & du, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
+        { return zz_marker_grad (q, du, global_rhs,
+                                 delta1 * 1e-5 / std::sqrt(tmsh.num_global_nodes())); };
       
-      tmsh.vtk_export ((std::string("p4est_estimator_test_1_refined_")
+      /*auto refine_fun_sol = [& u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
+        { return zz_marker_sol (q, u_star, global_rhs,
+                                 1e-4 / std::sqrt(tmsh.num_global_nodes())); };*/
+      
+      auto coarsen_fun = [& delta2, & du, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
+        { return !zz_marker_grad (q, du, global_rhs,
+                                  delta2 * 1e-5 / std::sqrt(tmsh.num_global_nodes())); };
+      
+      // Refine or coarsen.
+      if ((adapt % 2) == 1)
+        {
+          tmsh.set_refine_marker (refine_fun);
+          tmsh.refine (recursive, partforcoarsen);
+        }
+      else
+        {
+          tmsh.set_coarsen_marker (coarsen_fun);
+          tmsh.coarsen (recursive, partforcoarsen);
+        }
+      
+      tmsh.vtk_export ((std::string("p4est_estimator_test_1_newmesh_")
                         + std::to_string(adapt)).c_str());
       std::cout << " Done." << std::endl;
     }
