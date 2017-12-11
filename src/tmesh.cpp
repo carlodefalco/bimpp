@@ -332,6 +332,9 @@ tmesh::quadrant_t::gt (tmesh::idx_t i)
 {
   if (! is_ghost)
     {
+      if (the_tmesh->mesh == nullptr)
+        the_tmesh->update ();
+      
       return p4est_lnodes_global_index
         (the_tmesh->lnodes,
          static_cast<p4est_locidx_t> (tbuff[i]));
