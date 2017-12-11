@@ -59,7 +59,6 @@ zz_marker_grad (tmesh::quadrant_iterator q,
                 const q1_vec& u,
                 double limit);
 
-
 double
 estimator_sol (tmesh::quadrant_iterator q,
                const q2_vec & ustar,
@@ -70,5 +69,10 @@ zz_marker_sol (tmesh::quadrant_iterator q,
                const q2_vec& ustar,
                const q1_vec& u,
                double limit);
+
+double
+l2_error (tmesh::quadrant_iterator q,
+          const func & u_ex,
+          const q1_vec & u);
 
 #endif

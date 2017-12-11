@@ -755,7 +755,7 @@ double estimator_grad(tmesh::quadrant_iterator q,
     [x, y, dudxstar_loc, dudystar_loc, u_loc]
     (double X, double Y) -> double
     {
-      double err =
+      return
       std::pow (dudy (X, Y, x, y, u_loc) -
                 q1 (X, Y, x, y, dudystar_loc), 2) +
       std::pow (dudx (X, Y, x, y, u_loc) -
@@ -802,7 +802,7 @@ double estimator_sol(tmesh::quadrant_iterator q,
     [x, y, ustar_loc, u_loc]
     (double X, double Y) -> double
     {
-      double err =
+      return
       std::pow (q1 (X, Y, x, y, u_loc) -
                 q2 (X, Y, x, y, ustar_loc), 2);
     };
@@ -819,5 +819,34 @@ zz_marker_sol (tmesh::quadrant_iterator q,
                double limit)
 {
   return estimator_sol(q, ustar, u) > limit ? 1 : 0;
+}
+
+// Compute ||u - u_ex||_L^2(q).
+double
+l2_error (tmesh::quadrant_iterator q,
+          const func & u_ex,
+          const q1_vec & u)
+{
+  double
+    x[2] = {q->p(0,0), q->p(0,1)},
+    y[2] = {q->p(1,0), q->p(1,3)};
+
+  double u_loc[4] = {0,0,0,0};
+
+  for (int ii = 0; ii < 4; ++ii)
+    {
+      u_loc[ii] = u[q->gt(ii)];
+    }
+
+  auto fun =
+    [x, y, u_ex, u_loc]
+    (double X, double Y) -> double
+    {
+      return q1 (X, Y, x, y, u_loc);
+      std::pow (q1 (X, Y, x, y, u_loc) -
+                u_ex (X, Y), 2);
+    };
+    
+  return std::sqrt(quad_integral (x, y, fun));
 }
 
