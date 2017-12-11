@@ -604,6 +604,9 @@ tmesh::quadrant_iterator::reset ()
       data->tree_quad_idx    = 0;
       data->forest_quad_idx  = 0;
       
+      data->is_ghost = false;
+      data->qtq = -1;
+      
       if (data->tree_idx != -1)
         {
           data->tree             =
