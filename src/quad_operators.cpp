@@ -842,7 +842,7 @@ l2_error (tmesh::quadrant_iterator q,
     [x, y, u_ex, u_loc]
     (double X, double Y) -> double
     {
-      return q1 (X, Y, x, y, u_loc);
+      return
       std::pow (q1 (X, Y, x, y, u_loc) -
                 u_ex (X, Y), 2);
     };
