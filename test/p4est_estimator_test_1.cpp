@@ -171,7 +171,7 @@ main (int argc, char **argv)
       tmsh.octbin_export ((std::string("p4est_estimator_test_1_du_x_")
                            + std::to_string(adapt)).c_str(), du.first);
       tmsh.octbin_export ((std::string("p4est_estimator_test_1_du_y_")
-                           + std::to_string(adapt)).c_str(), du.first);
+                           + std::to_string(adapt)).c_str(), du.second);
       
       auto refine_fun = [& delta1, & du, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         { return zz_marker_grad (q, du, global_rhs,
