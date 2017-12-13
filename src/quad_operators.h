@@ -41,7 +41,8 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
 
 gradient
 bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
-                                       const q1_vec& u);
+                                       const q1_vec& u,
+                                       const p4est_topidx_t & tree_idx = -1);
 
 q2_vec
 bim2c_quadtree_pde_recovered_solution (tmesh& mesh,

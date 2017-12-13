@@ -248,11 +248,14 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
 }
 
 gradient
-bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u)
+bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
+                                       const q1_vec& u,
+                                       const p4est_topidx_t & tree_idx)
 {
   std::vector<double> du_x_star (mesh.num_global_nodes (), 0);
   std::vector<double> du_y_star (mesh.num_global_nodes (), 0);  
-  std::vector<bool> assigned (mesh.num_global_nodes (), false);
+  std::vector<bool> assigned_x (mesh.num_global_nodes (), false);
+  std::vector<bool> assigned_y (mesh.num_global_nodes (), false);
   
   double hx = 0, hy = 0;
   
@@ -273,7 +276,12 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u)
           hy = quadrant->p (1, 2) - quadrant->p (1, 0);
       
           if (quadrant->is_hanging (node) ||
-              assigned[quadrant->gt (node)])
+              (assigned_x[quadrant->gt (node)] &&
+               assigned_y[quadrant->gt (node)]))
+            continue;
+          
+          // Skip quadrants from a different tree.
+          if (tree_idx != -1 && quadrant->get_tree_idx() != tree_idx)
             continue;
           
           du_x.clear (); weights_x.clear ();
@@ -321,6 +329,10 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u)
               // Skip missing neighbors.
               if (neighbor->get_global_quad_idx () ==
                   quadrant->get_global_quad_idx ())
+                continue;
+              
+              // Skip neighbors from a different tree.
+              if (tree_idx != -1 && neighbor->get_tree_idx() != tree_idx)
                 continue;
               
               // Check if neighbor contains current vertex ("node").
@@ -389,6 +401,10 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u)
                   // Skip missing neighbors.
                   if (neighbor->get_global_quad_idx () ==
                       quadrant->get_global_quad_idx ())
+                    continue;
+                  
+                  // Skip neighbors from a different tree.
+                  if (tree_idx != -1 && neighbor->get_tree_idx() != tree_idx)
                     continue;
                   
                   // Check if neighbor contains the opposite vertex
@@ -465,6 +481,10 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u)
                       quadrant->get_global_quad_idx ())
                     continue;
                   
+                  // Skip neighbors from a different tree.
+                  if (tree_idx != -1 && neighbor->get_tree_idx() != tree_idx)
+                    continue;
+                  
                   // Check if neighbor contains the opposite vertex
                   // of the vertical side containing "node".
                   switch (node)
@@ -529,10 +549,11 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u)
           
           assert (du_x.size () <= 2 && du_y.size () <= 2);
           
-          if (du_x.size () < 2 || du_y.size () < 2)
-            continue;
-          else
-            assigned[quadrant->gt (node)] = true;
+          if (du_x.size () == 2)
+            assigned_x[quadrant->gt (node)] = true;
+          
+          if (du_y.size () == 2)
+            assigned_y[quadrant->gt (node)] = true;
           
           for (unsigned int ix = 0; ix < du_x.size (); ++ix)
             {
