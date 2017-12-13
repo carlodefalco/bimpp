@@ -38,6 +38,8 @@ static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return 1; }
 
+static constexpr unsigned refine_steps = 15;
+
 int
 main (int argc, char **argv)
 {
@@ -62,10 +64,13 @@ main (int argc, char **argv)
   
   tmsh.vtk_export ("p4est_estimator_test_1");
   
+  std::array<tmesh::idx_t, refine_steps> nnodes;
+  std::array<double, refine_steps> error;
+  
   double delta1 = 1.5;
   double delta2 = 0.5;
   
-  for (int adapt = 0; adapt < 15; ++adapt)
+  for (int adapt = 0; adapt < refine_steps; ++adapt)
     {
       std::cout << "*** Step " << adapt << " ***" << std::endl;
       
@@ -180,6 +185,20 @@ main (int argc, char **argv)
         { return !zz_marker_grad (q, du, global_rhs,
                                   delta2 * 1e-5 / std::sqrt(tmsh.num_global_nodes())); };
       
+      // Compute error.
+      double err = 0, global_err = 0;
+      
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep ();
+           ++quadrant)
+          err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
+      
+      MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      global_err = std::sqrt(global_err);
+      
+      nnodes[adapt] = tmsh.num_global_nodes();
+      error [adapt] = global_err;
+      
       // Refine or coarsen.
       if ((adapt % 2) == 1)
         {
@@ -196,6 +215,12 @@ main (int argc, char **argv)
                         + std::to_string(adapt)).c_str());
       std::cout << " Done." << std::endl;
     }
+  
+  if (rank == 0)
+    for (unsigned step = 0; step < refine_steps; ++step)
+      std::cout << "Step " << step << ", #nodes: "
+                << nnodes[step] << ", error: "
+                << error[step] << std::endl;
   
   MPI_Finalize ();
   
