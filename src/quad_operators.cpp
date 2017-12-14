@@ -247,6 +247,15 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
     }
 }
 
+// MPI_User_function.
+static void replace(double *invec, double *inoutvec,
+                    int *len, MPI_Datatype *dtype)
+{
+  for (int i = 0; i < *len; ++i)
+    if (invec[i] != 0 && inoutvec[i] == 0)
+      inoutvec[i] = invec[i];
+}
+
 gradient
 bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                                        const q1_vec& u,
@@ -550,34 +559,54 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
           assert (du_x.size () <= 2 && du_y.size () <= 2);
           
           if (du_x.size () == 2)
-            assigned_x[quadrant->gt (node)] = true;
+            {
+              assigned_x[quadrant->gt (node)] = true;
+              
+              for (unsigned int ix = 0; ix < du_x.size (); ++ix)
+                {
+                  du_x_star[quadrant->gt (node)] +=
+                    du_x[ix] * weights_x[ix];
+                }
+              
+              du_x_star[quadrant->gt (node)] /=
+                std::accumulate (weights_x.begin (),
+                                 weights_x.end (), 0.0);
+            }
           
           if (du_y.size () == 2)
-            assigned_y[quadrant->gt (node)] = true;
-          
-          for (unsigned int ix = 0; ix < du_x.size (); ++ix)
             {
-              du_x_star[quadrant->gt (node)] +=
-                du_x[ix] * weights_x[ix];
+              assigned_y[quadrant->gt (node)] = true;
+              
+              for (unsigned int iy = 0; iy < du_y.size (); ++iy)
+                {
+                  du_y_star[quadrant->gt (node)] +=
+                    du_y[iy] * weights_y[iy];
+                }
+              
+              du_y_star[quadrant->gt (node)] /=
+                std::accumulate (weights_y.begin (),
+                                 weights_y.end (), 0.0);
             }
-          
-          du_x_star[quadrant->gt (node)] /=
-            std::accumulate (weights_x.begin (),
-                             weights_x.end (), 0.0);
-          
-          for (unsigned int iy = 0; iy < du_y.size (); ++iy)
-            {
-              du_y_star[quadrant->gt (node)] +=
-                du_y[iy] * weights_y[iy];
-            }
-          
-          du_y_star[quadrant->gt (node)] /=
-            std::accumulate (weights_y.begin (),
-                             weights_y.end (), 0.0);
         }
     }
   
-  return std::make_pair (du_x_star, du_y_star);
+  // Send data to all processes so that non-assigned values
+  // on current rank get assigned by other ranks.
+  std::vector<double> du_x_star_global (mesh.num_global_nodes (), 0);
+  std::vector<double> du_y_star_global (mesh.num_global_nodes (), 0);
+  
+  MPI_Op op;
+  MPI_Op_create((MPI_User_function *) replace, 1, &op);
+  
+  MPI_Allreduce(du_x_star.data(), du_x_star_global.data(),
+                du_x_star.size(), MPI_DOUBLE,
+                op, MPI_COMM_WORLD);
+  
+  MPI_Allreduce(du_y_star.data(), du_y_star_global.data(),
+                du_y_star.size(), MPI_DOUBLE,
+                op, MPI_COMM_WORLD);
+  
+  return std::make_pair (du_x_star_global, du_y_star_global);
 }
 
 q2_vec
