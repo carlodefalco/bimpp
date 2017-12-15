@@ -38,7 +38,7 @@ static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return 1; }
 
-static constexpr unsigned refine_steps = 15;
+static constexpr unsigned refine_steps = 20;
 
 int
 main (int argc, char **argv)
@@ -79,7 +79,7 @@ main (int argc, char **argv)
       A.resize(tmsh.num_global_nodes());
       M.resize(tmsh.num_global_nodes());
       
-      double epsilon = 1e-3;
+      double epsilon = 1e-5;
       std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
       std::vector<double> psi(tmsh.num_local_nodes (), 0);
       
@@ -175,7 +175,7 @@ main (int argc, char **argv)
       
       auto refine_fun = [& delta1, & du, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         { return zz_marker_grad (q, du, global_rhs,
-                                 delta1 * 1e-5 / std::sqrt(tmsh.num_global_nodes())); };
+                                 delta1 * 1e-10 / std::sqrt(tmsh.num_global_nodes())); };
       
       /*auto refine_fun_sol = [& u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         { return zz_marker_sol (q, u_star, global_rhs,
@@ -183,7 +183,7 @@ main (int argc, char **argv)
       
       auto coarsen_fun = [& delta2, & du, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         { return !zz_marker_grad (q, du, global_rhs,
-                                  delta2 * 1e-5 / std::sqrt(tmsh.num_global_nodes())); };
+                                  delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes())); };
       
       // Compute error.
       double err = 0, global_err = 0;
