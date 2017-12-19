@@ -6,6 +6,12 @@
 #include <numeric>
 #include <set>
 
+double
+hm (const double & a, const double & b)
+{
+  return 2 / (1 / a + 1 / b);
+}
+
 void 
 bim2a_advection_diffusion (tmesh& mesh,
                            const std::vector<double>& alpha,
@@ -58,6 +64,100 @@ bim2a_advection_diffusion (tmesh& mesh,
       bm32 *= alpha[iel] * hy / (2 * hx);
       bp20 *= alpha[iel] * hx / (2 * hy);
       bm20 *= alpha[iel] * hx / (2 * hy);
+      
+      Aloc[0] = { bm01 + bp20, -bp01,        -bm20,         0          };
+      Aloc[1] = {-bm01,         bp01 + bm13,  0,           -bp13       };
+      Aloc[2] = {-bp20,         0,            bp32 + bm20, -bm32       };
+      Aloc[3] = { 0,           -bm13,        -bp32,         bm32 + bp13};
+      
+      for(int i = 0; i < 4; ++i)
+        {
+          rows.clear();
+          
+          if (!quadrant->is_hanging(i))
+            rows.push_back (quadrant->gt(i));
+          else
+            {
+              rows.push_back (quadrant->gparent(0, i));
+              rows.push_back (quadrant->gparent(1, i));
+            }
+          
+          for(int j = 0; j < 4; ++j)
+            {
+              cols.clear();
+              
+              if (!quadrant->is_hanging(j))
+                cols.push_back (quadrant->gt(j));
+              else
+                {
+                  cols.push_back (quadrant->gparent(0, j));
+                  cols.push_back (quadrant->gparent(1, j));
+                }
+              
+              for (int r = 0; r < rows.size(); ++r)
+                for (int c = 0; c < cols.size(); ++c)
+                  {
+                    A[rows[r]][cols[c]] += Aloc[i][j] /
+                      (rows.size() * cols.size());
+                  }
+            }
+        }
+    }
+}
+
+void 
+bim2a_advection_eafe_diffusion (tmesh& mesh,
+                                const std::vector<double>& alpha,
+                                const std::vector<double>& psi,
+                                sparse_matrix& A)
+{
+  
+  double psi01 = 0;
+  double psi13 = 0;
+  double psi32 = 0;
+  double psi20 = 0;
+  
+  double bp01 = 0, bm01 = 0;
+  double bp13 = 0, bm13 = 0;
+  double bp32 = 0, bm32 = 0;
+  double bp20 = 0, bm20 = 0;
+  
+  double hx = 0, hy = 0;
+  
+  std::array<std::array<double, 4>, 4> Aloc;
+  
+  unsigned int iel = 0;
+  std::vector<unsigned int> rows, cols;
+  rows.reserve(2);
+  cols.reserve(2);
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      psi01 = psi[quadrant->t(1)] - psi[quadrant->t(0)];
+      psi13 = psi[quadrant->t(3)] - psi[quadrant->t(1)];
+      psi32 = psi[quadrant->t(2)] - psi[quadrant->t(3)];
+      psi20 = psi[quadrant->t(0)] - psi[quadrant->t(2)];
+      
+      bimu_bernoulli(psi01, bp01, bm01);
+      bimu_bernoulli(psi13, bp13, bm13);
+      bimu_bernoulli(psi32, bp32, bm32);
+      bimu_bernoulli(psi20, bp20, bm20);
+      
+      hx = quadrant->p(0, 1) - quadrant->p(0, 0);
+      hy = quadrant->p(1, 2) - quadrant->p(1, 0);
+      
+      iel = quadrant->get_forest_quad_idx();
+      
+      bp01 *= hm(alpha[quadrant->t(0)], alpha[quadrant->t(1)]) * hy / (2 * hx);
+      bm01 *= hm(alpha[quadrant->t(0)], alpha[quadrant->t(1)]) * hy / (2 * hx);
+      bp13 *= hm(alpha[quadrant->t(1)], alpha[quadrant->t(3)]) * hx / (2 * hy);
+      bm13 *= hm(alpha[quadrant->t(1)], alpha[quadrant->t(3)]) * hx / (2 * hy);
+      bp32 *= hm(alpha[quadrant->t(3)], alpha[quadrant->t(2)]) * hy / (2 * hx);
+      bm32 *= hm(alpha[quadrant->t(3)], alpha[quadrant->t(2)]) * hy / (2 * hx);
+      bp20 *= hm(alpha[quadrant->t(2)], alpha[quadrant->t(0)]) * hx / (2 * hy);
+      bm20 *= hm(alpha[quadrant->t(2)], alpha[quadrant->t(0)]) * hx / (2 * hy);
       
       Aloc[0] = { bm01 + bp20, -bp01,        -bm20,         0          };
       Aloc[1] = {-bm01,         bp01 + bm13,  0,           -bp13       };
