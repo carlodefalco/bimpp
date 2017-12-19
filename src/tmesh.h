@@ -321,15 +321,22 @@ public:
   (std::function<int (quadrant_iterator)> fun)
   { coarsen_marker = fun; };
 
+  /// Set functor to replace quadrants while being
+  /// refined or coarsened.
+  void
+  set_replace_fun
+  (std::function<std::vector<int> (std::vector<int>)> fun)
+  { replace_fun = fun; };
+
   /// Refine marked quadrants, balance the quadtree and
   /// re-partition over the processors.
   void
-  refine (int recursive = 0, int partforcoarsen = 1);
+  refine (int recursive = 0, int partforcoarsen = 1, int balance = 1);
 
   /// Coarsen marked quadrants, balance the quadtree and
   /// re-partition over the processors.
   void
-  coarsen (int recursive = 0, int partforcoarsen = 1);
+  coarsen (int recursive = 0, int partforcoarsen = 1, int balance = 1);
 
   /// Compute nodes numbering and quadrant neighbours.
   void
@@ -396,12 +403,18 @@ private:
   
   std::function<int (quadrant_iterator)> refine_marker;
   std::function<int (quadrant_iterator)> coarsen_marker;
+  std::function<std::vector<int> (std::vector<int>)> replace_fun;
 
   static int
   refine_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t*);
 
   static int
   coarsen_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t* []);
+
+  static void
+  replace_callback (p4est_t*, p4est_topidx_t,
+                    int, p4est_quadrant_t* [],
+                    int, p4est_quadrant_t* []);
 };
 
 /// TODO : class for distributed arrays
