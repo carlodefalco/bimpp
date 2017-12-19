@@ -643,13 +643,20 @@ tmesh::begin_quadrant_sweep ()
 };
 
 void
-tmesh::refine (int recursive, int partforcoarsen)
+tmesh::refine (int recursive, int partforcoarsen, int balance)
 {
   quadrant_iterator qi (&current_quadrant);
   qi.reset ();
   
-  p4est_refine (p4est, recursive, refine_callback, nullptr);
-  p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
+  if (replace_fun == nullptr)
+    p4est_refine (p4est, recursive, refine_callback, nullptr);
+  else
+    p4est_refine_ext (p4est, recursive, -1, refine_callback,
+                      nullptr, replace_callback);
+  
+  if (balance)
+    p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
+  
   p4est_partition (p4est, partforcoarsen, nullptr);
   
   if (! (lnodes == nullptr)) p4est_lnodes_destroy (lnodes);
@@ -663,7 +670,7 @@ tmesh::refine (int recursive, int partforcoarsen)
 }
 
 void
-tmesh::coarsen (int recursive, int partforcoarsen)
+tmesh::coarsen (int recursive, int partforcoarsen, int balance)
 {
   // Fill quadrant user_int.
   for (auto q = begin_quadrant_sweep ();
@@ -673,8 +680,15 @@ tmesh::coarsen (int recursive, int partforcoarsen)
       q->the_quadrant->p.user_int = coarsen_marker (q);
     }
   
-  p4est_coarsen (p4est, recursive, coarsen_callback, nullptr);
-  p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
+  if (replace_fun == nullptr)
+    p4est_coarsen (p4est, recursive, coarsen_callback, nullptr);
+  else
+    p4est_coarsen_ext (p4est, recursive, 0, coarsen_callback,
+                       nullptr, replace_callback);
+  
+  if (balance)
+    p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
+  
   p4est_partition (p4est, partforcoarsen, nullptr);
 
   if (! (lnodes == nullptr)) p4est_lnodes_destroy (lnodes);
@@ -839,5 +853,28 @@ tmesh::coarsen_callback (p4est_t* p4, p4est_topidx_t tt,
           && qq[1]->p.user_int == 1
           && qq[2]->p.user_int == 1
           && qq[3]->p.user_int == 1);
+};
+
+void
+tmesh::replace_callback (p4est_t * p4,
+                         p4est_topidx_t tt,
+                         int num_outgoing,
+                         p4est_quadrant_t * outgoing[],
+                         int num_incoming,
+                         p4est_quadrant_t * incoming[])
+{
+  tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
+  
+  std::vector<int> old_userint(num_outgoing);
+  
+  for (size_t i = 0; i < num_outgoing; ++i)
+    old_userint[i] = outgoing[i]->p.user_int;
+  
+  std::vector<int> new_userint = tm->replace_fun(old_userint);
+  
+  for (size_t i = 0; i < num_incoming; ++i)
+    incoming[i]->p.user_int = new_userint[i];
+  
+  return;
 };
 
