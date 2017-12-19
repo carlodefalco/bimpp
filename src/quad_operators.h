@@ -11,17 +11,31 @@
 
 /// f(x, y).
 using func = std::function<double (double, double)>; 
+
 using dirichlet_bcs = std::vector<std::tuple<int, int, func>>;
+
 using q1_vec = std::vector<double>;
+
 using gradient = std::pair<q1_vec, q1_vec>;
+
 /// Nodes, faces, cell midpoint dofs.
 using q2_vec = std::vector<std::array<double, 9>>;
+
+// Compute harmonic mean of a and b.
+double
+hm (const double & a, const double & b);
 
 void
 bim2a_advection_diffusion (tmesh & mesh,
                            const std::vector<double>& alpha,
                            const std::vector<double>& psi,
                            sparse_matrix& A);
+
+void
+bim2a_advection_eafe_diffusion (tmesh & mesh,
+                                const std::vector<double>& alpha,
+                                const std::vector<double>& psi,
+                                sparse_matrix& A);
 
 void
 bim2a_reaction (tmesh& mesh,
