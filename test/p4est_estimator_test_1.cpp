@@ -38,7 +38,7 @@ static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return 1; }
 
-static constexpr unsigned refine_steps = 20;
+static constexpr unsigned refine_steps = 10;
 
 int
 main (int argc, char **argv)
@@ -56,6 +56,8 @@ main (int argc, char **argv)
 
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
+  
+  tmsh.set_replace_fun (tmesh::userint_replace);
   
   tmsh.set_refine_marker (uniform_refinement);
   recursive = 0; partforcoarsen = 1;
@@ -199,17 +201,12 @@ main (int argc, char **argv)
       nnodes[adapt] = tmsh.num_global_nodes();
       error [adapt] = global_err;
       
-      // Refine or coarsen.
-      if ((adapt % 2) == 1)
-        {
-          tmsh.set_refine_marker (refine_fun);
-          tmsh.refine (recursive, partforcoarsen);
-        }
-      else
-        {
-          tmsh.set_coarsen_marker (coarsen_fun);
-          tmsh.coarsen (recursive, partforcoarsen);
-        }
+      // Coarsen and refine.
+      tmsh.set_coarsen_marker (coarsen_fun);
+      tmsh.set_refine_marker (refine_fun);
+      
+      tmsh.coarsen (recursive, partforcoarsen, 0);
+      tmsh.refine (recursive, partforcoarsen);
       
       tmsh.vtk_export ((std::string("p4est_estimator_test_1_newmesh_")
                         + std::to_string(adapt)).c_str());
