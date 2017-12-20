@@ -313,13 +313,25 @@ public:
   void
   set_refine_marker
   (std::function<int (quadrant_iterator)> fun)
-  { refine_marker = fun; };
+    {
+      for (auto q = this->begin_quadrant_sweep ();
+           q != this->end_quadrant_sweep ();
+           ++q)
+        if (fun (q))
+          q->the_quadrant->p.user_int = fun (q);
+    };
 
   /// Set functor to mark quadrants for coarsening.
   void
   set_coarsen_marker
   (std::function<int (quadrant_iterator)> fun)
-  { coarsen_marker = fun; };
+    {
+      for (auto q = this->begin_quadrant_sweep ();
+           q != this->end_quadrant_sweep ();
+           ++q)
+        if (fun (q))
+          q->the_quadrant->p.user_int = -fun (q);
+    };
 
   /// Set functor to replace quadrants while being
   /// refined or coarsened.
@@ -383,6 +395,9 @@ public:
       return lnodes->num_local_elements;
   };
   
+  /// Replace fun based on quadrant user_int.
+  static std::vector<int> userint_replace(std::vector<int>);
+  
   /// P4EST pointers describing the tmesh,
   /// temporarily public until the API is stable.
   p4est_t              *p4est;
@@ -401,8 +416,6 @@ public:
   
 private:
   
-  std::function<int (quadrant_iterator)> refine_marker;
-  std::function<int (quadrant_iterator)> coarsen_marker;
   std::function<std::vector<int> (std::vector<int>)> replace_fun;
 
   static int

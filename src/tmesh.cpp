@@ -672,14 +672,6 @@ tmesh::refine (int recursive, int partforcoarsen, int balance)
 void
 tmesh::coarsen (int recursive, int partforcoarsen, int balance)
 {
-  // Fill quadrant user_int.
-  for (auto q = begin_quadrant_sweep ();
-       q != end_quadrant_sweep ();
-       ++q)
-    {
-      q->the_quadrant->p.user_int = coarsen_marker (q);
-    }
-  
   if (replace_fun == nullptr)
     p4est_coarsen (p4est, recursive, coarsen_callback, nullptr);
   else
@@ -831,28 +823,45 @@ tmesh::update_ghosts ()
   MPI_Waitall (req_s.size(), &(req_s[0]), &(stats[0]));
 };
 
+std::vector<int>
+tmesh::userint_replace (std::vector<int> old_userint)
+{
+  std::vector<int> new_userint;
+  
+  // Refinement.
+  if (old_userint.size () == 1)
+    {
+      new_userint.resize (4);
+      
+      for (size_t i = 0; i < new_userint.size (); ++i)
+        new_userint[i] = 0;
+    }
+  // Coarsening.
+  else if (old_userint.size () == 4)
+    {
+      new_userint.resize (1);
+      
+      new_userint[0] = 0;
+    }
+  
+  return new_userint;
+}
+
 int
 tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt,
                         p4est_quadrant_t* qq)
 {
-  tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
-  
-  quadrant_iterator qi (&(tm->current_quadrant));
-  qi->update (tt, qq);
-  
-  int ret = tm->refine_marker (qi);
-  ++qi;
-  return ret;
+  return (qq->p.user_int > 0);
 };
 
 int
 tmesh::coarsen_callback (p4est_t* p4, p4est_topidx_t tt,
                          p4est_quadrant_t* qq [])
 {
-  return (qq[0]->p.user_int == 1
-          && qq[1]->p.user_int == 1
-          && qq[2]->p.user_int == 1
-          && qq[3]->p.user_int == 1);
+  return (qq[0]->p.user_int < 0
+          && qq[1]->p.user_int < 0
+          && qq[2]->p.user_int < 0
+          && qq[3]->p.user_int < 0);
 };
 
 void
