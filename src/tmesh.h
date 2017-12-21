@@ -309,7 +309,7 @@ public:
   end_quadrant_sweep ()
   { return quadrant_iterator (); };
 
-  /// Set functor to mark quadrants for refinement.
+  /// Mark quadrants for refinement.
   void
   set_refine_marker
   (std::function<int (quadrant_iterator)> fun)
@@ -321,7 +321,7 @@ public:
           q->the_quadrant->p.user_int = fun (q);
     };
 
-  /// Set functor to mark quadrants for coarsening.
+  /// Mark quadrants for coarsening.
   void
   set_coarsen_marker
   (std::function<int (quadrant_iterator)> fun)
