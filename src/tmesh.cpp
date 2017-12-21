@@ -643,6 +643,27 @@ tmesh::begin_quadrant_sweep ()
 };
 
 void
+tmesh::set_metrics_marker
+        (std::function<double (tmesh::quadrant_iterator)> estimator,
+         double tol)
+{
+  double hxhat_hx = 0;
+  
+  for (auto quadrant = this->begin_quadrant_sweep ();
+       quadrant != this->end_quadrant_sweep ();
+       ++quadrant)
+    {
+      hxhat_hx = std::log2 (estimator(quadrant)
+                 * std::sqrt (this->num_global_quadrants ()) / tol);
+      
+      quadrant->the_quadrant->p.user_int =
+        std::min (std::max (0.0, std::ceil ( hxhat_hx) ), 4.0);
+    }
+  
+  return;
+}
+
+void
 tmesh::refine (int recursive, int partforcoarsen, int balance)
 {
   quadrant_iterator qi (&current_quadrant);
@@ -834,14 +855,15 @@ tmesh::userint_replace (std::vector<int> old_userint)
       new_userint.resize (4);
       
       for (size_t i = 0; i < new_userint.size (); ++i)
-        new_userint[i] = 0;
+        new_userint[i] = old_userint[0] - 1;
     }
   // Coarsening.
   else if (old_userint.size () == 4)
     {
       new_userint.resize (1);
       
-      new_userint[0] = 0;
+      new_userint[0] = *std::min_element(old_userint.begin(),
+                                         old_userint.end()) + 1;
     }
   
   return new_userint;
