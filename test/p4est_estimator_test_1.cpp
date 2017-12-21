@@ -38,7 +38,7 @@ static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return 1; }
 
-static constexpr unsigned refine_steps = 10;
+static constexpr unsigned refine_steps = 13;
 
 int
 main (int argc, char **argv)
