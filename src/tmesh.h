@@ -309,7 +309,7 @@ public:
   end_quadrant_sweep ()
   { return quadrant_iterator (); };
 
-  /// Mark quadrants for refinement.
+  /// Mark quadrants for refinement based on fun.
   void
   set_refine_marker
   (std::function<int (quadrant_iterator)> fun)
@@ -321,7 +321,7 @@ public:
           q->the_quadrant->p.user_int = fun (q);
     };
 
-  /// Mark quadrants for coarsening.
+  /// Mark quadrants for coarsening based on fun.
   void
   set_coarsen_marker
   (std::function<int (quadrant_iterator)> fun)
@@ -332,6 +332,10 @@ public:
         if (fun (q))
           q->the_quadrant->p.user_int = -fun (q);
     };
+  
+  /// Mark quadrants for refinement based on metrics.
+  void set_metrics_marker (std::function<double (quadrant_iterator)>,
+                           double);
 
   /// Set functor to replace quadrants while being
   /// refined or coarsened.
@@ -391,12 +395,19 @@ public:
   idx_t
   num_local_quadrants ()    
   {
-      if (! lnodes) update ();
-      return lnodes->num_local_elements;
+      return p4est->local_num_quadrants;
+  };
+
+  /// Return number of quadrants owned by all processes
+  /// across all trees
+  idx_t
+  num_global_quadrants ()    
+  {
+      return p4est->global_num_quadrants;
   };
   
   /// Replace fun based on quadrant user_int.
-  static std::vector<int> userint_replace(std::vector<int>);
+  static std::vector<int> userint_replace (std::vector<int>);
   
   /// P4EST pointers describing the tmesh,
   /// temporarily public until the API is stable.
