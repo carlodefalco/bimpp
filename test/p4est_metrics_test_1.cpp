@@ -12,7 +12,7 @@ static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return 1; }
 
-static constexpr unsigned refine_steps = 4;
+static constexpr unsigned refine_steps = 3;
 
 int
 main (int argc, char **argv)
@@ -163,11 +163,15 @@ main (int argc, char **argv)
       error [adapt] = global_err;
       
       // Refine.
-      tmsh.set_metrics_marker (estimator, 1e-2);
+      tmsh.set_metrics_marker (estimator, 1e-2, 4);
+      tmsh.metrics_refine ();
       
-      for (int i = 0; i < 4; ++i)
-        tmsh.refine (recursive, partforcoarsen);
-      
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep ();
+           ++quadrant)
+        //std::cout << quadrant->get_global_quad_idx() << " " << quadrant->the_quadrant->p.user_int << std::endl;
+        assert(quadrant->the_quadrant->p.user_int == 0);
+        
       tmsh.vtk_export ((std::string("p4est_metrics_test_1_newmesh_")
                         + std::to_string(adapt)).c_str());
       std::cout << " Done." << std::endl;
