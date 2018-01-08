@@ -645,8 +645,10 @@ tmesh::begin_quadrant_sweep ()
 void
 tmesh::set_metrics_marker
         (std::function<double (tmesh::quadrant_iterator)> estimator,
-         double tol)
+         double tol, int max_depth)
 {
+  this->metrics_max_depth = max_depth;
+  
   double hxhat_hx = 0;
   
   for (auto quadrant = this->begin_quadrant_sweep ();
@@ -657,7 +659,8 @@ tmesh::set_metrics_marker
                  * std::sqrt (this->num_global_quadrants ()) / tol);
       
       quadrant->the_quadrant->p.user_int =
-        std::min (std::max (0.0, std::ceil ( hxhat_hx) ), 4.0);
+        std::min (std::max (0.0, std::ceil (hxhat_hx) ),
+                  double (max_depth));
     }
   
   return;
@@ -688,6 +691,15 @@ tmesh::refine (int recursive, int partforcoarsen, int balance)
   
   if (! (ghost == nullptr)) p4est_ghost_destroy (ghost);
   ghost = nullptr;
+}
+
+void
+tmesh::metrics_refine ()
+{
+  for (int i = 0; i < metrics_max_depth - 1; ++i)
+    refine (0, 1, 0);
+  
+  refine (0, 1, 1);
 }
 
 void

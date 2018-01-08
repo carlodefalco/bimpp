@@ -335,7 +335,7 @@ public:
   
   /// Mark quadrants for refinement based on metrics.
   void set_metrics_marker (std::function<double (quadrant_iterator)>,
-                           double);
+                           double, int max_depth = 5);
 
   /// Set functor to replace quadrants while being
   /// refined or coarsened.
@@ -343,11 +343,15 @@ public:
   set_replace_fun
   (std::function<std::vector<int> (std::vector<int>)> fun)
   { replace_fun = fun; };
-
+  
   /// Refine marked quadrants, balance the quadtree and
   /// re-partition over the processors.
   void
   refine (int recursive = 0, int partforcoarsen = 1, int balance = 1);
+  
+  /// Refine marked quadrants based on metrics.
+  void
+  metrics_refine ();
 
   /// Coarsen marked quadrants, balance the quadtree and
   /// re-partition over the processors.
@@ -424,6 +428,8 @@ public:
   MPI_Comm comm;
   int      rank;
   int      size;
+  
+  int metrics_max_depth;
   
 private:
   
