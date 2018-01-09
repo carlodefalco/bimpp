@@ -88,14 +88,15 @@ main (int argc, char **argv)
       bim2a_rhs (tmsh, f, g, rhs);
       
       // Set boundary conditions.
-      func u_ex =
-        [epsilon] (double x, double y)
-        { return (1 - std::sinh(x / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))) *
-                 (1 - std::sinh(y / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))); };
-                 
+      func g1 = (double x, double y) { return 1; };
+      func g2 = (double x, double y) { return 1 - x * x; };
+      func g3 = (double x, double y) { return 1 - y * y; };
+      
       dirichlet_bcs bcs;
-      for (int i = 0; i < 4; ++i)
-        bcs.push_back (std::make_tuple(0, i, u_ex));
+      bcs.push_back (std::make_tuple(0, 0, g1));
+      bcs.push_back (std::make_tuple(0, 1, g2));
+      bcs.push_back (std::make_tuple(0, 2, g1));
+      bcs.push_back (std::make_tuple(0, 3, g3));
       
       bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
       
