@@ -9,36 +9,10 @@
 #include <cassert>
 
 static int
-top_refinement (tmesh::quadrant_iterator quadrant)
-{
-  double ycoord;
-  double bottom = std::numeric_limits<double>::max ();
-  for (int ii = 0; ii < 4; ++ii)
-  {
-    ycoord = quadrant->p(1, ii);
-    bottom = bottom > ycoord ? ycoord : bottom;
-  }
-  return ((bottom >= 0.9) ? 1 : 0);
-}
-
-static int
-right_refinement (tmesh::quadrant_iterator quadrant)
-{
-  double xcoord;
-  double left = std::numeric_limits<double>::max ();
-  for (int ii = 0; ii < 4; ++ii)
-  {
-    xcoord = quadrant->p(0, ii);
-    left = left > xcoord ? xcoord : left;
-  }
-  return ((left >= 0.9) ? 1 : 0);
-}
-
-static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return 1; }
 
-static constexpr unsigned refine_steps = 10;
+static constexpr unsigned refine_steps = 20;
 
 int
 main (int argc, char **argv)
