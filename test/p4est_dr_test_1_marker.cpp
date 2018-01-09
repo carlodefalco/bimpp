@@ -177,11 +177,11 @@ main (int argc, char **argv)
       
       auto refine_fun = [& delta1, & u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         { return zz_marker_sol (q, u_star, global_rhs,
-                                delta1 * 1e-6 / std::sqrt(tmsh.num_global_nodes())); };
+                                delta1 * 1e-10 / std::sqrt(tmsh.num_global_nodes())); };
       
       auto coarsen_fun = [& delta2, & u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         { return !zz_marker_sol (q, u_star, global_rhs,
-                                 delta2 * 1e-6 / std::sqrt(tmsh.num_global_nodes())); };
+                                 delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes())); };
       
       // Compute error.
       double err = 0, global_err = 0;
