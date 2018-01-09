@@ -154,7 +154,7 @@ main (int argc, char **argv)
         break;
       
       // Refine.
-      tmsh.set_metrics_marker (estimator, 1e-10, 4);
+      tmsh.set_metrics_marker (estimator, 1e-6, 4);
       tmsh.metrics_refine ();
       
       tmsh.vtk_export ((std::string("p4est_dr_test_2_metrics_newmesh_")
