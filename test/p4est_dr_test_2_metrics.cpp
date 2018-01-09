@@ -85,9 +85,9 @@ main (int argc, char **argv)
       bim2a_rhs (tmsh, f, g, rhs);
       
       // Set boundary conditions.
-      func g1 = (double x, double y) { return 1; };
-      func g2 = (double x, double y) { return 1 - x * x; };
-      func g3 = (double x, double y) { return 1 - y * y; };
+      func g1 = [] (double x, double y) { return 1; };
+      func g2 = [] (double x, double y) { return 1 - x * x; };
+      func g3 = [] (double x, double y) { return 1 - y * y; };
       
       dirichlet_bcs bcs;
       bcs.push_back (std::make_tuple(0, 0, g1));
