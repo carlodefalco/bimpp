@@ -12,7 +12,7 @@ static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return 1; }
 
-static constexpr unsigned refine_steps = 3;
+static constexpr unsigned refine_steps = 5;
 
 int
 main (int argc, char **argv)
@@ -163,7 +163,7 @@ main (int argc, char **argv)
       error [adapt] = global_err;
       
       // Refine.
-      tmsh.set_metrics_marker (estimator, 1e-2, 4);
+      tmsh.set_metrics_marker (estimator, 1e-2, 3);
       tmsh.metrics_refine ();
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
