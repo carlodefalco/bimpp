@@ -429,8 +429,6 @@ public:
   int      rank;
   int      size;
   
-  int metrics_max_depth;
-  
 private:
   
   std::function<std::vector<int> (std::vector<int>)> replace_fun;
@@ -445,6 +443,8 @@ private:
   replace_callback (p4est_t*, p4est_topidx_t,
                     int, p4est_quadrant_t* [],
                     int, p4est_quadrant_t* []);
+  
+  int metrics_max_depth;
 };
 
 /// TODO : class for distributed arrays
