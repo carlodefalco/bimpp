@@ -1,6 +1,7 @@
 # Directories.
 autom4te.cache/
 build/
+log/
 m4/
 test/output/
 
