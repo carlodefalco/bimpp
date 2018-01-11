@@ -53,6 +53,10 @@ void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     sparse_matrix& A, std::vector<double>& rhs);
 
+double
+nedelec_gradient (tmesh::quadrant_iterator & q,
+                  const q1_vec& u, size_t i);
+
 gradient
 bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                                        const q1_vec& u,
