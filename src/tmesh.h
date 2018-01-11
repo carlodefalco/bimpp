@@ -318,7 +318,7 @@ public:
            q != this->end_quadrant_sweep ();
            ++q)
         if (fun (q))
-          q->the_quadrant->p.user_int = fun (q);
+          q->the_quadrant->p.user_int = std::abs(fun (q));
     };
 
   /// Mark quadrants for coarsening based on fun.
@@ -330,7 +330,7 @@ public:
            q != this->end_quadrant_sweep ();
            ++q)
         if (fun (q))
-          q->the_quadrant->p.user_int = -fun (q);
+          q->the_quadrant->p.user_int = -std::abs(fun (q));
     };
   
   /// Mark quadrants for refinement based on metrics.
