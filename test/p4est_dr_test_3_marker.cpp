@@ -55,8 +55,8 @@ main (int argc, char **argv)
       std::cout << "*** Step " << adapt << " ***" << std::endl;
       
       // Compute coefficients.
-      double eps1 = 0.5;
-      double eps2 = 1;
+      double eps1 = 5e-7;
+      double eps2 = 1e-6;
       
       double c = -0.4375 * eps2 /
         (0.5 * std::sqrt(eps1) * std::cosh(0.5 / std::sqrt(eps1)) +
@@ -75,21 +75,11 @@ main (int argc, char **argv)
       std::vector<double> f(tmsh.num_local_quadrants (), 1);
       std::vector<double> g(tmsh.num_local_nodes (), 1);
       
-      double y, ymin;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
-          ymin = std::numeric_limits<double>::max();
-          
-          for (int ii = 0; ii < 4; ++ii)
-            {
-              y = quadrant->p(1, ii);
-              
-              ymin = std::min(y, ymin);
-            }
-          
-          if (ymin >= 0.5)
+          if (quadrant->p(1, 0) >= 0.5)
             {
               alpha[quadrant->get_forest_quad_idx()] = eps2;
               delta[quadrant->get_forest_quad_idx()] = 0;
@@ -157,6 +147,17 @@ main (int argc, char **argv)
       tmsh.octbin_export ((std::string("p4est_dr_test_3_marker_u_")
                            + std::to_string(adapt)).c_str(), global_rhs);
       
+      std::vector<double> uex(tmsh.num_global_nodes(), 0);
+      
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep ();
+           ++quadrant)
+        for (int i = 0; i < 4; ++i)
+          uex[quadrant->gt(i)] = u_ex(quadrant->p(0, i), quadrant->p(1, i));
+      
+      tmsh.octbin_export ((std::string("p4est_dr_test_3_marker_uex_")
+                           + std::to_string(adapt)).c_str(), uex);
+      
       std::cout << " Done." << std::endl;
       
       // Compute reconstructed gradient.
@@ -182,20 +183,20 @@ main (int argc, char **argv)
         {
           if (q->p(1, 2) <= 0.5)
             return zz_marker_sol (q, u_star0, global_rhs,
-                                  delta1 * 1e-6 / std::sqrt(tmsh.num_global_nodes()));
+                                  delta1 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
           else
             return zz_marker_sol (q, u_star1, global_rhs,
-                                  delta1 * 1e-6 / std::sqrt(tmsh.num_global_nodes()));
+                                  delta1 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
         };
       
       auto coarsen_fun = [& delta2, & u_star0, & u_star1, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         {
           if (q->p(1, 2) <= 0.5)
             return !zz_marker_sol (q, u_star0, global_rhs,
-                                   delta2 * 1e-6 / std::sqrt(tmsh.num_global_nodes()));
+                                   delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
           else
             return !zz_marker_sol (q, u_star1, global_rhs,
-                                   delta2 * 1e-6 / std::sqrt(tmsh.num_global_nodes()));
+                                   delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
         };
       
       // Compute error.
@@ -214,7 +215,7 @@ main (int argc, char **argv)
       
       std::cout << " Done." << std::endl;
       
-      if (tmsh.num_global_nodes () >= 1e5)
+      if (tmsh.num_global_nodes () >= 1e6)
         break;
       
       // Coarsen and refine.
@@ -223,18 +224,6 @@ main (int argc, char **argv)
       
       tmsh.coarsen (recursive, partforcoarsen, 0);
       tmsh.refine (recursive, partforcoarsen);
-      
-      // Refine or coarsen.
-      /*if ((adapt % 2) == 1)
-        {
-          tmsh.set_refine_marker (refine_fun);
-          tmsh.refine (recursive, partforcoarsen);
-        }
-      else
-        {
-          tmsh.set_coarsen_marker (coarsen_fun);
-          tmsh.coarsen (recursive, partforcoarsen);
-        }*/
       
       tmsh.vtk_export ((std::string("p4est_dr_test_3_marker_newmesh_")
                         + std::to_string(adapt)).c_str());

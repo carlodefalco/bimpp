@@ -51,8 +51,8 @@ main (int argc, char **argv)
       std::cout << "*** Step " << adapt << " ***" << std::endl;
       
       // Compute coefficients.
-      double eps1 = 0.5;
-      double eps2 = 1;
+      double eps1 = 5e-7;
+      double eps2 = 1e-6;
       
       double c = -0.4375 * eps2 /
         (0.5 * std::sqrt(eps1) * std::cosh(0.5 / std::sqrt(eps1)) +
@@ -71,21 +71,11 @@ main (int argc, char **argv)
       std::vector<double> f(tmsh.num_local_quadrants (), 1);
       std::vector<double> g(tmsh.num_local_nodes (), 1);
       
-      double y, ymin;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
-          ymin = std::numeric_limits<double>::max();
-          
-          for (int ii = 0; ii < 4; ++ii)
-            {
-              y = quadrant->p(1, ii);
-              
-              ymin = std::min(y, ymin);
-            }
-          
-          if (ymin >= 0.5)
+          if (quadrant->p(1, 0) >= 0.5)
             {
               alpha[quadrant->get_forest_quad_idx()] = eps2;
               delta[quadrant->get_forest_quad_idx()] = 0;
@@ -153,6 +143,17 @@ main (int argc, char **argv)
       tmsh.octbin_export ((std::string("p4est_dr_test_3_metrics_u_")
                            + std::to_string(adapt)).c_str(), global_rhs);
       
+      std::vector<double> uex(tmsh.num_global_nodes(), 0);
+      
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep ();
+           ++quadrant)
+        for (int i = 0; i < 4; ++i)
+          uex[quadrant->gt(i)] = u_ex(quadrant->p(0, i), quadrant->p(1, i));
+      
+      tmsh.octbin_export ((std::string("p4est_dr_test_3_metrics_uex_")
+                           + std::to_string(adapt)).c_str(), uex);
+      
       std::cout << " Done." << std::endl;
       
       // Compute reconstructed gradient.
@@ -177,7 +178,7 @@ main (int argc, char **argv)
         break;
       
       // Refine.
-      tmsh.set_metrics_marker (estimator, 1e-6, 4);
+      tmsh.set_metrics_marker (estimator, 1e-10, 4);
       tmsh.metrics_refine ();
       
       tmsh.vtk_export ((std::string("p4est_dr_test_3_metrics_newmesh_")
