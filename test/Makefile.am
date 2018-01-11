@@ -31,8 +31,10 @@ if HAVE_P4EST
                     p4est_operator_test_2 p4est_operator_test_3 p4est_operator_segment_test \
                     p4est_neighbor_iterator_test p4est_estimator_test_1 p4est_up_test \
                     p4est_ref_lnodes_test p4est_test_discontinuous p4est_estimator_test_1_uniform \
-                    p4est_metrics_test_1 p4est_dr_test_1_marker p4est_dr_test_1_metrics \
-                    p4est_dr_test_2_marker p4est_dr_test_2_metrics
+                    p4est_metrics_test_1 \
+                    p4est_dr_test_1_marker p4est_dr_test_1_metrics \
+                    p4est_dr_test_2_marker p4est_dr_test_2_metrics \
+                    p4est_dr_test_3_marker p4est_dr_test_3_metrics
 
 endif
 
@@ -310,6 +312,18 @@ if HAVE_P4EST
   p4est_dr_test_2_metrics_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_dr_test_2_metrics_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
   CLEANFILES += p4est_dr_test_2_metrics*.octbin.gz p4est_dr_test_2_metrics*.pvtu p4est_dr_test_2_metrics*.visit p4est_dr_test_2_metrics*.vtu
+
+  p4est_dr_test_3_marker_SOURCES =  p4est_dr_test_3_marker.cpp 
+  p4est_dr_test_3_marker_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_dr_test_3_marker_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_dr_test_3_marker_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+  CLEANFILES += p4est_dr_test_3_marker*.octbin.gz p4est_dr_test_3_marker*.pvtu p4est_dr_test_3_marker*.visit p4est_dr_test_3_marker*.vtu
+
+  p4est_dr_test_3_metrics_SOURCES =  p4est_dr_test_3_metrics.cpp 
+  p4est_dr_test_3_metrics_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_dr_test_3_metrics_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_dr_test_3_metrics_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+  CLEANFILES += p4est_dr_test_3_metrics*.octbin.gz p4est_dr_test_3_metrics*.pvtu p4est_dr_test_3_metrics*.visit p4est_dr_test_3_metrics*.vtu
 endif
 
 TESTS =
@@ -322,8 +336,10 @@ TESTS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 p4es
          p4est_operator_test_2 p4est_operator_test_3 p4est_operator_segment_test \
          p4est_neighbor_iterator_test p4est_estimator_test_1 p4est_up_test \
          p4est_ref_lnodes_test p4est_test_discontinuous p4est_estimator_test_1_uniform \
-         p4est_metrics_test_1 p4est_dr_test_1_marker p4est_dr_test_1_metrics \
-         p4est_dr_test_2_marker p4est_dr_test_2_metrics
+         p4est_metrics_test_1 \
+         p4est_dr_test_1_marker p4est_dr_test_1_metrics \
+         p4est_dr_test_2_marker p4est_dr_test_2_metrics \
+         p4est_dr_test_3_marker p4est_dr_test_3_metrics
 
 endif
 
