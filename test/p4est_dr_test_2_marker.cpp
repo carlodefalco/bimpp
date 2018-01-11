@@ -38,7 +38,7 @@ main (int argc, char **argv)
   for (int cycle = 0; cycle < 2; ++cycle)
     tmsh.refine (recursive, partforcoarsen);
   
-  tmsh.vtk_export ("p4est_dr_test_2_metrics");
+  tmsh.vtk_export ("p4est_dr_test_2_marker");
   
   std::vector<tmesh::idx_t> nnodes;
   
@@ -130,7 +130,7 @@ main (int argc, char **argv)
       
       // Export solution.
       MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_u_")
+      tmsh.octbin_export ((std::string("p4est_dr_test_2_marker_u_")
                            + std::to_string(adapt)).c_str(), global_rhs);
       
       std::cout << " Done." << std::endl;
