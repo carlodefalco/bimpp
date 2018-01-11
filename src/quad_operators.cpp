@@ -436,6 +436,9 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
           du_x.clear (); weights_x.clear ();
           du_y.clear (); weights_y.clear ();
           
+          du_x_star[quadrant->gt (node)] = 0;
+          du_y_star[quadrant->gt (node)] = 0;
+          
           // Compute Nédélec gradient on current element.
           switch (node)
             {
@@ -701,12 +704,6 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                 std::accumulate (weights_y.begin (),
                                  weights_y.end (), 0.0);
             }
-          
-          /*if (quadrant->get_global_quad_idx() == 14 && node == 3 && mesh.num_global_nodes() >= 30000)
-            {
-              std::cout << std::setprecision(17) << "******************** " << du_x[0] << " " << du_x[1] << std::endl;
-              std::exit(0);
-            }*/
         }
     }
   
