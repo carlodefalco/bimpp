@@ -135,7 +135,7 @@ tmesh::neighbor_iterator::operator++ ()
       
       this->face_idx = nface;
       
-      data->update(which_tree, neighbor);
+      data->update (which_tree, neighbor);
     }
   else
     {
@@ -278,7 +278,7 @@ tmesh::quadrant_t::begin_neighbor_sweep ()
                                  this->the_tmesh->p4est,
                                  this->the_tmesh->ghost,
                                  this->the_tmesh->mesh,
-                                 this->get_tree_idx(),
+                                 this->get_tree_idx (),
                                  this->the_quadrant);
   
   p4est_topidx_t which_tree;
@@ -289,7 +289,7 @@ tmesh::quadrant_t::begin_neighbor_sweep ()
     p4est_mesh_face_neighbor_next (ni.face_neighbor, &which_tree,
                                    &which_quad, &nface, &nrank);
   
-  ni.data = new quadrant_t(this->the_tmesh, which_tree, neighbor);
+  ni.data = new quadrant_t (this->the_tmesh, which_tree, neighbor);
   
   p4est_tree_t *tree =
     p4est_tree_array_index (this->the_tmesh->p4est->trees,
@@ -317,7 +317,7 @@ tmesh::quadrant_t::begin_neighbor_sweep ()
         ni.data->forest_quad_idx - tree->quadrants_offset;
     }
   
-  ni.data->update(which_tree, neighbor);
+  ni.data->update (which_tree, neighbor);
   
   ni.face_idx = nface;
   return ni;
@@ -352,12 +352,12 @@ tmesh::~tmesh ()
 {
   p4est_destroy (this->p4est);
   p4est_connectivity_destroy (this->conn);
-  if (!(this->lnodes == nullptr)) p4est_lnodes_destroy (this->lnodes);
-  if (!(this->mesh   == nullptr)) p4est_mesh_destroy   (this->mesh);
-  if (!(this->ghost  == nullptr)) p4est_ghost_destroy  (this->ghost);
+  if (! (this->lnodes == nullptr)) p4est_lnodes_destroy (this->lnodes);
+  if (! (this->mesh   == nullptr)) p4est_mesh_destroy   (this->mesh);
+  if (! (this->ghost  == nullptr)) p4est_ghost_destroy  (this->ghost);
   
-  if (!(this->mirror_data == nullptr)) delete this->mirror_data;
-  if (!(this->ghost_data  == nullptr)) delete this->ghost_data;
+  if (! (this->mirror_data == nullptr)) delete this->mirror_data;
+  if (! (this->ghost_data  == nullptr)) delete this->ghost_data;
 };
 
 
@@ -585,7 +585,7 @@ tmesh::octbin_export (const char * basename,
   
   // Define filename.
   char filename[255] = "";
-  sprintf(filename, "%s_%4.4d.octbin.gz", basename, rank);
+  sprintf (filename, "%s_%4.4d.octbin.gz", basename, rank);
   
   // Save to filename.
   assert (octave_io_open (filename, m, &m) == 0);
@@ -655,7 +655,7 @@ tmesh::set_metrics_marker
        quadrant != this->end_quadrant_sweep ();
        ++quadrant)
     {
-      hxhat_hx = std::log2 (estimator(quadrant)
+      hxhat_hx = std::log2 (estimator (quadrant)
                  * std::sqrt (this->num_global_quadrants ()) / tol);
       
       quadrant->the_quadrant->p.user_int =
@@ -779,11 +779,11 @@ tmesh::update_ghosts ()
             p4est->global_first_quadrant[rank] +
             q->p.piggy3.local_num;
           
-          quadrant_t current_mirror(this, q->p.which_tree, q);
+          quadrant_t current_mirror (this, q->p.which_tree, q);
           current_mirror.forest_quad_idx = q->p.piggy3.local_num;
           current_mirror.tree_quad_idx =
             current_mirror.forest_quad_idx - tree->quadrants_offset;
-          current_mirror.update(q->p.which_tree, q);
+          current_mirror.update (q->p.which_tree, q);
           
           for (int node = 0; node < 4; ++node)
             mirror_data[mirror_end++] = current_mirror.gt (node);
@@ -810,7 +810,7 @@ tmesh::update_ghosts ()
           send_size = chunk_len * data_size * n_mirror;
           MPI_Isend (&(mirror_data[mirror_begin]), send_size,
                      MPI_CHAR, i, tag, comm, &req);
-          req_s.push_back(req);
+          req_s.push_back (req);
           
           /*std::cout << "Rank " << rank
                     << " is sending mirrors to rank "
@@ -842,7 +842,7 @@ tmesh::update_ghosts ()
           recv_size = chunk_len * data_size * n_ghosts;
           MPI_Irecv (&(ghost_data[ghost_begin]), recv_size,
                      MPI_CHAR, i, tag, comm, &req);
-          req_s.push_back(req);
+          req_s.push_back (req);
           
           /*std::cout << "Rank " << rank
                     << " is receiving ghosts from rank "
@@ -853,7 +853,7 @@ tmesh::update_ghosts ()
     }
   
   std::vector<MPI_Status> stats (req_s.size ());
-  MPI_Waitall (req_s.size(), &(req_s[0]), &(stats[0]));
+  MPI_Waitall (req_s.size (), &(req_s[0]), &(stats[0]));
 };
 
 std::vector<int>
@@ -874,8 +874,8 @@ tmesh::userint_replace (std::vector<int> old_userint)
     {
       new_userint.resize (1);
       
-      new_userint[0] = *std::min_element(old_userint.begin(),
-                                         old_userint.end()) + 1;
+      new_userint[0] = *std::min_element (old_userint.begin (),
+                                          old_userint.end ()) + 1;
     }
   
   return new_userint;
@@ -908,12 +908,12 @@ tmesh::replace_callback (p4est_t * p4,
 {
   tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
   
-  std::vector<int> old_userint(num_outgoing);
+  std::vector<int> old_userint (num_outgoing);
   
   for (size_t i = 0; i < num_outgoing; ++i)
     old_userint[i] = outgoing[i]->p.user_int;
   
-  std::vector<int> new_userint = tm->replace_fun(old_userint);
+  std::vector<int> new_userint = tm->replace_fun (old_userint);
   
   for (size_t i = 0; i < num_incoming; ++i)
     incoming[i]->p.user_int = new_userint[i];
