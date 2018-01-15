@@ -145,6 +145,10 @@ public:
     /// Get the i-th coordinate of the j-th vertex.
     double
     p (idx_t i, idx_t j);
+    
+    /// Get the i-th coordinate of the centroid.
+    double
+    centroid (idx_t i);
 
     /// Get rank-local index of the i-th vertex, or global index for ghosts.
     idx_t
