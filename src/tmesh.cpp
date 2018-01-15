@@ -18,6 +18,19 @@ tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj)
   return (retval);
 };
 
+double
+tmesh::quadrant_t::centroid (tmesh::idx_t ii) 
+{
+  double retval = 0;
+  
+  if (ii == 0)
+    retval = 0.5 * (this->p(0, 0) + this->p(0, 1));
+  else if (ii == 1)
+    retval = 0.5 * (this->p(1, 0) + this->p(1, 2));
+  
+  return (retval);
+};
+
 /** Decode the information from p4est_lnodes_t for a given element.
  *
  * \see p4est_lnodes.h for an in-depth discussion of the encoding.
