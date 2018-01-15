@@ -55,24 +55,21 @@ main (int argc, char **argv)
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
   
-  tmsh.set_refine_marker (uniform_refinement);
   recursive = 0; partforcoarsen = 1;
-  tmsh.refine (recursive, partforcoarsen);
-  tmsh.refine (recursive, partforcoarsen);
-  tmsh.refine (recursive, partforcoarsen);
-  tmsh.refine (recursive, partforcoarsen);
-  tmsh.refine (recursive, partforcoarsen);
-  tmsh.refine (recursive, partforcoarsen);
-  tmsh.refine (recursive, partforcoarsen);
+  for (int cycle = 0; cycle < 8; ++cycle)
+    {
+      tmsh.set_refine_marker (uniform_refinement);
+      tmsh.refine (recursive, partforcoarsen);
+    }
   
   tmsh.set_refine_marker (top_refinement);
-  recursive = 0; partforcoarsen = 1;
   tmsh.refine (recursive, partforcoarsen);
+  tmsh.set_refine_marker (top_refinement);
   tmsh.refine (recursive, partforcoarsen);
   
   tmsh.set_refine_marker (right_refinement);
-  recursive = 0; partforcoarsen = 1;
   tmsh.refine (recursive, partforcoarsen);
+  tmsh.set_refine_marker (right_refinement);
   tmsh.refine (recursive, partforcoarsen);
   
   tmsh.vtk_export ("p4est_operator_test_2");

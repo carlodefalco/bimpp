@@ -12,33 +12,6 @@ constexpr p4est_topidx_t simple_conn_num_trees = 2;
 const double simple_conn_p[simple_conn_num_vertices*2] = {0, 0, 1, 0, 1, 0.5, 0, 0.5, 1, 1, 0, 1};
 const p4est_topidx_t simple_conn_t[simple_conn_num_trees*5] = {1, 2, 3, 4, 1, 4, 3, 5, 6, 1};
 
-
-static int
-top_refinement (tmesh::quadrant_iterator quadrant)
-{
-  double ycoord;
-  double bottom = std::numeric_limits<double>::max ();
-  for (int ii = 0; ii < 4; ++ii)
-  {
-    ycoord = quadrant->p(1, ii);
-    bottom = bottom > ycoord ? ycoord : bottom;
-  }
-  return ((bottom >= 0.9) ? 1 : 0);
-}
-
-static int
-right_refinement (tmesh::quadrant_iterator quadrant)
-{
-  double xcoord;
-  double left = std::numeric_limits<double>::max ();
-  for (int ii = 0; ii < 4; ++ii)
-  {
-    xcoord = quadrant->p(0, ii);
-    left = left > xcoord ? xcoord : left;
-  }
-  return ((left >= 0.9) ? 1 : 0);
-}
-
 static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return 1; }
@@ -62,10 +35,12 @@ main (int argc, char **argv)
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
   
-  tmsh.set_refine_marker (uniform_refinement);
   recursive = 0; partforcoarsen = 1;
   for (int cycle = 0; cycle < 1; ++cycle)
-    tmsh.refine (recursive, partforcoarsen);
+    {
+      tmsh.set_refine_marker (uniform_refinement);
+      tmsh.refine (recursive, partforcoarsen);
+    }
   
   tmsh.vtk_export ("p4est_test_discontinuous");
   

@@ -37,10 +37,12 @@ main (int argc, char **argv)
   
   tmsh.set_replace_fun (tmesh::userint_replace);
   
-  tmsh.set_refine_marker (uniform_refinement);
   recursive = 0; partforcoarsen = 1;
   for (int cycle = 0; cycle < 1; ++cycle)
-    tmsh.refine (recursive, partforcoarsen);
+    {
+      tmsh.set_refine_marker (uniform_refinement);
+      tmsh.refine (recursive, partforcoarsen);
+    }
   
   tmsh.vtk_export ("p4est_dr_test_3_marker");
   
@@ -163,8 +165,14 @@ main (int argc, char **argv)
       // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient, solution and estimator.";
       
-      gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, 0);
-      gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, 1);
+      active_fun tree0 = [] (tmesh::quadrant_iterator q)
+        { return (q->get_tree_idx () == 0); };
+      
+      active_fun tree1 = [] (tmesh::quadrant_iterator q)
+        { return (q->get_tree_idx () == 1); };
+      
+      gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree0);
+      gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree1);
       
       q2_vec u_star0 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du0);
       q2_vec u_star1 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du1);

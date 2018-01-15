@@ -30,6 +30,7 @@ main (int argc, char **argv)
   recursive = 0; partforcoarsen = 1;
   tmsh.set_refine_marker (uniform_refinement);
   tmsh.refine (recursive, partforcoarsen);
+  tmsh.set_refine_marker (uniform_refinement);
   tmsh.refine (recursive, partforcoarsen);
   
   for (int iproc = 0; iproc < size; ++iproc)
@@ -91,4 +92,3 @@ main (int argc, char **argv)
   return 0;
 
 }
-
