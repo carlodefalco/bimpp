@@ -400,7 +400,7 @@ nedelec_gradient (tmesh::quadrant_iterator & q,
 gradient
 bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                                        const q1_vec& u,
-                                       const p4est_topidx_t & tree_idx)
+                                       active_fun is_active)
 {
   std::vector<double> du_x_star (mesh.num_global_nodes (), 0);
   std::vector<double> du_y_star (mesh.num_global_nodes (), 0);  
@@ -429,8 +429,8 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                assigned_y[quadrant->gt (node)]))
             continue;
           
-          // Skip quadrants from a different tree.
-          if (tree_idx != -1 && quadrant->get_tree_idx() != tree_idx)
+          // Skip inactive quadrants.
+          if (! is_active(quadrant))
             continue;
           
           du_x.clear (); weights_x.clear ();
@@ -473,8 +473,8 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                   quadrant->get_global_quad_idx ())
                 continue;
               
-              // Skip neighbors from a different tree.
-              if (tree_idx != -1 && neighbor->get_tree_idx() != tree_idx)
+              // Skip inactive neighbors.
+              if (! is_active(neighbor))
                 continue;
               
               // Check if neighbor contains current vertex ("node").
@@ -537,8 +537,8 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                       quadrant->get_global_quad_idx ())
                     continue;
                   
-                  // Skip neighbors from a different tree.
-                  if (tree_idx != -1 && neighbor->get_tree_idx() != tree_idx)
+                  // Skip inactive neighbors.
+                  if (! is_active (neighbor))
                     continue;
                   
                   // Check if neighbor contains the opposite vertex
@@ -611,8 +611,8 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                       quadrant->get_global_quad_idx ())
                     continue;
                   
-                  // Skip neighbors from a different tree.
-                  if (tree_idx != -1 && neighbor->get_tree_idx() != tree_idx)
+                  // Skip inactive neighbors.
+                  if (! is_active (neighbor))
                     continue;
                   
                   // Check if neighbor contains the opposite vertex
@@ -1016,4 +1016,3 @@ l2_error (tmesh::quadrant_iterator q,
     
   return std::sqrt(quad_integral (x, y, fun));
 }
-
