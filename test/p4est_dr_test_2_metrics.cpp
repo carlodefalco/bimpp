@@ -33,10 +33,12 @@ main (int argc, char **argv)
   
   tmsh.set_replace_fun (tmesh::userint_replace);
   
-  tmsh.set_refine_marker (uniform_refinement);
   recursive = 0; partforcoarsen = 1;
   for (int cycle = 0; cycle < 2; ++cycle)
-    tmsh.refine (recursive, partforcoarsen);
+    {
+      tmsh.refine (recursive, partforcoarsen);
+      tmsh.set_refine_marker (uniform_refinement);
+    }
   
   tmsh.vtk_export ("p4est_dr_test_2_metrics");
   

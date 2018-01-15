@@ -170,13 +170,12 @@ int main(int argc, char ** argv)
   // Uniform refinement.
   recursive = 0;
   partforcoarsen = 1;
-    
-  tmsh.set_refine_marker (uniform_refinement);
   
   int file_number = 0, refine_number = 0;
   for (int cycle = 0; cycle < 2; ++cycle)
     {
         MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+        tmsh.set_refine_marker (uniform_refinement);
         tmsh.refine(recursive, partforcoarsen);        
         if (rank == 0) 
           { 

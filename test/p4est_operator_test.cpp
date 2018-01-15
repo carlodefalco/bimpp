@@ -73,13 +73,12 @@ main (int argc, char **argv)
   tmsh.read_connectivity ("p4est_operator_test.octbin.gz");
   
   // Uniform refinement.
-  tmsh.set_refine_marker (uniform_refinement);
-  
   recursive = 0; partforcoarsen = 1;
-  tmsh.refine (recursive, partforcoarsen);
-  tmsh.refine (recursive, partforcoarsen);
-  tmsh.refine (recursive, partforcoarsen);
-  tmsh.refine (recursive, partforcoarsen);
+  for (int cycle = 0; cycle < 4; ++cycle)
+    {
+      tmsh.set_refine_marker (uniform_refinement);
+      tmsh.refine (recursive, partforcoarsen);
+    }
   
   tmsh.vtk_export ("p4est_operator_test");
   

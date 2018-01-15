@@ -37,10 +37,12 @@ main (int argc, char **argv)
   
   tmsh.set_replace_fun (tmesh::userint_replace);
   
-  tmsh.set_refine_marker (uniform_refinement);
   recursive = 0; partforcoarsen = 1;
   for (int cycle = 0; cycle < 2; ++cycle)
-    tmsh.refine (recursive, partforcoarsen);
+    {
+      tmsh.set_refine_marker (uniform_refinement);
+      tmsh.refine (recursive, partforcoarsen);
+    }
   
   tmsh.vtk_export ("p4est_dr_test_3_metrics");
   
@@ -159,16 +161,35 @@ main (int argc, char **argv)
       // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient and estimator.";
       
-      gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
-      q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du);
+      active_fun tree0 = [] (tmesh::quadrant_iterator q)
+        { return (q->get_tree_idx () == 0); };
       
-      tmsh.octbin_export ((std::string("p4est_dr_test_3_metrics_du_x_")
-                           + std::to_string(adapt)).c_str(), du.first);
-      tmsh.octbin_export ((std::string("p4est_dr_test_3_metrics_du_y_")
-                           + std::to_string(adapt)).c_str(), du.second);
+      active_fun tree1 = [] (tmesh::quadrant_iterator q)
+        { return (q->get_tree_idx () == 1); };
       
-      auto estimator = [& u_star, & global_rhs] (tmesh::quadrant_iterator q)
-        { return estimator_sol (q, u_star, global_rhs); };
+      gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree0);
+      gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree1);
+      
+      q2_vec u_star0 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du0);
+      q2_vec u_star1 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du1);
+      
+      tmsh.octbin_export ((std::string("p4est_dr_test_3_metrics_du0_x_")
+                           + std::to_string(adapt)).c_str(), du0.first);
+      tmsh.octbin_export ((std::string("p4est_dr_test_3_metrics_du0_y_")
+                           + std::to_string(adapt)).c_str(), du0.second);
+      
+      tmsh.octbin_export ((std::string("p4est_dr_test_3_metrics_du1_x_")
+                           + std::to_string(adapt)).c_str(), du1.first);
+      tmsh.octbin_export ((std::string("p4est_dr_test_3_metrics_du1_y_")
+                           + std::to_string(adapt)).c_str(), du1.second);
+      
+      auto estimator = [& u_star0, & u_star1, & global_rhs] (tmesh::quadrant_iterator q)
+        {
+          if (q->p(1, 2) <= 0.5)
+            return estimator_sol (q, u_star0, global_rhs);
+          else
+            return estimator_sol (q, u_star1, global_rhs);
+        };
       
       nnodes.push_back (tmsh.num_global_nodes ());
       
