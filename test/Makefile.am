@@ -34,7 +34,8 @@ if HAVE_P4EST
                     p4est_metrics_test_1 \
                     p4est_dr_test_1_marker p4est_dr_test_1_metrics \
                     p4est_dr_test_2_marker p4est_dr_test_2_metrics \
-                    p4est_dr_test_3_marker p4est_dr_test_3_metrics
+                    p4est_dr_test_3_marker p4est_dr_test_3_metrics \
+                    p4est_dr_test_4_marker p4est_dr_test_4_metrics
 
 endif
 
@@ -324,6 +325,18 @@ if HAVE_P4EST
   p4est_dr_test_3_metrics_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_dr_test_3_metrics_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
   CLEANFILES += p4est_dr_test_3_metrics*.octbin.gz p4est_dr_test_3_metrics*.pvtu p4est_dr_test_3_metrics*.visit p4est_dr_test_3_metrics*.vtu
+
+  p4est_dr_test_4_marker_SOURCES =  p4est_dr_test_4_marker.cpp 
+  p4est_dr_test_4_marker_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_dr_test_4_marker_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_dr_test_4_marker_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+  CLEANFILES += p4est_dr_test_4_marker*.octbin.gz p4est_dr_test_4_marker*.pvtu p4est_dr_test_4_marker*.visit p4est_dr_test_4_marker*.vtu
+
+  p4est_dr_test_4_metrics_SOURCES =  p4est_dr_test_4_metrics.cpp 
+  p4est_dr_test_4_metrics_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_dr_test_4_metrics_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_dr_test_4_metrics_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+  CLEANFILES += p4est_dr_test_4_metrics*.octbin.gz p4est_dr_test_4_metrics*.pvtu p4est_dr_test_4_metrics*.visit p4est_dr_test_4_metrics*.vtu
 endif
 
 TESTS =
@@ -339,7 +352,8 @@ TESTS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 p4es
          p4est_metrics_test_1 \
          p4est_dr_test_1_marker p4est_dr_test_1_metrics \
          p4est_dr_test_2_marker p4est_dr_test_2_metrics \
-         p4est_dr_test_3_marker p4est_dr_test_3_metrics
+         p4est_dr_test_3_marker p4est_dr_test_3_metrics \
+         p4est_dr_test_4_marker p4est_dr_test_4_metrics
 
 endif
 
