@@ -121,6 +121,7 @@ main (int argc, char **argv)
 
   tmsh.set_refine_marker (left_refinement);
   tmsh.refine (recursive, partforcoarsen);
+  tmsh.set_refine_marker (left_refinement);
   tmsh.refine (recursive, partforcoarsen);
   
   std::cout << "third refinement step"
@@ -167,4 +168,3 @@ main (int argc, char **argv)
   return 0;
 
 }
-

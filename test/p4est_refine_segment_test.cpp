@@ -190,12 +190,12 @@ int main(int argc, char ** argv)
     }
   
   // Refine according to segment_list.  
-  tmsh.set_refine_marker (segment_refinement);
 
   for (int cycle = 0; cycle < 16; ++cycle)
     {
       // Adaptive refinement.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+      tmsh.set_refine_marker (segment_refinement);
       tmsh.refine (recursive, partforcoarsen);
       if (rank == 0) 
           { 
