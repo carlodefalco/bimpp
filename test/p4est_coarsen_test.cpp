@@ -81,18 +81,19 @@ main (int argc, char **argv)
   tmsh.read_connectivity ("p4est_coarsen_test.octbin.gz");
   
   tmsh.vtk_export ("p4est_coarsen_test");
-
-  tmsh.set_refine_marker (doping_driven_refinement);
-  tmsh.set_coarsen_marker (coarsen_right_half);
   
   recursive = 0;
   partforcoarsen = 0;
-
+  
+  tmsh.set_refine_marker (doping_driven_refinement);
   tmsh.refine (recursive, partforcoarsen);
+  tmsh.set_refine_marker (doping_driven_refinement);
   tmsh.refine (recursive, partforcoarsen);
+  tmsh.set_refine_marker (doping_driven_refinement);
   tmsh.refine (recursive, partforcoarsen);
 
   recursive = 1;
+  tmsh.set_coarsen_marker (coarsen_right_half);
   tmsh.coarsen (recursive, partforcoarsen);
   
   tmsh.vtk_export ("p4est_coarsen_test");

@@ -58,7 +58,6 @@ main (int argc, char **argv)
     write_example_connectivity ("p4est_ref_test.octbin.gz");
 
   tmsh.read_connectivity ("p4est_ref_test.octbin.gz");
-  tmsh.set_refine_marker (doping_driven_refinement);
 
   recursive = 0;
   partforcoarsen = 0;
@@ -68,7 +67,10 @@ main (int argc, char **argv)
     { tic (); }
 
   for (int k = 0; k < 13 ; ++k)
-    tmsh.refine (recursive, partforcoarsen);
+    {
+      tmsh.set_refine_marker (doping_driven_refinement);
+      tmsh.refine (recursive, partforcoarsen);
+    }
 
   MPI_Barrier (MPI_COMM_WORLD);
   if (rank == 0)
@@ -93,4 +95,3 @@ main (int argc, char **argv)
   return 0;
 
 }
-

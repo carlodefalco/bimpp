@@ -132,7 +132,6 @@ main (int argc, char **argv)
             };
       
           tmsh.set_refine_marker (refmark);
-          tmsh.update ();
           tmsh.refine (recursive, partforcoarsen);
 
             MPI_Barrier (MPI_COMM_WORLD);
@@ -154,7 +153,6 @@ main (int argc, char **argv)
             };
       
           tmsh.set_coarsen_marker (coamark);
-          tmsh.update ();
           tmsh.coarsen (recursive, partforcoarsen);
 
            MPI_Barrier (MPI_COMM_WORLD);
