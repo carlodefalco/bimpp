@@ -97,15 +97,18 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
         {
-          x = quadrant->p(0, ii);
-          y = quadrant->p(1, ii);
-          
-          rho = std::sqrt(x * x + y * y);
-          
-          if (rho >= 0.8 && rho <= 0.9)
-            psi[quadrant->t(ii)] = -(2 * rho - 0.8) / 1e-2;
-          else if (rho >= 0.9)
-            psi[quadrant->t(ii)] = -0.2 / 1e-2;
+          if (! quadrant->is_hanging (ii))
+            {
+              x = quadrant->p(0, ii);
+              y = quadrant->p(1, ii);
+              
+              rho = std::sqrt(x * x + y * y);
+              
+              if (rho >= 0.8 && rho <= 0.9)
+                psi[quadrant->t(ii)] = -(2 * rho - 0.8) / 1e-2;
+              else if (rho >= 0.9)
+                psi[quadrant->t(ii)] = -0.2 / 1e-2;
+            }
         }
     }
   

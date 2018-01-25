@@ -5,7 +5,8 @@
 #include <iostream>
 #include <numeric>
 #include <set>
-
+#include <limits>
+#include <algorithm>
 #include <iomanip>
 
 double
@@ -43,10 +44,21 @@ bim2a_advection_diffusion (tmesh& mesh,
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
     {
-      psi01 = psi[quadrant->t(1)] - psi[quadrant->t(0)];
-      psi13 = psi[quadrant->t(3)] - psi[quadrant->t(1)];
-      psi32 = psi[quadrant->t(2)] - psi[quadrant->t(3)];
-      psi20 = psi[quadrant->t(0)] - psi[quadrant->t(2)];
+      std::array<double, 4> psi_aux;
+      
+      for (int n = 0; n < 4; ++n)
+        {
+          if (! quadrant->is_hanging (n))
+            psi_aux[n] = psi[quadrant->t (n)];
+          else
+            psi_aux[n] = 0.5 * (psi[quadrant->parent (0, n)] +
+                                psi[quadrant->parent (1, n)]);
+        }
+      
+      psi01 = psi_aux[1] - psi_aux[0];
+      psi13 = psi_aux[3] - psi_aux[1];
+      psi32 = psi_aux[2] - psi_aux[3];
+      psi20 = psi_aux[0] - psi_aux[2];
       
       bimu_bernoulli(psi01, bp01, bm01);
       bimu_bernoulli(psi13, bp13, bm13);
@@ -113,7 +125,6 @@ bim2a_advection_eafe_diffusion (tmesh& mesh,
                                 const std::vector<double>& psi,
                                 sparse_matrix& A)
 {
-  
   double psi01 = 0;
   double psi13 = 0;
   double psi32 = 0;
@@ -137,10 +148,21 @@ bim2a_advection_eafe_diffusion (tmesh& mesh,
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
     {
-      psi01 = psi[quadrant->t(1)] - psi[quadrant->t(0)];
-      psi13 = psi[quadrant->t(3)] - psi[quadrant->t(1)];
-      psi32 = psi[quadrant->t(2)] - psi[quadrant->t(3)];
-      psi20 = psi[quadrant->t(0)] - psi[quadrant->t(2)];
+      std::array<double, 4> psi_aux;
+      
+      for (int n = 0; n < 4; ++n)
+        {
+          if (! quadrant->is_hanging (n))
+            psi_aux[n] = psi[quadrant->t (n)];
+          else
+            psi_aux[n] = 0.5 * (psi[quadrant->parent (0, n)] +
+                                psi[quadrant->parent (1, n)]);
+        }
+      
+      psi01 = psi_aux[1] - psi_aux[0];
+      psi13 = psi_aux[3] - psi_aux[1];
+      psi32 = psi_aux[2] - psi_aux[3];
+      psi20 = psi_aux[0] - psi_aux[2];
       
       bimu_bernoulli(psi01, bp01, bm01);
       bimu_bernoulli(psi13, bp13, bm13);
@@ -287,6 +309,29 @@ void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     sparse_matrix& A, std::vector<double>& rhs)
 {
+  std::vector<double> row_max (A.size ());
+  
+  // Set zero diagonal entries to |max (abs (row))|.
+  for (unsigned int row = 0; row < A.size (); ++row)
+    {
+      if (std::abs (A[row][row])
+          < std::numeric_limits<double>::epsilon ())
+        {
+          row_max[row] = std::max_element
+            (A[row].begin (),
+             A[row].end (),
+             [] (const std::pair<int, double> & p1,
+                 const std::pair<int, double> & p2)
+               {
+                 return std::abs (p1.second) <
+                        std::abs (p2.second);
+               }
+            )->second;
+          
+          row_max[row] = std::abs (row_max[row]);
+        }
+    }
+  
   int boundary_idx, tree_idx;
   unsigned int row, col;
   
@@ -323,15 +368,15 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     rhs[row] =
                       (std::get<2> (bcs[bc]))
                       (quadrant->p (0, i), quadrant->p (1, i));
-                      
+                    
                     // Move non-diagonal entries
                     // from column "row" to rhs.
                     if (A[row].size ())
                       for (auto j = A[row].begin ();
                            j != A[row].end (); ++j)
                         {
-                          col = A.col_idx(j);
-                              
+                          col = A.col_idx (j);
+                          
                           if (row != col)
                             {
                               A[row][col] = 0.0;
@@ -339,8 +384,11 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                               A[col][row] = 0.0;
                             }
                         }
-                        
-                      
+                    
+                    if (std::abs (A[row][row])
+                        < std::numeric_limits<double>::epsilon ())
+                      A[row][row] = row_max[row];
+                    
                     // Multiply rhs by the diagonal entry.
                     rhs[row] *= A[row][row];
                   }

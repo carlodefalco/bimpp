@@ -88,7 +88,11 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
         {
-          psi[quadrant->t(ii)] = lambda * (quadrant->p(0, ii) + quadrant->p(1, ii));
+           if (! quadrant->is_hanging (ii))
+            {
+              psi[quadrant->t(ii)] =
+                lambda * (quadrant->p(0, ii) + quadrant->p(1, ii));
+            }
         }
     }
   
