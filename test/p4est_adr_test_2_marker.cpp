@@ -55,7 +55,7 @@ main (int argc, char **argv)
       sparse_matrix A;
       A.resize(tmsh.num_global_nodes());
       
-      double epsilon = 1e-2;
+      double epsilon = 1e-6;
       double theta = M_PI / 4;
       std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
       std::vector<double> psi(tmsh.num_local_nodes (), 0);
@@ -67,20 +67,23 @@ main (int argc, char **argv)
         {
           for (int ii = 0; ii < 4; ++ii)
             {
-              x = quadrant->p(0, ii);
-              y = quadrant->p(1, ii);
-              
-              psi[quadrant->t(ii)] = (std::cos(theta) * x +
-                                      std::sin(theta) * y) / epsilon;
+              if (! quadrant->is_hanging (ii))
+                {
+                  x = quadrant->p(0, ii);
+                  y = quadrant->p(1, ii);
+                  
+                  psi[quadrant->t(ii)] = (std::cos(theta) * x +
+                                          std::sin(theta) * y) / epsilon;
+                }
             }
         }
-      
+        
       bim2a_advection_diffusion (tmsh, alpha, psi, A);
       
       // Assemble right-hand side.
       std::vector<double> rhs(tmsh.num_global_nodes (), 0);
       
-      std::vector<double> f(tmsh.num_local_quadrants (), 1);
+      std::vector<double> f(tmsh.num_local_quadrants (), 0);
       std::vector<double> g(tmsh.num_local_nodes (), 0);
       
       bim2a_rhs (tmsh, f, g, rhs);
@@ -94,7 +97,7 @@ main (int argc, char **argv)
       bcs.push_back (std::make_tuple(0, 0, u1 ));
       bcs.push_back (std::make_tuple(0, 1, u0 ));
       bcs.push_back (std::make_tuple(0, 2, u10));
-      bcs.push_back (std::make_tuple(0, 3, u0));
+      bcs.push_back (std::make_tuple(0, 3, u0 ));
       
       bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
       
@@ -146,11 +149,11 @@ main (int argc, char **argv)
       
       auto refine_fun = [& delta1, & u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         { return zz_marker_sol (q, u_star, global_rhs,
-                                delta1 * 1e-10 / std::sqrt(tmsh.num_global_nodes())); };
+                                delta1 * 1e-6 / std::sqrt(tmsh.num_global_nodes())); };
       
       auto coarsen_fun = [& delta2, & u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         { return !zz_marker_sol (q, u_star, global_rhs,
-                                 delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes())); };
+                                 delta2 * 1e-6 / std::sqrt(tmsh.num_global_nodes())); };
       
       nnodes.push_back (tmsh.num_global_nodes ());
       
