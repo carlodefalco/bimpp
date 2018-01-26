@@ -40,7 +40,7 @@ main (int argc, char **argv)
       tmsh.refine (recursive, partforcoarsen);
     }
   
-  tmsh.vtk_export ("p4est_adr_test_1_marker");
+  tmsh.vtk_export ("p4est_adr_test_2_marker");
   
   std::vector<tmesh::idx_t> nnodes;
   
@@ -131,7 +131,7 @@ main (int argc, char **argv)
       
       // Export solution.
       MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      tmsh.octbin_export ((std::string("p4est_adr_test_1_marker_u_")
+      tmsh.octbin_export ((std::string("p4est_adr_test_2_marker_u_")
                            + std::to_string(adapt)).c_str(), global_rhs);
       
       std::cout << " Done." << std::endl;
@@ -142,9 +142,9 @@ main (int argc, char **argv)
       gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
       q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du);
       
-      tmsh.octbin_export ((std::string("p4est_adr_test_1_marker_du_x_")
+      tmsh.octbin_export ((std::string("p4est_adr_test_2_marker_du_x_")
                            + std::to_string(adapt)).c_str(), du.first);
-      tmsh.octbin_export ((std::string("p4est_adr_test_1_marker_du_y_")
+      tmsh.octbin_export ((std::string("p4est_adr_test_2_marker_du_y_")
                            + std::to_string(adapt)).c_str(), du.second);
       
       auto refine_fun = [& delta1, & u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
@@ -159,7 +159,7 @@ main (int argc, char **argv)
       
       std::cout << " Done." << std::endl;
       
-      if (tmsh.num_global_nodes () >= 1e5)
+      if (tmsh.num_global_nodes () >= 1e6)
         break;
       
       // Coarsen and refine.
@@ -169,7 +169,7 @@ main (int argc, char **argv)
       tmsh.coarsen (recursive, partforcoarsen, 0);
       tmsh.refine (recursive, partforcoarsen);
       
-      tmsh.vtk_export ((std::string("p4est_adr_test_1_marker_newmesh_")
+      tmsh.vtk_export ((std::string("p4est_adr_test_2_marker_newmesh_")
                         + std::to_string(adapt)).c_str());
     }
   
