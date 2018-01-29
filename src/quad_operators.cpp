@@ -6,7 +6,6 @@
 #include <numeric>
 #include <set>
 #include <limits>
-#include <algorithm>
 #include <iomanip>
 
 double
@@ -309,26 +308,24 @@ void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     sparse_matrix& A, std::vector<double>& rhs)
 {
-  std::vector<double> row_max (A.size ());
+  std::vector<double> row_sum (A.size ());
   
-  // Set zero diagonal entries to |max (abs (row))|.
+  // Set zero diagonal entries to sum (abs (row)).
   for (unsigned int row = 0; row < A.size (); ++row)
     {
       if (std::abs (A[row][row])
           < std::numeric_limits<double>::epsilon ())
         {
-          row_max[row] = std::max_element
+          row_sum[row] = std::accumulate
             (A[row].begin (),
              A[row].end (),
-             [] (const std::pair<int, double> & p1,
-                 const std::pair<int, double> & p2)
+             0.0,
+             [] (double value,
+                 const std::map<int, double>::value_type & p)
                {
-                 return std::abs (p1.second) <
-                        std::abs (p2.second);
+                 return (value + std::abs (p.second));
                }
-            )->second;
-          
-          row_max[row] = std::abs (row_max[row]);
+            );
         }
     }
   
@@ -387,7 +384,7 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     
                     if (std::abs (A[row][row])
                         < std::numeric_limits<double>::epsilon ())
-                      A[row][row] = row_max[row];
+                      A[row][row] = row_sum[row];
                     
                     // Multiply rhs by the diagonal entry.
                     rhs[row] *= A[row][row];
