@@ -36,7 +36,7 @@ if HAVE_P4EST
                     p4est_dr_test_2_marker p4est_dr_test_2_metrics \
                     p4est_dr_test_3_marker p4est_dr_test_3_metrics \
                     p4est_dr_test_4_marker p4est_dr_test_4_metrics \
-                    p4est_adr_test_1_marker p4est_adr_test_1_metrics \
+                    p4est_adr_test_1_marker p4est_adr_test_1_metrics p4est_adr_test_1_uniform \
                     p4est_adr_test_2_marker p4est_adr_test_2_metrics
 
 endif
@@ -351,6 +351,12 @@ if HAVE_P4EST
   p4est_adr_test_1_metrics_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_adr_test_1_metrics_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
   CLEANFILES += p4est_adr_test_1_metrics*.octbin.gz p4est_adr_test_1_metrics*.pvtu p4est_adr_test_1_metrics*.visit p4est_adr_test_1_metrics*.vtu
+
+  p4est_adr_test_1_uniform_SOURCES =  p4est_adr_test_1_uniform.cpp
+  p4est_adr_test_1_uniform_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_adr_test_1_uniform_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_adr_test_1_uniform_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+  CLEANFILES += p4est_adr_test_1_uniform*.octbin.gz p4est_adr_test_1_uniform*.pvtu p4est_adr_test_1_uniform*.visit p4est_adr_test_1_uniform*.vtu
 
   p4est_adr_test_2_marker_SOURCES =  p4est_adr_test_2_marker.cpp 
   p4est_adr_test_2_marker_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
