@@ -857,14 +857,17 @@ quad_integral (const double *x, const double *y,
                std::function<double (double, double)> fun)
 {
   int ix, jy, ipt;
-  double wx = 0,
+  double wx = 0, wy = 0,
     sum = 0;
   for (ix = 0; ix < 4; ++ix)
     {
       wx = xformw (x, gw[ix]);
+      
       for (jy = 0; jy < 4; ++jy)
-        sum += fun (xformx (x, gn[ix]), xformx (y, gn[jy])) *
-          wx * xformw (y, gw[jy]);
+        {
+          wy = xformw (y, gw[jy]);
+          sum += fun (xformx (x, gn[ix]), xformx (y, gn[jy])) * wx * wy;
+        }
     }
   return (sum);
 }
@@ -958,9 +961,21 @@ double estimator_grad(tmesh::quadrant_iterator q,
   
   for (int ii = 0; ii < 4; ++ii)
     {
-      dudxstar_loc[ii] = (du_star.first)[q->gt(ii)];
-      dudystar_loc[ii] = (du_star.second)[q->gt(ii)];
-      u_loc[ii] = u[q->gt(ii)];
+      if (! q->is_hanging (ii))
+        {
+          dudxstar_loc[ii] = (du_star.first)[q->gt(ii)];
+          dudystar_loc[ii] = (du_star.second)[q->gt(ii)];
+          u_loc[ii] = u[q->gt(ii)];
+        }
+      else
+        {
+          dudxstar_loc[ii] = 0.5 * ((du_star.first)[q->gparent(0, ii)] +
+                                    (du_star.first)[q->gparent(1, ii)]);
+          dudystar_loc[ii] = 0.5 * ((du_star.second)[q->gparent(0, ii)] +
+                                    (du_star.second)[q->gparent(1, ii)]);
+          u_loc[ii] = 0.5 * (u[q->gparent(0, ii)] +
+                             u[q->gparent(1, ii)]);
+        }
     }
   
   auto fun =
@@ -1007,7 +1022,11 @@ double estimator_sol(tmesh::quadrant_iterator q,
   
   for (int ii = 0; ii < 4; ++ii)
     {
-      u_loc[ii] = u[q->gt(ii)];
+      if (! q->is_hanging (ii))
+        u_loc[ii] = u[q->gt(ii)];
+      else
+        u_loc[ii] = 0.5 * (u[q->gparent(0, ii)] +
+                           u[q->gparent(1, ii)]);
     }
 
   auto fun =
@@ -1043,20 +1062,26 @@ l2_error (tmesh::quadrant_iterator q,
     x[2] = {q->p(0,0), q->p(0,1)},
     y[2] = {q->p(1,0), q->p(1,3)};
 
-  double u_loc[4] = {0,0,0,0};
+  double err_loc[4] = {0,0,0,0};
 
   for (int ii = 0; ii < 4; ++ii)
     {
-      u_loc[ii] = u[q->gt(ii)];
+      if (! q->is_hanging (ii))
+        err_loc[ii] = u[q->gt(ii)];
+      else
+        err_loc[ii] = 0.5 * (u[q->gparent(0, ii)] +
+                           u[q->gparent(1, ii)]);
+      
+      // Project u_ex to Q1 space.
+      err_loc[ii] -= u_ex(q->p(0, ii), q->p(1, ii));
     }
 
   auto fun =
-    [x, y, u_ex, u_loc]
+    [x, y, err_loc]
     (double X, double Y) -> double
     {
       return
-      std::pow (q1 (X, Y, x, y, u_loc) -
-                u_ex (X, Y), 2);
+      std::pow (q1 (X, Y, x, y, err_loc), 2);
     };
     
   return std::sqrt(quad_integral (x, y, fun));
