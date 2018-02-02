@@ -716,11 +716,10 @@ tmesh::metrics_refine (idx_t max_elems)
   
   for (int i = 0; i < metrics_max_depth - 1; ++i)
     {
+      refine (recursive, partforcoarsen, 0);
+      
       // Prevent large meshes.
-      if ((max_elems > 0 && this->num_global_quadrants () <= max_elems)
-          || max_elems <= 0)
-        refine (recursive, partforcoarsen, 0);
-      else
+      if (max_elems > 0 && this->num_global_quadrants () >= max_elems)
         break;
     }
   
