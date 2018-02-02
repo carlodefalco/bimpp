@@ -355,7 +355,7 @@ public:
   
   /// Refine marked quadrants based on metrics.
   void
-  metrics_refine ();
+  metrics_refine (idx_t max_nodes = 0);
 
   /// Coarsen marked quadrants, balance the quadtree and
   /// re-partition over the processors.
