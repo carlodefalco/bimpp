@@ -217,7 +217,7 @@ main (int argc, char **argv)
       
       // Refine.
       tmsh.set_metrics_marker (estimator, 1e-10, 4);
-      tmsh.metrics_refine ();
+      tmsh.metrics_refine (1e5);
       
       tmsh.vtk_export ((std::string("p4est_dr_test_3_metrics_newmesh_")
                         + std::to_string(adapt)).c_str());
