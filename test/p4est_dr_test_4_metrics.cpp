@@ -209,8 +209,6 @@ main (int argc, char **argv)
             return estimator_sol (q, u_star1, global_rhs);
         };
       
-      nnodes.push_back (tmsh.num_global_nodes ());
-      
       std::cout << " Done." << std::endl;
       
       // Compute error.
