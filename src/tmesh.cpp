@@ -709,22 +709,19 @@ tmesh::refine (int recursive, int partforcoarsen, int balance)
 }
 
 void
-tmesh::metrics_refine (idx_t max_nodes)
+tmesh::metrics_refine (idx_t max_elems)
 {
   int recursive = 0;
   int partforcoarsen = 1;
   
   for (int i = 0; i < metrics_max_depth - 1; ++i)
     {
-      refine (recursive, partforcoarsen, 0);
-      
       // Prevent large meshes.
-      if (max_nodes > 0 && this->num_global_nodes () >= max_nodes)
-        {
-          refine (recursive, partforcoarsen, 1);
-          
-          return;
-        }
+      if ((max_elems > 0 && this->num_global_quadrants () <= max_elems)
+          || max_elems <= 0)
+        refine (recursive, partforcoarsen, 0);
+      else
+        break;
     }
   
   refine (recursive, partforcoarsen, 1);
