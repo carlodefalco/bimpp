@@ -43,6 +43,7 @@ main (int argc, char **argv)
   tmsh.vtk_export ("p4est_dr_test_4_metrics");
   
   std::vector<tmesh::idx_t> nnodes;
+  std::vector<double> error;
   
   for (int adapt = 0; adapt < refine_steps; ++adapt)
     {
@@ -212,11 +213,27 @@ main (int argc, char **argv)
       
       std::cout << " Done." << std::endl;
       
+      // Compute error.
+      double err = 0, global_err = 0;
+      
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep ();
+           ++quadrant)
+        err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
+      
+      MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      global_err = std::sqrt(global_err);
+      
+      nnodes.push_back (tmsh.num_global_nodes ());
+      error.push_back (global_err);
+      
+      std::cout << " Done." << std::endl;
+      
       if (tmsh.num_global_nodes () >= 1e6)
         break;
       
       // Refine.
-      tmsh.set_metrics_marker (estimator, 1e-10, 4);
+      tmsh.set_metrics_marker (estimator, 1e-10, 3);
       tmsh.metrics_refine ();
       
       tmsh.vtk_export ((std::string("p4est_dr_test_4_metrics_newmesh_")
@@ -226,7 +243,8 @@ main (int argc, char **argv)
   if (rank == 0)
     for (unsigned step = 0; step < nnodes.size(); ++step)
       std::cout << "Step " << step << ", #nodes: "
-                << nnodes[step] << std::endl;
+                << nnodes[step] << ", error: "
+                << error[step] << std::endl;
   
   MPI_Finalize ();
   
