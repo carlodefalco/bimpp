@@ -153,8 +153,6 @@ main (int argc, char **argv)
       auto estimator = [& u_star, & global_rhs] (tmesh::quadrant_iterator q)
         { return estimator_sol (q, u_star, global_rhs); };
       
-      nnodes.push_back (tmsh.num_global_nodes ());
-      
       std::cout << " Done." << std::endl;
       
       // Compute error.
