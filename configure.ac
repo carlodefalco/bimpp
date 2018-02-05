@@ -232,6 +232,7 @@ AC_CONFIG_FILES([src/bim_config_pre.h
                  Makefile
                  src/Makefile
                  data/Makefile
-                 test/Makefile])
+                 test/Makefile
+                 examples/tmesh_2d/Makefile])
 AC_OUTPUT
 
