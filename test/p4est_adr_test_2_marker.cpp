@@ -12,7 +12,7 @@ static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return 1; }
 
-static constexpr unsigned refine_steps = 10;
+static constexpr unsigned refine_steps = 20;
 
 int
 main (int argc, char **argv)
@@ -36,34 +36,29 @@ main (int argc, char **argv)
   recursive = 0; partforcoarsen = 1;
   for (int cycle = 0; cycle < 2; ++cycle)
     {
-      tmsh.refine (recursive, partforcoarsen);
       tmsh.set_refine_marker (uniform_refinement);
+      tmsh.refine (recursive, partforcoarsen);
     }
   
-  tmsh.vtk_export ("p4est_dr_test_2_metrics");
+  tmsh.vtk_export ("p4est_adr_test_2_marker");
   
   std::vector<tmesh::idx_t> nnodes;
+  
+  double delta1 = 1.5;
+  double delta2 = 0.5;
   
   for (int adapt = 0; adapt < refine_steps; ++adapt)
     {
       std::cout << "*** Step " << adapt << " ***" << std::endl;
       
-      // Assemble matrix and right-hand side.
-      sparse_matrix A, M;
+      // Assemble matrix.
+      sparse_matrix A;
       A.resize(tmsh.num_global_nodes());
-      M.resize(tmsh.num_global_nodes());
       
-      double epsilon = std::pow(2, -10);
+      double epsilon = 1e-6;
+      double theta = M_PI / 4;
       std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
       std::vector<double> psi(tmsh.num_local_nodes (), 0);
-      
-      std::vector<double> delta(tmsh.num_local_quadrants (), 1);
-      std::vector<double> zeta(tmsh.num_local_nodes (), 1);
-      
-      std::vector<double> rhs(tmsh.num_global_nodes (), 0);
-      
-      std::vector<double> f(tmsh.num_local_quadrants (), 1);
-      std::vector<double> g(tmsh.num_local_nodes (), 0);
       
       double x = 0, y = 0;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -72,30 +67,37 @@ main (int argc, char **argv)
         {
           for (int ii = 0; ii < 4; ++ii)
             {
-              x = quadrant->p(0, ii);
-              y = quadrant->p(1, ii);
-              
-              zeta[quadrant->t(ii)] = 1 + x * x * y * y;
-              g   [quadrant->t(ii)] = 1 + 2 * x * y;
+              if (! quadrant->is_hanging (ii))
+                {
+                  x = quadrant->p(0, ii);
+                  y = quadrant->p(1, ii);
+                  
+                  psi[quadrant->t(ii)] = (std::cos(theta) * x +
+                                          std::sin(theta) * y) / epsilon;
+                }
             }
         }
         
       bim2a_advection_diffusion (tmsh, alpha, psi, A);
-      bim2a_reaction (tmsh, delta, zeta, M);
-      A += M;
+      
+      // Assemble right-hand side.
+      std::vector<double> rhs(tmsh.num_global_nodes (), 0);
+      
+      std::vector<double> f(tmsh.num_local_quadrants (), 0);
+      std::vector<double> g(tmsh.num_local_nodes (), 0);
       
       bim2a_rhs (tmsh, f, g, rhs);
       
       // Set boundary conditions.
-      func g1 = [] (double x, double y) { return 1; };
-      func g2 = [] (double x, double y) { return 1 - x * x; };
-      func g3 = [] (double x, double y) { return 1 - y * y; };
+      func u0  = [] (double x, double y) { return 0; };
+      func u1  = [] (double x, double y) { return 1; };
+      func u10 = [] (double x, double y) { return (y > 0.2) ? 0 : 1; };
       
       dirichlet_bcs bcs;
-      bcs.push_back (std::make_tuple(0, 0, g1));
-      bcs.push_back (std::make_tuple(0, 1, g2));
-      bcs.push_back (std::make_tuple(0, 2, g1));
-      bcs.push_back (std::make_tuple(0, 3, g3));
+      bcs.push_back (std::make_tuple(0, 0, u1 ));
+      bcs.push_back (std::make_tuple(0, 1, u0 ));
+      bcs.push_back (std::make_tuple(0, 2, u10));
+      bcs.push_back (std::make_tuple(0, 3, u0 ));
       
       bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
       
@@ -129,24 +131,29 @@ main (int argc, char **argv)
       
       // Export solution.
       MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_u_")
+      tmsh.octbin_export ((std::string("p4est_adr_test_2_marker_u_")
                            + std::to_string(adapt)).c_str(), global_rhs);
       
       std::cout << " Done." << std::endl;
       
       // Compute reconstructed gradient.
-      std::cout << "Computing reconstructed gradient and estimator.";
+      std::cout << "Computing reconstructed gradient, solution and estimator.";
       
       gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
       q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du);
       
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du_x_")
+      tmsh.octbin_export ((std::string("p4est_adr_test_2_marker_du_x_")
                            + std::to_string(adapt)).c_str(), du.first);
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du_y_")
+      tmsh.octbin_export ((std::string("p4est_adr_test_2_marker_du_y_")
                            + std::to_string(adapt)).c_str(), du.second);
       
-      auto estimator = [& u_star, & global_rhs] (tmesh::quadrant_iterator q)
-        { return estimator_sol (q, u_star, global_rhs); };
+      auto refine_fun = [& delta1, & u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
+        { return zz_marker_sol (q, u_star, global_rhs,
+                                delta1 * 1e-6 / std::sqrt(tmsh.num_global_nodes())); };
+      
+      auto coarsen_fun = [& delta2, & u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
+        { return !zz_marker_sol (q, u_star, global_rhs,
+                                 delta2 * 1e-6 / std::sqrt(tmsh.num_global_nodes())); };
       
       nnodes.push_back (tmsh.num_global_nodes ());
       
@@ -155,11 +162,14 @@ main (int argc, char **argv)
       if (tmsh.num_global_nodes () >= 1e6)
         break;
       
-      // Refine.
-      tmsh.set_metrics_marker (estimator, 1e-6, 4);
-      tmsh.metrics_refine (1e5);
+      // Coarsen and refine.
+      tmsh.set_coarsen_marker (coarsen_fun);
+      tmsh.set_refine_marker (refine_fun);
       
-      tmsh.vtk_export ((std::string("p4est_dr_test_2_metrics_newmesh_")
+      tmsh.coarsen (recursive, partforcoarsen, 0);
+      tmsh.refine (recursive, partforcoarsen);
+      
+      tmsh.vtk_export ((std::string("p4est_adr_test_2_marker_newmesh_")
                         + std::to_string(adapt)).c_str());
     }
   

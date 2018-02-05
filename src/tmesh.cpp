@@ -18,6 +18,19 @@ tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj)
   return (retval);
 };
 
+double
+tmesh::quadrant_t::centroid (tmesh::idx_t ii) 
+{
+  double retval = 0;
+  
+  if (ii == 0)
+    retval = 0.5 * (this->p(0, 0) + this->p(0, 1));
+  else if (ii == 1)
+    retval = 0.5 * (this->p(1, 0) + this->p(1, 2));
+  
+  return (retval);
+};
+
 /** Decode the information from p4est_lnodes_t for a given element.
  *
  * \see p4est_lnodes.h for an in-depth discussion of the encoding.
@@ -696,12 +709,21 @@ tmesh::refine (int recursive, int partforcoarsen, int balance)
 }
 
 void
-tmesh::metrics_refine ()
+tmesh::metrics_refine (idx_t max_elems)
 {
-  for (int i = 0; i < metrics_max_depth - 1; ++i)
-    refine (0, 1, 0);
+  int recursive = 0;
+  int partforcoarsen = 1;
   
-  refine (0, 1, 1);
+  for (int i = 0; i < metrics_max_depth - 1; ++i)
+    {
+      refine (recursive, partforcoarsen, 0);
+      
+      // Prevent large meshes.
+      if (max_elems > 0 && this->num_global_quadrants () >= max_elems)
+        break;
+    }
+  
+  refine (recursive, partforcoarsen, 1);
 }
 
 void

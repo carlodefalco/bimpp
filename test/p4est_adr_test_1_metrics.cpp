@@ -36,66 +36,60 @@ main (int argc, char **argv)
   recursive = 0; partforcoarsen = 1;
   for (int cycle = 0; cycle < 2; ++cycle)
     {
-      tmsh.refine (recursive, partforcoarsen);
       tmsh.set_refine_marker (uniform_refinement);
+      tmsh.refine (recursive, partforcoarsen);
     }
   
-  tmsh.vtk_export ("p4est_dr_test_2_metrics");
+  tmsh.vtk_export ("p4est_adr_test_1_metrics");
   
   std::vector<tmesh::idx_t> nnodes;
+  std::vector<double> error;
   
   for (int adapt = 0; adapt < refine_steps; ++adapt)
     {
       std::cout << "*** Step " << adapt << " ***" << std::endl;
       
-      // Assemble matrix and right-hand side.
-      sparse_matrix A, M;
+      // Assemble advection-diffusion matrix.
+      sparse_matrix A;
       A.resize(tmsh.num_global_nodes());
-      M.resize(tmsh.num_global_nodes());
       
-      double epsilon = std::pow(2, -10);
-      std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
+      double lambda = 100;
+      std::vector<double> alpha(tmsh.num_local_quadrants (), 1);
       std::vector<double> psi(tmsh.num_local_nodes (), 0);
       
-      std::vector<double> delta(tmsh.num_local_quadrants (), 1);
-      std::vector<double> zeta(tmsh.num_local_nodes (), 1);
-      
-      std::vector<double> rhs(tmsh.num_global_nodes (), 0);
-      
-      std::vector<double> f(tmsh.num_local_quadrants (), 1);
-      std::vector<double> g(tmsh.num_local_nodes (), 0);
-      
-      double x = 0, y = 0;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
           for (int ii = 0; ii < 4; ++ii)
             {
-              x = quadrant->p(0, ii);
-              y = quadrant->p(1, ii);
-              
-              zeta[quadrant->t(ii)] = 1 + x * x * y * y;
-              g   [quadrant->t(ii)] = 1 + 2 * x * y;
+               if (! quadrant->is_hanging (ii))
+                {
+                  psi[quadrant->t(ii)] =
+                    lambda * (quadrant->p(0, ii) + quadrant->p(1, ii));
+                }
             }
         }
-        
+      
       bim2a_advection_diffusion (tmsh, alpha, psi, A);
-      bim2a_reaction (tmsh, delta, zeta, M);
-      A += M;
+      
+      // Assemble right-hand side.
+      std::vector<double> rhs(tmsh.num_global_nodes (), 0);
+      
+      std::vector<double> f(tmsh.num_local_quadrants (), 0);
+      std::vector<double> g(tmsh.num_local_nodes (), 0);
       
       bim2a_rhs (tmsh, f, g, rhs);
       
       // Set boundary conditions.
-      func g1 = [] (double x, double y) { return 1; };
-      func g2 = [] (double x, double y) { return 1 - x * x; };
-      func g3 = [] (double x, double y) { return 1 - y * y; };
-      
+      func u_ex =
+        [lambda] (double x, double y)
+        { return (exp(lambda * x) - 1) / (exp(lambda) - 1) *
+                 (exp(lambda * y) - 1) / (exp(lambda) - 1); };
+                 
       dirichlet_bcs bcs;
-      bcs.push_back (std::make_tuple(0, 0, g1));
-      bcs.push_back (std::make_tuple(0, 1, g2));
-      bcs.push_back (std::make_tuple(0, 2, g1));
-      bcs.push_back (std::make_tuple(0, 3, g3));
+      for (int i = 0; i < 4; ++i)
+        bcs.push_back (std::make_tuple(0, i, u_ex));
       
       bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
       
@@ -129,8 +123,19 @@ main (int argc, char **argv)
       
       // Export solution.
       MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_u_")
+      tmsh.octbin_export ((std::string("p4est_adr_test_1_metrics_u_")
                            + std::to_string(adapt)).c_str(), global_rhs);
+      
+      std::vector<double> uex(tmsh.num_global_nodes(), 0);
+      
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep ();
+           ++quadrant)
+        for (int i = 0; i < 4; ++i)
+          uex[quadrant->gt(i)] = u_ex(quadrant->p(0, i), quadrant->p(1, i));
+      
+      tmsh.octbin_export ((std::string("p4est_adr_test_1_metrics_uex_")
+                           + std::to_string(adapt)).c_str(), uex);
       
       std::cout << " Done." << std::endl;
       
@@ -140,15 +145,29 @@ main (int argc, char **argv)
       gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
       q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du);
       
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du_x_")
+      tmsh.octbin_export ((std::string("p4est_adr_test_1_metrics_du_x_")
                            + std::to_string(adapt)).c_str(), du.first);
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du_y_")
+      tmsh.octbin_export ((std::string("p4est_adr_test_1_metrics_du_y_")
                            + std::to_string(adapt)).c_str(), du.second);
       
       auto estimator = [& u_star, & global_rhs] (tmesh::quadrant_iterator q)
         { return estimator_sol (q, u_star, global_rhs); };
       
+      std::cout << " Done." << std::endl;
+      
+      // Compute error.
+      double err = 0, global_err = 0;
+      
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep ();
+           ++quadrant)
+        err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
+      
+      MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      global_err = std::sqrt(global_err);
+      
       nnodes.push_back (tmsh.num_global_nodes ());
+      error.push_back (global_err);
       
       std::cout << " Done." << std::endl;
       
@@ -156,17 +175,18 @@ main (int argc, char **argv)
         break;
       
       // Refine.
-      tmsh.set_metrics_marker (estimator, 1e-6, 4);
+      tmsh.set_metrics_marker (estimator, 1e-10, 4);
       tmsh.metrics_refine (1e5);
       
-      tmsh.vtk_export ((std::string("p4est_dr_test_2_metrics_newmesh_")
+      tmsh.vtk_export ((std::string("p4est_adr_test_1_metrics_newmesh_")
                         + std::to_string(adapt)).c_str());
     }
   
   if (rank == 0)
     for (unsigned step = 0; step < nnodes.size(); ++step)
       std::cout << "Step " << step << ", #nodes: "
-                << nnodes[step] << std::endl;
+                << nnodes[step] << ", error: "
+                << error[step] << std::endl;
   
   MPI_Finalize ();
   

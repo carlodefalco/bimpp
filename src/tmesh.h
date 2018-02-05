@@ -145,6 +145,10 @@ public:
     /// Get the i-th coordinate of the j-th vertex.
     double
     p (idx_t i, idx_t j);
+    
+    /// Get the i-th coordinate of the centroid.
+    double
+    centroid (idx_t i);
 
     /// Get rank-local index of the i-th vertex, or global index for ghosts.
     idx_t
@@ -351,7 +355,7 @@ public:
   
   /// Refine marked quadrants based on metrics.
   void
-  metrics_refine ();
+  metrics_refine (idx_t max_elems = 0);
 
   /// Coarsen marked quadrants, balance the quadtree and
   /// re-partition over the processors.

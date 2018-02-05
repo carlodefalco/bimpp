@@ -33,10 +33,12 @@ main (int argc, char **argv)
   
   tmsh.set_replace_fun (tmesh::userint_replace);
   
-  tmsh.set_refine_marker (uniform_refinement);
   recursive = 0; partforcoarsen = 1;
   for (int cycle = 0; cycle < 2; ++cycle)
-    tmsh.refine (recursive, partforcoarsen);
+    {
+      tmsh.set_refine_marker (uniform_refinement);
+      tmsh.refine (recursive, partforcoarsen);
+    }
   
   tmsh.vtk_export ("p4est_metrics_test_1");
   
@@ -166,12 +168,6 @@ main (int argc, char **argv)
       tmsh.set_metrics_marker (estimator, 1e-2, 3);
       tmsh.metrics_refine ();
       
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-           quadrant != tmsh.end_quadrant_sweep ();
-           ++quadrant)
-        //std::cout << quadrant->get_global_quad_idx() << " " << quadrant->the_quadrant->p.user_int << std::endl;
-        assert(quadrant->the_quadrant->p.user_int == 0);
-        
       tmsh.vtk_export ((std::string("p4est_metrics_test_1_newmesh_")
                         + std::to_string(adapt)).c_str());
       std::cout << " Done." << std::endl;
