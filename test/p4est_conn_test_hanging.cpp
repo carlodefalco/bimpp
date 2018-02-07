@@ -56,20 +56,21 @@ main (int argc, char **argv)
 
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
-
-  tmsh.set_refine_marker (uniform_refinement);
+  
   recursive = 0; partforcoarsen = 1;
+  tmsh.set_refine_marker (uniform_refinement);
   tmsh.refine (recursive, partforcoarsen);
+  tmsh.set_refine_marker (uniform_refinement);
   tmsh.refine (recursive, partforcoarsen);
   
   tmsh.set_refine_marker (bottom_refinement);
-  recursive = 0; partforcoarsen = 1;
   tmsh.refine (recursive, partforcoarsen);
+  tmsh.set_refine_marker (bottom_refinement);
   tmsh.refine (recursive, partforcoarsen);
   
   tmsh.set_refine_marker (left_refinement);
-  recursive = 0; partforcoarsen = 1;
   tmsh.refine (recursive, partforcoarsen);
+  tmsh.set_refine_marker (left_refinement);
   tmsh.refine (recursive, partforcoarsen);
   
   tmsh.vtk_export ("p4est_conn_test_hanging");

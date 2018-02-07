@@ -136,18 +136,16 @@ int main(int argc, char ** argv)
   recursive = 0;
   partforcoarsen = 1;
   
-  tmsh.set_refine_marker (uniform_refinement);
-  
   for (int cycle = 0; cycle < 3; ++cycle)
     {
-        tmsh.refine(recursive, partforcoarsen);
+      tmsh.set_refine_marker (uniform_refinement);
+      tmsh.refine(recursive, partforcoarsen);
     }
   
   // Refine according to segment_list.  
-  tmsh.set_refine_marker (segment_refinement);
-  
   for (int cycle = 0; cycle < 16; ++cycle)
     {
+      tmsh.set_refine_marker (segment_refinement);
       tmsh.refine (recursive, partforcoarsen);
     }
   

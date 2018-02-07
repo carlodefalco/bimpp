@@ -145,6 +145,10 @@ public:
     /// Get the i-th coordinate of the j-th vertex.
     double
     p (idx_t i, idx_t j);
+    
+    /// Get the i-th coordinate of the centroid.
+    double
+    centroid (idx_t i);
 
     /// Get rank-local index of the i-th vertex, or global index for ghosts.
     idx_t
@@ -255,7 +259,7 @@ public:
       current_quadrant (this, 0, nullptr),
       lnodes (nullptr), mesh (nullptr), ghost(nullptr),
       mirror_data (nullptr), ghost_data (nullptr),
-      comm (_comm), rank (0), size (1)
+      comm (_comm), rank (0), size (1), replace_fun(userint_replace)
   {
     MPI_Comm_rank (comm, &rank);
     MPI_Comm_size (comm, &size);
@@ -318,7 +322,7 @@ public:
            q != this->end_quadrant_sweep ();
            ++q)
         if (fun (q))
-          q->the_quadrant->p.user_int = fun (q);
+          q->the_quadrant->p.user_int = std::abs(fun (q));
     };
 
   /// Mark quadrants for coarsening based on fun.
@@ -330,7 +334,7 @@ public:
            q != this->end_quadrant_sweep ();
            ++q)
         if (fun (q))
-          q->the_quadrant->p.user_int = -fun (q);
+          q->the_quadrant->p.user_int = -std::abs(fun (q));
     };
   
   /// Mark quadrants for refinement based on metrics.
@@ -351,7 +355,7 @@ public:
   
   /// Refine marked quadrants based on metrics.
   void
-  metrics_refine ();
+  metrics_refine (idx_t max_elems = 0);
 
   /// Coarsen marked quadrants, balance the quadtree and
   /// re-partition over the processors.

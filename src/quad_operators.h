@@ -21,6 +21,10 @@ using gradient = std::pair<q1_vec, q1_vec>;
 /// Nodes, faces, cell midpoint dofs.
 using q2_vec = std::vector<std::array<double, 9>>;
 
+/// Function to mark if a quadrant has to be taken into
+/// account when computing the recovered gradient.
+using active_fun = std::function<bool (tmesh::quadrant_iterator)>;
+
 // Compute harmonic mean of a and b.
 double
 hm (const double & a, const double & b);
@@ -53,10 +57,15 @@ void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     sparse_matrix& A, std::vector<double>& rhs);
 
+double
+nedelec_gradient (tmesh::quadrant_iterator & q,
+                  const q1_vec& u, size_t i);
+
 gradient
 bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                                        const q1_vec& u,
-                                       const p4est_topidx_t & tree_idx = -1);
+                                       active_fun is_active =
+                                        [] (tmesh::quadrant_iterator) {return true;});
 
 q2_vec
 bim2c_quadtree_pde_recovered_solution (tmesh& mesh,

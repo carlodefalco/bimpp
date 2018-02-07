@@ -33,12 +33,14 @@ main (int argc, char **argv)
   
   tmsh.set_replace_fun (tmesh::userint_replace);
   
-  tmsh.set_refine_marker (uniform_refinement);
   recursive = 0; partforcoarsen = 1;
   for (int cycle = 0; cycle < 2; ++cycle)
-    tmsh.refine (recursive, partforcoarsen);
+    {
+      tmsh.set_refine_marker (uniform_refinement);
+      tmsh.refine (recursive, partforcoarsen);
+    }
   
-  tmsh.vtk_export ("p4est_dr_test_2_metrics");
+  tmsh.vtk_export ("p4est_dr_test_2_marker");
   
   std::vector<tmesh::idx_t> nnodes;
   
@@ -54,7 +56,7 @@ main (int argc, char **argv)
       A.resize(tmsh.num_global_nodes());
       M.resize(tmsh.num_global_nodes());
       
-      double epsilon = std::pow(2, -10);
+      double epsilon = std::pow(2, -30);
       std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
       std::vector<double> psi(tmsh.num_local_nodes (), 0);
       
@@ -130,7 +132,7 @@ main (int argc, char **argv)
       
       // Export solution.
       MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_u_")
+      tmsh.octbin_export ((std::string("p4est_dr_test_2_marker_u_")
                            + std::to_string(adapt)).c_str(), global_rhs);
       
       std::cout << " Done." << std::endl;

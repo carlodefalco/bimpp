@@ -45,8 +45,6 @@ main (int argc, char **argv)
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
 
-  tmsh.set_refine_marker (fake_refinement);
-
   recursive = 0;
   partforcoarsen = 0;
  
@@ -57,7 +55,7 @@ main (int argc, char **argv)
   for (int k = 0; k < 3 ; ++k)
     {
       std::cout << "refinement step #" << k << std::endl;
-      tmsh.update ();
+      tmsh.set_refine_marker (fake_refinement);
       tmsh.refine (recursive, partforcoarsen);
     }
 

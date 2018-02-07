@@ -16,7 +16,7 @@ static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return 1; }
 
-static constexpr unsigned refine_steps = 15;
+static constexpr unsigned refine_steps = 20;
 
 int
 main (int argc, char **argv)
@@ -35,6 +35,8 @@ main (int argc, char **argv)
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
   
+  tmsh.set_replace_fun (tmesh::userint_replace);
+  
   recursive = 0; partforcoarsen = 1;
   for (int cycle = 0; cycle < 1; ++cycle)
     {
@@ -42,10 +44,10 @@ main (int argc, char **argv)
       tmsh.refine (recursive, partforcoarsen);
     }
   
-  tmsh.vtk_export ("p4est_test_discontinuous");
+  tmsh.vtk_export ("p4est_dr_test_3_marker");
   
-  std::array<tmesh::idx_t, refine_steps> nnodes;
-  std::array<double, refine_steps> error;
+  std::vector<tmesh::idx_t> nnodes;
+  std::vector<double> error;
   
   double delta1 = 1.5;
   double delta2 = 0.5;
@@ -55,8 +57,8 @@ main (int argc, char **argv)
       std::cout << "*** Step " << adapt << " ***" << std::endl;
       
       // Compute coefficients.
-      double eps1 = 0.5;
-      double eps2 = 1;
+      double eps1 = 5e-7;
+      double eps2 = 1e-6;
       
       double c = -0.4375 * eps2 /
         (0.5 * std::sqrt(eps1) * std::cosh(0.5 / std::sqrt(eps1)) +
@@ -75,21 +77,11 @@ main (int argc, char **argv)
       std::vector<double> f(tmsh.num_local_quadrants (), 1);
       std::vector<double> g(tmsh.num_local_nodes (), 1);
       
-      double y, ymin;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
-          ymin = std::numeric_limits<double>::max();
-          
-          for (int ii = 0; ii < 4; ++ii)
-            {
-              y = quadrant->p(1, ii);
-              
-              ymin = std::min(y, ymin);
-            }
-          
-          if (ymin >= 0.5)
+          if (quadrant->p(1, 0) >= 0.5)
             {
               alpha[quadrant->get_forest_quad_idx()] = eps2;
               delta[quadrant->get_forest_quad_idx()] = 0;
@@ -154,13 +146,24 @@ main (int argc, char **argv)
       
       // Export solution.
       MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      tmsh.octbin_export ((std::string("p4est_test_discontinuous_u_")
+      tmsh.octbin_export ((std::string("p4est_dr_test_3_marker_u_")
                            + std::to_string(adapt)).c_str(), global_rhs);
+      
+      std::vector<double> uex(tmsh.num_global_nodes(), 0);
+      
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep ();
+           ++quadrant)
+        for (int i = 0; i < 4; ++i)
+          uex[quadrant->gt(i)] = u_ex(quadrant->p(0, i), quadrant->p(1, i));
+      
+      tmsh.octbin_export ((std::string("p4est_dr_test_3_marker_uex_")
+                           + std::to_string(adapt)).c_str(), uex);
       
       std::cout << " Done." << std::endl;
       
       // Compute reconstructed gradient.
-      std::cout << "Computing reconstructed gradient and estimator.";
+      std::cout << "Computing reconstructed gradient, solution and estimator.";
       
       active_fun tree0 = [] (tmesh::quadrant_iterator q)
         { return (q->get_tree_idx () == 0); };
@@ -171,34 +174,37 @@ main (int argc, char **argv)
       gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree0);
       gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree1);
       
-      tmsh.octbin_export ((std::string("p4est_test_discontinuous_du0_x_")
+      q2_vec u_star0 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du0);
+      q2_vec u_star1 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du1);
+      
+      tmsh.octbin_export ((std::string("p4est_dr_test_3_marker_du0_x_")
                            + std::to_string(adapt)).c_str(), du0.first);
-      tmsh.octbin_export ((std::string("p4est_test_discontinuous_du0_y_")
+      tmsh.octbin_export ((std::string("p4est_dr_test_3_marker_du0_y_")
                            + std::to_string(adapt)).c_str(), du0.second);
       
-      tmsh.octbin_export ((std::string("p4est_test_discontinuous_du1_x_")
+      tmsh.octbin_export ((std::string("p4est_dr_test_3_marker_du1_x_")
                            + std::to_string(adapt)).c_str(), du1.first);
-      tmsh.octbin_export ((std::string("p4est_test_discontinuous_du1_y_")
+      tmsh.octbin_export ((std::string("p4est_dr_test_3_marker_du1_y_")
                            + std::to_string(adapt)).c_str(), du1.second);
       
-      auto refine_fun = [& delta1, & du0, & du1, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
+      auto refine_fun = [& delta1, & u_star0, & u_star1, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         {
           if (q->p(1, 2) <= 0.5)
-            return zz_marker_grad (q, du0, global_rhs,
-                                   delta1 * 1e-3 / std::sqrt(tmsh.num_global_nodes()));
+            return zz_marker_sol (q, u_star0, global_rhs,
+                                  delta1 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
           else
-            return zz_marker_grad (q, du1, global_rhs,
-                                   delta1 * 1e-3 / std::sqrt(tmsh.num_global_nodes()));
+            return zz_marker_sol (q, u_star1, global_rhs,
+                                  delta1 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
         };
       
-      auto coarsen_fun = [& delta2, & du0, & du1, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
+      auto coarsen_fun = [& delta2, & u_star0, & u_star1, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         {
           if (q->p(1, 2) <= 0.5)
-            return !zz_marker_grad (q, du0, global_rhs,
-                                    delta2 * 1e-3 / std::sqrt(tmsh.num_global_nodes()));
+            return !zz_marker_sol (q, u_star0, global_rhs,
+                                   delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
           else
-            return !zz_marker_grad (q, du1, global_rhs,
-                                    delta2 * 1e-3 / std::sqrt(tmsh.num_global_nodes()));
+            return !zz_marker_sol (q, u_star1, global_rhs,
+                                   delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
         };
       
       // Compute error.
@@ -207,33 +213,32 @@ main (int argc, char **argv)
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
-          err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
+        err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
       
       MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
       global_err = std::sqrt(global_err);
       
-      nnodes[adapt] = tmsh.num_global_nodes();
-      error [adapt] = global_err;
+      nnodes.push_back (tmsh.num_global_nodes ());
+      error.push_back (global_err);
       
-      // Refine or coarsen.
-      if ((adapt % 2) == 1)
-        {
-          tmsh.set_refine_marker (refine_fun);
-          tmsh.refine (recursive, partforcoarsen);
-        }
-      else
-        {
-          tmsh.set_coarsen_marker (coarsen_fun);
-          tmsh.coarsen (recursive, partforcoarsen);
-        }
-      
-      tmsh.vtk_export ((std::string("p4est_test_discontinuous_newmesh_")
-                        + std::to_string(adapt)).c_str());
       std::cout << " Done." << std::endl;
+      
+      if (tmsh.num_global_nodes () >= 1e6)
+        break;
+      
+      // Coarsen and refine.
+      tmsh.set_coarsen_marker (coarsen_fun);
+      tmsh.set_refine_marker (refine_fun);
+      
+      tmsh.coarsen (recursive, partforcoarsen, 0);
+      tmsh.refine (recursive, partforcoarsen);
+      
+      tmsh.vtk_export ((std::string("p4est_dr_test_3_marker_newmesh_")
+                        + std::to_string(adapt)).c_str());
     }
   
   if (rank == 0)
-    for (unsigned step = 0; step < refine_steps; ++step)
+    for (unsigned step = 0; step < nnodes.size(); ++step)
       std::cout << "Step " << step << ", #nodes: "
                 << nnodes[step] << ", error: "
                 << error[step] << std::endl;
