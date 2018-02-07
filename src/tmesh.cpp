@@ -674,8 +674,11 @@ tmesh::set_metrics_marker
                  * std::sqrt (this->num_global_quadrants ()) / tol);
       
       quadrant->the_quadrant->p.user_int =
-        std::min (std::max (0.0, std::ceil (hxhat_hx) ),
+        std::min (std::max (-double (max_depth),
+                            std::ceil (hxhat_hx) ),
                   double (max_depth));
+      
+      std::cout << quadrant->the_quadrant->p.user_int << std::endl;
     }
   
   return;
@@ -716,13 +719,15 @@ tmesh::metrics_refine (idx_t max_elems)
   
   for (int i = 0; i < metrics_max_depth - 1; ++i)
     {
+      coarsen (recursive, partforcoarsen, 0);
       refine (recursive, partforcoarsen, 0);
       
       // Prevent large meshes.
       if (max_elems > 0 && this->num_global_quadrants () >= max_elems)
         break;
     }
-  
+    
+  coarsen (recursive, partforcoarsen, 0);
   refine (recursive, partforcoarsen, 1);
 }
 
