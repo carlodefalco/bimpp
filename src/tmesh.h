@@ -138,7 +138,7 @@ public:
     quadrant_t (tmesh *_tmesh,
                 p4est_topidx_t _tree = 0,
                 p4est_quadrant_t *_quadrant = nullptr) :
-      the_tmesh(_tmesh), tree_idx(_tree), the_quadrant(_quadrant),
+      the_tmesh(_tmesh), the_quadrant(_quadrant), tree_idx(_tree),
       is_ghost(false), qtq(-1)
     { };
 
