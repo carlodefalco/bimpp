@@ -28,7 +28,6 @@ if HAVE_P4EST
   check_PROGRAMS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 p4est_operator_test \
                     p4est_conn_test p4est_hanging_test p4est_coarsen_test \
                     p4est_iterator_test  p4est_load_save_test p4est_edge_id_test \
-                    p4est_operator_test_2 p4est_operator_test_3 \
                     p4est_neighbor_iterator_test p4est_estimator_test_1 p4est_up_test \
                     p4est_ref_lnodes_test p4est_test_discontinuous p4est_estimator_test_1_uniform \
                     p4est_metrics_test_1 \
@@ -164,18 +163,6 @@ if HAVE_P4EST
   p4est_quad_index_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_quad_index_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += p4est_quad_index_test*.octbin.gz p4est_quad_index_test.pvtu p4est_quad_index_test.visit p4est_quad_index_test_*.vtu
-
-  p4est_operator_test_3_SOURCES =  p4est_operator_test_3.cpp 
-  p4est_operator_test_3_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_operator_test_3_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_operator_test_3_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_operator_test_3*.octbin.gz p4est_operator_test_3.pvtu p4est_operator_test_3.visit p4est_operator_test_3_*.vtu
-
-  p4est_operator_test_2_SOURCES =  p4est_operator_test_2.cpp
-  p4est_operator_test_2_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_operator_test_2_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_operator_test_2_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_operator_test_2*.octbin.gz p4est_operator_test_2.pvtu p4est_operator_test_2.visit p4est_operator_test_2_*.vtu
 
   p4est_conn_test_hanging_SOURCES =  p4est_conn_test_hanging.cpp 
   p4est_conn_test_hanging_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
@@ -366,7 +353,6 @@ if HAVE_P4EST
 TESTS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 p4est_conn_test \
          p4est_hanging_test p4est_coarsen_test \
          p4est_iterator_test p4est_load_save_test p4est_edge_id_test \
-         p4est_operator_test_2 p4est_operator_test_3 \
          p4est_neighbor_iterator_test p4est_estimator_test_1 p4est_up_test \
          p4est_ref_lnodes_test p4est_test_discontinuous p4est_estimator_test_1_uniform \
          p4est_metrics_test_1
