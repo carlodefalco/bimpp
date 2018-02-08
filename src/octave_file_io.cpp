@@ -44,7 +44,31 @@ class octave_file_io_intf
 public:
 
   octave_file_io_intf () 
-    : filename ("") {};
+    : filename ("")
+  {
+#ifdef HAVE_OCTAVE_44
+    try
+      {
+        int status = interp.execute ();
+        if (status != 0)
+          {
+            std::cerr << "creating embedded Octave interpreter failed!"
+                      << std::endl;
+            exit (status);
+          }
+      }
+    catch (const octave::exit_exception& ex)
+      {
+        std::cerr << "Octave interpreter exited with status = "
+                  << ex.exit_status () << std::endl;
+        exit (ex.exit_status ());
+      }
+    catch (const octave::execution_exception&)
+      {
+        std::cerr << "error encountered in Octave evaluator!" << std::endl;
+      }
+#indef
+  };
   
   int fopen (const char *fname, std::ios::openmode m);
   int gzfopen (const char *fname, std::ios::openmode m);
@@ -68,6 +92,7 @@ private:
   int write (const std::string &);
   int gzwrite (const std::string &);
 
+  interpreter interp;
   std::fstream file;
   gzifstream gzifile;
   gzofstream gzofile;
@@ -191,7 +216,9 @@ octave_file_io_intf::read
 (const std::string &varname)
 {
   string_vector argv (1);
-  install_types ();  
+#ifndef HAVE_OCTAVE_44
+  install_types ();
+#endif
   argv(0) = varname;
   
   file.clear ();
@@ -216,7 +243,9 @@ octave_file_io_intf::gzread
 {
 
   string_vector argv (1);
-  install_types ();  
+#ifdef
+  install_types ();
+#endif
   argv(0) = varname;
   
   gzifile.clear ();
