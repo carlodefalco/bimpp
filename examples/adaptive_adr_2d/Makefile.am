@@ -9,6 +9,7 @@ AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
 bin_PROGRAMS = p4est_operator_segment_test \
+               p4est_operator_test \
                p4est_operator_test_2 p4est_operator_test_3 \
                p4est_estimator_test_1 p4est_estimator_test_1_uniform \
                p4est_adr_test_1_marker p4est_adr_test_1_metrics p4est_adr_test_1_uniform \
@@ -18,7 +19,13 @@ bin_PROGRAMS = p4est_operator_segment_test \
                p4est_dr_test_2_marker p4est_dr_test_2_metrics \
                p4est_dr_test_3_marker p4est_dr_test_3_metrics \
                p4est_dr_test_4_marker p4est_dr_test_4_metrics \
-               p4est_test_discontinuous 
+               p4est_test_discontinuous
+
+p4est_operator_test_SOURCES =  p4est_operator_test.cpp
+p4est_operator_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+p4est_operator_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+p4est_operator_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+CLEANFILES += p4est_operator_test*.octbin.gz p4est_operator_test.pvtu p4est_operator_test.visit p4est_operator_test_*.vtu
 
 p4est_operator_segment_test_SOURCES =  p4est_operator_segment_test.cpp
 p4est_operator_segment_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
