@@ -67,7 +67,7 @@ public:
       {
         std::cerr << "error encountered in Octave evaluator!" << std::endl;
       }
-#indef
+#endif
   };
   
   int fopen (const char *fname, std::ios::openmode m);
@@ -243,7 +243,7 @@ octave_file_io_intf::gzread
 {
 
   string_vector argv (1);
-#ifdef
+#ifdef HAVE_OCTAVE_44
   install_types ();
 #endif
   argv(0) = varname;
