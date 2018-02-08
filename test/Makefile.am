@@ -29,7 +29,7 @@ if HAVE_P4EST
                     p4est_conn_test p4est_hanging_test p4est_coarsen_test \
                     p4est_iterator_test  p4est_load_save_test p4est_edge_id_test \
                     p4est_neighbor_iterator_test p4est_up_test \
-                    p4est_test_discontinuous \
+                    p4est_test_discontinuous
 
 endif
 
