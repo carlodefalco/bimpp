@@ -28,15 +28,8 @@ if HAVE_P4EST
   check_PROGRAMS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 p4est_operator_test \
                     p4est_conn_test p4est_hanging_test p4est_coarsen_test \
                     p4est_iterator_test  p4est_load_save_test p4est_edge_id_test \
-                    p4est_neighbor_iterator_test p4est_estimator_test_1 p4est_up_test \
-                    p4est_ref_lnodes_test p4est_test_discontinuous p4est_estimator_test_1_uniform \
-                    p4est_metrics_test_1 \
-                    p4est_dr_test_1_marker p4est_dr_test_1_metrics p4est_dr_test_1_uniform \
-                    p4est_dr_test_2_marker p4est_dr_test_2_metrics \
-                    p4est_dr_test_3_marker p4est_dr_test_3_metrics \
-                    p4est_dr_test_4_marker p4est_dr_test_4_metrics \
-                    p4est_adr_test_1_marker p4est_adr_test_1_metrics p4est_adr_test_1_uniform \
-                    p4est_adr_test_2_marker p4est_adr_test_2_metrics
+                    p4est_neighbor_iterator_test p4est_up_test \
+                    p4est_test_discontinuous \
 
 endif
 
@@ -212,12 +205,6 @@ if HAVE_P4EST
   p4est_edge_id_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += p4est_edge_id_test.octbin.gz p4est_edge_id_test.pvtu p4est_edge_id_test.visit p4est_edge_id_test_*.vtu
 
-  p4est_ref_lnodes_test_SOURCES =  p4est_ref_lnodes_test.cpp mosfet_doping_2d.cpp mosfet_connectivity_2d.cpp
-  p4est_ref_lnodes_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_ref_lnodes_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_ref_lnodes_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
-  CLEANFILES += p4est_ref_lnodes_test.octbin*.gz p4est_ref_lnodes_test*.pvtu p4est_ref_lnodes_test*.visit p4est_ref_lnodes_test_*.vtu
-
   p4est_load_save_test_SOURCES =  p4est_load_save_test.cpp mosfet_doping_2d.cpp mosfet_connectivity_2d.cpp
   p4est_load_save_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_load_save_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
@@ -231,12 +218,6 @@ if HAVE_P4EST
   p4est_neighbor_iterator_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += p4est_neighbor_iterator_test.octbin.gz p4est_neighbor_iterator_test.pvtu p4est_neighbor_iterator_test.visit p4est_neighbor_iterator_test_*.vtu
 
-  p4est_estimator_test_1_SOURCES =  p4est_estimator_test_1.cpp 
-  p4est_estimator_test_1_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_estimator_test_1_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_estimator_test_1_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_estimator_test_1*.octbin.gz p4est_estimator_test_1*.pvtu p4est_estimator_test_1*.visit p4est_estimator_test_1*.vtu
-
   p4est_up_test_SOURCES =  p4est_up_test.cpp 
   p4est_up_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_up_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
@@ -249,101 +230,6 @@ if HAVE_P4EST
   p4est_test_discontinuous_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
   CLEANFILES += p4est_test_discontinuous*.octbin.gz p4est_test_discontinuous*.pvtu p4est_test_discontinuous*.visit p4est_test_discontinuous*.vtu
 
-  p4est_estimator_test_1_uniform_SOURCES =  p4est_estimator_test_1_uniform.cpp 
-  p4est_estimator_test_1_uniform_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_estimator_test_1_uniform_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_estimator_test_1_uniform_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_estimator_test_1*.octbin.gz p4est_estimator_test_1*.pvtu p4est_estimator_test_1*.visit p4est_estimator_test_1*.vtu
-
-  p4est_metrics_test_1_SOURCES =  p4est_metrics_test_1.cpp 
-  p4est_metrics_test_1_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_metrics_test_1_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_metrics_test_1_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_metrics_test_1*.octbin.gz p4est_metrics_test_1*.pvtu p4est_metrics_test_1*.visit p4est_metrics_test_1*.vtu
-
-  p4est_dr_test_1_marker_SOURCES =  p4est_dr_test_1_marker.cpp 
-  p4est_dr_test_1_marker_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_dr_test_1_marker_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_dr_test_1_marker_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_dr_test_1_marker*.octbin.gz p4est_dr_test_1_marker*.pvtu p4est_dr_test_1_marker*.visit p4est_dr_test_1_marker*.vtu
-
-  p4est_dr_test_1_metrics_SOURCES =  p4est_dr_test_1_metrics.cpp 
-  p4est_dr_test_1_metrics_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_dr_test_1_metrics_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_dr_test_1_metrics_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_dr_test_1_metrics*.octbin.gz p4est_dr_test_1_metrics*.pvtu p4est_dr_test_1_metrics*.visit p4est_dr_test_1_metrics*.vtu
-
-  p4est_dr_test_1_uniform_SOURCES =  p4est_dr_test_1_uniform.cpp 
-  p4est_dr_test_1_uniform_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_dr_test_1_uniform_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_dr_test_1_uniform_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_dr_test_1_uniform*.octbin.gz p4est_dr_test_1_uniform*.pvtu p4est_dr_test_1_uniform*.visit p4est_dr_test_1_uniform*.vtu
-
-  p4est_dr_test_2_marker_SOURCES =  p4est_dr_test_2_marker.cpp 
-  p4est_dr_test_2_marker_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_dr_test_2_marker_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_dr_test_2_marker_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_dr_test_2_marker*.octbin.gz p4est_dr_test_2_marker*.pvtu p4est_dr_test_2_marker*.visit p4est_dr_test_2_marker*.vtu
-
-  p4est_dr_test_2_metrics_SOURCES =  p4est_dr_test_2_metrics.cpp 
-  p4est_dr_test_2_metrics_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_dr_test_2_metrics_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_dr_test_2_metrics_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_dr_test_2_metrics*.octbin.gz p4est_dr_test_2_metrics*.pvtu p4est_dr_test_2_metrics*.visit p4est_dr_test_2_metrics*.vtu
-
-  p4est_dr_test_3_marker_SOURCES =  p4est_dr_test_3_marker.cpp 
-  p4est_dr_test_3_marker_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_dr_test_3_marker_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_dr_test_3_marker_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_dr_test_3_marker*.octbin.gz p4est_dr_test_3_marker*.pvtu p4est_dr_test_3_marker*.visit p4est_dr_test_3_marker*.vtu
-
-  p4est_dr_test_3_metrics_SOURCES =  p4est_dr_test_3_metrics.cpp 
-  p4est_dr_test_3_metrics_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_dr_test_3_metrics_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_dr_test_3_metrics_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_dr_test_3_metrics*.octbin.gz p4est_dr_test_3_metrics*.pvtu p4est_dr_test_3_metrics*.visit p4est_dr_test_3_metrics*.vtu
-
-  p4est_dr_test_4_marker_SOURCES =  p4est_dr_test_4_marker.cpp 
-  p4est_dr_test_4_marker_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_dr_test_4_marker_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_dr_test_4_marker_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_dr_test_4_marker*.octbin.gz p4est_dr_test_4_marker*.pvtu p4est_dr_test_4_marker*.visit p4est_dr_test_4_marker*.vtu
-
-  p4est_dr_test_4_metrics_SOURCES =  p4est_dr_test_4_metrics.cpp 
-  p4est_dr_test_4_metrics_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_dr_test_4_metrics_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_dr_test_4_metrics_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_dr_test_4_metrics*.octbin.gz p4est_dr_test_4_metrics*.pvtu p4est_dr_test_4_metrics*.visit p4est_dr_test_4_metrics*.vtu
-
-  p4est_adr_test_1_marker_SOURCES =  p4est_adr_test_1_marker.cpp
-  p4est_adr_test_1_marker_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_adr_test_1_marker_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_adr_test_1_marker_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_adr_test_1_marker*.octbin.gz p4est_adr_test_1_marker*.pvtu p4est_adr_test_1_marker*.visit p4est_adr_test_1_marker*.vtu
-
-  p4est_adr_test_1_metrics_SOURCES =  p4est_adr_test_1_metrics.cpp
-  p4est_adr_test_1_metrics_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_adr_test_1_metrics_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_adr_test_1_metrics_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_adr_test_1_metrics*.octbin.gz p4est_adr_test_1_metrics*.pvtu p4est_adr_test_1_metrics*.visit p4est_adr_test_1_metrics*.vtu
-
-  p4est_adr_test_1_uniform_SOURCES =  p4est_adr_test_1_uniform.cpp
-  p4est_adr_test_1_uniform_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_adr_test_1_uniform_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_adr_test_1_uniform_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_adr_test_1_uniform*.octbin.gz p4est_adr_test_1_uniform*.pvtu p4est_adr_test_1_uniform*.visit p4est_adr_test_1_uniform*.vtu
-
-  p4est_adr_test_2_marker_SOURCES =  p4est_adr_test_2_marker.cpp 
-  p4est_adr_test_2_marker_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_adr_test_2_marker_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_adr_test_2_marker_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_adr_test_2_marker*.octbin.gz p4est_adr_test_2_marker*.pvtu p4est_adr_test_2_marker*.visit p4est_adr_test_2_marker*.vtu
-
-  p4est_adr_test_2_metrics_SOURCES =  p4est_adr_test_2_metrics.cpp 
-  p4est_adr_test_2_metrics_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_adr_test_2_metrics_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_adr_test_2_metrics_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_adr_test_2_metrics*.octbin.gz p4est_adr_test_2_metrics*.pvtu p4est_adr_test_2_metrics*.visit p4est_adr_test_2_metrics*.vtu
 endif
 
 TESTS =
@@ -353,8 +239,8 @@ if HAVE_P4EST
 TESTS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 p4est_conn_test \
          p4est_hanging_test p4est_coarsen_test \
          p4est_iterator_test p4est_load_save_test p4est_edge_id_test \
-         p4est_neighbor_iterator_test p4est_estimator_test_1 p4est_up_test \
-         p4est_ref_lnodes_test p4est_test_discontinuous p4est_estimator_test_1_uniform \
+         p4est_neighbor_iterator_test p4est_up_test \
+         p4est_test_discontinuous \
          p4est_metrics_test_1
 
 endif
