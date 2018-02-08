@@ -240,8 +240,7 @@ TESTS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 p4es
          p4est_hanging_test p4est_coarsen_test \
          p4est_iterator_test p4est_load_save_test p4est_edge_id_test \
          p4est_neighbor_iterator_test p4est_up_test \
-         p4est_test_discontinuous \
-         p4est_metrics_test_1
+         p4est_test_discontinuous 
 
 endif
 
