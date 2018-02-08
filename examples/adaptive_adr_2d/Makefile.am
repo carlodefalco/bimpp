@@ -17,7 +17,8 @@ bin_PROGRAMS = p4est_operator_segment_test \
                p4est_dr_test_1_marker p4est_dr_test_1_metrics p4est_dr_test_1_uniform \
                p4est_dr_test_2_marker p4est_dr_test_2_metrics \
                p4est_dr_test_3_marker p4est_dr_test_3_metrics \
-               p4est_dr_test_4_marker p4est_dr_test_4_metrics 
+               p4est_dr_test_4_marker p4est_dr_test_4_metrics \
+               p4est_test_discontinuous 
 
 p4est_operator_segment_test_SOURCES =  p4est_operator_segment_test.cpp
 p4est_operator_segment_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
@@ -138,3 +139,9 @@ p4est_dr_test_4_metrics_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
 p4est_dr_test_4_metrics_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 p4est_dr_test_4_metrics_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
 #CLEANFILES += p4est_dr_test_4_metrics*.octbin.gz p4est_dr_test_4_metrics*.pvtu p4est_dr_test_4_metrics*.visit p4est_dr_test_4_metrics*.vtu
+
+p4est_test_discontinuous_SOURCES =  p4est_test_discontinuous.cpp
+p4est_test_discontinuous_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+p4est_test_discontinuous_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+p4est_test_discontinuous_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+#CLEANFILES += p4est_test_discontinuous*.octbin.gz p4est_test_discontinuous*.pvtu p4est_test_discontinuous*.visit p4est_test_discontinuous*.vtu

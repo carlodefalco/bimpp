@@ -28,8 +28,7 @@ if HAVE_P4EST
   check_PROGRAMS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 p4est_operator_test \
                     p4est_conn_test p4est_hanging_test p4est_coarsen_test \
                     p4est_iterator_test  p4est_load_save_test p4est_edge_id_test \
-                    p4est_neighbor_iterator_test p4est_up_test \
-                    p4est_test_discontinuous
+                    p4est_neighbor_iterator_test p4est_up_test 
 
 endif
 
@@ -224,12 +223,6 @@ if HAVE_P4EST
   p4est_up_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += p4est_up_test.octbin.gz p4est_up_test*.pvtu p4est_up_test*.visit p4est_up_test_*.vtu
 
-  p4est_test_discontinuous_SOURCES =  p4est_test_discontinuous.cpp
-  p4est_test_discontinuous_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
-  p4est_test_discontinuous_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-  p4est_test_discontinuous_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-  CLEANFILES += p4est_test_discontinuous*.octbin.gz p4est_test_discontinuous*.pvtu p4est_test_discontinuous*.visit p4est_test_discontinuous*.vtu
-
 endif
 
 TESTS =
@@ -239,8 +232,7 @@ if HAVE_P4EST
 TESTS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 p4est_conn_test \
          p4est_hanging_test p4est_coarsen_test \
          p4est_iterator_test p4est_load_save_test p4est_edge_id_test \
-         p4est_neighbor_iterator_test p4est_up_test \
-         p4est_test_discontinuous 
+         p4est_neighbor_iterator_test p4est_up_test
 
 endif
 
