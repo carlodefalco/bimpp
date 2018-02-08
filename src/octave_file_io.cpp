@@ -10,6 +10,72 @@
   \brief Classes and methods for files in Octave's (compressed) native binary file format
 */
 
+// FIXME: This is a workaround for a problem introduced in Octave 4.2
+#define HAVE_ZLIB
+
+#include <fstream>
+#include <octave/octave-config.h>
+#include <octave/zfstream.h>
+
+#include <octave/parse.h>
+#include <octave/interpreter.h>
+
+#include <octave/load-save.h>
+#include <octave/ls-oct-binary.h>
+#include <octave/oct-map.h>
+#include <cstring>
+
+#ifdef HAVE_OCTAVE_44
+#  define OCT_ISEMPTY isempty
+#else
+#  define OCT_ISEMPTY is_empty
+#endif
+
+using namespace octave;
+
+//---------------------------------------------------------------------
+//                Singleton class
+//---------------------------------------------------------------------
+
+/// Singleton class providing an interface to Octave file I/O.
+class octave_file_io_intf
+{
+
+public:
+
+  octave_file_io_intf () 
+    : filename ("") {};
+  
+  int fopen (const char *fname, std::ios::openmode m);
+  int gzfopen (const char *fname, std::ios::openmode m);
+  
+  int fclose (void);
+  int gzfclose (void);
+
+  int do_read (const std::string &);
+  int do_write (const std::string &);
+  octave_value buffer;
+
+  octave_value& get_data (void) { return buffer; };  
+  void inline set_data (const octave_value& data) { buffer = data; };
+  void inline clear_data (void) { buffer = 0; };
+
+private:
+
+  int read (const std::string &);
+  int gzread (const std::string &);
+
+  int write (const std::string &);
+  int gzwrite (const std::string &);
+
+  std::fstream file;
+  gzifstream gzifile;
+  gzofstream gzofile;
+  std::string filename;
+  int current_mode;
+
+};
+
 
 //---------------------------------------------------------------------
 //                Methods in the singleton class
@@ -162,10 +228,10 @@ octave_file_io_intf::gzread
                             flt_fmt, false, swap, true, argv,
                             0, 1, 1);
 
-  if (! v.is_empty ())
+  if (! v.OCT_ISEMPTY ())
     buffer =  v.scalar_map_value ().contents (varname);
   
-  if (v.is_empty () || error_state)
+  if (v.OCT_ISEMPTY () || error_state)
     return -1;
   else
     return 0;  
