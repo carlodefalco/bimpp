@@ -92,7 +92,9 @@ private:
   int write (const std::string &);
   int gzwrite (const std::string &);
 
+#ifdef HAVE_OCTAVE_44
   interpreter interp;
+#endif
   std::fstream file;
   gzifstream gzifile;
   gzofstream gzofile;
