@@ -234,6 +234,7 @@ AC_CONFIG_FILES([src/bim_config_pre.h
                  data/Makefile
                  test/Makefile
                  examples/tmesh_2d/Makefile
-                 examples/adaptive_adr_2d/Makefile])
+                 examples/adaptive_adr_2d/Makefile
+                 examples/bgs/Makefile])
 AC_OUTPUT
 
