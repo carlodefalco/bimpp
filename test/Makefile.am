@@ -18,7 +18,7 @@ check_PROGRAMS = io_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 
                  bim3_timedependent_test3_osc 
 
 if HAVE_LIS
-  check_PROGRAMS += < lis_timedependent_test linear_solver_test \
+  check_PROGRAMS += lis_stationary_test lis_timedependent_test linear_solver_test \
                     linear_solver_test_repeated nonlinear_solver_test nonlinear_solver_test2 \
                     nonlinear_solver_test3 nonlinear_solver_test4 nonlinear_solver_eq_test
 endif
