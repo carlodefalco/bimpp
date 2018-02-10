@@ -652,6 +652,9 @@ tmesh::quadrant_iterator::reset ()
 tmesh::quadrant_iterator
 tmesh::begin_quadrant_sweep ()
 {
+  if (this->mesh == nullptr)
+    this->update ();
+  
   quadrant_iterator qi (&current_quadrant);
   qi.reset ();
   return qi;
