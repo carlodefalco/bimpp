@@ -373,8 +373,8 @@ tmesh::~tmesh ()
       if (! (this->mesh   == nullptr)) p4est_mesh_destroy   (this->mesh);
       if (! (this->ghost  == nullptr)) p4est_ghost_destroy  (this->ghost);
       
-      if (! (this->mirror_data == nullptr)) delete this->mirror_data;
-      if (! (this->ghost_data  == nullptr)) delete this->ghost_data;
+      if (! (this->mirror_data == nullptr)) delete[] this->mirror_data;
+      if (! (this->ghost_data  == nullptr)) delete[] this->ghost_data;
     }
 };
 
