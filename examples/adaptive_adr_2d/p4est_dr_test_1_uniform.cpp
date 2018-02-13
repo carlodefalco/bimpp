@@ -152,7 +152,7 @@ main (int argc, char **argv)
       std::cout << " Done." << std::endl;
       
       // Compute reconstructed gradient.
-      std::cout << "Computing reconstructed gradient, solution and estimator.";
+      std::cout << "Computing reconstructed gradient and solution.";
       
       gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
       q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du);
@@ -204,7 +204,7 @@ main (int argc, char **argv)
       if (tmsh.num_global_nodes () >= 1e6)
         break;
       
-      // Coarsen and refine.
+      // Refine.
       tmsh.set_refine_marker (uniform_refinement);
       tmsh.refine (recursive, partforcoarsen);
       
