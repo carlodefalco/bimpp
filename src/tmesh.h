@@ -260,7 +260,7 @@ public:
       lnodes (nullptr), mesh (nullptr), ghost(nullptr),
       mirror_data (nullptr), ghost_data (nullptr),
       comm (_comm), rank (0), size (1),
-      shared(new bool(false)), replace_fun(userint_replace)
+      replace_fun(userint_replace)
   {
     MPI_Comm_rank (comm, &rank);
     MPI_Comm_size (comm, &size);
@@ -271,6 +271,10 @@ public:
     : tmesh ()
   { load (filename); };
 
+  /// Delete copy constructor.
+  tmesh (const tmesh &) = delete;
+  
+  /// Destructor.
   ~tmesh ();
 
   /// Load a connectivity from a compressed binary
@@ -433,8 +437,6 @@ public:
   MPI_Comm comm;
   int      rank;
   int      size;
-  
-  std::shared_ptr<bool> shared;
   
 private:
   
