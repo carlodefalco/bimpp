@@ -54,8 +54,8 @@ main (int argc, char **argv)
       std::cout << "*** Step " << adapt << " ***" << std::endl;
       
       // Compute coefficients.
-      double eps1 = 0.5;
-      double eps2 = 1;
+      double eps1 = 5e-7;
+      double eps2 = 1e-6;
       
       double c = -0.4375 * eps2 /
         (0.5 * std::sqrt(eps1) * std::cosh(0.5 / std::sqrt(eps1)) +
