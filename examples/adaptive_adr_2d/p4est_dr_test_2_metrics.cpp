@@ -37,8 +37,8 @@ main (int argc, char **argv)
   recursive = 0; partforcoarsen = 1;
   for (int cycle = 0; cycle < 2; ++cycle)
     {
-      tmsh.refine (recursive, partforcoarsen);
       tmsh.set_refine_marker (uniform_refinement);
+      tmsh.refine (recursive, partforcoarsen);
     }
   
   tmsh.vtk_export ("p4est_dr_test_2_metrics");
