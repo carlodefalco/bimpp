@@ -274,6 +274,9 @@ public:
   /// Delete copy constructor.
   tmesh (const tmesh &) = delete;
   
+  /// Delete assignment operator.
+  tmesh & operator=(const tmesh &) = delete;
+  
   /// Destructor.
   ~tmesh ();
 
@@ -386,7 +389,7 @@ public:
   /// Return number of nodes of quadrants owned
   /// or shared by local process
   idx_t
-  num_local_nodes ()    
+  num_local_nodes ()
   {
       if (! lnodes) update ();
       return lnodes->num_local_nodes;
