@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <cassert>
+#include <limits>
 
 static int
 uniform_refinement (tmesh::quadrant_iterator q)
@@ -43,6 +44,7 @@ main (int argc, char **argv)
   tmsh.vtk_export ("p4est_adr_test_2_marker");
   
   std::vector<tmesh::idx_t> nnodes;
+  std::vector<double> h_step;
   
   double delta1 = 1.5;
   double delta2 = 0.5;
@@ -154,8 +156,25 @@ main (int argc, char **argv)
       auto coarsen_fun = [& delta2, & u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         { return !zz_marker_sol (q, u_star, global_rhs,
                                  delta2 * 1e-6 / std::sqrt(tmsh.num_global_nodes())); };
+      // Compute h.
+      double hx = 0, hy = 0,
+             h = std::numeric_limits<double>::max (),
+             global_h = 0;
+      
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep ();
+           ++quadrant)
+        {
+          hx = quadrant->p(0, 1) - quadrant->p(0, 0);
+          hy = quadrant->p(1, 2) - quadrant->p(1, 0);
+          
+          h = std::min(h, std::sqrt(hx*hx + hy*hy));
+        }
+        
+      MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       
       nnodes.push_back (tmsh.num_global_nodes ());
+      h_step.push_back (global_h);
       
       std::cout << " Done." << std::endl;
       
@@ -176,7 +195,8 @@ main (int argc, char **argv)
   if (rank == 0)
     for (unsigned step = 0; step < nnodes.size(); ++step)
       std::cout << "Step " << step << ", #nodes: "
-                << nnodes[step] << std::endl;
+                << nnodes[step] << ", h: "
+                << h_step[step] << std::endl;
   
   MPI_Finalize ();
   

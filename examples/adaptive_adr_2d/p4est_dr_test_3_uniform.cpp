@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <cassert>
+#include <limits>
 
 // Define mesh.
 constexpr p4est_topidx_t simple_conn_num_vertices = 6;
@@ -47,6 +48,7 @@ main (int argc, char **argv)
   tmsh.vtk_export ("p4est_dr_test_3_uniform");
   
   std::vector<tmesh::idx_t> nnodes;
+  std::vector<double> h_step;
   std::vector<double> error, error_du_x, error_du_y;
   
   for (int adapt = 0; adapt < refine_steps; ++adapt)
@@ -186,7 +188,11 @@ main (int argc, char **argv)
       
       std::cout << " Done." << std::endl;
       
-      // Compute error.
+      // Compute h and error.
+      double hx = 0, hy = 0,
+             h = std::numeric_limits<double>::max (),
+             global_h = 0;
+      
       func du_x_ex =
         [] (double x, double y)
           { return 0; };
@@ -208,6 +214,11 @@ main (int argc, char **argv)
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
+          hx = quadrant->p(0, 1) - quadrant->p(0, 0);
+          hy = quadrant->p(1, 2) - quadrant->p(1, 0);
+          
+          h = std::min(h, std::sqrt(hx*hx + hy*hy));
+          
           err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
           
           if (tree0(quadrant))
@@ -215,13 +226,14 @@ main (int argc, char **argv)
               err_du_x += std::pow(l2_error(quadrant, du_x_ex, du0.first), 2);
               err_du_y += std::pow(l2_error(quadrant, du_y_ex, du0.second), 2);
             }
-          /*else if(tree1(quadrant))
+          else if(tree1(quadrant))
             {
               err_du_x += std::pow(l2_error(quadrant, du_x_ex, du1.first), 2);
               err_du_y += std::pow(l2_error(quadrant, du_y_ex, du1.second), 2);
-            }*/
+            }
         }
       
+      MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
       MPI_Reduce(&err_du_x, &global_err_du_x, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
       MPI_Reduce(&err_du_y, &global_err_du_y, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
@@ -231,6 +243,7 @@ main (int argc, char **argv)
       global_err_du_y = std::sqrt(global_err_du_y);
       
       nnodes.push_back (tmsh.num_global_nodes ());
+      h_step.push_back (global_h);
       error.push_back (global_err);
       error_du_x.push_back (global_err_du_x);
       error_du_y.push_back (global_err_du_y);
@@ -251,7 +264,8 @@ main (int argc, char **argv)
   if (rank == 0)
     for (unsigned step = 0; step < nnodes.size(); ++step)
       std::cout << "Step " << step << ", #nodes: "
-                << nnodes[step] << ", error: "
+                << nnodes[step] << ", h: "
+                << h_step[step] << ", error: "
                 << error[step] <<  ", error_du_x: "
                 << error_du_x[step] <<  ", error_du_y: "
                 << error_du_y[step] << std::endl;

@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <cassert>
+#include <limits>
 
 static int
 uniform_refinement (tmesh::quadrant_iterator q)
@@ -43,6 +44,7 @@ main (int argc, char **argv)
   tmsh.vtk_export ("p4est_dr_test_1_metrics");
   
   std::vector<tmesh::idx_t> nnodes;
+  std::vector<double> h_step;
   std::vector<double> error;
   
   for (int adapt = 0; adapt < refine_steps; ++adapt)
@@ -151,18 +153,30 @@ main (int argc, char **argv)
       auto estimator = [& u_star, & global_rhs] (tmesh::quadrant_iterator q)
         { return estimator_sol (q, u_star, global_rhs); };
       
-      // Compute error.
+      // Compute h and error.
+      double hx = 0, hy = 0,
+             h = std::numeric_limits<double>::max (),
+             global_h = 0;
       double err = 0, global_err = 0;
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
-        err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
+        {
+          hx = quadrant->p(0, 1) - quadrant->p(0, 0);
+          hy = quadrant->p(1, 2) - quadrant->p(1, 0);
+          
+          h = std::min(h, std::sqrt(hx*hx + hy*hy));
+          
+          err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
+        }
       
+      MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
       global_err = std::sqrt(global_err);
       
       nnodes.push_back (tmsh.num_global_nodes ());
+      h_step.push_back (global_h);
       error.push_back (global_err);
       
       std::cout << " Done." << std::endl;
@@ -181,7 +195,8 @@ main (int argc, char **argv)
   if (rank == 0)
     for (unsigned step = 0; step < nnodes.size(); ++step)
       std::cout << "Step " << step << ", #nodes: "
-                << nnodes[step] << ", error: "
+                << nnodes[step] << ", h: "
+                << h_step[step] << ", error: "
                 << error[step] << std::endl;
   
   MPI_Finalize ();
