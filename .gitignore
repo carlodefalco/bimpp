@@ -1,6 +1,8 @@
 # Directories.
 autom4te.cache/
 build/
+doc/html/
+doc/latex/
 log/
 m4/
 test/output/
