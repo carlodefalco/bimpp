@@ -138,6 +138,8 @@ lis::set_iterative_method (const std::string &s)
     iterative_method = "gs";
   else if (s == "SOR")
     iterative_method = "sor";
+  else if (s == "GMRES")
+    iterative_method = "gmres";
   else
     {
       if (rank == 0)

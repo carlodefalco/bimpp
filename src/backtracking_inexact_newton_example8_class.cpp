@@ -15,6 +15,8 @@
 #include <operators.h>
 #include <nonlinear_solver.h>
 #include <linear_solver.h>
+#include <sstream>
+//#include <lis.h>
 
 void
 backtracking_inexact_newton_example8::set_problem
@@ -80,25 +82,6 @@ backtracking_inexact_newton_example8::solve ()
         nonlinear_iter.push_back (0);
       #endif
        
-     // creo la trasposta di J  ////////////////////
-     // ho dovuto distinguere tra i casi di sol lin ierativo e diretto 
-     // perchè altrimenti da Segmentation fault
-     lhs.aij (xa, ir, jc, lin_solver->get_index_base ());
-     lhsT.resize(n);
-     if (lin_solver->solver_type () == "iterative")
-     {
-        for (unsigned int i = 0 ; i <xa.size(); ++i)
-        {  
-           lhsT[jc[i]].insert(std::pair<int,double>(ir[i], xa[i]) );
-        }
-      }
-      else
-      {
-        for (unsigned int i = 0 ; i <xa.size(); ++i)
-         {  
-           lhsT[jc[i]-1].insert(std::pair<int,double>(ir[i]-1, xa[i]) );
-         }
-      }
    }
 
   MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -128,7 +111,9 @@ backtracking_inexact_newton_example8::solve ()
     }
 
   bool FLAG = 0;
-             
+  std::string type_of_iterative_method;
+  lin_solver->get_iterative_method(type_of_iterative_method);
+  std::cout <<type_of_iterative_method << std::endl;           
   do
     {
       ++iteration;
@@ -168,8 +153,30 @@ backtracking_inexact_newton_example8::solve ()
           if (lin_solver->solver_type () == "iterative")
             {
               lin_solver->set_tolerance (forcing_value);
-              lin_solver->set_initial_guess (lin_initial_guess);
+            //  lin_solver->set_initial_guess (lin_initial_guess);
             }
+
+     /*     if (lin_solver->solver_type () == "iterative")
+          {
+            // auto tmp = static_cast<backtracking_inexact_newton_example8*> (solver);
+             std::stringstream opt;
+             opt << "-maxiter " << n
+                 << " -tol " << forcing_value
+                 << " -i " << "gmres "
+	         << " -restart " << n << " "
+                 << " -p " << "none "
+                 << " -conv_cond " << "norm2_r ";
+
+       
+            opt << " -initx_zeros true ";
+
+            std::cout << std::endl << opt.str () << std::endl;
+            
+            static_cast<lis*> (lin_solver)->option_string = opt.str ();
+            static_cast<lis*> (lin_solver)->option_string_set = true;
+
+          }
+*/
 
           // CONTROLLO rhs E lhs
           /*if (rank==0)
@@ -315,20 +322,21 @@ backtracking_inexact_newton_example8::solve ()
             { 
               // dato che il pattern di J^T non cambia, è meglio andare a modificare i valori,
 	      // che crearla di nuovo ogni volta, quindi questo è da aggiustare 
-              lhsT.clear();
-              lhsT.resize(n);
+              lhsT.reset ();
+              lhsT.resize (n);
+
               if (lin_solver->solver_type () == "iterative")
               {
                  for (int i = 0 ; i <xa.size(); ++i)
                  {  
-                     lhsT[jc[i]].insert(std::pair<int,double>(ir[i], xa[i]) );
+                     lhsT[jc[i]][ir[i]] = xa[i] ;
                  }
               }
               else
               {
                  for (int i = 0 ; i <xa.size(); ++i)
                  {  
-                     lhsT[jc[i]-1].insert(std::pair<int,double>(ir[i]-1, xa[i]) );
+                     lhsT[jc[i]-1][ir[i]-1] = xa[i] ;
                  }
               }
               rhs = lhsT*f_old;

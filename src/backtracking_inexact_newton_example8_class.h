@@ -26,9 +26,6 @@ private :
   /// Pointer to the forcing term used by nonlinear solver.
   abstract_forcing_term *forcing;
 
-  /// Pointer to the linear solver used by nonlinear solver.
-  linear_solver *lin_solver;
-
   /// Left Hand Side of the nonlinear problem linearized.
   sparse_matrix lhs;
 
@@ -140,6 +137,9 @@ private :
   int rank, size;
 
 public :
+
+  /// Pointer to the linear solver used by nonlinear solver.
+  linear_solver *lin_solver;
 
   /// Default costructor.
   backtracking_inexact_newton_example8

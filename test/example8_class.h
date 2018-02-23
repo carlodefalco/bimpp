@@ -48,23 +48,10 @@ public :
     abstract_nonlinear_problem ("example8"),
     n (n_) { };
 
-  /// Read mesh.
-  void
-  read_mesh (const std::string &mesh_name) {};
-
   /// Set the exact solution of nonlinear problem.
   void
   set_exact_solution (const std::vector<double> exact_solution_);
 
-  /// Set rhs values of nonlinear problem.
-  void
-  set_rhs_values (const std::vector<double> & f_);
-
-  /// Set boundary values and nodes. NOT used.
-  void
-  set_boundary_conditions
-    (std::vector<double> &boundary_values_,
-     std::vector<int> &boundary_nodes_) {};
 
   /// Compute lhs and rhs of linearized nonlinear problem in guess.
   void
@@ -77,7 +64,7 @@ public :
   operator () (std::vector<double>& functional,
                const std::vector<double>& guess);
 
-  /// Get the exact solution of nonlinaer problem.
+  /// Get the exact solution of nonlinear problem.
   void
   get_exact_solution (std::vector<double> &exact_solution_);
   

@@ -25,7 +25,7 @@
 #include "forcing_class.h"
 #include "bim_config.h"
 #include "example8_class.h"
-
+#include <sstream>
 void
 run_test_problem (nonlinear_solver *solver);
 
@@ -37,8 +37,8 @@ int main (int argc, char **argv)
   int rank, size;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
-  //linear_solver *lis_solver = new lis (); // non sono riuscita a trovare il GMRES
-  linear_solver *lis_solver = new mumps ();
+  linear_solver *lis_solver = new lis (); // non sono riuscita a trovare il GMRES
+ // linear_solver *lis_solver = new mumps ();
   
   nonlinear_solver *solver =
     new backtracking_inexact_newton_example8(lis_solver);
@@ -59,8 +59,6 @@ run_test_problem (nonlinear_solver *solver)
 
   std::vector<double> uold, b1,b2;
 
-  std::vector<double> fcoeff;
-  
   const int n=100;
   abstract_nonlinear_problem *nonlinear_system = new example8 (n);
   
@@ -76,7 +74,7 @@ run_test_problem (nonlinear_solver *solver)
                 << solver->solver_name ()
                 << std::endl;
 
-      fcoeff.assign (n, 0.0);
+
       exactsolution.assign (n , 1.0);
       uold.assign (n , 0.0);
       // Assegno i bordi del dominio
@@ -93,38 +91,51 @@ run_test_problem (nonlinear_solver *solver)
           uold[i]=0.6;
 	}
       nonlinear_system->set_exact_solution (exactsolution);
-      nonlinear_system->set_rhs_values (fcoeff);
     }
 
 
 
   if (rank == 0)
     {
-      if (solver->solver_name () == "Backtracking Inexact Newton Example8")
-        ((backtracking_inexact_newton_example8 *) solver)->
-          set_backtracking_parameters (1e-4,1e-4, 0, 1);
       solver->set_problem (nonlinear_system);
       solver->set_forcing_term (forcing);
       solver->set_initial_guess (uold);
-      (( backtracking_inexact_newton_example8*)solver)->set_thetaPN (0.5);
-      (( backtracking_inexact_newton_example8*)solver)->set_thetaPG (0.8);
-      (( backtracking_inexact_newton_example8*)solver)->set_backtracking_max_it(20);
-      
-     (( backtracking_inexact_newton_example8*)solver)->set_bounds(b1,b2);
+      if (solver->solver_name () == "Backtracking Inexact Newton Example8")
+        {
+          auto tmp = static_cast<backtracking_inexact_newton_example8*> (solver);
+          tmp -> set_backtracking_parameters (1e-4, 1e-4, 0, 1);
+          tmp -> set_thetaPN (0.5);
+          tmp -> set_thetaPG (0.8);
+	  tmp -> set_backtracking_max_it(20);
+	  tmp -> set_bounds (b1, b2);
+      }
     }
 
   solver->set_max_iterations (100);
   solver->set_tolerance (1e-12);
   solver->set_min_residual (1e-12);
   solver->set_norm_type (L2);
-
+  solver->set_max_iterations_of_linear_solver(n); 
+  solver->set_initial_tolerance_of_linear_solver(.765518617913987);   
   if (solver->linear_solver_type () == "iterative")
     {
-      solver->set_max_iterations_of_linear_solver (100);
-      solver->set_iterative_method_of_linear_solver
-              ("Bicg Stabilized" );
-      solver->set_initial_tolerance_of_linear_solver (0.765518617913987);
-      solver->set_convergence_condition_of_linear_solver ("norm2_of_rhs");
+      auto tmp = static_cast<backtracking_inexact_newton_example8*> (solver);
+      std::stringstream opt;
+      opt << "-maxiter " << n
+          << " -tol " << .765518617913987
+          << " -i " << "gmres "
+	  << " -restart " << n << " "
+          << " -p " << "none "
+          << " -conv_cond " << "norm2_r ";
+
+      
+      opt << " -initx_zeros true ";
+
+     // std::cout << std::endl << opt.str () << std::endl;
+      
+      static_cast<lis*> (tmp->lin_solver)->option_string = opt.str ();
+      static_cast<lis*> (tmp->lin_solver)->option_string_set = true;
+
     }
   
 

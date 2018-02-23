@@ -60,10 +60,6 @@ private :
   /// \details [default = 1e-12].
   double tolerance;
 
-  /// \brief Name of iterative method.
-  /// \details [default = bicg].
-  std::string iterative_method;
-
   /// \brief Name of preconditioner.
   /// \details [default = none].
   std::string preconditioner;
@@ -130,6 +126,10 @@ private :
   destroy_lis_objects ();
   
 public :
+
+  /// \brief Name of iterative method.
+  /// \details [default = bicg].
+  std::string iterative_method;
 
   /// \brief Option string.
   std::string option_string;
