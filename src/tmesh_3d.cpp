@@ -8,7 +8,7 @@
 double
 tmesh_3d::octant_t::p (tmesh_3d::idx_t ii, tmesh_3d::idx_t jj) 
 {
-  double retval = vxyz[3*jj+ii];
+  double retval = vxyz[P8EST_DIM*jj+ii];
   return (retval);
 };
 
@@ -62,13 +62,13 @@ tmesh_3d::userint_replace (std::vector<int> old_userint)
   // Refinement.
   if (old_userint.size () == 1)
     {
-      new_userint.resize (8);
+      new_userint.resize (P8EST_CHILDREN);
       
       for (size_t i = 0; i < new_userint.size (); ++i)
         new_userint[i] = old_userint[0] - 1;
     }
   // Coarsening.
-  else if (old_userint.size () == 8)
+  else if (old_userint.size () == P8EST_CHILDREN)
     {
       new_userint.resize (1);
       
