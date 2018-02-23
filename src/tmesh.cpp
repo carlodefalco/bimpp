@@ -28,7 +28,7 @@ tmesh::quadrant_t::centroid (tmesh::idx_t ii)
   else if (ii == 1)
     retval = 0.5 * (this->p(1, 0) + this->p(1, 2));
   /* //CESARE(proposal to handle rotated quadrants))
-  for (tmesh::idx_t c = 0; c < P4EST_CHILDREN)
+  for (tmesh::idx_t c = 0; c < P4EST_CHILDREN; ++c)
     retval += this->p(ii, c);
   retval /= P4EST_CHILDREN;
   */
