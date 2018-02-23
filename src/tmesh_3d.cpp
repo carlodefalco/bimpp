@@ -50,9 +50,9 @@ tmesh_3d::octant_t::face_centroid (tmesh_3d::idx_t ii, int jj)
  * \return true if any node is hanging, false otherwise.
  */
 static const int    zero = 0;      /**< Constant zero. */
-static const int    ones = P4EST_CHILDREN - 1;  /**< One bit per dimension. */
-static const int   *corner_to_hanging[P4EST_CHILDREN];
-static const int    corner_num_hanging[P4EST_CHILDREN] = { 1, 2, 2, 4, 2, 4, 4, 1 };
+static const int    ones = P8EST_CHILDREN - 1;  /**< One bit per dimension. */
+static const int   *corner_to_hanging[P8EST_CHILDREN];
+static const int    corner_num_hanging[P8EST_CHILDREN] = { 1, 2, 2, 4, 2, 4, 4, 1 };
 
 std::vector<int>
 tmesh_3d::userint_replace (std::vector<int> old_userint)
