@@ -5,6 +5,55 @@
 #include <tmesh_3d.h>
 #include <array>
 
+double
+tmesh_3d::octant_t::p (tmesh_3d::idx_t ii, tmesh_3d::idx_t jj) 
+{
+  double retval = vxyz[3*jj+ii];
+  return (retval);
+};
+
+double
+tmesh_3d::octant_t::centroid (tmesh_3d::idx_t ii) 
+{
+  double retval = 0;
+  
+  for (tmesh_3d::idx_t c = 0; c < P8EST_CHILDREN; ++c)
+    retval += this->p(ii, c);
+  retval /= P8EST_CHILDREN;
+  
+  return (retval);
+};
+
+double
+tmesh_3d::octant_t::face_centroid (tmesh_3d::idx_t ii, int jj)
+{
+  double retval = 0;
+  
+  for (tmesh_3d::idx_t c = 0; c < P8EST_HALF; ++c)
+    retval += this->p(ii, p8est_face_corners[jj][c]);
+  retval /= P8EST_HALF;
+  
+  return (retval);
+}
+
+/** Decode the information from p8est_lnodes_t for a given element.
+ *
+ * \see p8est_lnodes.h for an in-depth discussion of the encoding.
+ * \param [in] face_code         Bit code as defined in p{4,8}est_lnodes.h.
+ * \param [out] hanging_corner   Undefined if no node is hanging.
+ *                               If any node is hanging, this contains
+ *                               one integer per corner, which is -1
+ *                               for corners that are not hanging,
+ *                               and the number of the non-hanging
+ *                               corner on the hanging face/edge otherwise.
+ *                               For faces in 3D, it is diagonally opposite.
+ * \return true if any node is hanging, false otherwise.
+ */
+static const int    zero = 0;      /**< Constant zero. */
+static const int    ones = P4EST_CHILDREN - 1;  /**< One bit per dimension. */
+static const int   *corner_to_hanging[P4EST_CHILDREN];
+static const int    corner_num_hanging[P4EST_CHILDREN] = { 1, 2, 2, 4, 2, 4, 4, 1 };
+
 std::vector<int>
 tmesh_3d::userint_replace (std::vector<int> old_userint)
 {
