@@ -245,8 +245,8 @@ public:
     p4est_locidx_t qtq;
     
     /// Buffer used when quering coordinates. CESARE(da controllare)
-    double                vxyz[24] = {0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0};//CESARE(24->3*P4EST_CHILDREN)
-    idx_t                 tbuff[8] = {0,0,0,0,0,0,0,0};//CESARE(8->P4EST_CHILDREN ?)
+    double                vxyz[24] = {0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0};//CESARE(24->P8EST_DIM*P8EST_CHILDREN)
+    idx_t                 tbuff[8] = {0,0,0,0,0,0,0,0};//CESARE(8->P8EST_CHILDREN ?)
     bool                  hbuff[8] = {false,false,false,false,false,false,false,false};
     int                   pbuff[32] = {-1,-1, -1,-1, -1,-1, -1,-1,//CESARE(???)
                                        -1,-1, -1,-1, -1,-1, -1,-1,

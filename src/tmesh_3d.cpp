@@ -81,8 +81,8 @@ tmesh_3d::userint_replace (std::vector<int> old_userint)
 
 tmesh_3d::~tmesh_3d ()
 {
-    p8est_destroy (this->p8est);
-    p8est_connectivity_destroy (this->conn);
+    if (! (this->p8est  == nullptr)) p8est_destroy (this->p8est);
+    if (! (this->conn   == nullptr)) p8est_connectivity_destroy (this->conn);
     if (! (this->lnodes == nullptr)) p8est_lnodes_destroy (this->lnodes);
     if (! (this->mesh   == nullptr)) p8est_mesh_destroy   (this->mesh);
     if (! (this->ghost  == nullptr)) p8est_ghost_destroy  (this->ghost);
