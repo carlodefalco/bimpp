@@ -1,5 +1,5 @@
 #include <tmesh_3d.h>
-
+#include <iostream>
 int
 main (int argc, char **argv)
 {
@@ -9,6 +9,8 @@ main (int argc, char **argv)
   MPI_Comm              mpicomm = MPI_COMM_WORLD;  
   int                   rank, size;
   tmesh_3d              tmsh;
+
+  std::cout<<"ciao"<<std::endl<<(int*)nullptr<<std::endl<<(int*)(tmsh.conn)<<std::endl;
   
   return 0;
 }
