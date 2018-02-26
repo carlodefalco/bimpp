@@ -54,6 +54,29 @@ static const int    ones = P8EST_CHILDREN - 1;  /**< One bit per dimension. */
 static const int   *corner_to_hanging[P8EST_CHILDREN];
 static const int    corner_num_hanging[P8EST_CHILDREN] = { 1, 2, 2, 4, 2, 4, 4, 1 };
 
+static int
+lnodes_decode2 (p8est_lnodes_code_t face_code,
+                int hanging_corner[P8EST_CHILDREN])
+{
+  if (face_code) {
+    const int           c = (int) (face_code & ones);
+    int                 i, h;
+    int                 work = (int) (face_code >> P8EST_DIM);
+
+    /* These two corners are never hanging by construction. */
+    hanging_corner[c] = hanging_corner[c ^ ones] = -1;
+    for (i = 0; i < P8EST_DIM; ++i) {
+      /* Process face hanging corners. */
+      h = c ^ (1 << i);
+      hanging_corner[h ^ ones] = (work & 1) ? c : -1;
+      hanging_corner[h] = (work & P8EST_CHILDREN) ? c : -1;
+      work >>= 1;
+    }
+    return 1;
+  }
+  return 0;
+}
+
 std::vector<int>
 tmesh_3d::userint_replace (std::vector<int> old_userint)
 {
