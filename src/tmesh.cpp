@@ -200,8 +200,8 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
             {
               tbuff[i] = ln->element_nodes[4 * forest_quad_idx + i];
               hbuff[i] = false;
-              pbuff[i] = -1;
-              pbuff[i+1] = -1;//CESARE(shouldn't be 2*i ?)
+              pbuff[2 * i] = -1;
+              pbuff[2 * i + 1] = -1;
             }
 
           bool any_hanging =
@@ -369,8 +369,8 @@ tmesh::quadrant_t::is_hanging (tmesh::idx_t i)
 
 tmesh::~tmesh ()
 {
-    p4est_destroy (this->p4est);
-    p4est_connectivity_destroy (this->conn);
+    if (! (this->p4est  == nullptr)) p4est_destroy (this->p4est);
+    if (! (this->conn   == nullptr)) p4est_connectivity_destroy (this->conn);
     if (! (this->lnodes == nullptr)) p4est_lnodes_destroy (this->lnodes);
     if (! (this->mesh   == nullptr)) p4est_mesh_destroy   (this->mesh);
     if (! (this->ghost  == nullptr)) p4est_ghost_destroy  (this->ghost);
