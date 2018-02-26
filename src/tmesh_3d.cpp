@@ -111,6 +111,61 @@ tmesh_3d::octant_iterator::operator++ ()
   
 };
 
+void 
+tmesh_3d::neighbor_iterator::operator++ ()
+{//CESARE(this is just a name translation, check for what neighbor means)
+  p4est_topidx_t which_tree;
+  p4est_locidx_t which_oct;
+  int nface, nrank;
+  tmesh_3d *tmsh = data->the_tmesh;
+  p8est_t *p8 = tmsh->p8est;
+  
+  p8est_quadrant_t * neighbor =
+    p8est_mesh_face_neighbor_next (face_neighbor, &which_tree,
+                                   &which_oct, &nface, &nrank);
+  
+  if (neighbor != nullptr)
+    {
+      p8est_tree_t * tree =
+        p8est_tree_array_index (p8->trees,
+                                which_tree);
+      
+      // If non-ghost.
+      if (face_neighbor->current_qtq <
+          tmsh->num_local_octants ())
+        {
+          data->is_ghost = false;
+          data->qtq = -1;
+          
+          data->forest_oct_idx = tree->quadrants_offset + which_oct;
+          data->tree_oct_idx = which_oct;
+        }
+      // If ghost.
+      else
+        {
+          data->is_ghost = true;
+          data->qtq = face_neighbor->current_qtq;
+          
+          data->forest_oct_idx =
+            neighbor->p.piggy3.local_num +
+            (p8->global_first_quadrant[nrank] -
+             p8->global_first_quadrant[tmsh->rank]);
+          
+          data->tree_oct_idx = data->forest_oct_idx -
+            tree->quadrants_offset;
+        }
+      
+      this->face_idx = nface;
+      
+      data->update (which_tree, neighbor);
+    }
+  else
+    {
+      data = nullptr;
+      this->face_idx = -1;
+    }
+};
+
 std::vector<int>
 tmesh_3d::userint_replace (std::vector<int> old_userint)
 {
