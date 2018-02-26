@@ -69,6 +69,7 @@ lnodes_decode2 (p8est_lnodes_code_t face_code,
       /* Process face hanging corners. */
       h = c ^ (1 << i);
       hanging_corner[h ^ ones] = (work & 1) ? c : -1;
+      /* Process edge hanging corners. */
       hanging_corner[h] = (work & P8EST_CHILDREN) ? c : -1;
       work >>= 1;
     }
@@ -76,6 +77,39 @@ lnodes_decode2 (p8est_lnodes_code_t face_code,
   }
   return 0;
 }
+
+void 
+tmesh_3d::octant_iterator::operator++ ()
+{
+
+  p8est_t *p8 = data->the_tmesh->p8est;
+
+  data->forest_oct_idx++;
+  data->tree_oct_idx++;
+
+  if (data->tree_oct_idx >= data->num_octants)
+    {
+      data->tree_idx++;
+      
+      if ((data->tree_idx) > (p8->last_local_tree))
+        {
+          this->data = nullptr;
+          return;
+        }
+      data->tree_oct_idx = 0;
+      
+      data->tree = p8est_tree_array_index (p8->trees, data->tree_idx);
+      data->toctants = &(data->tree)->quadrants;
+
+      data->num_octants =
+        (p4est_locidx_t) data->toctants->elem_count;
+    }
+
+  auto tmp = p8est_quadrant_array_index (data->toctants,
+                                         data->tree_oct_idx);
+  data->update (data->tree_idx, tmp);
+  
+};
 
 std::vector<int>
 tmesh_3d::userint_replace (std::vector<int> old_userint)
