@@ -166,6 +166,95 @@ tmesh_3d::neighbor_iterator::operator++ ()
     }
 };
 
+void
+tmesh_3d::octant_t::update (p4est_topidx_t tree,
+                           p8est_quadrant_t *q)
+{
+  p8est_quadrant_t node, parent;
+  idx_t i, j;
+  int hanging_corner[P8EST_CHILDREN];
+  p8est_lnodes_t *ln = the_tmesh->lnodes;
+  p4est_locidx_t lni;
+
+  int c, h, num_parents;
+  const int *base_corner;
+  
+  corner_to_hanging[0]        = &zero;
+  corner_to_hanging[1]        = p8est_edge_corners[0];
+  corner_to_hanging[2]        = p8est_edge_corners[4];
+  corner_to_hanging[3]        = p8est_face_corners[4];
+  corner_to_hanging[4]        = p8est_edge_corners[8];
+  corner_to_hanging[ones - 2] = p4est_face_corners[2];
+  corner_to_hanging[ones - 1] = p4est_face_corners[0];
+  corner_to_hanging[ones]     = &ones;
+  
+  this->tree_idx = tree;
+  this->the_octant = q;
+  
+  for (i = 0; i < P8EST_CHILDREN; ++i)
+    {
+      p8est_quadrant_corner_node (this->the_octant, i, &node);
+      p8est_qcoord_to_vertex (this->the_tmesh->conn, tree_idx,
+                              node.x, node.y, node.z, &(vxyz[P8EST_DIM * i]));
+    }
+
+  if (ln != nullptr)
+    {
+      // Non-ghost elements.
+      if (! is_ghost)
+        {
+          for (i = 0; i < P8EST_CHILDREN; ++i)
+            {
+              tbuff[i] = ln->element_nodes[P8EST_CHILDREN * forest_oct_idx + i];
+              hbuff[i] = false;
+              pbuff[4 * i] = -1;
+              pbuff[4 * i + 1] = -1;
+              pbuff[4 * i + 2] = -1;
+              pbuff[4 * i + 3] = -1;
+            }
+
+          bool any_hanging =
+            lnodes_decode2 (ln->face_code[forest_oct_idx],
+                            hanging_corner);
+          if (any_hanging)
+            for (i = 0; i < P8EST_CHILDREN; ++i)
+              if (hanging_corner[i] >= 0)
+                {
+                  hbuff[i] = true;
+                  c = hanging_corner[i];
+                  num_parents = corner_num_hanging[i ^ c];
+                  base_corner = corner_to_hanging[i ^ c];
+                  for (j = 0; j < num_parents; ++j)
+                    pbuff[j + 4 * i] = base_corner[j] ^ c;//CESARE(???)
+                }
+        }
+      // Ghost elements.
+      else
+        {
+          p4est_locidx_t idx = this->qtq -
+            the_tmesh->num_local_quadrants ();
+          
+          for (i = 0; i < P8EST_CHILDREN; ++i)
+            {
+              tbuff[i] = the_tmesh->ghost_data[40*idx + i];
+              
+              pbuff[4*i]     = the_tmesh->ghost_data[40*idx + 8  + 4*i];
+              pbuff[4*i + 1] = the_tmesh->ghost_data[40*idx + 9  + 4*i];
+              pbuff[4*i + 2] = the_tmesh->ghost_data[40*idx + 10 + 4*i];
+              pbuff[4*i + 3] = the_tmesh->ghost_data[40*idx + 11 + 4*i];
+              
+              if (pbuff[4*i] != -1
+                  || pbuff[4*i+1] != -1
+                  || pbuff[4*i+2] != -1
+                  || pbuff[4*i+3] != -1)
+                hbuff[i] = true;
+              else
+                hbuff[i] = false;
+            }
+        }
+    }
+};
+
 std::vector<int>
 tmesh_3d::userint_replace (std::vector<int> old_userint)
 {
