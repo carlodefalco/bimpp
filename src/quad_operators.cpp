@@ -1062,26 +1062,23 @@ l2_error (tmesh::quadrant_iterator q,
     x[2] = {q->p(0,0), q->p(0,1)},
     y[2] = {q->p(1,0), q->p(1,3)};
 
-  double err_loc[4] = {0,0,0,0};
+  double u_loc[4] = {0,0,0,0};
 
   for (int ii = 0; ii < 4; ++ii)
     {
       if (! q->is_hanging (ii))
-        err_loc[ii] = u[q->gt(ii)];
+        u_loc[ii] = u[q->gt(ii)];
       else
-        err_loc[ii] = 0.5 * (u[q->gparent(0, ii)] +
+        u_loc[ii] = 0.5 * (u[q->gparent(0, ii)] +
                            u[q->gparent(1, ii)]);
-      
-      // Project u_ex to Q1 space.
-      err_loc[ii] -= u_ex(q->p(0, ii), q->p(1, ii));
     }
 
   auto fun =
-    [x, y, err_loc]
+    [x, y, u_loc, u_ex]
     (double X, double Y) -> double
     {
       return
-      std::pow (q1 (X, Y, x, y, err_loc), 2);
+      std::pow (q1 (X, Y, x, y, u_loc) - u_ex(X, Y), 2);
     };
     
   return std::sqrt(quad_integral (x, y, fun));
