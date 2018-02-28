@@ -184,8 +184,8 @@ tmesh_3d::octant_t::update (p4est_topidx_t tree,
   corner_to_hanging[2]        = p8est_edge_corners[4];
   corner_to_hanging[3]        = p8est_face_corners[4];
   corner_to_hanging[4]        = p8est_edge_corners[8];
-  corner_to_hanging[ones - 2] = p4est_face_corners[2];
-  corner_to_hanging[ones - 1] = p4est_face_corners[0];
+  corner_to_hanging[ones - 2] = p8est_face_corners[2];
+  corner_to_hanging[ones - 1] = p8est_face_corners[0];
   corner_to_hanging[ones]     = &ones;
   
   this->tree_idx = tree;
@@ -232,7 +232,7 @@ tmesh_3d::octant_t::update (p4est_topidx_t tree,
       else
         {
           p4est_locidx_t idx = this->qtq -
-            the_tmesh->num_local_quadrants ();
+            the_tmesh->num_local_octants ();
           
           for (i = 0; i < P8EST_CHILDREN; ++i)
             {
