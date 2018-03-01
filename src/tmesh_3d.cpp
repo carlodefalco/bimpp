@@ -255,6 +255,13 @@ tmesh_3d::octant_t::update (p4est_topidx_t tree,
     }
 };
 
+int
+tmesh_3d::octant_t::parent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
+{
+  assert (pbuff[ip + in * 4] >= 0);
+  return tbuff[pbuff[ip + in * 4]];
+};
+
 std::vector<int>
 tmesh_3d::userint_replace (std::vector<int> old_userint)
 {
