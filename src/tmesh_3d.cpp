@@ -262,6 +262,22 @@ tmesh_3d::octant_t::parent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
   return tbuff[pbuff[ip + in * 4]];
 };
 
+int
+tmesh_3d::octant_t::gparent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
+{  
+  if (! is_ghost)
+    {
+      assert (pbuff[ip + in * 4] >= 0);
+
+      return p8est_lnodes_global_index
+        (the_tmesh->lnodes,
+         static_cast<p4est_locidx_t>
+         (tbuff[pbuff[ip + in * 4]]));
+    }
+  else
+      return pbuff[4*in + ip];
+};
+
 std::vector<int>
 tmesh_3d::userint_replace (std::vector<int> old_userint)
 {
