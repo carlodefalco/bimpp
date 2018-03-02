@@ -190,8 +190,8 @@ int main(int argc, char ** argv)
   MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
   
   dirichlet_bcs bcs;
-  bcs.push_back (std::make_tuple(0, 0, [] (double x, double y) { return 0; }));
-  bcs.push_back (std::make_tuple(0, 1, [] (double x, double y) { return 1; }));
+  bcs.push_back (std::make_tuple(0, 2, [] (double x, double y) { return 0; }));
+  bcs.push_back (std::make_tuple(0, 3, [] (double x, double y) { return 1; }));
   
   bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
   

@@ -93,9 +93,9 @@ main (int argc, char **argv)
       func u10 = [] (double x, double y) { return (y > 0.2) ? 0 : 1; };
       
       dirichlet_bcs bcs;
-      bcs.push_back (std::make_tuple(0, 0, u1 ));
+      bcs.push_back (std::make_tuple(0, 0, u10));
       bcs.push_back (std::make_tuple(0, 1, u0 ));
-      bcs.push_back (std::make_tuple(0, 2, u10));
+      bcs.push_back (std::make_tuple(0, 2, u1 ));
       bcs.push_back (std::make_tuple(0, 3, u0 ));
       
       bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
