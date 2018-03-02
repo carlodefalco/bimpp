@@ -426,16 +426,16 @@ nedelec_gradient (tmesh::quadrant_iterator & q,
   switch (i)
     {
       case 0:
-        du = (u_aux[1] - u_aux[0]) / hx;
-        break;
-      case 1:
-        du = (u_aux[3] - u_aux[2]) / hx;
-        break;
-      case 2:
         du = (u_aux[2] - u_aux[0]) / hy;
         break;
-      case 3:
+      case 1:
         du = (u_aux[3] - u_aux[1]) / hy;
+        break;
+      case 2:
+        du = (u_aux[1] - u_aux[0]) / hx;
+        break;
+      case 3:
+        du = (u_aux[3] - u_aux[2]) / hx;
         break;
     }
   
@@ -488,20 +488,20 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
           switch (node)
             {
               case 0:
-                du_x.push_back (nedelec_gradient(quadrant, u, 0));
-                du_y.push_back (nedelec_gradient(quadrant, u, 2));
+                du_x.push_back (nedelec_gradient(quadrant, u, 2));
+                du_y.push_back (nedelec_gradient(quadrant, u, 0));
                 break;
               case 1:
-                du_x.push_back (nedelec_gradient(quadrant, u, 0));
-                du_y.push_back (nedelec_gradient(quadrant, u, 3));
+                du_x.push_back (nedelec_gradient(quadrant, u, 2));
+                du_y.push_back (nedelec_gradient(quadrant, u, 1));
                 break;
               case 2:
-                du_x.push_back (nedelec_gradient(quadrant, u, 1));
-                du_y.push_back (nedelec_gradient(quadrant, u, 2));
+                du_x.push_back (nedelec_gradient(quadrant, u, 3));
+                du_y.push_back (nedelec_gradient(quadrant, u, 0));
                 break;
               case 3:
-                du_x.push_back (nedelec_gradient(quadrant, u, 1));
-                du_y.push_back (nedelec_gradient(quadrant, u, 3));
+                du_x.push_back (nedelec_gradient(quadrant, u, 3));
+                du_y.push_back (nedelec_gradient(quadrant, u, 1));
                 break;
             }
           
@@ -539,27 +539,27 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                 {
                   case 0:
                     if (node == 1)
-                      du_x.push_back (nedelec_gradient(neighbor, u, 0));
+                      du_x.push_back (nedelec_gradient(neighbor, u, 2));
                     if (node == 2)
-                      du_y.push_back (nedelec_gradient(neighbor, u, 2));
+                      du_y.push_back (nedelec_gradient(neighbor, u, 0));
                     break;
                   case 1:
                     if (node == 0)
-                      du_x.push_back (nedelec_gradient(neighbor, u, 0));
+                      du_x.push_back (nedelec_gradient(neighbor, u, 2));
                     if (node == 3)
-                      du_y.push_back (nedelec_gradient(neighbor, u, 3));
+                      du_y.push_back (nedelec_gradient(neighbor, u, 1));
                     break;
                   case 2:
                     if (node == 3)
-                      du_x.push_back (nedelec_gradient(neighbor, u, 1));
+                      du_x.push_back (nedelec_gradient(neighbor, u, 3));
                     if (node == 0)
-                      du_y.push_back (nedelec_gradient(neighbor, u, 2));
+                      du_y.push_back (nedelec_gradient(neighbor, u, 0));
                     break;
                   case 3:
                     if (node == 2)
-                      du_x.push_back (nedelec_gradient(neighbor, u, 1));
+                      du_x.push_back (nedelec_gradient(neighbor, u, 3));
                     if (node == 1)
-                      du_y.push_back (nedelec_gradient(neighbor, u, 3));
+                      du_y.push_back (nedelec_gradient(neighbor, u, 1));
                     break;
                 }
               
@@ -620,19 +620,19 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                     {
                       case 0:
                         if (node_side == 1)
-                          du_x.push_back (nedelec_gradient(neighbor, u, 0));
+                          du_x.push_back (nedelec_gradient(neighbor, u, 2));
                         break;
                       case 1:
                         if (node_side == 0)
-                          du_x.push_back (nedelec_gradient(neighbor, u, 0));
+                          du_x.push_back (nedelec_gradient(neighbor, u, 2));
                         break;
                       case 2:
                         if (node_side == 3)
-                          du_x.push_back (nedelec_gradient(neighbor, u, 1));
+                          du_x.push_back (nedelec_gradient(neighbor, u, 3));
                         break;
                       case 3:
                         if (node_side == 2)
-                          du_x.push_back (nedelec_gradient(neighbor, u, 1));
+                          du_x.push_back (nedelec_gradient(neighbor, u, 3));
                         break;
                     }
                   
@@ -694,19 +694,19 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                     {
                       case 0:
                         if (node_side == 2)
-                          du_y.push_back (nedelec_gradient(neighbor, u, 2));
+                          du_y.push_back (nedelec_gradient(neighbor, u, 0));
                         break;
                       case 1:
                         if (node_side == 3)
-                          du_y.push_back (nedelec_gradient(neighbor, u, 3));
+                          du_y.push_back (nedelec_gradient(neighbor, u, 1));
                         break;
                       case 2:
                         if (node_side == 0)
-                          du_y.push_back (nedelec_gradient(neighbor, u, 2));
+                          du_y.push_back (nedelec_gradient(neighbor, u, 0));
                         break;
                       case 3:
                         if (node_side == 1)
-                          du_y.push_back (nedelec_gradient(neighbor, u, 3));
+                          du_y.push_back (nedelec_gradient(neighbor, u, 1));
                         break;
                     }
                   
@@ -789,28 +789,39 @@ bim2c_quadtree_pde_recovered_solution (tmesh& mesh,
       hy = quadrant->p (1, 2) - quadrant->p (1, 0);
       
       // Compute values at vertices.
-      for (int i = 0; i < 4; ++i)
-        u_star[quadrant->get_forest_quad_idx ()][i] =
-          u[quadrant->gt(i)];
+      for (int n = 0; n < 4; ++n)
+        {
+          if (! quadrant->is_hanging (n))
+            u_star[quadrant->get_forest_quad_idx ()][n] =
+              u[quadrant->gt (n)];
+          else
+            u_star[quadrant->get_forest_quad_idx ()][n] =
+              0.5 * (u[quadrant->parent (0, n)] +
+                     u[quadrant->parent (1, n)]);
+        }
       
       // Compute values at faces.
       u_star[quadrant->get_forest_quad_idx ()][4] =
-        0.5 * (u[quadrant->gt(0)] + u[quadrant->gt(2)])
+        0.5 * (u_star[quadrant->get_forest_quad_idx ()][0] +
+               u_star[quadrant->get_forest_quad_idx ()][2])
         + hy * (du.second[quadrant->gt(0)]
                 - du.second[quadrant->gt(2)]) / 8;
       
       u_star[quadrant->get_forest_quad_idx ()][5] =
-        0.5 * (u[quadrant->gt(1)] + u[quadrant->gt(3)])
+        0.5 * (u_star[quadrant->get_forest_quad_idx ()][1] +
+               u_star[quadrant->get_forest_quad_idx ()][3])
         + hy * (du.second[quadrant->gt(1)]
                 - du.second[quadrant->gt(3)]) / 8;
       
       u_star[quadrant->get_forest_quad_idx ()][6] =
-        0.5 * (u[quadrant->gt(0)] + u[quadrant->gt(1)])
+        0.5 * (u_star[quadrant->get_forest_quad_idx ()][0] +
+               u_star[quadrant->get_forest_quad_idx ()][1])
         + hx * (du.first[quadrant->gt(0)]
                 - du.first[quadrant->gt(1)]) / 8;
       
       u_star[quadrant->get_forest_quad_idx ()][7] =
-        0.5 * (u[quadrant->gt(2)] + u[quadrant->gt(3)])
+        0.5 * (u_star[quadrant->get_forest_quad_idx ()][2] +
+               u_star[quadrant->get_forest_quad_idx ()][3])
         + hx * (du.first[quadrant->gt(2)]
                 - du.first[quadrant->gt(3)]) / 8;
       
