@@ -98,7 +98,8 @@ main (int argc, char **argv)
            ++quadrant)
         {
           for (int ii = 0; ii < 4; ++ii)
-            if (quadrant->p(1, ii) > 0.5 * quadrant->p(0, ii) + 0.25)
+            if (! quadrant->is_hanging (ii)
+                && quadrant->p(1, ii) > 0.5 * quadrant->p(0, ii) + 0.25)
               alpha[quadrant->t(ii)] = eps2;
           
           if (quadrant->centroid(1) > 0.5 * quadrant->centroid(0) + 0.25)

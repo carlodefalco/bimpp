@@ -74,11 +74,14 @@ main (int argc, char **argv)
         {
           for (int ii = 0; ii < 4; ++ii)
             {
-              x = quadrant->p(0, ii);
-              y = quadrant->p(1, ii);
-              
-              zeta[quadrant->t(ii)] = 1 + x * x * y * y;
-              g   [quadrant->t(ii)] = 1 + 2 * x * y;
+              if (! quadrant->is_hanging (ii))
+                {
+                  x = quadrant->p(0, ii);
+                  y = quadrant->p(1, ii);
+                  
+                  zeta[quadrant->t(ii)] = 1 + x * x * y * y;
+                  g   [quadrant->t(ii)] = 1 + 2 * x * y;
+                }
             }
         }
         
