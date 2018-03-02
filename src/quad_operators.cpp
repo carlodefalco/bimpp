@@ -795,24 +795,24 @@ bim2c_quadtree_pde_recovered_solution (tmesh& mesh,
       
       // Compute values at faces.
       u_star[quadrant->get_forest_quad_idx ()][4] =
-        0.5 * (u[quadrant->gt(0)] + u[quadrant->gt(1)])
-        + hx * (du.first[quadrant->gt(0)]
-                - du.first[quadrant->gt(1)]) / 8;
-      
-      u_star[quadrant->get_forest_quad_idx ()][5] =
-        0.5 * (u[quadrant->gt(2)] + u[quadrant->gt(3)])
-        + hx * (du.first[quadrant->gt(2)]
-                - du.first[quadrant->gt(3)]) / 8;
-      
-      u_star[quadrant->get_forest_quad_idx ()][6] =
         0.5 * (u[quadrant->gt(0)] + u[quadrant->gt(2)])
         + hy * (du.second[quadrant->gt(0)]
                 - du.second[quadrant->gt(2)]) / 8;
       
-      u_star[quadrant->get_forest_quad_idx ()][7] =
+      u_star[quadrant->get_forest_quad_idx ()][5] =
         0.5 * (u[quadrant->gt(1)] + u[quadrant->gt(3)])
         + hy * (du.second[quadrant->gt(1)]
                 - du.second[quadrant->gt(3)]) / 8;
+      
+      u_star[quadrant->get_forest_quad_idx ()][6] =
+        0.5 * (u[quadrant->gt(0)] + u[quadrant->gt(1)])
+        + hx * (du.first[quadrant->gt(0)]
+                - du.first[quadrant->gt(1)]) / 8;
+      
+      u_star[quadrant->get_forest_quad_idx ()][7] =
+        0.5 * (u[quadrant->gt(2)] + u[quadrant->gt(3)])
+        + hx * (du.first[quadrant->gt(2)]
+                - du.first[quadrant->gt(3)]) / 8;
       
       // Compute value at cell midpoint.
       u_star[quadrant->get_forest_quad_idx ()][8] =
@@ -938,10 +938,10 @@ q2 (double X, double Y, const double *x,
           u[1] * 4 * (X - x[0]) * (X - xc) * (Y - yc) * (Y - y[1]) +
           u[2] * 4 * (X - xc) * (X - x[1]) * (Y - y[0]) * (Y - yc) +
           u[3] * 4 * (X - x[0]) * (X - xc) * (Y - y[0]) * (Y - yc) +
-          u[4] * -8 * (X - x[0]) * (X - x[1]) * (Y - yc) * (Y - y[1]) +
-          u[5] * -8 * (X - x[0]) * (X - x[1]) * (Y - y[0]) * (Y - yc) +
-          u[6] * -8 * (X - xc) * (X - x[1]) * (Y - y[0]) * (Y - y[1]) +
-          u[7] * -8 * (X - x[0]) * (X - xc) * (Y - y[0]) * (Y - y[1]) +
+          u[4] * -8 * (X - xc) * (X - x[1]) * (Y - y[0]) * (Y - y[1]) +
+          u[5] * -8 * (X - x[0]) * (X - xc) * (Y - y[0]) * (Y - y[1]) +
+          u[6] * -8 * (X - x[0]) * (X - x[1]) * (Y - yc) * (Y - y[1]) +
+          u[7] * -8 * (X - x[0]) * (X - x[1]) * (Y - y[0]) * (Y - yc) +
           u[8] * 16 * (X - x[0]) * (X - x[1]) * (Y - y[0]) * (Y - y[1])) /
          (hx * hx * hy * hy);
 }
