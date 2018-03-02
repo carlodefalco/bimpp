@@ -147,15 +147,22 @@ bim2a_advection_eafe_diffusion (tmesh& mesh,
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
     {
-      std::array<double, 4> psi_aux;
+      std::array<double, 4> psi_aux, alpha_aux;
       
       for (int n = 0; n < 4; ++n)
         {
           if (! quadrant->is_hanging (n))
-            psi_aux[n] = psi[quadrant->t (n)];
+            {
+              psi_aux[n] = psi[quadrant->t (n)];
+              alpha_aux[n] = alpha[quadrant->t (n)];
+            }
           else
-            psi_aux[n] = 0.5 * (psi[quadrant->parent (0, n)] +
-                                psi[quadrant->parent (1, n)]);
+            {
+              psi_aux[n] = 0.5 * (psi[quadrant->parent (0, n)] +
+                                  psi[quadrant->parent (1, n)]);
+              alpha_aux[n] = 0.5 * (alpha[quadrant->parent (0, n)] +
+                                    alpha[quadrant->parent (1, n)]);
+            }
         }
       
       psi01 = psi_aux[1] - psi_aux[0];
@@ -173,14 +180,14 @@ bim2a_advection_eafe_diffusion (tmesh& mesh,
       
       iel = quadrant->get_forest_quad_idx();
       
-      bp01 *= hm(alpha[quadrant->t(0)], alpha[quadrant->t(1)]) * hy / (2 * hx);
-      bm01 *= hm(alpha[quadrant->t(0)], alpha[quadrant->t(1)]) * hy / (2 * hx);
-      bp13 *= hm(alpha[quadrant->t(1)], alpha[quadrant->t(3)]) * hx / (2 * hy);
-      bm13 *= hm(alpha[quadrant->t(1)], alpha[quadrant->t(3)]) * hx / (2 * hy);
-      bp32 *= hm(alpha[quadrant->t(3)], alpha[quadrant->t(2)]) * hy / (2 * hx);
-      bm32 *= hm(alpha[quadrant->t(3)], alpha[quadrant->t(2)]) * hy / (2 * hx);
-      bp20 *= hm(alpha[quadrant->t(2)], alpha[quadrant->t(0)]) * hx / (2 * hy);
-      bm20 *= hm(alpha[quadrant->t(2)], alpha[quadrant->t(0)]) * hx / (2 * hy);
+      bp01 *= hm(alpha_aux[0], alpha_aux[1]) * hy / (2 * hx);
+      bm01 *= hm(alpha_aux[0], alpha_aux[1]) * hy / (2 * hx);
+      bp13 *= hm(alpha_aux[1], alpha_aux[3]) * hx / (2 * hy);
+      bm13 *= hm(alpha_aux[1], alpha_aux[3]) * hx / (2 * hy);
+      bp32 *= hm(alpha_aux[3], alpha_aux[2]) * hy / (2 * hx);
+      bm32 *= hm(alpha_aux[3], alpha_aux[2]) * hy / (2 * hx);
+      bp20 *= hm(alpha_aux[2], alpha_aux[0]) * hx / (2 * hy);
+      bm20 *= hm(alpha_aux[2], alpha_aux[0]) * hx / (2 * hy);
       
       Aloc[0] = { bm01 + bp20, -bp01,        -bm20,         0          };
       Aloc[1] = {-bm01,         bp01 + bm13,  0,           -bp13       };
@@ -234,6 +241,8 @@ bim2a_reaction (tmesh& mesh,
   std::vector<unsigned int> rows;
   rows.reserve(2);
   
+  double zeta_loc = 0;
+  
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
@@ -248,16 +257,21 @@ bim2a_reaction (tmesh& mesh,
           rows.clear();
           
           if (!quadrant->is_hanging (i))
-            rows.push_back (quadrant->gt (i));
+            {
+              rows.push_back (quadrant->gt (i));
+              zeta_loc = zeta[quadrant->t (i)];
+            }
           else
             {
               rows.push_back (quadrant->gparent (0, i));
               rows.push_back (quadrant->gparent (1, i));
+              zeta_loc = 0.5 * (zeta[quadrant->parent (0, i)] +
+                                zeta[quadrant->parent (1, i)]);
             }
           
           for (int r = 0; r < rows.size (); ++r)
             A[rows[r]][rows[r]] +=
-              (delta[iel] * zeta[quadrant->t (i)] * hx * hy / 4) /
+              (delta[iel] * zeta_loc * hx * hy / 4) /
               rows.size ();
         }
     }
@@ -275,6 +289,8 @@ bim2a_rhs (tmesh& mesh,
    std::vector<unsigned int> rows;
    rows.reserve (2);
    
+   double g_loc = 0;
+   
    for (auto quadrant = mesh.begin_quadrant_sweep ();
         quadrant != mesh.end_quadrant_sweep ();
         ++quadrant)
@@ -289,16 +305,21 @@ bim2a_rhs (tmesh& mesh,
             rows.clear ();
             
             if (! quadrant->is_hanging (i))
-              rows.push_back (quadrant->gt (i));
+              {
+                rows.push_back (quadrant->gt (i));
+                g_loc = g[quadrant->t (i)];
+              }
             else
               {
                 rows.push_back (quadrant->gparent (0, i));
                 rows.push_back (quadrant->gparent (1, i));
+                g_loc = 0.5 * (g[quadrant->parent (0, i)] +
+                               g[quadrant->parent (1, i)]);
               }
             
             for (int r = 0; r < rows.size(); ++r)
               rhs[rows[r]] +=
-                (f[iel] * g[quadrant->t (i)] * hx * hy / 4) /
+                (f[iel] * g_loc * hx * hy / 4) /
                 rows.size ();
           }
      }
@@ -781,6 +802,10 @@ bim2c_quadtree_pde_recovered_solution (tmesh& mesh,
   
   double hx = 0, hy = 0;
   
+  std::array<double, 4> u_star_loc,
+                        du_x_star_loc,
+                        du_y_star_loc;
+  
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
@@ -792,38 +817,110 @@ bim2c_quadtree_pde_recovered_solution (tmesh& mesh,
       for (int n = 0; n < 4; ++n)
         {
           if (! quadrant->is_hanging (n))
-            u_star[quadrant->get_forest_quad_idx ()][n] =
-              u[quadrant->gt (n)];
+            {
+              u_star_loc[n] = u[quadrant->gt (n)];
+              du_x_star_loc[n] = du.first [quadrant->gt (n)];
+              du_y_star_loc[n] = du.second[quadrant->gt (n)];
+            }
           else
-            u_star[quadrant->get_forest_quad_idx ()][n] =
-              0.5 * (u[quadrant->parent (0, n)] +
-                     u[quadrant->parent (1, n)]);
+            {
+              u_star_loc[n] = 0.5 * (u[quadrant->gparent (0, n)] +
+                                     u[quadrant->gparent (1, n)]);
+              
+              // Determine whether n is hanging on an edge
+              // directed along the x or y direction.
+              int i = 0; int p = 0;
+              
+              for (; i < 4; ++i)
+                {
+                  if (quadrant->parent (0, n) == quadrant->t (i))
+                    {
+                      p = 0;
+                      break;
+                    }
+                  else if (quadrant->parent (1, n) == quadrant->t (i))
+                    {
+                      p = 1;
+                      break;
+                    }
+                }
+              
+              // Compute recovered solution at the
+              // double-sized neighbor element.
+              if (n == 0)
+                {
+                  if (i == 1)
+                    u_star_loc[n] +=
+                      (2 * hx) * (du.first[quadrant->gparent (1-p, n)] -
+                                  du.first[quadrant->gparent (p, n)]) / 8;
+                  else if (i == 2)
+                    u_star_loc[n] +=
+                      (2 * hy) * (du.second[quadrant->gparent (1-p, n)] -
+                                  du.second[quadrant->gparent (p, n)]) / 8;
+                }
+              else if (n == 1)
+                {
+                  if (i == 0)
+                    u_star_loc[n] +=
+                      (2 * hx) * (du.first[quadrant->gparent (p, n)] -
+                                  du.first[quadrant->gparent (1-p, n)]) / 8;
+                  else if (i == 3)
+                    u_star_loc[n] +=
+                      (2 * hy) * (du.second[quadrant->gparent (1-p, n)] -
+                                  du.second[quadrant->gparent (p, n)]) / 8;
+                }
+              else if (n == 2)
+                {
+                  if (i == 3)
+                    u_star_loc[n] +=
+                      (2 * hx) * (du.first[quadrant->gparent (1-p, n)] -
+                                  du.first[quadrant->gparent (p, n)]) / 8;
+                  else if (i == 0)
+                    u_star_loc[n] +=
+                      (2 * hy) * (du.second[quadrant->gparent (p, n)] -
+                                  du.second[quadrant->gparent (1-p, n)]) / 8;
+                }
+              else if (n == 3)
+                {
+                  if (i == 2)
+                    u_star_loc[n] +=
+                      (2 * hx) * (du.first[quadrant->gparent (p, n)] -
+                                  du.first[quadrant->gparent (1-p, n)]) / 8;
+                  else if (i == 1)
+                    u_star_loc[n] +=
+                      (2 * hy) * (du.second[quadrant->gparent (p, n)] -
+                                  du.second[quadrant->gparent (1-p, n)]) / 8;
+                }
+                
+              du_x_star_loc[n] =
+                0.5 * (du.first[quadrant->gparent (0, n)] +
+                       du.first[quadrant->gparent (1, n)]);
+              
+              du_y_star_loc[n] =
+                0.5 * (du.second[quadrant->gparent (0, n)] +
+                       du.second[quadrant->gparent (1, n)]);
+            }
+          
+          u_star[quadrant->get_forest_quad_idx ()][n] =
+            u_star_loc[n];
         }
       
       // Compute values at faces.
       u_star[quadrant->get_forest_quad_idx ()][4] =
-        0.5 * (u_star[quadrant->get_forest_quad_idx ()][0] +
-               u_star[quadrant->get_forest_quad_idx ()][2])
-        + hy * (du.second[quadrant->gt(0)]
-                - du.second[quadrant->gt(2)]) / 8;
+        0.5 * (u_star_loc[0] + u_star_loc[2])
+        + hy * (du_y_star_loc[0] - du_y_star_loc[2]) / 8;
       
       u_star[quadrant->get_forest_quad_idx ()][5] =
-        0.5 * (u_star[quadrant->get_forest_quad_idx ()][1] +
-               u_star[quadrant->get_forest_quad_idx ()][3])
-        + hy * (du.second[quadrant->gt(1)]
-                - du.second[quadrant->gt(3)]) / 8;
+        0.5 * (u_star_loc[1] + u_star_loc[3])
+        + hy * (du_y_star_loc[1] - du_y_star_loc[3]) / 8;
       
       u_star[quadrant->get_forest_quad_idx ()][6] =
-        0.5 * (u_star[quadrant->get_forest_quad_idx ()][0] +
-               u_star[quadrant->get_forest_quad_idx ()][1])
-        + hx * (du.first[quadrant->gt(0)]
-                - du.first[quadrant->gt(1)]) / 8;
+        0.5 * (u_star_loc[0] + u_star_loc[1])
+        + hx * (du_x_star_loc[0] - du_x_star_loc[1]) / 8;
       
       u_star[quadrant->get_forest_quad_idx ()][7] =
-        0.5 * (u_star[quadrant->get_forest_quad_idx ()][2] +
-               u_star[quadrant->get_forest_quad_idx ()][3])
-        + hx * (du.first[quadrant->gt(2)]
-                - du.first[quadrant->gt(3)]) / 8;
+        0.5 * (u_star_loc[2] + u_star_loc[3])
+        + hx * (du_x_star_loc[2] - du_x_star_loc[3]) / 8;
       
       // Compute value at cell midpoint.
       u_star[quadrant->get_forest_quad_idx ()][8] =
@@ -831,14 +928,10 @@ bim2c_quadtree_pde_recovered_solution (tmesh& mesh,
                 u_star[quadrant->get_forest_quad_idx ()][5] +
                 u_star[quadrant->get_forest_quad_idx ()][6] +
                 u_star[quadrant->get_forest_quad_idx ()][7])
-        + hx * 0.5 * (du.first[quadrant->gt(0)]
-                      + du.first[quadrant->gt(2)]
-                      - du.first[quadrant->gt(1)]
-                      - du.first[quadrant->gt(3)]) / 16
-        + hy * 0.5 * (du.second[quadrant->gt(0)]
-                      + du.second[quadrant->gt(1)]
-                      - du.second[quadrant->gt(2)]
-                      - du.second[quadrant->gt(3)]) / 16;
+        + hx * 0.5 * (du_x_star_loc[0] + du_x_star_loc[2] -
+                      du_x_star_loc[1] - du_x_star_loc[3]) / 16
+        + hy * 0.5 * (du_y_star_loc[0] + du_y_star_loc[1] -
+                      du_y_star_loc[2] - du_y_star_loc[3]) / 16;
     }
   
   return u_star;
