@@ -68,13 +68,13 @@ main (int argc, char **argv)
          2 * eps2 * std::sinh(0.5 / std::sqrt(eps1)));
       
       std::vector<double> alpha(tmsh.num_local_quadrants (), eps1);
-      std::vector<double> psi(tmsh.num_local_nodes (), 0);
+      std::vector<double> psi(tmsh.num_global_nodes (), 0);
       
       std::vector<double> delta(tmsh.num_local_quadrants (), 1);
-      std::vector<double> zeta(tmsh.num_local_nodes (), 1);
+      std::vector<double> zeta(tmsh.num_global_nodes (), 1);
       
       std::vector<double> f(tmsh.num_local_quadrants (), 1);
-      std::vector<double> g(tmsh.num_local_nodes (), 1);
+      std::vector<double> g(tmsh.num_global_nodes (), 1);
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();

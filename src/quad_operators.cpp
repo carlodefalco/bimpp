@@ -48,10 +48,10 @@ bim2a_advection_diffusion (tmesh& mesh,
       for (int n = 0; n < 4; ++n)
         {
           if (! quadrant->is_hanging (n))
-            psi_aux[n] = psi[quadrant->t (n)];
+            psi_aux[n] = psi[quadrant->gt (n)];
           else
-            psi_aux[n] = 0.5 * (psi[quadrant->parent (0, n)] +
-                                psi[quadrant->parent (1, n)]);
+            psi_aux[n] = 0.5 * (psi[quadrant->gparent (0, n)] +
+                                psi[quadrant->gparent (1, n)]);
         }
       
       psi01 = psi_aux[1] - psi_aux[0];
@@ -153,15 +153,15 @@ bim2a_advection_eafe_diffusion (tmesh& mesh,
         {
           if (! quadrant->is_hanging (n))
             {
-              psi_aux[n] = psi[quadrant->t (n)];
-              alpha_aux[n] = alpha[quadrant->t (n)];
+              psi_aux[n] = psi[quadrant->gt (n)];
+              alpha_aux[n] = alpha[quadrant->gt (n)];
             }
           else
             {
-              psi_aux[n] = 0.5 * (psi[quadrant->parent (0, n)] +
-                                  psi[quadrant->parent (1, n)]);
-              alpha_aux[n] = 0.5 * (alpha[quadrant->parent (0, n)] +
-                                    alpha[quadrant->parent (1, n)]);
+              psi_aux[n] = 0.5 * (psi[quadrant->gparent (0, n)] +
+                                  psi[quadrant->gparent (1, n)]);
+              alpha_aux[n] = 0.5 * (alpha[quadrant->gparent (0, n)] +
+                                    alpha[quadrant->gparent (1, n)]);
             }
         }
       
@@ -259,14 +259,14 @@ bim2a_reaction (tmesh& mesh,
           if (!quadrant->is_hanging (i))
             {
               rows.push_back (quadrant->gt (i));
-              zeta_loc = zeta[quadrant->t (i)];
+              zeta_loc = zeta[quadrant->gt (i)];
             }
           else
             {
               rows.push_back (quadrant->gparent (0, i));
               rows.push_back (quadrant->gparent (1, i));
-              zeta_loc = 0.5 * (zeta[quadrant->parent (0, i)] +
-                                zeta[quadrant->parent (1, i)]);
+              zeta_loc = 0.5 * (zeta[quadrant->gparent (0, i)] +
+                                zeta[quadrant->gparent (1, i)]);
             }
           
           for (int r = 0; r < rows.size (); ++r)
@@ -307,14 +307,14 @@ bim2a_rhs (tmesh& mesh,
             if (! quadrant->is_hanging (i))
               {
                 rows.push_back (quadrant->gt (i));
-                g_loc = g[quadrant->t (i)];
+                g_loc = g[quadrant->gt (i)];
               }
             else
               {
                 rows.push_back (quadrant->gparent (0, i));
                 rows.push_back (quadrant->gparent (1, i));
-                g_loc = 0.5 * (g[quadrant->parent (0, i)] +
-                               g[quadrant->parent (1, i)]);
+                g_loc = 0.5 * (g[quadrant->gparent (0, i)] +
+                               g[quadrant->gparent (1, i)]);
               }
             
             for (int r = 0; r < rows.size(); ++r)

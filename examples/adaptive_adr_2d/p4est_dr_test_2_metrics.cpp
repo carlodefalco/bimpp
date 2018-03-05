@@ -57,15 +57,15 @@ main (int argc, char **argv)
       
       double epsilon = std::pow(2, -30);
       std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
-      std::vector<double> psi(tmsh.num_local_nodes (), 0);
+      std::vector<double> psi(tmsh.num_global_nodes (), 0);
       
       std::vector<double> delta(tmsh.num_local_quadrants (), 1);
-      std::vector<double> zeta(tmsh.num_local_nodes (), 1);
+      std::vector<double> zeta(tmsh.num_global_nodes (), 1);
       
       std::vector<double> rhs(tmsh.num_global_nodes (), 0);
       
       std::vector<double> f(tmsh.num_local_quadrants (), 1);
-      std::vector<double> g(tmsh.num_local_nodes (), 0);
+      std::vector<double> g(tmsh.num_global_nodes (), 0);
       
       double x = 0, y = 0;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -79,17 +79,26 @@ main (int argc, char **argv)
                   x = quadrant->p(0, ii);
                   y = quadrant->p(1, ii);
                   
-                  zeta[quadrant->t(ii)] = 1 + x * x * y * y;
-                  g   [quadrant->t(ii)] = 1 + 2 * x * y;
+                  zeta[quadrant->gt(ii)] = 1 + x * x * y * y;
+                  g   [quadrant->gt(ii)] = 1 + 2 * x * y;
                 }
             }
         }
         
+      // Reduce coefficients.
+      std::vector<double> global_zeta(tmsh.num_global_nodes(), 0);
+      MPI_Allreduce(zeta.data(), global_zeta.data(), zeta.size(),
+                    MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+      
+      std::vector<double> global_g(tmsh.num_global_nodes(), 0);
+      MPI_Allreduce(g.data(), global_g.data(), g.size(),
+                    MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+      
       bim2a_advection_diffusion (tmsh, alpha, psi, A);
-      bim2a_reaction (tmsh, delta, zeta, M);
+      bim2a_reaction (tmsh, delta, global_zeta, M);
       A += M;
       
-      bim2a_rhs (tmsh, f, g, rhs);
+      bim2a_rhs (tmsh, f, global_g, rhs);
       
       // Set boundary conditions.
       func g1 = [] (double x, double y) { return 1; };

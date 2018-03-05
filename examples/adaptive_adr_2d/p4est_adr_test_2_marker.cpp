@@ -60,7 +60,7 @@ main (int argc, char **argv)
       double epsilon = 1e-6;
       double theta = M_PI / 4;
       std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
-      std::vector<double> psi(tmsh.num_local_nodes (), 0);
+      std::vector<double> psi(tmsh.num_global_nodes (), 0);
       
       double x = 0, y = 0;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -74,19 +74,24 @@ main (int argc, char **argv)
                   x = quadrant->p(0, ii);
                   y = quadrant->p(1, ii);
                   
-                  psi[quadrant->t(ii)] = (std::cos(theta) * x +
-                                          std::sin(theta) * y) / epsilon;
+                  psi[quadrant->gt(ii)] = (std::cos(theta) * x +
+                                           std::sin(theta) * y) / epsilon;
                 }
             }
         }
-        
-      bim2a_advection_diffusion (tmsh, alpha, psi, A);
+      
+      // Reduce coefficients.
+      std::vector<double> global_psi(tmsh.num_global_nodes(), 0);
+      MPI_Allreduce(psi.data(), global_psi.data(), psi.size(),
+                    MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+      
+      bim2a_advection_diffusion (tmsh, alpha, global_psi, A);
       
       // Assemble right-hand side.
       std::vector<double> rhs(tmsh.num_global_nodes (), 0);
       
       std::vector<double> f(tmsh.num_local_quadrants (), 0);
-      std::vector<double> g(tmsh.num_local_nodes (), 0);
+      std::vector<double> g(tmsh.num_global_nodes (), 0);
       
       bim2a_rhs (tmsh, f, g, rhs);
       
