@@ -200,14 +200,14 @@ main (int argc, char **argv)
       q2_vec u_star0 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du0);
       q2_vec u_star1 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du1);
       
-      tmsh.octbin_export ((std::string("p4est_dr_test_4_marker_du0_x_")
+      tmsh.octbin_export ((std::string("p4est_dr_test_4_metrics_du0_x_")
                            + std::to_string(adapt)).c_str(), du0.first);
-      tmsh.octbin_export ((std::string("p4est_dr_test_4_marker_du0_y_")
+      tmsh.octbin_export ((std::string("p4est_dr_test_4_metrics_du0_y_")
                            + std::to_string(adapt)).c_str(), du0.second);
       
-      tmsh.octbin_export ((std::string("p4est_dr_test_4_marker_du1_x_")
+      tmsh.octbin_export ((std::string("p4est_dr_test_4_metrics_du1_x_")
                            + std::to_string(adapt)).c_str(), du1.first);
-      tmsh.octbin_export ((std::string("p4est_dr_test_4_marker_du1_y_")
+      tmsh.octbin_export ((std::string("p4est_dr_test_4_metrics_du1_y_")
                            + std::to_string(adapt)).c_str(), du1.second);
       
       auto estimator = [& u_star0, & u_star1, & global_rhs] (tmesh::quadrant_iterator q)
