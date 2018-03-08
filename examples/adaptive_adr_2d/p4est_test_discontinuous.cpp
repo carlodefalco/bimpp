@@ -67,29 +67,19 @@ main (int argc, char **argv)
          2 * eps2 * std::sinh(0.5 / std::sqrt(eps1)));
       
       std::vector<double> alpha(tmsh.num_local_quadrants (), eps1);
-      std::vector<double> psi(tmsh.num_local_nodes (), 0);
+      std::vector<double> psi(tmsh.num_global_nodes (), 0);
       
       std::vector<double> delta(tmsh.num_local_quadrants (), 1);
-      std::vector<double> zeta(tmsh.num_local_nodes (), 1);
+      std::vector<double> zeta(tmsh.num_global_nodes (), 1);
       
       std::vector<double> f(tmsh.num_local_quadrants (), 1);
-      std::vector<double> g(tmsh.num_local_nodes (), 1);
+      std::vector<double> g(tmsh.num_global_nodes (), 1);
       
-      double y, ymin;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
-          ymin = std::numeric_limits<double>::max();
-          
-          for (int ii = 0; ii < 4; ++ii)
-            {
-              y = quadrant->p(1, ii);
-              
-              ymin = std::min(y, ymin);
-            }
-          
-          if (ymin >= 0.5)
+          if (quadrant->p(1, 0) >= 0.5)
             {
               alpha[quadrant->get_forest_quad_idx()] = eps2;
               delta[quadrant->get_forest_quad_idx()] = 0;
@@ -119,8 +109,8 @@ main (int argc, char **argv)
           };
       
       dirichlet_bcs bcs;
-      bcs.push_back (std::make_tuple(0, 0, u_ex));
-      bcs.push_back (std::make_tuple(1, 1, u_ex));
+      bcs.push_back (std::make_tuple(0, 2, u_ex));
+      bcs.push_back (std::make_tuple(1, 3, u_ex));
       
       bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
       

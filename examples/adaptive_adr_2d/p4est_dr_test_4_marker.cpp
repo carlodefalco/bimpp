@@ -84,22 +84,23 @@ main (int argc, char **argv)
           );
         };
       
-      std::vector<double> alpha(tmsh.num_local_nodes (), eps1);
-      std::vector<double> psi(tmsh.num_local_nodes (), 0);
+      std::vector<double> alpha(tmsh.num_global_nodes (), eps1);
+      std::vector<double> psi(tmsh.num_global_nodes (), 0);
       
       std::vector<double> delta(tmsh.num_local_quadrants (), 1);
-      std::vector<double> zeta(tmsh.num_local_nodes (), 1);
+      std::vector<double> zeta(tmsh.num_global_nodes (), 1);
       
       std::vector<double> f(tmsh.num_local_quadrants (), 1);
-      std::vector<double> g(tmsh.num_local_nodes (), 1);
+      std::vector<double> g(tmsh.num_global_nodes (), 1);
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
           for (int ii = 0; ii < 4; ++ii)
-            if (quadrant->p(1, ii) > 0.5 * quadrant->p(0, ii) + 0.25)
-              alpha[quadrant->t(ii)] = eps2;
+            if (! quadrant->is_hanging (ii)
+                && quadrant->p(1, ii) > 0.5 * quadrant->p(0, ii) + 0.25)
+              alpha[quadrant->gt(ii)] = eps2;
           
           if (quadrant->centroid(1) > 0.5 * quadrant->centroid(0) + 0.25)
             {
@@ -112,7 +113,13 @@ main (int argc, char **argv)
       sparse_matrix A, M;
       A.resize(tmsh.num_global_nodes());
       M.resize(tmsh.num_global_nodes());
-      bim2a_advection_eafe_diffusion (tmsh, alpha, psi, A);
+      
+      // Reduce coefficients.
+      std::vector<double> global_alpha(tmsh.num_global_nodes(), 0);
+      MPI_Allreduce(alpha.data(), global_alpha.data(), alpha.size(),
+                    MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+      
+      bim2a_advection_eafe_diffusion (tmsh, global_alpha, psi, A);
       bim2a_reaction (tmsh, delta, zeta, M);
       A += M;
       
@@ -130,8 +137,8 @@ main (int argc, char **argv)
           };
       
       dirichlet_bcs bcs;
-      bcs.push_back (std::make_tuple(0, 0, u_ex));
-      bcs.push_back (std::make_tuple(0, 1, u_ex));
+      bcs.push_back (std::make_tuple(0, 2, u_ex));
+      bcs.push_back (std::make_tuple(0, 3, u_ex));
       
       bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
       
