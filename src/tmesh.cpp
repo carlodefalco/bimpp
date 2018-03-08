@@ -27,11 +27,7 @@ tmesh::quadrant_t::centroid (tmesh::idx_t ii)
     retval = 0.5 * (this->p(0, 0) + this->p(0, 1));
   else if (ii == 1)
     retval = 0.5 * (this->p(1, 0) + this->p(1, 2));
-  /* //CESARE(proposal to handle rotated quadrants))
-  for (tmesh::idx_t c = 0; c < P4EST_CHILDREN; ++c)
-    retval += this->p(ii, c);
-  retval /= P4EST_CHILDREN;
-  */
+
   return (retval);
 };
 
@@ -50,7 +46,7 @@ tmesh::quadrant_t::centroid (tmesh::idx_t ii)
  */
 static const int    zero = 0;      /**< Constant zero. */
 static const int    ones = P4EST_CHILDREN - 1;  /**< One bit per dimension. */
-static const int   *corner_to_hanging[4];//CESARE(does 4 mean P4EST_CHILDREN ?)
+static const int   *corner_to_hanging[4];
 static const int    corner_num_hanging[4] = { 1, 2, 2, 1 };
 
 static int
@@ -169,7 +165,7 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
 {
   p4est_quadrant_t node, parent;
   idx_t i, j;
-  int hanging_corner[4];//CESARE(does 4 mean P4EST_CHILDREN ?)
+  int hanging_corner[4];
   p4est_lnodes_t *ln = the_tmesh->lnodes;
   p4est_locidx_t lni;
 
@@ -184,7 +180,7 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
   this->tree_idx = tree;
   this->the_quadrant = q;
   
-  for (i = 0; i < 4; ++i)//CESARE(does 4 mean P4EST_CHILDREN ?)
+  for (i = 0; i < 4; ++i)
     {
       p4est_quadrant_corner_node (this->the_quadrant, i, &node);
       p4est_qcoord_to_vertex (this->the_tmesh->conn, tree_idx,
@@ -196,7 +192,7 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
       // Non-ghost elements.
       if (! is_ghost)
         {
-          for (i = 0; i < 4; ++i)//CESARE(does 4 mean P4EST_CHILDREN ?)
+          for (i = 0; i < 4; ++i)
             {
               tbuff[i] = ln->element_nodes[4 * forest_quad_idx + i];
               hbuff[i] = false;
@@ -208,7 +204,7 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
             lnodes_decode2 (ln->face_code[forest_quad_idx],
                             hanging_corner);
           if (any_hanging)
-            for (i = 0; i < 4; ++i)//CESARE(does 4 mean P4EST_CHILDREN ?)
+            for (i = 0; i < 4; ++i)
               if (hanging_corner[i] >= 0)
                 {
                   hbuff[i] = true;
@@ -216,7 +212,7 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
                   num_parents = corner_num_hanging[i ^ c];
                   base_corner = corner_to_hanging[i ^ c];
                   for (j = 0; j < num_parents; ++j)
-                    pbuff[j + 2 * i] = base_corner[j] ^ c;//CESARE(???)
+                    pbuff[j + 2 * i] = base_corner[j] ^ c;
                 }
         }
       // Ghost elements.
@@ -225,7 +221,7 @@ tmesh::quadrant_t::update (p4est_topidx_t tree,
           p4est_locidx_t idx = this->qtq -
             the_tmesh->num_local_quadrants ();
           
-          for (i = 0; i < 4; ++i)//CESARE(does 4 mean P4EST_CHILDREN ?)
+          for (i = 0; i < 4; ++i)
             {
               tbuff[i] = the_tmesh->ghost_data[12*idx + i];
               
@@ -414,7 +410,7 @@ arrays2connectivity (const p_type *p_matrix_start,
   while (t_iter < t_matrix_end)
     {
 
-      for (int n = 0; n < 4; ++n)//CESARE(does 4 mean P4EST_CHILDREN ?)
+      for (int n = 0; n < 4; ++n)
         v[n] = *(t_iter++);
       ++t_iter;
       
@@ -426,7 +422,7 @@ arrays2connectivity (const p_type *p_matrix_start,
     }
 
   for (t_type tree = 0; tree < (*conn)->num_trees; ++tree)
-    for (face = 0; face < 4; ++face)//CESARE(does 4 mean #faces ?)
+    for (face = 0; face < 4; ++face)
       {
         (*conn)->tree_to_tree[4 * tree + face] = tree;
         (*conn)->tree_to_face[4 * tree + face] = face;

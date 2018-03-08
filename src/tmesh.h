@@ -247,8 +247,8 @@ public:
     p4est_locidx_t qtq;      
     
     /// Buffer used when quering coordinates.
-    double                vxyz[12] = {0,0,0, 0,0,0, 0,0,0, 0,0,0};//CESARE(does 12 mean (3(t,p,p)*P4EST_CHILDREN ?)
-    idx_t                 tbuff[4] = {0,0,0,0};//CESARE(does 4 mean P4EST_CHILDREN ?)
+    double                vxyz[12] = {0,0,0, 0,0,0, 0,0,0, 0,0,0};
+    idx_t                 tbuff[4] = {0,0,0,0};
     bool                  hbuff[4] = {false,false,false,false};
     int                   pbuff[8] = {-1,-1, -1,-1, -1,-1, -1,-1};
   };
