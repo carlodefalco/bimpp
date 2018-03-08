@@ -278,6 +278,30 @@ tmesh_3d::octant_t::gparent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
       return pbuff[4*in + ip];
 };
 
+tmesh_3d::idx_t
+tmesh_3d::octant_t::e (idx_t i)
+{  
+  assert (i < 8);
+  idx_t retval = NOT_ON_BOUNDARY;
+  p8est_quadrant_t node;
+  p8est_quadrant_corner_node (this->the_octant, i, &node);
+  
+  if (node.z == 0)
+    retval = 4;
+  else if (node.z == P8EST_ROOT_LEN)
+    retval = 5;
+  else if (node.y == 0)
+    retval = 2;
+  else if (node.y == P8EST_ROOT_LEN)
+    retval = 3;
+  else if (node.x == 0)
+    retval = 0;
+  else if (node.x == P8EST_ROOT_LEN)
+    retval = 1;
+
+  return retval;
+};
+
 std::vector<int>
 tmesh_3d::userint_replace (std::vector<int> old_userint)
 {

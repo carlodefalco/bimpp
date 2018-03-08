@@ -173,7 +173,7 @@ public:
     gparent (idx_t ip, idx_t in);
 
     static const idx_t NOT_ON_BOUNDARY = P8EST_ROOT_LEN + 1;
-    /// Index of the edge of the current tree
+    /// Index of the face of the current tree
     //  on which the i-th vertex lies, return
     //  NOT_ON_BOUNDARY if an interior vertex.
     idx_t
