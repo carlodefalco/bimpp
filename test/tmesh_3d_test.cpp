@@ -10,7 +10,8 @@ main (int argc, char **argv)
   int                   rank, size;
   tmesh_3d              tmsh;
 
-  std::cout << "ciao" << std::endl << (int*)nullptr << std::endl << (int*)(tmsh.conn) << std::endl;
+  std::cout << "ciao" << std::endl << (int*)nullptr << std::endl
+    << (int*)(tmsh.conn) << std::endl;
   
   return 0;
 }
