@@ -8,7 +8,7 @@
 double
 tmesh_3d::octant_t::p (tmesh_3d::idx_t ii, tmesh_3d::idx_t jj) 
 {
-  double retval = vxyz[P8EST_DIM*jj+ii];
+  double retval = vxyz[3*jj+ii];
   return (retval);
 };
 
@@ -172,7 +172,7 @@ tmesh_3d::octant_t::update (p4est_topidx_t tree,
 {
   p8est_quadrant_t node, parent;
   idx_t i, j;
-  int hanging_corner[P8EST_CHILDREN];
+  int hanging_corner[8];
   p8est_lnodes_t *ln = the_tmesh->lnodes;
   p4est_locidx_t lni;
 
@@ -191,11 +191,11 @@ tmesh_3d::octant_t::update (p4est_topidx_t tree,
   this->tree_idx = tree;
   this->the_octant = q;
   
-  for (i = 0; i < P8EST_CHILDREN; ++i)
+  for (i = 0; i < 8; ++i)
     {
       p8est_quadrant_corner_node (this->the_octant, i, &node);
       p8est_qcoord_to_vertex (this->the_tmesh->conn, tree_idx,
-                              node.x, node.y, node.z, &(vxyz[P8EST_DIM * i]));
+                              node.x, node.y, node.z, &(vxyz[3 * i]));
     }
 
   if (ln != nullptr)
@@ -203,9 +203,9 @@ tmesh_3d::octant_t::update (p4est_topidx_t tree,
       // Non-ghost elements.
       if (! is_ghost)
         {
-          for (i = 0; i < P8EST_CHILDREN; ++i)
+          for (i = 0; i < 8; ++i)
             {
-              tbuff[i] = ln->element_nodes[P8EST_CHILDREN * forest_oct_idx + i];
+              tbuff[i] = ln->element_nodes[8 * forest_oct_idx + i];
               hbuff[i] = false;
               pbuff[4 * i] = -1;
               pbuff[4 * i + 1] = -1;
@@ -217,7 +217,7 @@ tmesh_3d::octant_t::update (p4est_topidx_t tree,
             lnodes_decode2 (ln->face_code[forest_oct_idx],
                             hanging_corner);
           if (any_hanging)
-            for (i = 0; i < P8EST_CHILDREN; ++i)
+            for (i = 0; i < 8; ++i)
               if (hanging_corner[i] >= 0)
                 {
                   hbuff[i] = true;
@@ -234,7 +234,7 @@ tmesh_3d::octant_t::update (p4est_topidx_t tree,
           p4est_locidx_t idx = this->qtq -
             the_tmesh->num_local_octants ();
           
-          for (i = 0; i < P8EST_CHILDREN; ++i)
+          for (i = 0; i < 8; ++i)
             {
               tbuff[i] = the_tmesh->ghost_data[40*idx + i];
               
@@ -310,13 +310,13 @@ tmesh_3d::userint_replace (std::vector<int> old_userint)
   // Refinement.
   if (old_userint.size () == 1)
     {
-      new_userint.resize (P8EST_CHILDREN);
+      new_userint.resize (8);
       
       for (size_t i = 0; i < new_userint.size (); ++i)
         new_userint[i] = old_userint[0] - 1;
     }
   // Coarsening.
-  else if (old_userint.size () == P8EST_CHILDREN)
+  else if (old_userint.size () == 8)
     {
       new_userint.resize (1);
       
