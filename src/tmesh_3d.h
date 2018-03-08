@@ -116,7 +116,7 @@ public:
   private:
     p8est_mesh_face_neighbor_t * face_neighbor; // mfn
     
-    int face_idx; /// Face index in 0...5 (-1 if not defined). CESARE(controlla 0...5)
+    int face_idx; /// Face index in 0...5 (-1 if not defined).
   };
   
   /// C++ interface class to access properties of the
@@ -146,7 +146,7 @@ public:
     
     /// Get the i-th coordinate of the centroid of the j-th face
     double
-    face_centroid (idx_t i, int j); //CESARE(cambia tipo j da int a indice di faccia globale)
+    face_centroid (idx_t i, int j);
 
     /// Get rank-local index of the i-th vertex, or global index for ghosts.
     idx_t
@@ -244,15 +244,15 @@ public:
     // qtq index if current octant is a ghost, -1 otherwise.
     p4est_locidx_t qtq;
     
-    /// Buffer used when quering coordinates. CESARE(da controllare)
-    double                vxyz[40] = {0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0,//CESARE(24->
-                                      0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0,};//5(t,p,p,p,p)*P8EST_CHILDREN)
-    idx_t                 tbuff[8] = {0,0,0,0,0,0,0,0};//CESARE(8->P8EST_CHILDREN ?)
-    bool                  hbuff[8] = {false,false,false,false,false,false,false,false};
-    int                   pbuff[32] = {-1,-1,-1,-1, -1,-1,-1,-1,//CESARE(???)
-                                       -1,-1,-1,-1, -1,-1,-1,-1,
-                                       -1,-1,-1,-1, -1,-1,-1,-1,
-                                       -1,-1,-1,-1, -1,-1,-1,-1};
+    /// Buffer used when quering coordinates.
+    double vxyz[3*8]  = {0,0,0, 0,0,0, 0,0,0, 0,0,0,
+                         0,0,0, 0,0,0, 0,0,0, 0,0,0,};
+    idx_t  tbuff[8]   = {0,0,0,0,0,0,0,0};
+    bool   hbuff[8]   = {false,false,false,false,false,false,false,false};
+    int    pbuff[4*8] = {-1,-1,-1,-1, -1,-1,-1,-1,
+                        -1,-1,-1,-1, -1,-1,-1,-1,
+                        -1,-1,-1,-1, -1,-1,-1,-1,
+                        -1,-1,-1,-1, -1,-1,-1,-1};
   };
 
   /// Default constructor, set all pointers to nullptr.

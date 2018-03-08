@@ -113,7 +113,7 @@ tmesh_3d::octant_iterator::operator++ ()
 
 void 
 tmesh_3d::neighbor_iterator::operator++ ()
-{//CESARE(this is just a name translation, check for what neighbor means)
+{
   p4est_topidx_t which_tree;
   p4est_locidx_t which_oct;
   int nface, nrank;
@@ -225,7 +225,7 @@ tmesh_3d::octant_t::update (p4est_topidx_t tree,
                   num_parents = corner_num_hanging[i ^ c];
                   base_corner = corner_to_hanging[i ^ c];
                   for (j = 0; j < num_parents; ++j)
-                    pbuff[j + 4 * i] = base_corner[j] ^ c;//CESARE(???)
+                    pbuff[j + 4 * i] = base_corner[j] ^ c;
                 }
         }
       // Ghost elements.
