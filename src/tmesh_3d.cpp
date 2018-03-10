@@ -303,6 +303,236 @@ tmesh_3d::octant_t::e (idx_t i)
   return retval;
 };
 
+tmesh_3d::neighbor_iterator
+tmesh_3d::octant_t::begin_neighbor_sweep ()
+{
+  neighbor_iterator ni;
+  
+  if (this->the_tmesh->mesh == nullptr)
+    this->the_tmesh->update ();
+  
+  p8est_mesh_face_neighbor_init (ni.face_neighbor,
+                                 this->the_tmesh->p8est,
+                                 this->the_tmesh->ghost,
+                                 this->the_tmesh->mesh,
+                                 this->get_tree_idx (),
+                                 this->the_octant);
+  
+  p4est_topidx_t which_tree;
+  p4est_locidx_t which_quad;
+  int nface, nrank;
+  
+  p8est_quadrant_t * neighbor =
+    p8est_mesh_face_neighbor_next (ni.face_neighbor, &which_tree,
+                                   &which_quad, &nface, &nrank);
+  
+  ni.data = new octant_t (this->the_tmesh, which_tree, neighbor);
+  
+  p8est_tree_t *tree =
+    p8est_tree_array_index (this->the_tmesh->p8est->trees,
+                            which_tree);
+  
+  // If non-ghost.
+  if (ni.face_neighbor->current_qtq <
+      the_tmesh->num_local_octants ())
+    {
+      ni.data->forest_oct_idx = tree->quadrants_offset + which_quad;
+      ni.data->tree_oct_idx = which_quad;
+    }
+  // If ghost.
+  else
+    {
+      ni.data->is_ghost = true;
+      ni.data->qtq = ni.face_neighbor->current_qtq;
+      
+      ni.data->forest_oct_idx =
+        neighbor->p.piggy3.local_num +
+        (the_tmesh->p8est->global_first_quadrant[nrank] -
+         the_tmesh->p8est->global_first_quadrant[this->the_tmesh->rank]);
+      
+      ni.data->tree_oct_idx =
+        ni.data->forest_oct_idx - tree->quadrants_offset;
+    }
+  
+  ni.data->update (which_tree, neighbor);
+  
+  ni.face_idx = nface;
+  return ni;
+}
+
+tmesh_3d::idx_t
+tmesh_3d::octant_t::t (tmesh_3d::idx_t i)
+{ return tbuff[i]; };
+
+tmesh_3d::idx_t
+tmesh_3d::octant_t::gt (tmesh_3d::idx_t i)
+{
+  if (! is_ghost)
+    {
+      if (the_tmesh->mesh == nullptr)
+        the_tmesh->update ();
+      
+      return p8est_lnodes_global_index
+        (the_tmesh->lnodes,
+         static_cast<p4est_locidx_t> (tbuff[i]));
+    }
+  else
+    return tbuff[i];
+};
+
+bool
+tmesh_3d::octant_t::is_hanging (tmesh_3d::idx_t i)
+{ return hbuff[i]; };
+
+
+tmesh_3d::~tmesh_3d ()
+{
+    if (! (this->p8est  == nullptr)) p8est_destroy (this->p8est);
+    if (! (this->conn   == nullptr)) p8est_connectivity_destroy (this->conn);
+    if (! (this->lnodes == nullptr)) p8est_lnodes_destroy (this->lnodes);
+    if (! (this->mesh   == nullptr)) p8est_mesh_destroy   (this->mesh);
+    if (! (this->ghost  == nullptr)) p8est_ghost_destroy  (this->ghost);
+    
+    if (! (this->mirror_data == nullptr)) delete[] this->mirror_data;
+    if (! (this->ghost_data  == nullptr)) delete[] this->ghost_data;
+};
+
+void
+tmesh_3d::update ()
+{
+  ghost  = p8est_ghost_new  (p8est, P8EST_CONNECT_FULL);
+  lnodes = p8est_lnodes_new (p8est, ghost, 1);
+  mesh   = p8est_mesh_new   (p8est, ghost, P8EST_CONNECT_FULL);
+  
+  update_ghosts ();
+}
+
+void
+tmesh_3d::update_ghosts ()
+{
+  // Send mirror data.
+  constexpr p4est_locidx_t chunk_len = 40;
+  constexpr size_t data_size = sizeof (p4est_gloidx_t);
+  
+  p4est_locidx_t mirror_data_len =
+    ghost->mirror_proc_offsets[size] * chunk_len;
+  mirror_data = new p4est_gloidx_t[mirror_data_len];
+  
+  int mirror_end = 0;
+  int mirror_begin = 0;
+  
+  std::vector<MPI_Request> req_s;
+  p4est_locidx_t start, end, n_mirror;
+
+  int tag = 0;
+  int send_size = 0;
+  
+  // Loop over ranks.
+  for (int i = 0; i < size; ++i)
+    {
+      start    = ghost->mirror_proc_offsets[i];
+      end      = ghost->mirror_proc_offsets[i+1];
+      n_mirror = end - start;
+      
+      p8est_quadrant_t * q;
+      
+      // Loop over mirrors.
+      for (p4est_locidx_t j = start; j < end; ++j)
+        {
+          q =
+            p8est_quadrant_array_index (&ghost->mirrors,
+                                        ghost->mirror_proc_mirrors[j]);
+          
+          p8est_tree_t * tree =
+            p8est_tree_array_index (p8est->trees, q->p.which_tree);
+      
+          idx_t global_idx =
+            p8est->global_first_quadrant[rank] +
+            q->p.piggy3.local_num;
+          
+          octant_t current_mirror (this, q->p.which_tree, q);
+          current_mirror.forest_oct_idx = q->p.piggy3.local_num;
+          current_mirror.tree_oct_idx =
+            current_mirror.forest_oct_idx - tree->quadrants_offset;
+          current_mirror.update (q->p.which_tree, q);
+          
+          for (int node = 0; node < 8; ++node)
+            mirror_data[mirror_end++] = current_mirror.gt (node);
+          
+          for (int node = 0; node < 8; ++node)
+            if (current_mirror.is_hanging (node))
+              {
+                mirror_data[mirror_end++] =
+                  current_mirror.gparent (0, node);
+                mirror_data[mirror_end++] =
+                  current_mirror.gparent (1, node);
+                mirror_data[mirror_end++] =
+                  current_mirror.gparent (2, node);
+                mirror_data[mirror_end++] =
+                  current_mirror.gparent (3, node);
+              }
+            else
+              {
+                mirror_data[mirror_end++] = -1;
+                mirror_data[mirror_end++] = -1;
+                mirror_data[mirror_end++] = -1;
+                mirror_data[mirror_end++] = -1;
+              }
+        }
+      
+      if (n_mirror > 0)
+        {
+          MPI_Request req;
+          tag = rank + size * i;
+          send_size = chunk_len * data_size * n_mirror;
+          MPI_Isend (&(mirror_data[mirror_begin]), send_size,
+                     MPI_CHAR, i, tag, comm, &req);
+          req_s.push_back (req);
+          
+          /*std::cout << "Rank " << rank
+                    << " is sending mirrors to rank "
+                    << i << "." << std::endl;*/
+        }
+      
+      mirror_begin = mirror_end;
+    }
+  
+  // Receive ghost data.
+  p4est_locidx_t ghosts_data_len =
+    ghost->ghosts.elem_count * chunk_len;
+  
+  ghost_data = new p4est_gloidx_t[ghosts_data_len];
+  int ghost_begin = 0;  
+  p4est_locidx_t n_ghosts = 0;
+  int recv_size = 0;
+  // Loop over ranks.
+  for (int i = 0; i < size; ++i)
+    {
+      start    = ghost->proc_offsets[i];
+      end      = ghost->proc_offsets[i+1];
+      n_ghosts = end - start;
+      
+      if (n_ghosts > 0)
+        {
+          MPI_Request req;
+          tag = i + size * rank;
+          recv_size = chunk_len * data_size * n_ghosts;
+          MPI_Irecv (&(ghost_data[ghost_begin]), recv_size,
+                     MPI_CHAR, i, tag, comm, &req);
+          req_s.push_back (req);
+          
+          /*std::cout << "Rank " << rank
+                    << " is receiving ghosts from rank "
+                    << i << "." << std::endl;*/
+        }
+      
+      ghost_begin += chunk_len * n_ghosts;
+    }
+  
+  std::vector<MPI_Status> stats (req_s.size ());
+  MPI_Waitall (req_s.size (), &(req_s[0]), &(stats[0]));
+};
+
 std::vector<int>
 tmesh_3d::userint_replace (std::vector<int> old_userint)
 {
@@ -327,16 +557,3 @@ tmesh_3d::userint_replace (std::vector<int> old_userint)
   
   return new_userint;
 }
-
-tmesh_3d::~tmesh_3d ()
-{
-    if (! (this->p8est  == nullptr)) p8est_destroy (this->p8est);
-    if (! (this->conn   == nullptr)) p8est_connectivity_destroy (this->conn);
-    if (! (this->lnodes == nullptr)) p8est_lnodes_destroy (this->lnodes);
-    if (! (this->mesh   == nullptr)) p8est_mesh_destroy   (this->mesh);
-    if (! (this->ghost  == nullptr)) p8est_ghost_destroy  (this->ghost);
-    
-    if (! (this->mirror_data == nullptr)) delete[] this->mirror_data;
-    if (! (this->ghost_data  == nullptr)) delete[] this->ghost_data;
-};
-
