@@ -58,10 +58,10 @@ main (int argc, char **argv)
       
       double epsilon = 1e-5;
       std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
-      std::vector<double> psi(tmsh.num_local_nodes (), 0);
+      std::vector<double> psi(tmsh.num_global_nodes (), 0);
       
       std::vector<double> delta(tmsh.num_local_quadrants (), 1);
-      std::vector<double> zeta(tmsh.num_local_nodes (), 1);
+      std::vector<double> zeta(tmsh.num_global_nodes (), 1);
       
       bim2a_advection_diffusion (tmsh, alpha, psi, A);
       bim2a_reaction (tmsh, delta, zeta, M);
@@ -71,7 +71,7 @@ main (int argc, char **argv)
       std::vector<double> rhs(tmsh.num_global_nodes (), 0);
       
       std::vector<double> f(tmsh.num_local_quadrants (), 1);
-      std::vector<double> g(tmsh.num_local_nodes (), 0);
+      std::vector<double> g(tmsh.num_global_nodes (), 0);
       
       double x = 0, y = 0;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -80,17 +80,25 @@ main (int argc, char **argv)
         {
           for (int ii = 0; ii < 4; ++ii)
             {
-              x = quadrant->p(0, ii);
-              y = quadrant->p(1, ii);
-              
-              g[quadrant->t(ii)] = 1 - std::sinh(x / std::sqrt(epsilon)) *
-                                       std::sinh(y / std::sqrt(epsilon)) /
-                                       std::sinh(1 / std::sqrt(epsilon)) /
-                                       std::sinh(1 / std::sqrt(epsilon));
+              if (! quadrant->is_hanging (ii))
+                {
+                  x = quadrant->p(0, ii);
+                  y = quadrant->p(1, ii);
+                  
+                  g[quadrant->gt(ii)] = 1 - std::sinh(x / std::sqrt(epsilon)) *
+                                            std::sinh(y / std::sqrt(epsilon)) /
+                                            std::sinh(1 / std::sqrt(epsilon)) /
+                                            std::sinh(1 / std::sqrt(epsilon));
+                }
             }
         }
-        
-      bim2a_rhs (tmsh, f, g, rhs);
+      
+      // Reduce coefficients.
+      std::vector<double> global_g(tmsh.num_global_nodes(), 0);
+      MPI_Allreduce(g.data(), global_g.data(), g.size(),
+                    MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+      
+      bim2a_rhs (tmsh, f, global_g, rhs);
       
       // Set boundary conditions.
       func u_ex =

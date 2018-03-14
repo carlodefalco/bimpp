@@ -158,7 +158,7 @@ int main(int argc, char ** argv)
   A.resize(tmsh.num_global_nodes());
   
   std::vector<double> alpha(tmsh.num_local_quadrants (), 1e-2);
-  std::vector<double> psi(tmsh.num_local_nodes (), 0);
+  std::vector<double> psi(tmsh.num_global_nodes (), 0);
   
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep ();
@@ -180,7 +180,7 @@ int main(int argc, char ** argv)
   std::vector<double> rhs(tmsh.num_global_nodes (), 0);
   
   std::vector<double> f(tmsh.num_local_quadrants (), 0);
-  std::vector<double> g(tmsh.num_local_nodes (), 0);
+  std::vector<double> g(tmsh.num_global_nodes (), 0);
   
   bim2a_rhs (tmsh, f, g, rhs);
   
@@ -190,8 +190,8 @@ int main(int argc, char ** argv)
   MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
   
   dirichlet_bcs bcs;
-  bcs.push_back (std::make_tuple(0, 0, [] (double x, double y) { return 0; }));
-  bcs.push_back (std::make_tuple(0, 1, [] (double x, double y) { return 1; }));
+  bcs.push_back (std::make_tuple(0, 2, [] (double x, double y) { return 0; }));
+  bcs.push_back (std::make_tuple(0, 3, [] (double x, double y) { return 1; }));
   
   bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
   

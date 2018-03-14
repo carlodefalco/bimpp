@@ -87,7 +87,7 @@ main (int argc, char **argv)
   A.resize(tmsh.num_global_nodes());
   
   std::vector<double> alpha(tmsh.num_local_quadrants (), 1);
-  std::vector<double> psi(tmsh.num_local_nodes (), 0);
+  std::vector<double> psi(tmsh.num_global_nodes (), 0);
   
   double x = 0, y = 0, rho = 0;
   
@@ -105,20 +105,25 @@ main (int argc, char **argv)
               rho = std::sqrt(x * x + y * y);
               
               if (rho >= 0.8 && rho <= 0.9)
-                psi[quadrant->t(ii)] = -(2 * rho - 0.8) / 1e-2;
+                psi[quadrant->gt(ii)] = -(2 * rho - 0.8) / 1e-2;
               else if (rho >= 0.9)
-                psi[quadrant->t(ii)] = -0.2 / 1e-2;
+                psi[quadrant->gt(ii)] = -0.2 / 1e-2;
             }
         }
     }
   
-  bim2a_advection_diffusion (tmsh, alpha, psi, A);
+  // Reduce coefficients.
+  std::vector<double> global_psi(tmsh.num_global_nodes(), 0);
+  MPI_Allreduce(psi.data(), global_psi.data(), psi.size(),
+                MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  
+  bim2a_advection_diffusion (tmsh, alpha, global_psi, A);
   
   // Assemble right-hand side.
   std::vector<double> rhs(tmsh.num_global_nodes (), 0);
   
   std::vector<double> f(tmsh.num_local_quadrants (), 0);
-  std::vector<double> g(tmsh.num_local_nodes (), 0);
+  std::vector<double> g(tmsh.num_global_nodes (), 0);
   
   bim2a_rhs (tmsh, f, g, rhs);
   
