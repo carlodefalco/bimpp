@@ -455,7 +455,7 @@ arrays2connectivity (const p_type *p_matrix_start,
  * should be the list of vertex coordinates while the
  * latter the list of element vertices.
  *
- * The standard p8est ordering is assumed for the nodes
+ * The standard p8est ordering is assumed for the nodes (1 based !!!)
  *
  * 7                     8
  *  +---------------------+
