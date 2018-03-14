@@ -22,7 +22,13 @@ main (int argc, char **argv)
   
   std::cout << "num = " << tmsh.num_local_octants() << std::endl;
   
-  //tmesh_3d::octant_iterator oct = tmsh.begin_octant_sweep();
+  tmesh_3d::octant_iterator oct = tmsh.begin_octant_sweep();
+  while (oct != tmsh.end_octant_sweep())
+    {
+      std::cout << "centroid (" << oct->centroid(0) << "," <<
+        oct->centroid(1) << ")" << std::endl;
+      oct++;
+    }
      
   return 0;
 }

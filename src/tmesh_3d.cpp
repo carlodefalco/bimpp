@@ -537,7 +537,7 @@ tmesh_3d::vtk_export (const char *filename)
     p8est_vtk_write_cell_dataf (context, 1, 1, 1, 0, 0, 0, context);
   assert (p8est_vtk_write_footer (context) == 0);
 };
-/*
+
 void
 tmesh_3d::octbin_export (const char * basename,
                          const std::vector<double> & f)
@@ -614,7 +614,7 @@ tmesh_3d::octbin_export (const char * basename,
   assert (octave_io_close () == 0);
 
 };
-*/
+
 void
 tmesh_3d::octant_iterator::reset ()
 {
