@@ -27,7 +27,7 @@ main (int argc, char **argv)
     {
       std::cout << "centroid (" << oct->centroid(0) << "," <<
         oct->centroid(1) << ")" << std::endl;
-      oct++;
+      ++oct;
     }
      
   return 0;
