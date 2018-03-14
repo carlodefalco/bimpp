@@ -655,6 +655,17 @@ tmesh_3d::octant_iterator::reset ()
     }
 };
 
+tmesh_3d::octant_iterator
+tmesh_3d::begin_octant_sweep ()
+{
+  if (this->mesh == nullptr)
+    this->update ();
+  
+  octant_iterator qi (&current_octant);
+  qi.reset ();
+  return qi;
+};
+
 void
 tmesh_3d::update ()
 {
