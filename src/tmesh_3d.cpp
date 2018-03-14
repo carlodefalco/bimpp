@@ -439,7 +439,67 @@ arrays2connectivity (const p_type *p_matrix_start,
   p8est_connectivity_complete (*conn);
 };
 
+/* Read a 3d p8est connectivity from a compressed octave
+ * binary file. The file should contain a struct
+ * named "msh" with fields "p" and "t". The former
+ * should be the list of vertex coordinates while the
+ * latter the list of element vertices.
+ *
+ * The standard p8est ordering is assumed for the nodes
+ *
+ * 7                     8
+ *  +---------------------+
+ *  |\                    |\
+ *  | \                   | \
+ *  |  \                  |  \
+ *  |   \                 |   \
+ *  |   5+---------------------+6
+ *  |    |                |    |
+ *  +----|----------------+    |
+ *  3\   |               4 \   |
+ *    \  |                  \  |
+ *     \ |                   \ |
+ *      \|                    \|
+ *       +---------------------+
+ *       1                     2
+ */
 
+static void
+octbingz2connectivity
+(const char *filename, p8est_connectivity_t **conn)
+{
+    
+  // load data from file
+  octave_value tmp;
+  octave_io_mode m = gz_read_mode;
+  assert (octave_io_open (filename, m, &m) == 0);
+  assert (octave_load ("msh", tmp) == 0);
+
+  Matrix p_matrix =
+    tmp.scalar_map_value ().contents ("p").matrix_value ();
+
+  Array<int> t_matrix =
+    tmp.scalar_map_value ().contents ("t").array_value ();
+
+  p4est_topidx_t num_vertices = p_matrix.cols (),
+    num_trees = t_matrix.cols ();
+
+  arrays2connectivity (p_matrix.fortran_vec (),
+                       num_vertices,
+                       t_matrix.fortran_vec (),
+                       num_trees, conn);
+};
+
+
+void
+tmesh_3d::read_connectivity (const char *filename, int source)
+{
+  if (rank == source)
+    octbingz2connectivity (filename, &conn);
+  
+  conn = p8est_connectivity_bcast (conn, source, comm);
+  p8est = p8est_new (comm, conn, 0, NULL, this);
+};
 
 void
 tmesh_3d::read_connectivity (const double *p,
