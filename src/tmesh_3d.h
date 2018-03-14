@@ -438,8 +438,8 @@ public:
   p8est_mesh_t         *mesh;
   p8est_ghost_t        *ghost;
   
-  p4est_gloidx_t * mirror_data;
-  p4est_gloidx_t * ghost_data;
+  p4est_gloidx_t       *mirror_data;
+  p4est_gloidx_t       *ghost_data;
   
   MPI_Comm comm;
   int      rank;

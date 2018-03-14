@@ -280,7 +280,7 @@ tmesh_3d::quadrant_t::gparent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
          (tbuff[pbuff[ip + in * 4]]));
     }
   else
-      return pbuff[4*in + ip];
+      return pbuff[4 * in + ip];
 };
 
 tmesh_3d::idx_t
@@ -291,7 +291,7 @@ tmesh_3d::quadrant_t::e (idx_t i)
   p8est_quadrant_t node;
   p8est_quadrant_corner_node (this->the_quadrant, i, &node);
   
-  if (node.z == 0)
+  if      (node.z == 0)
     retval = 4;
   else if (node.z == P8EST_ROOT_LEN)
     retval = 5;
@@ -807,7 +807,7 @@ tmesh_3d::update_ghosts ()
   for (int i = 0; i < size; ++i)
     {
       start    = ghost->mirror_proc_offsets[i];
-      end      = ghost->mirror_proc_offsets[i+1];
+      end      = ghost->mirror_proc_offsets[i + 1];
       n_mirror = end - start;
       
       p8est_quadrant_t * q;
@@ -871,7 +871,7 @@ tmesh_3d::update_ghosts ()
   for (int i = 0; i < size; ++i)
     {
       start    = ghost->proc_offsets[i];
-      end      = ghost->proc_offsets[i+1];
+      end      = ghost->proc_offsets[i + 1];
       n_ghosts = end - start;
       
       if (n_ghosts > 0)
