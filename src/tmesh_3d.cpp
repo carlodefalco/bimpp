@@ -525,6 +525,20 @@ tmesh_3d::load (const char *filename)
 { p8est = p8est_load (filename, comm, 0, 0, this, &conn); };
 
 void
+tmesh_3d::vtk_export (const char *filename)
+{
+  p8est_vtk_context_t *context =
+    p8est_vtk_context_new (p8est, filename);
+  assert (context != nullptr);
+  p8est_vtk_context_set_scale (context, 1.0);
+  p8est_vtk_context_set_continuous (context, 1);
+  context = p8est_vtk_write_header (context);
+  context =
+    p8est_vtk_write_cell_dataf (context, 1, 1, 1, 0, 0, 0, context);
+  assert (p8est_vtk_write_footer (context) == 0);
+};
+
+void
 tmesh_3d::update ()
 {
   ghost  = p8est_ghost_new  (p8est, P8EST_CONNECT_FULL);
