@@ -439,6 +439,23 @@ arrays2connectivity (const p_type *p_matrix_start,
   p8est_connectivity_complete (*conn);
 };
 
+
+
+void
+tmesh_3d::read_connectivity (const double *p,
+                             const p4est_topidx_t num_vertices,
+                             const p4est_topidx_t *t,
+                             const p4est_topidx_t num_trees,
+                             int source)
+{
+  if (rank == source)
+    arrays2connectivity (p, num_vertices,
+                         t, num_trees, &conn);
+  
+  conn = p8est_connectivity_bcast (conn, source, comm);
+  p8est = p8est_new (comm, conn, 0, NULL, this);
+};
+
 void
 tmesh_3d::update ()
 {
