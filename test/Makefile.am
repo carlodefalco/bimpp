@@ -223,7 +223,8 @@ if HAVE_P4EST
   p4est_load_save_test2_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_load_save_test2_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_load_save_test2_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
-  CLEANFILES += p8est_load_save_test2.octbin.gz p8est_load_save_test2out*.octbin.gz
+  CLEANFILES += p8est_load_save_test2.octbin.gz p8est_load_save_test2out*.octbin.gz \
+                p8est_load_save_test2.p8est
   
 endif
 

@@ -24,7 +24,9 @@ main (int argc, char **argv)
   tmsh.read_connectivity ("p8est_load_save_test2.octbin.gz");  
   
   std::vector<double> prova(tmsh.num_global_nodes(), 0);
-  tmsh.octbin_export ("p8est_load_save_test2",prova);
+  tmsh.save ("p8est_load_save_test2.p8est");  
+  tmsh2.load ("p8est_load_save_test2.p8est");
+  //tmsh.octbin_export ("p8est_load_save_test2",prova);
 
   MPI_Finalize ();
   return 0;
