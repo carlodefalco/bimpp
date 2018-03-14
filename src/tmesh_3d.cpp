@@ -539,6 +539,83 @@ tmesh_3d::vtk_export (const char *filename)
 };
 
 void
+tmesh_3d::octbin_export (const char * basename,
+                         const std::vector<double> & f)
+{
+  assert (f.size () == num_global_nodes ());
+    
+  std::vector<double> p (3 * num_owned_nodes ());
+  std::vector<double> f_loc (num_owned_nodes ());  
+
+  Array<octave_idx_type>
+    oct_t (dim_vector (8, num_local_octants ()), 0);
+  octave_idx_type *t = oct_t.fortran_vec ();
+
+  octave_idx_type ij = 0;
+  for (auto octant = begin_octant_sweep ();
+       octant != end_octant_sweep ();
+       ++octant)
+    {
+      ij = 0;
+      for (int ii = 0; ii < 8; ++ii)
+        {
+          if (! octant->is_hanging (ii))
+            if (octant->t (ii) < num_owned_nodes ())
+              {
+                for (int jj = 0; jj < 3; ++jj)
+                  p[3 * octant->t (ii) + jj] = octant->p (jj, ii);
+                f_loc[octant->t (ii)] = f[octant->gt (ii)];
+                t[8 * octant->get_forest_oct_idx () + (ij++)] =
+                  octant->t (ii);
+              }
+            else
+              {
+                for (int jj = 0; jj < 3; ++jj)
+                  p.push_back (octant->p (jj, ii));
+                f_loc.push_back (f[octant->gt (ii)]);
+                t[8 * octant->get_forest_oct_idx () + (ij++)] =
+                  f_loc.size () - 1;
+              }
+          else
+            {
+              for (int jj = 0; jj < 3; ++jj)
+                p.push_back (octant->p (jj, ii));
+              f_loc.push_back ((f [octant->gparent (0, ii)] +
+                                f [octant->gparent (1, ii)] +
+                                f [octant->gparent (2, ii)] +
+                                f [octant->gparent (3, ii)] ) / 4.0);
+              t[8 * octant->get_forest_oct_idx () + (ij++)] =
+                f_loc.size () - 1;
+            }
+        }
+    }
+
+    
+  Matrix oct_p (3, p.size () / 3, 0.0);
+  ColumnVector oct_f (f_loc.size (), 0.0);
+  
+  std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
+  std::copy_n (f_loc.begin (), f_loc.size (), oct_f.fortran_vec ());
+  
+  octave_scalar_map the_map;
+  the_map.assign ("p", oct_p);
+  the_map.assign ("f", oct_f);
+  the_map.assign ("t", oct_t);
+  
+  octave_io_mode m = gz_write_mode;
+  
+  // Define filename.
+  char filename[255] = "";
+  sprintf (filename, "%s_%4.4d.octbin.gz", basename, rank);
+  
+  // Save to filename.
+  assert (octave_io_open (filename, m, &m) == 0);
+  assert (octave_save ("msh", octave_value (the_map)) == 0);
+  assert (octave_io_close () == 0);
+
+};
+
+void
 tmesh_3d::update ()
 {
   ghost  = p8est_ghost_new  (p8est, P8EST_CONNECT_FULL);
@@ -601,24 +678,10 @@ tmesh_3d::update_ghosts ()
             mirror_data[mirror_end++] = current_mirror.gt (node);
           
           for (int node = 0; node < 8; ++node)
-            if (current_mirror.is_hanging (node))
-              {
-                mirror_data[mirror_end++] =
-                  current_mirror.gparent (0, node);
-                mirror_data[mirror_end++] =
-                  current_mirror.gparent (1, node);
-                mirror_data[mirror_end++] =
-                  current_mirror.gparent (2, node);
-                mirror_data[mirror_end++] =
-                  current_mirror.gparent (3, node);
-              }
-            else
-              {
-                mirror_data[mirror_end++] = -1;
-                mirror_data[mirror_end++] = -1;
-                mirror_data[mirror_end++] = -1;
-                mirror_data[mirror_end++] = -1;
-              }
+            for (int pp = 0; pp < 4; ++pp)
+              mirror_data[mirror_end++] =
+                current_mirror.is_hanging (node) ?
+                current_mirror.gparent (pp, node) : -1;
         }
       
       if (n_mirror > 0)
