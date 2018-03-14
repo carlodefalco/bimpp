@@ -397,6 +397,48 @@ tmesh_3d::~tmesh_3d ()
     if (! (this->ghost_data  == nullptr)) delete[] this->ghost_data;
 };
 
+template <class p_type, class p_type_count,
+          class t_type, class t_type_count>
+static void
+arrays2connectivity (const p_type *p_matrix_start,
+                     const p_type_count num_vertices,
+                     const t_type *t_matrix_start,
+                     const t_type_count num_trees,
+                     p8est_connectivity_t **conn)
+{
+
+  *conn =
+    p8est_connectivity_new (num_vertices, num_trees, 0, 0, 0, 0);
+
+  const p_type *p_iter = p_matrix_start;
+  double *v_iter = &((*conn)->vertices[0]);
+
+  auto p_matrix_end = p_matrix_start + num_vertices * 3;
+  while (p_iter < p_matrix_end)
+      *(v_iter++) = *(p_iter++);
+
+  const t_type *t_iter = t_matrix_start;
+  p4est_topidx_t *tv_iter = &((*conn)->tree_to_vertex[0]);
+
+  auto t_matrix_end = t_matrix_start + num_trees * 9;
+  while (t_iter < t_matrix_end)
+    {
+      for (int n = 0; n < 8; ++n)
+        *(tv_iter++) = *(t_iter++) - 1;
+      ++t_iter;
+    }
+
+  for (t_type tree = 0; tree < (*conn)->num_trees; ++tree)
+    for (int face = 0; face < 6; ++face)
+      {
+        (*conn)->tree_to_tree[6 * tree + face] = tree;
+        (*conn)->tree_to_face[6 * tree + face] = face;
+      }
+
+  assert (p8est_connectivity_is_valid (*conn));
+  p8est_connectivity_complete (*conn);
+};
+
 void
 tmesh_3d::update ()
 {
