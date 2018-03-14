@@ -28,7 +28,7 @@ main (int argc, char **argv)
   tmsh2.load ("p8est_load_save_test2.p8est");
   tmsh.vtk_export ("p8est_load_save_test2");
   tmsh2.vtk_export ("p8est_load_save_test2_2");
-  //tmsh.octbin_export ("p8est_load_save_test2",prova);
+  tmsh.octbin_export ("p8est_load_save_test2",prova);
 
   MPI_Finalize ();
   return 0;
