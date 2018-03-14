@@ -720,6 +720,50 @@ tmesh_3d::refine (int recursive, int partforcoarsen, int balance)
 }
 
 void
+tmesh_3d::metrics_refine (idx_t max_elems)
+{
+  int recursive = 0;
+  int partforcoarsen = 1;
+  
+  for (int i = 0; i < metrics_max_depth - 1; ++i)
+    {
+      coarsen (recursive, partforcoarsen, 0);
+      refine (recursive, partforcoarsen, 0);
+      
+      // Prevent large meshes.
+      if (max_elems > 0 && this->num_global_octants () >= max_elems)
+        break;
+    }
+    
+  coarsen (recursive, partforcoarsen, 0);
+  refine (recursive, partforcoarsen, 1);
+}
+
+void
+tmesh_3d::coarsen (int recursive, int partforcoarsen, int balance)
+{
+  if (replace_fun == nullptr)
+    p8est_coarsen (p8est, recursive, coarsen_callback, nullptr);
+  else
+    p8est_coarsen_ext (p8est, recursive, 0, coarsen_callback,
+                       nullptr, replace_callback);
+  
+  if (balance)
+    p8est_balance (p8est, P8EST_CONNECT_FULL, nullptr);
+  
+  p8est_partition (p8est, partforcoarsen, nullptr);
+
+  if (! (lnodes == nullptr)) p8est_lnodes_destroy (lnodes);
+  lnodes = nullptr;  
+
+  if (! (mesh == nullptr)) p8est_mesh_destroy (mesh);
+  mesh = nullptr;
+  
+  if (! (ghost == nullptr)) p8est_ghost_destroy (ghost);
+  ghost = nullptr;
+};
+
+void
 tmesh_3d::update ()
 {
   ghost  = p8est_ghost_new  (p8est, P8EST_CONNECT_FULL);
