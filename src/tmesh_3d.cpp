@@ -537,7 +537,7 @@ tmesh_3d::vtk_export (const char *filename)
     p8est_vtk_write_cell_dataf (context, 1, 1, 1, 0, 0, 0, context);
   assert (p8est_vtk_write_footer (context) == 0);
 };
-
+/*
 void
 tmesh_3d::octbin_export (const char * basename,
                          const std::vector<double> & f)
@@ -613,6 +613,46 @@ tmesh_3d::octbin_export (const char * basename,
   assert (octave_save ("msh", octave_value (the_map)) == 0);
   assert (octave_io_close () == 0);
 
+};
+*/
+void
+tmesh_3d::octant_iterator::reset ()
+{
+  if (data != nullptr)
+    {
+      p8est_t *p8 = data->the_tmesh->p8est;
+      data->tree_idx        = p8->first_local_tree;
+      data->tree_oct_idx    = 0;
+      data->forest_oct_idx  = 0;
+      
+      data->is_ghost = false;
+      data->qtq = -1;
+      
+      if (data->tree_idx != -1)
+        {
+          data->tree        =
+            p8est_tree_array_index (p8->trees, data->tree_idx);
+          data->toctants    = &(data->tree->quadrants);
+          data->num_octants =
+            (p4est_locidx_t) data->toctants->elem_count;
+        }
+      else
+        {
+          data->tree        = nullptr;
+          data->toctants    = nullptr;
+          data->num_octants = 0;
+        }
+          
+      if (data->num_octants > 0)
+        {
+          auto tmp =
+            p8est_quadrant_array_index (data->toctants,
+                                        data->forest_oct_idx);
+          data->update (data->tree_idx, tmp);
+        }
+      else
+        data = nullptr;
+    }
 };
 
 void
