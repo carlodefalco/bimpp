@@ -516,6 +516,7 @@ tmesh_3d::read_connectivity (const double *p,
   p8est = p8est_new (comm, conn, 0, NULL, this);
 };
 
+
 void
 tmesh_3d::update ()
 {
