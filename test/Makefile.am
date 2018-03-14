@@ -224,7 +224,7 @@ if HAVE_P4EST
   p4est_load_save_test2_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_load_save_test2_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += p8est_load_save_test2.octbin.gz p8est_load_save_test2.p8est \
-                p8est_load_save_test2out*.octbin.gz \
+                p8est_load_save_test2*.octbin.gz \
                 p8est_load_save_test2.pvtu p8est_load_save_test2.visit \
                 p8est_load_save_test2_*.vtu p8est_load_save_test2_2.pvtu \
                 p8est_load_save_test2_2.visit p8est_load_save_test2_2*.vtu
