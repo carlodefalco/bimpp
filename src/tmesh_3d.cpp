@@ -693,6 +693,33 @@ tmesh_3d::set_metrics_marker
 }
 
 void
+tmesh_3d::refine (int recursive, int partforcoarsen, int balance)
+{
+  octant_iterator qi (&current_octant);
+  qi.reset ();
+  
+  if (replace_fun == nullptr)
+    p8est_refine (p8est, recursive, refine_callback, nullptr);
+  else
+    p8est_refine_ext (p8est, recursive, -1, refine_callback,
+                      nullptr, replace_callback);
+  
+  if (balance)
+    p8est_balance (p8est, P8EST_CONNECT_FULL, nullptr);
+  
+  p8est_partition (p8est, partforcoarsen, nullptr);
+  
+  if (! (lnodes == nullptr)) p8est_lnodes_destroy (lnodes);
+  lnodes = nullptr;
+
+  if (! (mesh == nullptr)) p8est_mesh_destroy (mesh);
+  mesh = nullptr;
+  
+  if (! (ghost == nullptr)) p8est_ghost_destroy (ghost);
+  ghost = nullptr;
+}
+
+void
 tmesh_3d::update ()
 {
   ghost  = p8est_ghost_new  (p8est, P8EST_CONNECT_FULL);
@@ -838,3 +865,43 @@ tmesh_3d::userint_replace (std::vector<int> old_userint)
   
   return new_userint;
 }
+
+int
+tmesh_3d::refine_callback (p8est_t* p8, p4est_topidx_t tt,
+                           p8est_quadrant_t* qq)
+{
+  return (qq->p.user_int > 0);
+};
+/*
+int
+tmesh_3d::coarsen_callback (p8est_t* p8, p4est_topidx_t tt,
+                            p8est_quadrant_t* qq [])
+{
+  return (qq[0]->p.user_int < 0
+          && qq[1]->p.user_int < 0
+          && qq[2]->p.user_int < 0
+          && qq[3]->p.user_int < 0);
+};
+*/
+void
+tmesh_3d::replace_callback (p8est_t * p8,
+                            p4est_topidx_t tt,
+                            int num_outgoing,
+                            p8est_quadrant_t * outgoing[],
+                            int num_incoming,
+                            p8est_quadrant_t * incoming[])
+{
+  tmesh_3d *tm = reinterpret_cast<tmesh_3d*> (p8->user_pointer);
+  
+  std::vector<int> old_userint (num_outgoing);
+  
+  for (size_t i = 0; i < num_outgoing; ++i)
+    old_userint[i] = outgoing[i]->p.user_int;
+  
+  std::vector<int> new_userint = tm->replace_fun (old_userint);
+  
+  for (size_t i = 0; i < num_incoming; ++i)
+    incoming[i]->p.user_int = new_userint[i];
+  
+  return;
+};
