@@ -11,14 +11,18 @@ main (int argc, char **argv)
   int                   rank, size;
   tmesh_3d              tmsh;
 
-  std::cout << "ciao" << std::endl << (int*)nullptr << std::endl
+  std::cout << "conn test" << std::endl << (int*)nullptr << std::endl
     << (int*)(tmsh.conn) << std::endl;
     
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
 
-  std::cout << "ciao" << std::endl << (int*)nullptr << std::endl
+  std::cout << "conn test" << std::endl << (int*)nullptr << std::endl
     << (int*)(tmsh.conn) << std::endl;
+  
+  std::cout << "num = " << tmsh.num_local_octants() << std::endl;
+  
+  //tmesh_3d::octant_iterator oct = tmsh.begin_octant_sweep();
      
   return 0;
 }
