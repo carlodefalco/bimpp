@@ -516,6 +516,13 @@ tmesh_3d::read_connectivity (const double *p,
   p8est = p8est_new (comm, conn, 0, NULL, this);
 };
 
+void
+tmesh_3d::save (const char *filename)
+{ p8est_save (filename, p8est, 0); };
+
+void
+tmesh_3d::load (const char *filename)
+{ p8est = p8est_load (filename, comm, 0, 0, this, &conn); };
 
 void
 tmesh_3d::update ()
