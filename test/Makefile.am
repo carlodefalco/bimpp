@@ -219,7 +219,7 @@ if HAVE_P4EST
   tmesh_3d_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += tmesh_3d_out.txt
   
-  p4est_load_save_test2_SOURCES =  p4est_load_save_test2.cpp mosfet_connectivity_2d.cpp
+  p4est_load_save_test2_SOURCES =  p4est_load_save_test2.cpp mosfet_connectivity_3d.cpp
   p4est_load_save_test2_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_load_save_test2_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_load_save_test2_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
