@@ -872,17 +872,21 @@ tmesh_3d::refine_callback (p8est_t* p8, p4est_topidx_t tt,
 {
   return (qq->p.user_int > 0);
 };
-/*
+
 int
 tmesh_3d::coarsen_callback (p8est_t* p8, p4est_topidx_t tt,
                             p8est_quadrant_t* qq [])
 {
-  return (qq[0]->p.user_int < 0
-          && qq[1]->p.user_int < 0
-          && qq[2]->p.user_int < 0
-          && qq[3]->p.user_int < 0);
+  return (qq[0]->p.user_int < 0 &&
+          qq[1]->p.user_int < 0 &&
+          qq[2]->p.user_int < 0 &&
+          qq[3]->p.user_int < 0 &&
+          qq[4]->p.user_int < 0 &&
+          qq[5]->p.user_int < 0 &&
+          qq[6]->p.user_int < 0 &&
+          qq[7]->p.user_int < 0);
 };
-*/
+
 void
 tmesh_3d::replace_callback (p8est_t * p8,
                             p4est_topidx_t tt,
