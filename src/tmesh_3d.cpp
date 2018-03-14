@@ -6,14 +6,14 @@
 #include <array>
 
 double
-tmesh_3d::octant_t::p (tmesh_3d::idx_t ii, tmesh_3d::idx_t jj) 
+tmesh_3d::quadrant_t::p (tmesh_3d::idx_t ii, tmesh_3d::idx_t jj) 
 {
   double retval = vxyz[3*jj+ii];
   return (retval);
 };
 
 double
-tmesh_3d::octant_t::centroid (tmesh_3d::idx_t ii) 
+tmesh_3d::quadrant_t::centroid (tmesh_3d::idx_t ii) 
 {
   double retval = 0;
   
@@ -25,7 +25,7 @@ tmesh_3d::octant_t::centroid (tmesh_3d::idx_t ii)
 };
 
 double
-tmesh_3d::octant_t::face_centroid (tmesh_3d::idx_t ii, int jj)
+tmesh_3d::quadrant_t::face_centroid (tmesh_3d::idx_t ii, int jj)
 {
   double retval = 0;
   
@@ -49,8 +49,8 @@ tmesh_3d::octant_t::face_centroid (tmesh_3d::idx_t ii, int jj)
  *                               For faces in 3D, it is diagonally opposite.
  * \return true if any node is hanging, false otherwise.
  */
-static const int  zero = 0;      /**< Constant zero. */
-static const int  ones = P8EST_CHILDREN - 1;  /**< One bit per dimension. */
+static const int  zero = 0; /**< Constant zero. */
+static const int  ones = P8EST_CHILDREN - 1; /**< One bit per dimension. */
 static const int *corner_to_hanging[P8EST_CHILDREN];
 static const int  corner_num_hanging[P8EST_CHILDREN] = { 1, 2, 2, 4,
                                                          2, 4, 4, 1 };
@@ -80,15 +80,15 @@ lnodes_decode2 (p8est_lnodes_code_t face_code,
 }
 
 void 
-tmesh_3d::octant_iterator::operator++ ()
+tmesh_3d::quadrant_iterator::operator++ ()
 {
 
   p8est_t *p8 = data->the_tmesh->p8est;
 
-  data->forest_oct_idx++;
-  data->tree_oct_idx++;
+  data->forest_quad_idx++;
+  data->tree_quad_idx++;
 
-  if (data->tree_oct_idx >= data->num_octants)
+  if (data->tree_quad_idx >= data->num_quadrants)
     {
       data->tree_idx++;
       
@@ -97,17 +97,17 @@ tmesh_3d::octant_iterator::operator++ ()
           this->data = nullptr;
           return;
         }
-      data->tree_oct_idx = 0;
+      data->tree_quad_idx = 0;
       
       data->tree = p8est_tree_array_index (p8->trees, data->tree_idx);
-      data->toctants = &(data->tree)->quadrants;
+      data->tquadrants = &(data->tree)->quadrants;
 
-      data->num_octants =
-        (p4est_locidx_t) data->toctants->elem_count;
+      data->num_quadrants =
+        (p4est_locidx_t) data->tquadrants->elem_count;
     }
 
-  auto tmp = p8est_quadrant_array_index (data->toctants,
-                                         data->tree_oct_idx);
+  auto tmp = p8est_quadrant_array_index (data->tquadrants,
+                                         data->tree_quad_idx);
   data->update (data->tree_idx, tmp);
   
 };
@@ -116,14 +116,14 @@ void
 tmesh_3d::neighbor_iterator::operator++ ()
 {
   p4est_topidx_t which_tree;
-  p4est_locidx_t which_oct;
+  p4est_locidx_t which_quad;
   int nface, nrank;
   tmesh_3d *tmsh = data->the_tmesh;
   p8est_t *p8 = tmsh->p8est;
   
   p8est_quadrant_t * neighbor =
     p8est_mesh_face_neighbor_next (face_neighbor, &which_tree,
-                                   &which_oct, &nface, &nrank);
+                                   &which_quad, &nface, &nrank);
   
   if (neighbor != nullptr)
     {
@@ -133,13 +133,13 @@ tmesh_3d::neighbor_iterator::operator++ ()
       
       // If non-ghost.
       if (face_neighbor->current_qtq <
-          tmsh->num_local_octants ())
+          tmsh->num_local_quadrants ())
         {
           data->is_ghost = false;
           data->qtq = -1;
           
-          data->forest_oct_idx = tree->quadrants_offset + which_oct;
-          data->tree_oct_idx = which_oct;
+          data->forest_quad_idx = tree->quadrants_offset + which_quad;
+          data->tree_quad_idx = which_quad;
         }
       // If ghost.
       else
@@ -147,12 +147,12 @@ tmesh_3d::neighbor_iterator::operator++ ()
           data->is_ghost = true;
           data->qtq = face_neighbor->current_qtq;
           
-          data->forest_oct_idx =
+          data->forest_quad_idx =
             neighbor->p.piggy3.local_num +
             (p8->global_first_quadrant[nrank] -
              p8->global_first_quadrant[tmsh->rank]);
           
-          data->tree_oct_idx = data->forest_oct_idx -
+          data->tree_quad_idx = data->forest_quad_idx -
             tree->quadrants_offset;
         }
       
@@ -168,8 +168,8 @@ tmesh_3d::neighbor_iterator::operator++ ()
 };
 
 void
-tmesh_3d::octant_t::update (p4est_topidx_t tree,
-                           p8est_quadrant_t *q)
+tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
+                              p8est_quadrant_t *q)
 {
   p8est_quadrant_t node, parent;
   idx_t i, j;
@@ -189,12 +189,12 @@ tmesh_3d::octant_t::update (p4est_topidx_t tree,
   corner_to_hanging[ones - 1] = p8est_face_corners[0];
   corner_to_hanging[ones]     = &ones;
   
-  this->tree_idx = tree;
-  this->the_octant = q;
+  this->tree_idx     = tree;
+  this->the_quadrant = q;
   
   for (i = 0; i < 8; ++i)
     {
-      p8est_quadrant_corner_node (this->the_octant, i, &node);
+      p8est_quadrant_corner_node (this->the_quadrant, i, &node);
       p8est_qcoord_to_vertex (this->the_tmesh->conn, tree_idx,
                               node.x, node.y, node.z, &(vxyz[3 * i]));
     }
@@ -206,16 +206,16 @@ tmesh_3d::octant_t::update (p4est_topidx_t tree,
         {
           for (i = 0; i < 8; ++i)
             {
-              tbuff[i] = ln->element_nodes[8 * forest_oct_idx + i];
+              tbuff[i] = ln->element_nodes[8 * forest_quad_idx + i];
               hbuff[i] = false;
-              pbuff[4 * i] = -1;
+              pbuff[4 * i]     = -1;
               pbuff[4 * i + 1] = -1;
               pbuff[4 * i + 2] = -1;
               pbuff[4 * i + 3] = -1;
             }
 
           bool any_hanging =
-            lnodes_decode2 (ln->face_code[forest_oct_idx],
+            lnodes_decode2 (ln->face_code[forest_quad_idx],
                             hanging_corner);
           if (any_hanging)
             for (i = 0; i < 8; ++i)
@@ -233,21 +233,25 @@ tmesh_3d::octant_t::update (p4est_topidx_t tree,
       else
         {
           p4est_locidx_t idx = this->qtq -
-            the_tmesh->num_local_octants ();
+            the_tmesh->num_local_quadrants ();
           
           for (i = 0; i < 8; ++i)
             {
-              tbuff[i] = the_tmesh->ghost_data[40*idx + i];
+              tbuff[i] = the_tmesh->ghost_data[40 * idx + i];
               
-              pbuff[4*i]     = the_tmesh->ghost_data[40*idx + 8  + 4*i];
-              pbuff[4*i + 1] = the_tmesh->ghost_data[40*idx + 9  + 4*i];
-              pbuff[4*i + 2] = the_tmesh->ghost_data[40*idx + 10 + 4*i];
-              pbuff[4*i + 3] = the_tmesh->ghost_data[40*idx + 11 + 4*i];
+              pbuff[4 * i]     =
+                the_tmesh->ghost_data[40 * idx + 8  + 4 * i];
+              pbuff[4 * i + 1] =
+                the_tmesh->ghost_data[40 * idx + 9  + 4 * i];
+              pbuff[4 * i + 2] =
+                the_tmesh->ghost_data[40 * idx + 10 + 4 * i];
+              pbuff[4 * i + 3] =
+                the_tmesh->ghost_data[40 * idx + 11 + 4 * i];
               
-              if (pbuff[4*i] != -1
-                  || pbuff[4*i+1] != -1
-                  || pbuff[4*i+2] != -1
-                  || pbuff[4*i+3] != -1)
+              if (pbuff[4 * i] != -1
+                  || pbuff[4 * i + 1] != -1
+                  || pbuff[4 * i + 2] != -1
+                  || pbuff[4 * i + 3] != -1)
                 hbuff[i] = true;
               else
                 hbuff[i] = false;
@@ -257,14 +261,14 @@ tmesh_3d::octant_t::update (p4est_topidx_t tree,
 };
 
 int
-tmesh_3d::octant_t::parent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
+tmesh_3d::quadrant_t::parent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
 {
   assert (pbuff[ip + in * 4] >= 0);
   return tbuff[pbuff[ip + in * 4]];
 };
 
 int
-tmesh_3d::octant_t::gparent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
+tmesh_3d::quadrant_t::gparent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
 {  
   if (! is_ghost)
     {
@@ -280,12 +284,12 @@ tmesh_3d::octant_t::gparent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
 };
 
 tmesh_3d::idx_t
-tmesh_3d::octant_t::e (idx_t i)
+tmesh_3d::quadrant_t::e (idx_t i)
 {  
   assert (i < 8);
   idx_t retval = NOT_ON_BOUNDARY;
   p8est_quadrant_t node;
-  p8est_quadrant_corner_node (this->the_octant, i, &node);
+  p8est_quadrant_corner_node (this->the_quadrant, i, &node);
   
   if (node.z == 0)
     retval = 4;
@@ -304,7 +308,7 @@ tmesh_3d::octant_t::e (idx_t i)
 };
 
 tmesh_3d::neighbor_iterator
-tmesh_3d::octant_t::begin_neighbor_sweep ()
+tmesh_3d::quadrant_t::begin_neighbor_sweep ()
 {
   neighbor_iterator ni;
   
@@ -316,7 +320,7 @@ tmesh_3d::octant_t::begin_neighbor_sweep ()
                                  this->the_tmesh->ghost,
                                  this->the_tmesh->mesh,
                                  this->get_tree_idx (),
-                                 this->the_octant);
+                                 this->the_quadrant);
   
   p4est_topidx_t which_tree;
   p4est_locidx_t which_quad;
@@ -326,7 +330,7 @@ tmesh_3d::octant_t::begin_neighbor_sweep ()
     p8est_mesh_face_neighbor_next (ni.face_neighbor, &which_tree,
                                    &which_quad, &nface, &nrank);
   
-  ni.data = new octant_t (this->the_tmesh, which_tree, neighbor);
+  ni.data = new quadrant_t (this->the_tmesh, which_tree, neighbor);
   
   p8est_tree_t *tree =
     p8est_tree_array_index (this->the_tmesh->p8est->trees,
@@ -334,10 +338,10 @@ tmesh_3d::octant_t::begin_neighbor_sweep ()
   
   // If non-ghost.
   if (ni.face_neighbor->current_qtq <
-      the_tmesh->num_local_octants ())
+      the_tmesh->num_local_quadrants ())
     {
-      ni.data->forest_oct_idx = tree->quadrants_offset + which_quad;
-      ni.data->tree_oct_idx = which_quad;
+      ni.data->forest_quad_idx = tree->quadrants_offset + which_quad;
+      ni.data->tree_quad_idx = which_quad;
     }
   // If ghost.
   else
@@ -345,13 +349,13 @@ tmesh_3d::octant_t::begin_neighbor_sweep ()
       ni.data->is_ghost = true;
       ni.data->qtq = ni.face_neighbor->current_qtq;
       
-      ni.data->forest_oct_idx =
+      ni.data->forest_quad_idx =
         neighbor->p.piggy3.local_num +
         (the_tmesh->p8est->global_first_quadrant[nrank] -
          the_tmesh->p8est->global_first_quadrant[this->the_tmesh->rank]);
       
-      ni.data->tree_oct_idx =
-        ni.data->forest_oct_idx - tree->quadrants_offset;
+      ni.data->tree_quad_idx =
+        ni.data->forest_quad_idx - tree->quadrants_offset;
     }
   
   ni.data->update (which_tree, neighbor);
@@ -361,11 +365,11 @@ tmesh_3d::octant_t::begin_neighbor_sweep ()
 }
 
 tmesh_3d::idx_t
-tmesh_3d::octant_t::t (tmesh_3d::idx_t i)
+tmesh_3d::quadrant_t::t (tmesh_3d::idx_t i)
 { return tbuff[i]; };
 
 tmesh_3d::idx_t
-tmesh_3d::octant_t::gt (tmesh_3d::idx_t i)
+tmesh_3d::quadrant_t::gt (tmesh_3d::idx_t i)
 {
   if (! is_ghost)
     {
@@ -381,20 +385,26 @@ tmesh_3d::octant_t::gt (tmesh_3d::idx_t i)
 };
 
 bool
-tmesh_3d::octant_t::is_hanging (tmesh_3d::idx_t i)
+tmesh_3d::quadrant_t::is_hanging (tmesh_3d::idx_t i)
 { return hbuff[i]; };
 
 
 tmesh_3d::~tmesh_3d ()
 {
-    if (! (this->p8est  == nullptr)) p8est_destroy (this->p8est);
-    if (! (this->conn   == nullptr)) p8est_connectivity_destroy (this->conn);
-    if (! (this->lnodes == nullptr)) p8est_lnodes_destroy (this->lnodes);
-    if (! (this->mesh   == nullptr)) p8est_mesh_destroy   (this->mesh);
-    if (! (this->ghost  == nullptr)) p8est_ghost_destroy  (this->ghost);
-    
-    if (! (this->mirror_data == nullptr)) delete[] this->mirror_data;
-    if (! (this->ghost_data  == nullptr)) delete[] this->ghost_data;
+    if (! (this->p8est       == nullptr))
+      p8est_destroy (this->p8est);
+    if (! (this->conn        == nullptr))
+      p8est_connectivity_destroy (this->conn);
+    if (! (this->lnodes      == nullptr))
+      p8est_lnodes_destroy (this->lnodes);
+    if (! (this->mesh        == nullptr))
+      p8est_mesh_destroy   (this->mesh);
+    if (! (this->ghost       == nullptr))
+      p8est_ghost_destroy  (this->ghost);
+    if (! (this->mirror_data == nullptr))
+      delete[] this->mirror_data;
+    if (! (this->ghost_data  == nullptr))
+      delete[] this->ghost_data;
 };
 
 template <class p_type, class p_type_count,
@@ -548,43 +558,43 @@ tmesh_3d::octbin_export (const char * basename,
   std::vector<double> f_loc (num_owned_nodes ());  
 
   Array<octave_idx_type>
-    oct_t (dim_vector (8, num_local_octants ()), 0);
+    oct_t (dim_vector (8, num_local_quadrants ()), 0);
   octave_idx_type *t = oct_t.fortran_vec ();
 
   octave_idx_type ij = 0;
-  for (auto octant = begin_octant_sweep ();
-       octant != end_octant_sweep ();
-       ++octant)
+  for (auto quadrant = begin_quadrant_sweep ();
+       quadrant != end_quadrant_sweep ();
+       ++quadrant)
     {
       ij = 0;
       for (int ii = 0; ii < 8; ++ii)
         {
-          if (! octant->is_hanging (ii))
-            if (octant->t (ii) < num_owned_nodes ())
+          if (! quadrant->is_hanging (ii))
+            if (quadrant->t (ii) < num_owned_nodes ())
               {
                 for (int jj = 0; jj < 3; ++jj)
-                  p[3 * octant->t (ii) + jj] = octant->p (jj, ii);
-                f_loc[octant->t (ii)] = f[octant->gt (ii)];
-                t[8 * octant->get_forest_oct_idx () + (ij++)] =
-                  octant->t (ii);
+                  p[3 * quadrant->t (ii) + jj] = quadrant->p (jj, ii);
+                f_loc[quadrant->t (ii)] = f[quadrant->gt (ii)];
+                t[8 * quadrant->get_forest_quad_idx () + (ij++)] =
+                  quadrant->t (ii);
               }
             else
               {
                 for (int jj = 0; jj < 3; ++jj)
-                  p.push_back (octant->p (jj, ii));
-                f_loc.push_back (f[octant->gt (ii)]);
-                t[8 * octant->get_forest_oct_idx () + (ij++)] =
+                  p.push_back (quadrant->p (jj, ii));
+                f_loc.push_back (f[quadrant->gt (ii)]);
+                t[8 * quadrant->get_forest_quad_idx () + (ij++)] =
                   f_loc.size () - 1;
               }
           else
             {
               for (int jj = 0; jj < 3; ++jj)
-                p.push_back (octant->p (jj, ii));
-              f_loc.push_back ((f [octant->gparent (0, ii)] +
-                                f [octant->gparent (1, ii)] +
-                                f [octant->gparent (2, ii)] +
-                                f [octant->gparent (3, ii)] ) / 4.0);
-              t[8 * octant->get_forest_oct_idx () + (ij++)] =
+                p.push_back (quadrant->p (jj, ii));
+              f_loc.push_back ((f [quadrant->gparent (0, ii)] +
+                                f [quadrant->gparent (1, ii)] +
+                                f [quadrant->gparent (2, ii)] +
+                                f [quadrant->gparent (3, ii)]) / 4.0);
+              t[8 * quadrant->get_forest_quad_idx () + (ij++)] =
                 f_loc.size () - 1;
             }
         }
@@ -616,38 +626,38 @@ tmesh_3d::octbin_export (const char * basename,
 };
 
 void
-tmesh_3d::octant_iterator::reset ()
+tmesh_3d::quadrant_iterator::reset ()
 {
   if (data != nullptr)
     {
-      p8est_t *p8 = data->the_tmesh->p8est;
+      p8est_t *p8           = data->the_tmesh->p8est;
       data->tree_idx        = p8->first_local_tree;
-      data->tree_oct_idx    = 0;
-      data->forest_oct_idx  = 0;
+      data->tree_quad_idx   = 0;
+      data->forest_quad_idx = 0;
       
       data->is_ghost = false;
       data->qtq = -1;
       
       if (data->tree_idx != -1)
         {
-          data->tree        =
+          data->tree          =
             p8est_tree_array_index (p8->trees, data->tree_idx);
-          data->toctants    = &(data->tree->quadrants);
-          data->num_octants =
-            (p4est_locidx_t) data->toctants->elem_count;
+          data->tquadrants    = &(data->tree->quadrants);
+          data->num_quadrants =
+            (p4est_locidx_t) data->tquadrants->elem_count;
         }
       else
         {
-          data->tree        = nullptr;
-          data->toctants    = nullptr;
-          data->num_octants = 0;
+          data->tree          = nullptr;
+          data->tquadrants    = nullptr;
+          data->num_quadrants = 0;
         }
           
-      if (data->num_octants > 0)
+      if (data->num_quadrants > 0)
         {
           auto tmp =
-            p8est_quadrant_array_index (data->toctants,
-                                        data->forest_oct_idx);
+            p8est_quadrant_array_index (data->tquadrants,
+                                        data->forest_quad_idx);
           data->update (data->tree_idx, tmp);
         }
       else
@@ -655,38 +665,38 @@ tmesh_3d::octant_iterator::reset ()
     }
 };
 
-tmesh_3d::octant_iterator
-tmesh_3d::begin_octant_sweep ()
+tmesh_3d::quadrant_iterator
+tmesh_3d::begin_quadrant_sweep ()
 {
   if (this->mesh == nullptr)
     this->update ();
   
-  octant_iterator qi (&current_octant);
+  quadrant_iterator qi (&current_quadrant);
   qi.reset ();
   return qi;
 };
 
 void
 tmesh_3d::set_metrics_marker
-           (std::function<double(tmesh_3d::octant_iterator)> estimator,
-            double tol, int max_depth)
+            (std::function<double(tmesh_3d::quadrant_iterator)> estim,
+             double tol, int max_depth)
 {
   this->metrics_max_depth = max_depth;
   
   double hxhat_hx = 0;
   
-  for (auto octant = this->begin_octant_sweep ();
-       octant != this->end_octant_sweep (); ++octant)
+  for (auto quadrant = this->begin_quadrant_sweep ();
+       quadrant != this->end_quadrant_sweep (); ++quadrant)
     {
-      hxhat_hx = std::log2 (estimator (octant)
-                 * std::sqrt (this->num_global_octants ()) / tol);
+      hxhat_hx = std::log2 (estim (quadrant)
+                 * std::sqrt (this->num_global_quadrants ()) / tol);
       
-      octant->the_octant->p.user_int =
+      quadrant->the_quadrant->p.user_int =
         std::min (std::max (-double (max_depth),
                             std::ceil (hxhat_hx)),
                             double (max_depth));
       
-      std::cout << octant->the_octant->p.user_int << std::endl;
+      std::cout << quadrant->the_quadrant->p.user_int << std::endl;
     }
   
   return;
@@ -695,7 +705,7 @@ tmesh_3d::set_metrics_marker
 void
 tmesh_3d::refine (int recursive, int partforcoarsen, int balance)
 {
-  octant_iterator qi (&current_octant);
+  quadrant_iterator qi (&current_quadrant);
   qi.reset ();
   
   if (replace_fun == nullptr)
@@ -731,7 +741,7 @@ tmesh_3d::metrics_refine (idx_t max_elems)
       refine (recursive, partforcoarsen, 0);
       
       // Prevent large meshes.
-      if (max_elems > 0 && this->num_global_octants () >= max_elems)
+      if (max_elems > 0 && this->num_global_quadrants () >= max_elems)
         break;
     }
     
@@ -816,10 +826,10 @@ tmesh_3d::update_ghosts ()
             p8est->global_first_quadrant[rank] +
             q->p.piggy3.local_num;
           
-          octant_t current_mirror (this, q->p.which_tree, q);
-          current_mirror.forest_oct_idx = q->p.piggy3.local_num;
-          current_mirror.tree_oct_idx =
-            current_mirror.forest_oct_idx - tree->quadrants_offset;
+          quadrant_t current_mirror (this, q->p.which_tree, q);
+          current_mirror.forest_quad_idx = q->p.piggy3.local_num;
+          current_mirror.tree_quad_idx =
+            current_mirror.forest_quad_idx - tree->quadrants_offset;
           current_mirror.update (q->p.which_tree, q);
           
           for (int node = 0; node < 8; ++node)

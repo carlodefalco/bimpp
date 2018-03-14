@@ -20,10 +20,10 @@ main (int argc, char **argv)
   std::cout << "conn test" << std::endl << (int*)nullptr << std::endl
     << (int*)(tmsh.conn) << std::endl;
   
-  std::cout << "num = " << tmsh.num_local_octants() << std::endl;
+  std::cout << "num = " << tmsh.num_local_quadrants() << std::endl;
   
-  tmesh_3d::octant_iterator oct = tmsh.begin_octant_sweep();
-  while (oct != tmsh.end_octant_sweep())
+  tmesh_3d::quadrant_iterator oct = tmsh.begin_quadrant_sweep();
+  while (oct != tmsh.end_quadrant_sweep())
     {
       std::cout << "centroid (" << oct->centroid(0) << "," <<
         oct->centroid(1) << ")" << std::endl;

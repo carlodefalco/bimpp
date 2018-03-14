@@ -23,7 +23,7 @@
 #include <vector>
 
 
-/// C++ interface class for p4est 3d octant meshes.
+/// C++ interface class for p4est 3d quadrant meshes.
 class
 tmesh_3d
 {
@@ -33,52 +33,52 @@ public:
   using idx_t = p4est_gloidx_t;
 
   // forward declaration of friend class
-  class  octant_t;
+  class  quadrant_t;
 
-  /// Iterator to sweep through the octants of a tmesh.
-  /// This is essentially a decorator of octant_t*.
+  /// Iterator to sweep through the quadrants of a tmesh.
+  /// This is essentially a decorator of quadrant_t*.
   class
-  octant_iterator  
+  quadrant_iterator  
   {
 
   public:
 
-    /// Get next octant.
+    /// Get next quadrant.
     void 
     operator++ ();
     
     /// Dereference.
-    octant_t&
+    quadrant_t&
     operator* ()
     { return *(this->data); };
     
     /// Dereference. const version.
-    const octant_t&
+    const quadrant_t&
     operator* () const
     { return *(this->data); };
     
     /// Operator -> to get access to the wrapped pointer.
-    octant_t *
+    quadrant_t *
     operator-> ()
     { return this->data; };
     
     /// Operator ->. const version.
-    const octant_t *
+    const quadrant_t *
     operator-> () const
     { return this->data; };
 
-    /// Compare two octant_iterator objects.
+    /// Compare two quadrant_iterator objects.
     bool
-    operator== (const octant_iterator& other)
+    operator== (const quadrant_iterator& other)
     { return (this->data == other.data); };
 
     /// Return the opposite of ==.
     bool
-    operator!= (const octant_iterator& other)
+    operator!= (const quadrant_iterator& other)
     { return !((*this) == other); };
 
     /// Default constructor.
-    octant_iterator (octant_t *_data = nullptr) :
+    quadrant_iterator (quadrant_t *_data = nullptr) :
       data (_data)
     { };
 
@@ -87,13 +87,13 @@ public:
     reset ();
 
   protected:
-    octant_t *data;      
+    quadrant_t *data;      
   };
   
-  /// Iterator to sweep through the octants of a tmesh.
-  /// This is essentially a decorator of octant_t*.
+  /// Iterator to sweep through the quadrants of a tmesh.
+  /// This is essentially a decorator of quadrant_t*.
   class
-  neighbor_iterator : public octant_iterator
+  neighbor_iterator : public quadrant_iterator
   {
   public:
     /// Get next neighbor.
@@ -101,8 +101,9 @@ public:
     operator++ ();
     
     /// Default constructor.
-    neighbor_iterator (octant_t *_data = nullptr, int _face_idx = -1) :
-      octant_iterator (_data),
+    neighbor_iterator (quadrant_t *_data = nullptr,
+                       int _face_idx = -1) :
+      quadrant_iterator (_data),
       face_neighbor (new p8est_mesh_face_neighbor_t),
       face_idx (_face_idx)
     { };
@@ -111,7 +112,7 @@ public:
     int get_face_idx ()
     { return face_idx; };
     
-    friend class tmesh_3d::octant_t;
+    friend class tmesh_3d::quadrant_t;
     
   private:
     p8est_mesh_face_neighbor_t * face_neighbor; // mfn
@@ -120,19 +121,19 @@ public:
   };
   
   /// C++ interface class to access properties of the
-  /// current octant.
+  /// current quadrant.
   class
-  octant_t
+  quadrant_t
   {
 
   public:
 
     /// Simple constructor needs at least a pointer
     /// to the container tmesh.
-    octant_t (tmesh_3d *_tmesh,
+    quadrant_t (tmesh_3d *_tmesh,
                 p4est_topidx_t _tree = 0,
-                p8est_quadrant_t *_octant = nullptr) :
-      the_tmesh(_tmesh), the_octant(_octant), tree_idx(_tree),
+                p8est_quadrant_t *_quadrant = nullptr) :
+      the_tmesh(_tmesh), the_quadrant(_quadrant), tree_idx(_tree),
       is_ghost(false), qtq(-1)
     { };
 
@@ -180,33 +181,33 @@ public:
     e (idx_t i);
     
     /// Get an iterator to the first neighbor
-    /// of the current octant.
+    /// of the current quadrant.
     neighbor_iterator
     begin_neighbor_sweep ();
     
-    /// Get a null octant iterator to signal end of the sweep.
+    /// Get a null quadrant iterator to signal end of the sweep.
     neighbor_iterator
     end_neighbor_sweep ()
     { return neighbor_iterator (); };
     
-    /// Return index of current octant across all
+    /// Return index of current quadrant across all
     /// trees on current process.
     p4est_locidx_t
-    get_forest_oct_idx ()
-    { return forest_oct_idx; };
+    get_forest_quad_idx ()
+    { return forest_quad_idx; };
 
-    /// Return index of current octant in current
+    /// Return index of current quadrant in current
     /// tree on current process.
     p4est_locidx_t
-    get_tree_oct_idx ()
-    { return tree_oct_idx; };
+    get_tree_quad_idx ()
+    { return tree_quad_idx; };
     
-    /// Return index of current octant across all
+    /// Return index of current quadrant across all
     /// trees on all processes.
     p4est_gloidx_t
-    get_global_oct_idx ()
+    get_global_quad_idx ()
     {
-      return forest_oct_idx +
+      return forest_quad_idx +
         the_tmesh->p8est->global_first_quadrant[the_tmesh->rank];
     };
     
@@ -224,31 +225,32 @@ public:
     /// to get physical mapping.
     tmesh_3d                   *the_tmesh; 
     p8est_tree_t               *tree;
-    p8est_quadrant_t           *the_octant;
+    p8est_quadrant_t           *the_quadrant;
     
-    friend class tmesh_3d::octant_iterator;
+    friend class tmesh_3d::quadrant_iterator;
     friend class tmesh_3d::neighbor_iterator;
     friend class tmesh_3d;
     
   private:
 
-    sc_array_t           *toctants;
-    p4est_locidx_t        num_octants;    // Q
+    sc_array_t           *tquadrants;
+    p4est_locidx_t        num_quadrants;    // Q
     // Local and global indices for looping.
     p4est_topidx_t        tree_idx;         // tt
-    p4est_locidx_t        forest_oct_idx;  // k 
-    p4est_locidx_t        tree_oct_idx;    // q
+    p4est_locidx_t        forest_quad_idx;  // k 
+    p4est_locidx_t        tree_quad_idx;    // q
 
-    // True if current octant is a ghost.
+    // True if current quadrant is a ghost.
     bool           is_ghost;
-    // qtq index if current octant is a ghost, -1 otherwise.
+    // qtq index if current quadrant is a ghost, -1 otherwise.
     p4est_locidx_t qtq;
     
     /// Buffer used when quering coordinates.
     double vxyz[3*8]  = {0,0,0, 0,0,0, 0,0,0, 0,0,0,
                          0,0,0, 0,0,0, 0,0,0, 0,0,0,};
     idx_t  tbuff[8]   = {0,0,0,0,0,0,0,0};
-    bool   hbuff[8]   = {false,false,false,false,false,false,false,false};
+    bool   hbuff[8]   = {false,false,false,false,
+                         false,false,false,false};
     int    pbuff[4*8] = {-1,-1,-1,-1, -1,-1,-1,-1,
                          -1,-1,-1,-1, -1,-1,-1,-1,
                          -1,-1,-1,-1, -1,-1,-1,-1,
@@ -258,7 +260,7 @@ public:
   /// Default constructor, set all pointers to nullptr.
   tmesh_3d (MPI_Comm _comm = MPI_COMM_WORLD)
     : p8est (nullptr), conn (nullptr),
-      current_octant (this, 0, nullptr),
+      current_quadrant (this, 0, nullptr),
       lnodes (nullptr), mesh (nullptr), ghost(nullptr),
       mirror_data (nullptr), ghost_data (nullptr),
       comm (_comm), rank (0), size (1),
@@ -314,65 +316,65 @@ public:
   octbin_export (const char * filename,
                  const std::vector<double> & f);
   
-  /// Get an iterator to the first octant of the mesh.
-  octant_iterator
-  begin_octant_sweep ();
+  /// Get an iterator to the first quadrant of the mesh.
+  quadrant_iterator
+  begin_quadrant_sweep ();
 
-  /// Get a null octant iterator to signal end of the sweep.
-  octant_iterator
-  end_octant_sweep ()
-  { return octant_iterator (); };
+  /// Get a null quadrant iterator to signal end of the sweep.
+  quadrant_iterator
+  end_quadrant_sweep ()
+  { return quadrant_iterator (); };
 
-  /// Mark octant for refinement based on fun.
+  /// Mark quadrant for refinement based on fun.
   void
   set_refine_marker
-  (std::function<int (octant_iterator)> fun)
+  (std::function<int (quadrant_iterator)> fun)
     {
-      for (auto q = this->begin_octant_sweep ();
-           q != this->end_octant_sweep ();
+      for (auto q = this->begin_quadrant_sweep ();
+           q != this->end_quadrant_sweep ();
            ++q)
         if (fun (q))
-          q->the_octant->p.user_int = std::abs(fun (q));
+          q->the_quadrant->p.user_int = std::abs(fun (q));
     };
 
-  /// Mark octants for coarsening based on fun.
+  /// Mark quadrants for coarsening based on fun.
   void
   set_coarsen_marker
-  (std::function<int (octant_iterator)> fun)
+  (std::function<int (quadrant_iterator)> fun)
     {
-      for (auto q = this->begin_octant_sweep ();
-           q != this->end_octant_sweep ();
+      for (auto q = this->begin_quadrant_sweep ();
+           q != this->end_quadrant_sweep ();
            ++q)
         if (fun (q))
-          q->the_octant->p.user_int = -std::abs(fun (q));
+          q->the_quadrant->p.user_int = -std::abs(fun (q));
     };
   
-  /// Mark octants for refinement based on metrics.
-  void set_metrics_marker (std::function<double (octant_iterator)>,
+  /// Mark quadrants for refinement based on metrics.
+  void set_metrics_marker (std::function<double (quadrant_iterator)>,
                            double, int max_depth = 5);
 
-  /// Set functor to replace octants while being
+  /// Set functor to replace quadrants while being
   /// refined or coarsened.
   void
   set_replace_fun
   (std::function<std::vector<int> (std::vector<int>)> fun)
   { replace_fun = fun; };
   
-  /// Refine marked octants, balance the octree and
+  /// Refine marked quadrants, balance the octree and
   /// re-partition over the processors.
   void
   refine (int recursive = 0, int partforcoarsen = 1, int balance = 1);
   
-  /// Refine marked octants based on metrics.
+  /// Refine marked quadrants based on metrics.
   void
   metrics_refine (idx_t max_elems = 0);
 
-  /// Coarsen marked octants, balance the octree and
+  /// Coarsen marked quadrants, balance the octree and
   /// re-partition over the processors.
   void
   coarsen (int recursive = 0, int partforcoarsen = 1, int balance = 1);
 
-  /// Compute nodes numbering and octant neighbours.
+  /// Compute nodes numbering and quadrant neighbours.
   void
   update ();
 
@@ -388,7 +390,7 @@ public:
     return lnodes->owned_count;
   };
 
-  /// Return number of nodes of octants owned
+  /// Return number of nodes of quadrants owned
   /// or shared by local process
   idx_t
   num_local_nodes ()
@@ -397,7 +399,7 @@ public:
       return lnodes->num_local_nodes;
   };
 
-  /// Return total number of octants owned by all process
+  /// Return total number of quadrants owned by all process
   idx_t
   num_global_nodes ()
   {
@@ -408,30 +410,30 @@ public:
     return retval;
   };
 
-  /// Return number of octants owned by local process
+  /// Return number of quadrants owned by local process
   /// across all trees
   idx_t
-  num_local_octants ()    
+  num_local_quadrants ()    
   {
       return p8est->local_num_quadrants;
   };
 
-  /// Return number of octants owned by all processes
+  /// Return number of quadrants owned by all processes
   /// across all trees
   idx_t
-  num_global_octants ()    
+  num_global_quadrants ()    
   {
       return p8est->global_num_quadrants;
   };
   
-  /// Replace fun based on octant user_int.
+  /// Replace fun based on quadrant user_int.
   static std::vector<int> userint_replace (std::vector<int>);
   
   /// P8EST pointers describing the tmesh,
   /// temporarily public until the API is stable.
   p8est_t              *p8est;
   p8est_connectivity_t *conn;
-  octant_t              current_octant;
+  quadrant_t            current_quadrant;
   p8est_lnodes_t       *lnodes;
   p8est_mesh_t         *mesh;
   p8est_ghost_t        *ghost;
