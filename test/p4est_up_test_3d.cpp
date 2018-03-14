@@ -73,7 +73,7 @@ main (int argc, char **argv)
   if (rank == 0)
     { tic (); }
 
-  tmsh.vtk_export ("p4est_up_test2");
+  tmsh.vtk_export ("p4est_up_test_3d");
 
   MPI_Barrier (MPI_COMM_WORLD);
   if (rank == 0)
