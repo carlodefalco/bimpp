@@ -667,6 +667,32 @@ tmesh_3d::begin_octant_sweep ()
 };
 
 void
+tmesh_3d::set_metrics_marker
+           (std::function<double(tmesh_3d::octant_iterator)> estimator,
+            double tol, int max_depth)
+{
+  this->metrics_max_depth = max_depth;
+  
+  double hxhat_hx = 0;
+  
+  for (auto octant = this->begin_octant_sweep ();
+       octant != this->end_octant_sweep (); ++octant)
+    {
+      hxhat_hx = std::log2 (estimator (octant)
+                 * std::sqrt (this->num_global_octants ()) / tol);
+      
+      octant->the_octant->p.user_int =
+        std::min (std::max (-double (max_depth),
+                            std::ceil (hxhat_hx)),
+                            double (max_depth));
+      
+      std::cout << octant->the_octant->p.user_int << std::endl;
+    }
+  
+  return;
+}
+
+void
 tmesh_3d::update ()
 {
   ghost  = p8est_ghost_new  (p8est, P8EST_CONNECT_FULL);
