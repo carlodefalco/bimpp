@@ -35,7 +35,7 @@ bool7 (const double x, const double L)
 { return (x <= 3.0 * L / 4.0 ? 1.0 : 0.0); }
 
 double
-doping  (double x, double y, double z
+doping  (double x, double y, double z,
          double L, double H, double W)
 {
   constexpr double N_plus  = 1.0e25;
