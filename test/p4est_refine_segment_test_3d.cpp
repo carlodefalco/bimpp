@@ -246,9 +246,7 @@ int main(int argc, char ** argv)
       // Adaptive refinement.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       
-      std::cout<<"cycle "<<cycle<<" - rank "<<rank<<std::endl;
       tmsh.set_refine_marker (segment_refin);
-      std::cout<<"AAAcycle "<<cycle<<" - rank "<<rank<<std::endl;
       tmsh.refine (recursive, partforcoarsen);
       
       if (rank == 0) 
