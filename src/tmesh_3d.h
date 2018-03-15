@@ -160,6 +160,10 @@ public:
     /// True if the i-th vertex is hanging.
     bool
     is_hanging (idx_t i);
+    
+    /// Get number of parents of the i-th vertex (0 if not hanging).
+    int
+    num_parents (idx_t i);
 
     /// Return the rank-local (or global for ghosts)
     /// ip-th parent for the in-th vertex.

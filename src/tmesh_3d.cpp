@@ -554,6 +554,8 @@ tmesh_3d::octbin_export (const char * basename,
     
   std::vector<double> p (3 * num_owned_nodes ());
   std::vector<double> f_loc (num_owned_nodes ());  
+  
+  double fbuff;
 
   Array<octave_idx_type>
     oct_t (dim_vector (8, num_local_quadrants ()), 0);
@@ -588,10 +590,10 @@ tmesh_3d::octbin_export (const char * basename,
             {
               for (int jj = 0; jj < 3; ++jj)
                 p.push_back (quadrant->p (jj, ii));
-              f_loc.push_back ((f [quadrant->gparent (0, ii)] +
-                                f [quadrant->gparent (1, ii)] +
-                                f [quadrant->gparent (2, ii)] +
-                                f [quadrant->gparent (3, ii)]) / 4.0);
+              fbuff = 0;
+              for (int pp = 0; pp < quadrant->num_parents (ii); ++pp)
+                fbuff += f [quadrant->gparent (pp, ii)];
+              f_loc.push_back (fbuff / pp);
               t[8 * quadrant->get_forest_quad_idx () + (ij++)] =
                 f_loc.size () - 1;
             }
@@ -843,7 +845,7 @@ tmesh_3d::update_ghosts ()
               <<current_mirror.pbuff[node*4+3]<<std::endl;
             for (int pp = 0; pp < 4; ++pp)
               mirror_data[mirror_end++] =
-                current_mirror.is_hanging (node) ?
+                current_mirror.num_parents (node) > pp ?
                 current_mirror.gparent (pp, node) : -1;
             }
         }
