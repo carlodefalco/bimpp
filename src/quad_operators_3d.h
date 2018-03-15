@@ -9,7 +9,7 @@
 #include <tuple>
 #include <vector>
 
-/// f(x, y).
+/// f(x, y, z).
 using func = std::function<double (double, double, double)>; 
 
 using dirichlet_bcs = std::vector<std::tuple<int, int, func>>;
@@ -19,7 +19,7 @@ using q1_vec = std::vector<double>;
 using gradient = std::pair<q1_vec, q1_vec>;
 
 /// Nodes, faces, cell midpoint dofs.
-using q2_vec = std::vector<std::array<double, 9>>;///???
+using q2_vec = std::vector<std::array<double, 27>>;
 
 /// Function to mark if a quadrant has to be taken into
 /// account when computing the recovered gradient.
