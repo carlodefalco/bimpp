@@ -226,7 +226,7 @@ tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
                   num_parents = corner_num_hanging[i ^ c];
                   base_corner = corner_to_hanging[i ^ c];
                   for (j = 0; j < num_parents; ++j)
-                    pbuff[j + 4 * i] = base_corner[j] ^ c;
+                    pbuff[4 * i + j] = base_corner[j] ^ c;
                 }
         }
       // Ghost elements.
@@ -263,8 +263,8 @@ tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
 int
 tmesh_3d::quadrant_t::parent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
 {
-  assert (pbuff[ip + in * 4] >= 0);
-  return tbuff[pbuff[ip + in * 4]];
+  assert (pbuff[4 * in + ip] >= 0);
+  return tbuff[pbuff[4 * in + ip]];
 };
 
 int
@@ -272,15 +272,15 @@ tmesh_3d::quadrant_t::gparent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
 {  
   if (! is_ghost)
     {
-      assert (pbuff[ip + in * 4] >= 0);
+      assert (pbuff[4 * in + ip] >= 0);
 
       return p8est_lnodes_global_index
         (the_tmesh->lnodes,
          static_cast<p4est_locidx_t>
-         (tbuff[pbuff[ip + in * 4]]));
+         (tbuff[pbuff[4 * in + ip]]));
     }
   else
-      return pbuff[ip + in * 4];
+      return pbuff[4 * in + ip];
 };
 
 tmesh_3d::idx_t
