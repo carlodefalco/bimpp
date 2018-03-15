@@ -207,11 +207,9 @@ tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
           for (i = 0; i < 8; ++i)
             {
               tbuff[i] = ln->element_nodes[8 * forest_quad_idx + i];
-              hbuff[i] = false;
-              pbuff[4 * i]     = -1;
-              pbuff[4 * i + 1] = -1;
-              pbuff[4 * i + 2] = -1;
-              pbuff[4 * i + 3] = -1;
+              hbuff[i] = 0;
+              for (j = 0; j < 4; ++j)
+                pbuff[4 * i + j] = -1;
             }
 
           bool any_hanging =
@@ -221,10 +219,10 @@ tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
             for (i = 0; i < 8; ++i)
               if (hanging_corner[i] >= 0)
                 {
-                  hbuff[i] = true;
                   c = hanging_corner[i];
                   num_parents = corner_num_hanging[i ^ c];
                   base_corner = corner_to_hanging[i ^ c];
+                  hbuff[i] = num_parents;
                   for (j = 0; j < num_parents; ++j)
                     pbuff[4 * i + j] = base_corner[j] ^ c;
                 }
@@ -248,13 +246,10 @@ tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
               pbuff[4 * i + 3] =
                 the_tmesh->ghost_data[40 * idx + 11 + 4 * i];
               
-              if (pbuff[4 * i]     != -1 ||
-                  pbuff[4 * i + 1] != -1 ||
-                  pbuff[4 * i + 2] != -1 ||
-                  pbuff[4 * i + 3] != -1)
-                hbuff[i] = true;
-              else
-                hbuff[i] = false;
+              for (j = 0; j < 4; ++j)
+                if (pbuff[4 * i + j] == -1)
+                  break;
+              hbuff[i] = j;
             }
         }
     }
@@ -386,7 +381,7 @@ tmesh_3d::quadrant_t::gt (tmesh_3d::idx_t i)
 
 bool
 tmesh_3d::quadrant_t::is_hanging (tmesh_3d::idx_t i)
-{ return hbuff[i]; };
+{ return hbuff[i] > 0; };
 
 
 tmesh_3d::~tmesh_3d ()

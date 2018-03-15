@@ -248,9 +248,11 @@ public:
     /// Buffer used when quering coordinates.
     double vxyz [3 * 8] = {0,0,0, 0,0,0, 0,0,0, 0,0,0,
                            0,0,0, 0,0,0, 0,0,0, 0,0,0,};
+    /// Buffer for index of the i-th vertex.
     idx_t  tbuff[8]     = {0,0,0,0,0,0,0,0};
-    bool   hbuff[8]     = {false,false,false,false,
-                           false,false,false,false};
+    /// Buffer for num. of parents of hanging nodes(0 if not hanging).
+    int    hbuff[8]     = {0,0,0,0,0,0,0,0};
+    /// Buffer for parents' t(-1 if not hanging or less than 4 parents).
     int    pbuff[4 * 8] = {-1,-1,-1,-1, -1,-1,-1,-1,
                            -1,-1,-1,-1, -1,-1,-1,-1,
                            -1,-1,-1,-1, -1,-1,-1,-1,
