@@ -9,7 +9,7 @@
 
 
 static int
-doping_driven_refinement (tmesh::quadrant_iterator quadrant)
+doping_driven_refinement (tmesh_3d::quadrant_iterator quadrant)
 {
 
   constexpr double L = 3.0e-6;
@@ -44,7 +44,7 @@ doping_driven_refinement (tmesh::quadrant_iterator quadrant)
 }
 
 static int
-coarsen_right_half (tmesh::quadrant_iterator quadrant)
+coarsen_right_half (tmesh_3d::quadrant_iterator quadrant)
 {
   constexpr double L = 3.0e-6;
   constexpr double H = 1.0e-5;
@@ -53,7 +53,7 @@ coarsen_right_half (tmesh::quadrant_iterator quadrant)
   double minx = std::numeric_limits<double>::max ();
   double xcoord, ycoord, zcoord;
   
-  for (tmesh::idx_t jj = 0; jj < 8; ++jj)
+  for (tmesh_3d::idx_t jj = 0; jj < 8; ++jj)
     {
       xcoord = quadrant->p(0, jj);
       minx = minx > xcoord ? xcoord : minx;
@@ -79,7 +79,7 @@ main (int argc, char **argv)
   MPI_Comm_size (mpicomm, &size);
 
   if (rank == 0)
-    write_example_connectivity ("p4est_coarsen_test_3d.octbin.gz");
+    write_example_connectivity3 ("p4est_coarsen_test_3d.octbin.gz");
 
   tmsh.read_connectivity ("p4est_coarsen_test_3d.octbin.gz");
   
