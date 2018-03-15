@@ -246,15 +246,15 @@ public:
     p4est_locidx_t qtq;
     
     /// Buffer used when quering coordinates.
-    double vxyz[3*8]  = {0,0,0, 0,0,0, 0,0,0, 0,0,0,
-                         0,0,0, 0,0,0, 0,0,0, 0,0,0,};
-    idx_t  tbuff[8]   = {0,0,0,0,0,0,0,0};
-    bool   hbuff[8]   = {false,false,false,false,
-                         false,false,false,false};
-    int    pbuff[4*8] = {-1,-1,-1,-1, -1,-1,-1,-1,
-                         -1,-1,-1,-1, -1,-1,-1,-1,
-                         -1,-1,-1,-1, -1,-1,-1,-1,
-                         -1,-1,-1,-1, -1,-1,-1,-1};
+    double vxyz[3 * 8]  = {0,0,0, 0,0,0, 0,0,0, 0,0,0,
+                           0,0,0, 0,0,0, 0,0,0, 0,0,0,};
+    idx_t  tbuff[8]     = {0,0,0,0,0,0,0,0};
+    bool   hbuff[8]     = {false,false,false,false,
+                           false,false,false,false};
+    int    pbuff[4 * 8] = {-1,-1,-1,-1, -1,-1,-1,-1,
+                           -1,-1,-1,-1, -1,-1,-1,-1,
+                           -1,-1,-1,-1, -1,-1,-1,-1,
+                           -1,-1,-1,-1, -1,-1,-1,-1};
   };
 
   /// Default constructor, set all pointers to nullptr.

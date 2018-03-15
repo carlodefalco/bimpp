@@ -836,10 +836,24 @@ tmesh_3d::update_ghosts ()
             mirror_data[mirror_end++] = current_mirror.gt (node);
           
           for (int node = 0; node < 8; ++node)
-            for (int pp = 0; pp < 4; ++pp)
-              mirror_data[mirror_end++] =
-                current_mirror.is_hanging (node) ?
-                current_mirror.gparent (pp, node) : -1;
+            if (current_mirror.is_hanging (node))
+              {
+                mirror_data[mirror_end++] =
+                  current_mirror.gparent (0, node);
+                mirror_data[mirror_end++] =
+                  current_mirror.gparent (1, node);
+                mirror_data[mirror_end++] =
+                  current_mirror.gparent (2, node);
+                mirror_data[mirror_end++] =
+                  current_mirror.gparent (3, node);
+              }
+            else
+              {
+                mirror_data[mirror_end++] = -1;
+                mirror_data[mirror_end++] = -1;
+                mirror_data[mirror_end++] = -1;
+                mirror_data[mirror_end++] = -1;
+              }
         }
       
       if (n_mirror > 0)
@@ -851,9 +865,9 @@ tmesh_3d::update_ghosts ()
                      MPI_CHAR, i, tag, comm, &req);
           req_s.push_back (req);
           
-          /*std::cout << "Rank " << rank
+          std::cout << "Rank " << rank
                     << " is sending mirrors to rank "
-                    << i << "." << std::endl;*/
+                    << i << "." << std::endl;
         }
       
       mirror_begin = mirror_end;
@@ -883,9 +897,9 @@ tmesh_3d::update_ghosts ()
                      MPI_CHAR, i, tag, comm, &req);
           req_s.push_back (req);
           
-          /*std::cout << "Rank " << rank
+          std::cout << "Rank " << rank
                     << " is receiving ghosts from rank "
-                    << i << "." << std::endl;*/
+                    << i << "." << std::endl;
         }
       
       ghost_begin += chunk_len * n_ghosts;
