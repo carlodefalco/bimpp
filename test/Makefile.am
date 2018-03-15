@@ -242,7 +242,7 @@ if HAVE_P4EST
   p4est_refine_segment_test_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_refine_segment_test_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_refine_segment_test_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
-  CLEANFILES += p4est_refine_segment_test_3d.octbin*.gz p4est_refine_segment_test_3d*.pvtu \
+  CLEANFILES += p4est_unitcube.octbin.gz p4est_refine_segment_test_3d*.pvtu \
                 p4est_refine_segment_test_3d*.visit p4est_refine_segment_test_3d_*.vtu
   
 endif

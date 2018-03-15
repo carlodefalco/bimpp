@@ -28,11 +28,10 @@ unit_cube (const char * filename)
   std::vector<int> t = {1, 2, 3, 4, 5, 6, 7, 8, 1};
     
   // Save data to file.
-  Matrix oct_p (8, 3, 0);
+  Matrix oct_p (3, 8, 0);
   Array<int> oct_t (dim_vector(9, 1), 0);
     
   std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
-  oct_p = oct_p.transpose ();
   std::copy_n (t.begin (), t.size (), oct_t.fortran_vec ());
     
   octave_scalar_map the_map;
@@ -166,6 +165,14 @@ int main(int argc, char ** argv)
   if (rank == 0)
     unit_cube ("p4est_unitcube.octbin.gz");    
   tmsh.read_connectivity ("p4est_unitcube.octbin.gz");
+  tmsh.update ();
+  tmesh_3d::quadrant_iterator oct = tmsh.begin_quadrant_sweep();
+  while (oct != tmsh.end_quadrant_sweep())
+    {
+      std::cout << "centroid (" << oct->centroid(0) << "," <<
+        oct->centroid(1) << ")" << std::endl;
+      ++oct;
+    }
 
   // Define marking for adaptive refinement.
   std::vector<Segment> s_lst;
@@ -204,7 +211,7 @@ int main(int argc, char ** argv)
     }
   
   // Refine according to segment_list.  
-  for (int cycle = 0; cycle < 16; ++cycle)
+  for (int cycle = 0; cycle < 8; ++cycle)
     {
       // Adaptive refinement.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
@@ -224,7 +231,7 @@ int main(int argc, char ** argv)
       tmsh.vtk_export (name);
       if (rank == 0) { toc ("*** Export ***"); }  
     }
-        
+
   MPI_Barrier (MPI_COMM_WORLD);
   if (rank == 0) { print_timing_report (); }
   
