@@ -554,8 +554,6 @@ tmesh_3d::octbin_export (const char * basename,
     
   std::vector<double> p (3 * num_owned_nodes ());
   std::vector<double> f_loc (num_owned_nodes ());  
-  
-  double fbuff;
 
   Array<octave_idx_type>
     oct_t (dim_vector (8, num_local_quadrants ()), 0);
@@ -590,8 +588,9 @@ tmesh_3d::octbin_export (const char * basename,
             {
               for (int jj = 0; jj < 3; ++jj)
                 p.push_back (quadrant->p (jj, ii));
-              fbuff = 0;
-              for (int pp = 0; pp < quadrant->num_parents (ii); ++pp)
+              int pp;
+              double fbuff = 0;
+              for (pp = 0; pp < quadrant->num_parents (ii); ++pp)
                 fbuff += f [quadrant->gparent (pp, ii)];
               f_loc.push_back (fbuff / pp);
               t[8 * quadrant->get_forest_quad_idx () + (ij++)] =
