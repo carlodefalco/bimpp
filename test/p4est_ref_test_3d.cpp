@@ -12,7 +12,7 @@ doping_driven_refinement (tmesh_3d::quadrant_iterator quadrant)
 
   constexpr double L = 3.0e-6;
   constexpr double H = 1.0e-5;
-  constexpr double W = 1.0e-6;
+  constexpr double W = 5.0e-7;
 
   double maxy = 0, miny = 0, y = 0;
   double xcoord, ycoord, zcoord;
@@ -68,7 +68,7 @@ main (int argc, char **argv)
   if (rank == 0)
     { tic (); }
 
-  for (int k = 0; k < 13 ; ++k)
+  for (int k = 0; k < 4 ; ++k)
     {
       tmsh.set_refine_marker (doping_driven_refinement);
       tmsh.refine (recursive, partforcoarsen);
