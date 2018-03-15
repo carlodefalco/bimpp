@@ -63,6 +63,9 @@ segment_list_refinement (tmesh_3d::quadrant_iterator quadrant,
   Point rtb = {quadrant->p (0, 7), //right top back corner
                quadrant->p (1, 7),
                quadrant->p (2, 7)};
+
+  double inter_1, inter_2;
+  std::array <int, 3> dim_i = {0, 1, 2};
     
   for (int segment = 0; segment < segment_list.size(); ++segment)
     {
@@ -71,6 +74,74 @@ segment_list_refinement (tmesh_3d::quadrant_iterator quadrant,
         
       if (point_in_cube (A, lbf, rtb) || point_in_cube (B, lbf, rtb))
         return 1;
+      
+      // Ignore segments that don't intersect current quadrant.
+      for (auto ii : dim_i)
+        if (A[ii] <= lbf[ii] && B[ii] <= lbf[ii] ||
+            A[ii] >= rtb[ii] && B[ii] >= rtb[ii])
+          { continue; }
+        
+      /*
+       * Faces numbering:
+       *
+       *  +-------------+
+       *  |\            |\
+       *  | \     \5\   | \
+       *  |  \  |3|     |  \
+       *  |   +-------------+
+       *  | 0 |         | 1 |
+       *  +---|---------+   |
+       *   \  |     |2|  \  |
+       *    \ |   \4\     \ |
+       *     \|            \|
+       *      +-------------+
+       *
+       * Edges numbering:
+       *        3
+       *  +-------------+
+       *  |\            |\
+       *  | \6          | \7
+       *  |10\      2   |11\
+       *  |   +-------------+
+       *  |   | 1       |   |
+       *  +---|---------+   |
+       *   \  |8         \  |9
+       *    \4|           \5|
+       *     \|     0      \|
+       *      +-------------+
+       */
+
+      for (int ii = 0; ii < 3; ++ii)
+        if (A[ii] != B[ii])
+          {
+            // Side 0, 2, 4
+            t = (lbf[ii] - B[ii]) / (A[ii] - B[ii]);
+              
+            inter_1 = A[dim_i[(ii + 1) % 3] * t +
+                      B[dim_i[(ii + 1) % 3] * (1 - t);
+            inter_2 = A[dim_i[(ii + 2) % 3] * t +
+                      B[dim_i[(ii + 2) % 3] * (1 - t);
+              
+            if (inter_1 >= lbf[dim_i[(ii + 1) % 3] &&
+                inter_1 <= rtb[dim_i[(ii + 1) % 3] &&
+                inter_2 >= lbf[dim_i[(ii + 2) % 3] &&
+                inter_2 <= rtb[dim_i[(ii + 2) % 3])
+              return 1;
+              
+            // Side 1, 3, 5
+            t = (rtb[ii] - B[ii]) / (A[ii] - B[ii]);
+              
+            inter_1 = A[dim_i[(ii + 1) % 3] * t +
+                      B[dim_i[(ii + 1) % 3] * (1 - t);
+            inter_2 = A[dim_i[(ii + 2) % 3] * t +
+                      B[dim_i[(ii + 2) % 3] * (1 - t);
+              
+            if (inter_1 >= lbf[dim_i[(ii + 1) % 3] &&
+                inter_1 <= rtb[dim_i[(ii + 1) % 3] &&
+                inter_2 >= lbf[dim_i[(ii + 2) % 3] &&
+                inter_2 <= rtb[dim_i[(ii + 2) % 3])
+              return 1;
+          }
     }
     
   return 0;
