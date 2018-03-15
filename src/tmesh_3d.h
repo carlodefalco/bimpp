@@ -246,7 +246,7 @@ public:
     p4est_locidx_t qtq;
     
     /// Buffer used when quering coordinates.
-    double vxyz[3 * 8]  = {0,0,0, 0,0,0, 0,0,0, 0,0,0,
+    double vxyz [3 * 8] = {0,0,0, 0,0,0, 0,0,0, 0,0,0,
                            0,0,0, 0,0,0, 0,0,0, 0,0,0,};
     idx_t  tbuff[8]     = {0,0,0,0,0,0,0,0};
     bool   hbuff[8]     = {false,false,false,false,

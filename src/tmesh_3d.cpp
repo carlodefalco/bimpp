@@ -280,7 +280,7 @@ tmesh_3d::quadrant_t::gparent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
          (tbuff[pbuff[ip + in * 4]]));
     }
   else
-      return pbuff[4 * in + ip];
+      return pbuff[ip + in * 4];
 };
 
 tmesh_3d::idx_t
@@ -836,24 +836,18 @@ tmesh_3d::update_ghosts ()
             mirror_data[mirror_end++] = current_mirror.gt (node);
           
           for (int node = 0; node < 8; ++node)
-            if (current_mirror.is_hanging (node))
-              {
-                mirror_data[mirror_end++] =
-                  current_mirror.gparent (0, node);
-                mirror_data[mirror_end++] =
-                  current_mirror.gparent (1, node);
-                mirror_data[mirror_end++] =
-                  current_mirror.gparent (2, node);
-                mirror_data[mirror_end++] =
-                  current_mirror.gparent (3, node);
-              }
-            else
-              {
-                mirror_data[mirror_end++] = -1;
-                mirror_data[mirror_end++] = -1;
-                mirror_data[mirror_end++] = -1;
-                mirror_data[mirror_end++] = -1;
-              }
+            {
+            std::cout<<"***rank = "<<rank<<", i = "<<i<<", j = "<<j
+              <<", node = "<<node<<", hbuff = "<<current_mirror.hbuff[node]
+              <<", pbuff = "<<current_mirror.pbuff[node*4]<<" "
+              <<current_mirror.pbuff[node*4+1]<<" "
+              <<current_mirror.pbuff[node*4+2]<<" "
+              <<current_mirror.pbuff[node*4+3]<<std::endl;
+            for (int pp = 0; pp < 4; ++pp)
+              mirror_data[mirror_end++] =
+                current_mirror.is_hanging (node) ?
+                current_mirror.gparent (pp, node) : -1;
+            }
         }
       
       if (n_mirror > 0)
