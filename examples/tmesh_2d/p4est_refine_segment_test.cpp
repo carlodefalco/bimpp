@@ -75,16 +75,16 @@ segment_list_refinement (tmesh::quadrant_iterator quadrant,
        *        3
        *   +---------+
        *   |         |
-       * 4 |         | 2
+       * 0 |         | 1
        *   |         |
        *   +---------+
-       *        1
+       *        2
        */
         
       // If AB is not horizontal.
       if (yA != yB)
         {
-          // Side 1.
+          // Side 2.
           t = (y0 - yB) / (yA - yB);
             
           double x_intersect = xA * t + xB * (1 - t);
@@ -104,7 +104,7 @@ segment_list_refinement (tmesh::quadrant_iterator quadrant,
       // If AB is not vertical.
       if (xA != xB)
         {
-          // Side 2.
+          // Side 0.
           t = (x0 - xB) / (xA - xB);
             
           double y_intersect = yA * t + yB * (1 - t);
@@ -112,7 +112,7 @@ segment_list_refinement (tmesh::quadrant_iterator quadrant,
           if (y_intersect >= y0 && y_intersect <= y1)
             return true;
             
-          // Side 4.
+          // Side 1.
           t = (x1 - xB) / (xA - xB);
             
           y_intersect = yA * t + yB * (1 - t);
