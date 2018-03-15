@@ -248,10 +248,10 @@ tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
               pbuff[4 * i + 3] =
                 the_tmesh->ghost_data[40 * idx + 11 + 4 * i];
               
-              if (pbuff[4 * i] != -1
-                  || pbuff[4 * i + 1] != -1
-                  || pbuff[4 * i + 2] != -1
-                  || pbuff[4 * i + 3] != -1)
+              if (pbuff[4 * i]     != -1 ||
+                  pbuff[4 * i + 1] != -1 ||
+                  pbuff[4 * i + 2] != -1 ||
+                  pbuff[4 * i + 3] != -1)
                 hbuff[i] = true;
               else
                 hbuff[i] = false;

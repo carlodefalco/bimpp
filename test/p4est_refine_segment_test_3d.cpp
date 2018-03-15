@@ -169,14 +169,6 @@ int main(int argc, char ** argv)
   if (rank == 0)
     unit_cube ("p4est_unitcube.octbin.gz");    
   tmsh.read_connectivity ("p4est_unitcube.octbin.gz");
-  tmsh.update ();
-  tmesh_3d::quadrant_iterator oct = tmsh.begin_quadrant_sweep();
-  while (oct != tmsh.end_quadrant_sweep())
-    {
-      std::cout << "centroid (" << oct->centroid(0) << "," <<
-        oct->centroid(1) << ")" << std::endl;
-      ++oct;
-    }
 
   // Define marking for adaptive refinement.
   std::vector<Segment> s_lst;
