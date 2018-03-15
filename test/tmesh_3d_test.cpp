@@ -10,7 +10,11 @@ main (int argc, char **argv)
   MPI_Comm              mpicomm = MPI_COMM_WORLD;  
   int                   rank, size;
   tmesh_3d              tmsh;
-
+  
+  mpicomm = MPI_COMM_WORLD;
+  MPI_Comm_rank (mpicomm, &rank);
+  MPI_Comm_size (mpicomm, &size);
+  
   std::cout << "conn test" << std::endl << (int*)nullptr << std::endl
     << (int*)(tmsh.conn) << std::endl;
     
@@ -29,6 +33,7 @@ main (int argc, char **argv)
         oct->centroid(1) << ")" << std::endl;
       ++oct;
     }
-     
+  
+  MPI_Finalize ();
   return 0;
 }

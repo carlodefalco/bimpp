@@ -241,7 +241,7 @@ int main(int argc, char ** argv)
     }
   
   // Refine according to segment_list.  
-  for (int cycle = 0; cycle < 8; ++cycle)
+  for (int cycle = 0; cycle < 12; ++cycle)
     {
       // Adaptive refinement.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
