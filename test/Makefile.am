@@ -214,13 +214,13 @@ if HAVE_P4EST
   p4est_up_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_up_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += p4est_up_test.octbin.gz p4est_up_test*.pvtu p4est_up_test*.visit p4est_up_test_*.vtu
-  
+
   tmesh_3d_test_SOURCES =  tmesh_3d_test.cpp 
   tmesh_3d_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   tmesh_3d_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   tmesh_3d_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += tmesh_3d_out.txt
-  
+
   p4est_load_save_test_3d_SOURCES =  p4est_load_save_test_3d.cpp mosfet_connectivity_3d.cpp
   p4est_load_save_test_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_load_save_test_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
@@ -230,7 +230,7 @@ if HAVE_P4EST
                 p4est_load_save_test_3d.pvtu p4est_load_save_test_3d.visit \
                 p4est_load_save_test_3d_*.vtu p4est_load_save_test_3d_2.pvtu \
                 p4est_load_save_test_3d_2.visit p4est_load_save_test_3d_2*.vtu
-                
+
   p4est_up_test_3d_SOURCES =  p4est_up_test_3d.cpp 
   p4est_up_test_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_up_test_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
@@ -244,14 +244,14 @@ if HAVE_P4EST
   p4est_refine_segment_test_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += p4est_unitcube.octbin.gz p4est_refine_segment_test_3d*.pvtu \
                 p4est_refine_segment_test_3d*.visit p4est_refine_segment_test_3d_*.vtu
-  
+
   p4est_ref_test_3d_SOURCES =  p4est_ref_test_3d.cpp mosfet_doping_3d.cpp mosfet_connectivity_3d.cpp
   p4est_ref_test_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
   p4est_ref_test_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
   p4est_ref_test_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += p4est_ref_test_3d.octbin*.gz p4est_ref_test_3d*.pvtu \
                 p4est_ref_test_3d*.visit p4est_ref_test_3d_*.vtu
-  
+
 endif
 
 TESTS =
