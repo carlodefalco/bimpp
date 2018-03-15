@@ -68,7 +68,7 @@ main (int argc, char **argv)
   if (rank == 0)
     { tic (); }
 
-  for (int k = 0; k < 4 ; ++k)
+  for (int k = 0; k < 6 ; ++k)
     {
       tmsh.set_refine_marker (doping_driven_refinement);
       tmsh.refine (recursive, partforcoarsen);
