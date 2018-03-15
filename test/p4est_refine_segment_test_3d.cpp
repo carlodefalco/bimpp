@@ -63,6 +63,7 @@ segment_list_refinement (tmesh_3d::quadrant_iterator quadrant,
                quadrant->p (1, 7),
                quadrant->p (2, 7)};
 
+  bool pext;
   double t, inter_1, inter_2;
   std::array <int, 3> dim_i = {0, 1, 2};
     
@@ -75,10 +76,13 @@ segment_list_refinement (tmesh_3d::quadrant_iterator quadrant,
         return 1;
       
       // Ignore segments that don't intersect current quadrant.
+      pext = false;
       for (auto ii : dim_i)
-        if (A[ii] <= lbf[ii] && B[ii] <= lbf[ii] ||
-            A[ii] >= rtb[ii] && B[ii] >= rtb[ii])
-          { continue; }
+        pext = pext || (A[ii] < lbf[ii] && B[ii] < lbf[ii]) ||
+                       (A[ii] > rtb[ii] && B[ii] > rtb[ii]);
+      
+      if (pext)
+        continue;
         
       /*
        * Faces numbering:
@@ -176,7 +180,41 @@ int main(int argc, char ** argv)
 
   // Define marking for adaptive refinement.
   std::vector<Segment> s_lst;
-  s_lst.push_back ({Point({0.1, 0.1, 0.1}), Point({0.5, 0.5, 0.1})});
+  s_lst.push_back ({Point({.1, .7, .95}), Point({.1, .9, .95})});//P
+  s_lst.push_back ({Point({.1, .9, .95}), Point({.2, .9, .95})});
+  s_lst.push_back ({Point({.2, .9, .95}), Point({.2, .8, .95})});
+  s_lst.push_back ({Point({.2, .8, .95}), Point({.1, .8, .95})});
+  s_lst.push_back ({Point({.3, .7, .95}), Point({.3, .9, .95})});//A
+  s_lst.push_back ({Point({.3, .9, .95}), Point({.4, .9, .95})});
+  s_lst.push_back ({Point({.4, .9, .95}), Point({.4, .7, .95})});
+  s_lst.push_back ({Point({.3, .8, .95}), Point({.4, .8, .95})});
+  s_lst.push_back ({Point({.6, .9, .95}), Point({.5, .9, .95})});//C
+  s_lst.push_back ({Point({.5, .9, .95}), Point({.5, .7, .95})});
+  s_lst.push_back ({Point({.5, .7, .95}), Point({.6, .7, .95})});
+  s_lst.push_back ({Point({.7, .7, .95}), Point({.8, .7, .95})});//S
+  s_lst.push_back ({Point({.8, .7, .95}), Point({.8, .8, .95})});
+  s_lst.push_back ({Point({.8, .8, .95}), Point({.7, .8, .95})});
+  s_lst.push_back ({Point({.7, .8, .95}), Point({.7, .9, .95})});
+  s_lst.push_back ({Point({.7, .9, .95}), Point({.8, .9, .95})});
+  s_lst.push_back ({Point({.1, .6, .95}), Point({.2, .6, .95})});//2
+  s_lst.push_back ({Point({.2, .6, .95}), Point({.2, .5, .95})});
+  s_lst.push_back ({Point({.2, .5, .95}), Point({.1, .5, .95})});
+  s_lst.push_back ({Point({.1, .5, .95}), Point({.1, .4, .95})});
+  s_lst.push_back ({Point({.1, .4, .95}), Point({.2, .4, .95})});
+  s_lst.push_back ({Point({.3, .4, .95}), Point({.3, .6, .95})});//0
+  s_lst.push_back ({Point({.3, .6, .95}), Point({.4, .6, .95})});
+  s_lst.push_back ({Point({.4, .6, .95}), Point({.4, .4, .95})});
+  s_lst.push_back ({Point({.4, .4, .95}), Point({.3, .4, .95})});
+  s_lst.push_back ({Point({.5, .5, .95}), Point({.6, .6, .95})});//1
+  s_lst.push_back ({Point({.6, .6, .95}), Point({.6, .4, .95})});
+  s_lst.push_back ({Point({.7, .5, .95}), Point({.7, .6, .95})});//8
+  s_lst.push_back ({Point({.7, .6, .95}), Point({.8, .6, .95})});
+  s_lst.push_back ({Point({.8, .6, .95}), Point({.8, .5, .95})});
+  s_lst.push_back ({Point({.8, .5, .95}), Point({.7, .5, .95})});
+  s_lst.push_back ({Point({.7, .5, .95}), Point({.7, .4, .95})});
+  s_lst.push_back ({Point({.7, .4, .95}), Point({.8, .4, .95})});
+  s_lst.push_back ({Point({.8, .4, .95}), Point({.8, .5, .95})});
+  s_lst.push_back ({Point({.1, .2, 1.0}), Point({.8, .2, .95})});//--
 
   std::function<int (tmesh_3d::quadrant_iterator)> segment_refin =
     [s_lst] (tmesh_3d::quadrant_iterator qi)
