@@ -177,7 +177,7 @@ tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
   p8est_lnodes_t *ln = the_tmesh->lnodes;
   p4est_locidx_t lni;
 
-  int c, h, num_parents;
+  int c, h, n_parents;
   const int *base_corner;
   
   corner_to_hanging[0]        = &zero;
@@ -220,10 +220,10 @@ tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
               if (hanging_corner[i] >= 0)
                 {
                   c = hanging_corner[i];
-                  num_parents = corner_num_hanging[i ^ c];
+                  n_parents = corner_num_hanging[i ^ c];
                   base_corner = corner_to_hanging[i ^ c];
-                  hbuff[i] = num_parents;
-                  for (j = 0; j < num_parents; ++j)
+                  hbuff[i] = n_parents;
+                  for (j = 0; j < n_parents; ++j)
                     pbuff[4 * i + j] = base_corner[j] ^ c;
                 }
         }
@@ -383,6 +383,9 @@ bool
 tmesh_3d::quadrant_t::is_hanging (tmesh_3d::idx_t i)
 { return hbuff[i] > 0; };
 
+int
+tmesh_3d::quadrant_t::num_parents (tmesh_3d::idx_t i)
+{ return hbuff[i]; };
 
 tmesh_3d::~tmesh_3d ()
 {
