@@ -10,16 +10,16 @@
 #include <vector>
 
 /// f(x, y, z).
-using func = std::function<double (double, double, double)>; 
+using func3 = std::function<double (double, double, double)>; 
 
-using dirichlet_bcs = std::vector<std::tuple<int, int, func>>;
+using dirichlet_bcs = std::vector<std::tuple<int, int, func3>>;
 
 using q1_vec = std::vector<double>;
 
-using gradient = std::tuple<q1_vec, q1_vec, q1_vec>;
+using gradient3 = std::tuple<q1_vec, q1_vec, q1_vec>;
 
 /// Nodes, faces, cell midpoint dofs.
-using q2_vec = std::vector<std::array<double, 27>>;
+using q2_vec3 = std::vector<std::array<double, 27>>;
 
 /// Function to mark if a quadrant has to be taken into
 /// account when computing the recovered gradient.
@@ -61,43 +61,43 @@ double
 nedelec_gradient (tmesh_3d::quadrant_iterator & q,
                   const q1_vec& u, size_t i);
 
-gradient
+gradient3
 bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
                                        const q1_vec& u,
                                        active_fun is_active =
                                         [] (tmesh_3d::quadrant_iterator)
                                          {return true;});
 
-q2_vec
+q2_vec3
 bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
                                        const q1_vec& u,
-                                       const gradient& du);
+                                       const gradient3& du);
 
 double
 estimator_grad (tmesh_3d::quadrant_iterator q,
-                const gradient & du_star,
+                const gradient3 & du_star,
                 const q1_vec & u);
 
 int 
 zz_marker_grad (tmesh_3d::quadrant_iterator q,
-                const gradient& du_star,
+                const gradient3& du_star,
                 const q1_vec& u,
                 double limit);
 
 double
 estimator_sol (tmesh_3d::quadrant_iterator q,
-               const q2_vec & ustar,
-               const q1_vec & u);
+               const q2_vec3 & ustar,
+               const q1_vec3 & u);
 
 int 
 zz_marker_sol (tmesh_3d::quadrant_iterator q,
-               const q2_vec& ustar,
+               const q2_vec3& ustar,
                const q1_vec& u,
                double limit);
 
 double
 l2_error (tmesh_3d::quadrant_iterator q,
-          const func & u_ex,
+          const func3 & u_ex,
           const q1_vec & u);
 
 #endif
