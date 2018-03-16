@@ -241,6 +241,95 @@ bim3a_rhs (tmesh_3d& mesh,
      }
 }
 
+void
+bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs& bcs,
+                    sparse_matrix& A, std::vector<double>& rhs)
+{
+  std::vector<double> row_sum (A.size ());
+  
+  // Set zero diagonal entries to sum (abs (row)).
+  for (unsigned int row = 0; row < A.size (); ++row)
+    {
+      if (std::abs (A[row][row])
+          < std::numeric_limits<double>::epsilon ())
+        {
+          row_sum[row] = std::accumulate
+            (A[row].begin (), A[row].end (), 0.0,
+              [] (double value,
+                  const std::map<int, double>::value_type & p)
+                {
+                  return (value + std::abs (p.second));
+                }
+            );
+        }
+    }
+  
+  int boundary_idx, tree_idx;
+  unsigned int row, col;
+  
+  std::set<unsigned int> marked;
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      tree_idx = quadrant->get_tree_idx ();
+      
+      for (int i = 0; i < 8; ++i)
+        {
+          boundary_idx = quadrant->e (i);
+          row = quadrant->gt (i);
+          
+          // If current node is on boundary and has not
+          // been handled before.
+          if (boundary_idx != tmesh_3d::quadrant_t::NOT_ON_BOUNDARY
+              && marked.count(row) == 0)
+            {
+              // Mark current node so to avoid duplicate operations.
+              marked.insert (row); 
+              
+              // Loop over all the boundary conditions.
+              for (size_t bc = 0; bc < bcs.size (); ++bc)
+                // If this boundary condition matches with
+                // the current node.
+                if (std::get<0> (bcs[bc]) == tree_idx
+                    && std::get<1> (bcs[bc]) == boundary_idx)
+                  {
+                    // Impose boundary condition at rhs by
+                    // evaluating it at the current node.
+                    rhs[row] =
+                      (std::get<2> (bcs[bc]))
+                      (quadrant->p (0, i),
+                       quadrant->p (1, i),
+                       quadrant->p (2, i));
+                    
+                    // Move non-diagonal entries
+                    // from column "row" to rhs.
+                    if (A[row].size ())
+                      for (auto j = A[row].begin ();
+                           j != A[row].end (); ++j)
+                        {
+                          col = A.col_idx (j);
+                          
+                          if (row != col)
+                            {
+                              A[row][col] = 0.0;
+                              rhs[col] -= A[col][row] * rhs[row];
+                              A[col][row] = 0.0;
+                            }
+                        }
+                    
+                    if (std::abs (A[row][row])
+                        < std::numeric_limits<double>::epsilon ())
+                      A[row][row] = row_sum[row];
+                    
+                    // Multiply rhs by the diagonal entry.
+                    rhs[row] *= A[row][row];
+                  }
+            }
+        }
+    }
+}
 
 // MPI_User_function.
 static void replace(double *invec, double *inoutvec,
