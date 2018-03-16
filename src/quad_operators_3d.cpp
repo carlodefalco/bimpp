@@ -8,12 +8,6 @@
 #include <limits>
 #include <iomanip>
 
-double
-hm (const double & a, const double & b)
-{
-  return 2. / (1. / a + 1. / b);
-}
-
 void 
 bim3a_advection_diffusion (tmesh_3d& mesh,
                            const std::vector<double>& alpha,
