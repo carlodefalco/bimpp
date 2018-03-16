@@ -23,7 +23,7 @@ using q2_vec = std::vector<std::array<double, 27>>;
 
 /// Function to mark if a quadrant has to be taken into
 /// account when computing the recovered gradient.
-using active_fun = std::function<bool (tmesh::quadrant_iterator)>;
+using active_fun = std::function<bool (tmesh_3d::quadrant_iterator)>;
 
 // Compute harmonic mean of a and b.
 double
