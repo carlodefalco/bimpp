@@ -8,6 +8,70 @@
 #include <limits>
 #include <iomanip>
 
+void
+bimu_bernoulli (double x, double &bp, double &bn)
+{
+  const double xlim = 1.0e-2;
+  double ax  = fabs (x);
+
+  bp  = 0.0;
+  bn  = 0.0;
+
+  //  X=0
+  if (x == 0.0)
+    {
+      bp = 1.0;
+      bn = 1.0;
+      return;
+    }
+
+  // ASYMPTOTICS
+  if (ax > 80.0)
+    {
+      if (x > 0.0)
+        {
+          bp = 0.0;
+          bn = x;
+        }
+      else
+        {
+          bp = -x;
+          bn = 0.0;
+        }
+      return;
+    }
+
+  // INTERMEDIATE VALUES
+  if (ax <= 80 &&  ax > xlim)
+    {
+      bp = x / (exp (x) - 1.0);
+      bn = x + bp;
+      return;
+    }
+
+  // SMALL VALUES
+  if (ax <= xlim &&  ax != 0.0)
+    {
+      double jj = 1.0;
+      double fp = 1.0;
+      double fn = 1.0;
+      double df = 1.0;
+      double segno = 1.0;
+      while (fabs (df) > 1.0e-16)
+        {
+          jj += 1.0;
+          segno = -segno;
+          df = df * x / jj;
+          fp = fp + df;
+          fn = fn + segno * df;
+        }
+      bp = 1 / fp;
+      bn = 1 / fn;
+      return;
+    }
+
+};
+
 void 
 bim3a_advection_diffusion (tmesh_3d& mesh,
                            const std::vector<double>& alpha,

@@ -2,7 +2,6 @@
 #define HAVE_QUAD_OPERATORS_3D_H 1
 
 #include "bim_sparse.h"
-#include "operators.h"
 #include "tmesh_3d.h"
 
 #include <functional>
@@ -25,9 +24,12 @@ using q2_vec3 = std::vector<std::array<double, 27>>;
 /// account when computing the recovered gradient.
 using active_fun = std::function<bool (tmesh_3d::quadrant_iterator)>;
 
-// Compute harmonic mean of a and b.
-double
-hm (const double & a, const double & b);
+/// Robustly compute B'(x), B(x) = x / (exp(x) - 1).
+/// Stores B'(x) and B'(-x)
+void
+bimu_bernoulli_derivative (double x,
+                           double &bpp,
+                           double &bmp);
 
 void
 bim2a_advection_diffusion (tmesh_3d & mesh,
