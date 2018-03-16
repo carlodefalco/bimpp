@@ -2,6 +2,7 @@
 #define HAVE_QUAD_OPERATORS_3D_H 1
 
 #include "bim_sparse.h"
+#include "operators.h"
 #include "tmesh_3d.h"
 
 #include <functional>
@@ -24,39 +25,36 @@ using q2_vec3 = std::vector<std::array<double, 27>>;
 /// account when computing the recovered gradient.
 using active_fun = std::function<bool (tmesh_3d::quadrant_iterator)>;
 
-/// Robustly compute B'(x), B(x) = x / (exp(x) - 1).
-/// Stores B'(x) and B'(-x)
-void
-bimu_bernoulli_derivative (double x,
-                           double &bpp,
-                           double &bmp);
+// Compute harmonic mean of a and b.
+double
+hm (const double & a, const double & b);
 
 void
-bim2a_advection_diffusion (tmesh_3d & mesh,
+bim3a_advection_diffusion (tmesh_3d & mesh,
                            const std::vector<double>& alpha,
                            const std::vector<double>& psi,
                            sparse_matrix& A);
 
 void
-bim2a_advection_eafe_diffusion (tmesh_3d & mesh,
+bim3a_advection_eafe_diffusion (tmesh_3d & mesh,
                                 const std::vector<double>& alpha,
                                 const std::vector<double>& psi,
                                 sparse_matrix& A);
 
 void
-bim2a_reaction (tmesh_3d& mesh,
+bim3a_reaction (tmesh_3d& mesh,
                 const std::vector<double>& delta,
                 const std::vector<double>& zeta,
                 sparse_matrix& A);
 
 void
-bim2a_rhs (tmesh_3d& mesh,
+bim3a_rhs (tmesh_3d& mesh,
            const std::vector<double>& f,
            const std::vector<double>& g,
            std::vector<double>& rhs);
 
 void
-bim2a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs& bcs,
+bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs& bcs,
                     sparse_matrix& A, std::vector<double>& rhs);
 
 double
