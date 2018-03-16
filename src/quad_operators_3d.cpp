@@ -145,6 +145,55 @@ bim3a_advection_diffusion (tmesh_3d& mesh,
     }
 }
 
+void
+bim3a_reaction (tmesh_3d& mesh,
+                const std::vector<double>& delta,
+                const std::vector<double>& zeta,
+                sparse_matrix& A)
+{
+  double hx, hy, hz;
+  
+  unsigned int iel = 0;
+  std::vector<unsigned int> rows;
+  rows.reserve(4);
+  
+  double z_loc = 0;
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      hx = quadrant->p(0, 7) - quadrant->p(0, 0);
+      hy = quadrant->p(1, 7) - quadrant->p(1, 0);
+      hz = quadrant->p(2, 7) - quadrant->p(2, 0);
+      
+      iel = quadrant->get_forest_quad_idx ();
+      
+      for(int i = 0; i < 8; ++i)
+        {
+          rows.clear();
+          z_loc = 0;
+          if (!quadrant->is_hanging (i))
+            {
+              rows.push_back (quadrant->gt (i));
+              z_loc = zeta[quadrant->gt (i)];
+            }
+          else
+            for (int pp = 0; pp < quadrant->num_parents (i); ++pp)
+              {
+                rows.push_back (quadrant->gparent (pp, i));
+                z_loc += zeta[quadrant->gparent (pp, i)] /
+                                quadrant->num_parents (i);
+              }
+          
+          for (int r = 0; r < rows.size (); ++r)
+            A[rows[r]][rows[r]] +=
+              (delta[iel] * z_loc * hx * hy * hz / 8) / rows.size ();
+        }
+    }
+}
+
+
 // MPI_User_function.
 static void replace(double *invec, double *inoutvec,
                     int *len, MPI_Datatype *dtype)
