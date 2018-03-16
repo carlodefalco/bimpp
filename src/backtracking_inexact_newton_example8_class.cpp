@@ -15,8 +15,7 @@
 #include <operators.h>
 #include <nonlinear_solver.h>
 #include <linear_solver.h>
-#include <sstream>
-//#include <lis.h>
+
 
 void
 backtracking_inexact_newton_example8::set_problem
@@ -75,7 +74,7 @@ backtracking_inexact_newton_example8::solve ()
         residual_norm += rhs[i] * rhs[i];
 
       residual_norm = sqrt (residual_norm);
-      std::cout<<"il residuo iniziale è "<< residual_norm<<std::endl;
+      std::cout<<"Initial residual "<< residual_norm<<std::endl;
       #ifdef VERIFY_CONVERGENCE
         nonlinear_res.push_back (residual_norm);
         linear_res.push_back (residual_norm);
@@ -102,6 +101,14 @@ backtracking_inexact_newton_example8::solve ()
                 << std::endl << std::endl;
    
         lin_initial_guess.assign (n, 0.0);
+        
+        
+        std::string type_of_iterative_method;
+        lin_solver->get_iterative_method(type_of_iterative_method);
+        std::cout <<"Linear solver used : ";
+        std::cout <<type_of_iterative_method << std::endl; 
+        std::cout <<std::endl;          
+  
         printf ("%10.10s | \t%10.10s | \t%10.10s | \t%s | \t%10.10s\n",
           "  Iterates", "    lambda",
           "     ||F||", "       eta",
@@ -109,21 +116,13 @@ backtracking_inexact_newton_example8::solve ()
 
         printf ("__________________________________________________________________________\n");
     }
-
+  
   bool FLAG = 0;
-  std::string type_of_iterative_method;
-  lin_solver->get_iterative_method(type_of_iterative_method);
-  std::cout <<type_of_iterative_method << std::endl;           
   do
     {
       ++iteration;
       if (rank ==0)
       {
-             if (verbose >= 1)
-                  printf ("%10.5d |\t%10.5g |\t%10.5g |\t%10.5g |\t",
-                          iteration, theta_k, residual_norm, forcing_value);
-            // Ho cercato di essere coerente con la struttuta del output dell'articolo per
-            // confrontare meglio i risultati, ma, poi, forse è meglio cambiarla.
              if (iteration > 1)
               {
                    df_gap = lhs * rhs;
@@ -150,45 +149,11 @@ backtracking_inexact_newton_example8::solve ()
           if (rank == 0)
             lin_solver->set_rhs (rhs);
 
-          if (lin_solver->solver_type () == "iterative")
+         if (lin_solver->solver_type () == "iterative")
             {
-              lin_solver->set_tolerance (forcing_value);
-            //  lin_solver->set_initial_guess (lin_initial_guess);
+             lin_solver->set_tolerance (forcing_value);
+             lin_solver->set_initial_guess (lin_initial_guess);
             }
-
-     /*     if (lin_solver->solver_type () == "iterative")
-          {
-            // auto tmp = static_cast<backtracking_inexact_newton_example8*> (solver);
-             std::stringstream opt;
-             opt << "-maxiter " << n
-                 << " -tol " << forcing_value
-                 << " -i " << "gmres "
-	         << " -restart " << n << " "
-                 << " -p " << "none "
-                 << " -conv_cond " << "norm2_r ";
-
-       
-            opt << " -initx_zeros true ";
-
-            std::cout << std::endl << opt.str () << std::endl;
-            
-            static_cast<lis*> (lin_solver)->option_string = opt.str ();
-            static_cast<lis*> (lin_solver)->option_string_set = true;
-
-          }
-*/
-
-          // CONTROLLO rhs E lhs
-          /*if (rank==0)
-          {
-          std::cout<<"J(x) :"<<std::endl;
-          std::cout<<lhs<<std::endl;
-          std::cout<<"-F(x) con dimensione = "<<rhs.size()<<std::endl;
-          for (unsigned int i = 0; i < rhs.size() ; ++i)
-              {
-                std::cout<<rhs[i]<<std::endl;
-              }
-          }  */
 
           lin_solver->solve ();   ///*///*///*///*///*///*///*///*///*///*
    
@@ -275,9 +240,11 @@ backtracking_inexact_newton_example8::solve ()
              
              if (m > 19) FLAG = 1;
              else
-               { if (verbose >=1) 
+               { if (verbose >=1) {
+                    printf ("%10.5d |\t%10.5g |\t%10.5g |\t%10.5g |\t",
+                          iteration, theta_k, residual_norm, forcing_value);
                     printf ("%10.10s\n", "PN");
-                 
+                 }
 
                  if (verbose == 2)
                   {
@@ -315,8 +282,11 @@ backtracking_inexact_newton_example8::solve ()
         
         if(FLAG == 1)
           {
-            if (rank==0 && verbose >= 1) 
-                   printf ("%10.10s\n","PG");
+            if (rank==0 && verbose >= 1){
+                   printf ("%10.5d |\t%10.5g |\t%10.5g |\t%10.5g |\t",
+                          iteration, theta_k, residual_norm, forcing_value);
+                   printf ("%10.10s\n", "PG"); 
+                  }
             
             if (rank == 0 )
             { 
@@ -446,6 +416,7 @@ backtracking_inexact_newton_example8::solve ()
         MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Bcast (&forcing_value, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         } // FLAG == 1
+
   }
   while (iteration <= max_iter
          && residual_norm > min_residual);

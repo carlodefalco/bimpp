@@ -77,18 +77,18 @@ run_test_problem (nonlinear_solver *solver)
 
       exactsolution.assign (n , 1.0);
       uold.assign (n , 0.0);
-      // Assegno i bordi del dominio
+      // Assign the limits for the solution, b1 lower limit, b2 upper limit
       b1.assign (n , 0.5);
       b2.assign (n , 2.0);
       b1[0] = 0.8; 
-      // Assegno x0 
+      // Assign x0 
       for (int i=0; i <20 ; ++i)
 	{
-          uold[i]=0.1; 
+          uold[i]=0.9; 
 	}
       for (int i=20; i <n ; ++i)
 	{
-          uold[i]=0.6;
+          uold[i]=0.5;
 	}
       nonlinear_system->set_exact_solution (exactsolution);
     }
@@ -111,38 +111,20 @@ run_test_problem (nonlinear_solver *solver)
       }
     }
 
-  solver->set_max_iterations (100);
+  solver->set_max_iterations (5);
   solver->set_tolerance (1e-12);
   solver->set_min_residual (1e-12);
   solver->set_norm_type (L2);
-  solver->set_max_iterations_of_linear_solver(n); 
-  solver->set_initial_tolerance_of_linear_solver(.765518617913987);   
-  if (solver->linear_solver_type () == "iterative")
-    {
-      auto tmp = static_cast<backtracking_inexact_newton_example8*> (solver);
-      std::stringstream opt;
-      opt << "-maxiter " << n
-          << " -tol " << .765518617913987
-          << " -i " << "gmres "
-	  << " -restart " << n << " "
-          << " -p " << "none "
-          << " -conv_cond " << "norm2_r ";
-
-      
-      opt << " -initx_zeros true ";
-
-     // std::cout << std::endl << opt.str () << std::endl;
-      
-      static_cast<lis*> (tmp->lin_solver)->option_string = opt.str ();
-      static_cast<lis*> (tmp->lin_solver)->option_string_set = true;
-
+  if (solver->linear_solver_type () == "iterative")  
+    { 
+     auto tmp = static_cast<backtracking_inexact_newton_example8*> (solver);
+     static_cast<lis*> (tmp->lin_solver)->set_iterative_method("GMRES"); 
+     solver->set_max_iterations_of_linear_solver(n); 
+     solver->set_initial_tolerance_of_linear_solver(.765518617913987);   
     }
-  
 
    bool converged = solver->solve ();
-
-
-
+ 
   if (rank == 0)
     {
       if (converged)
