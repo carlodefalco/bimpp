@@ -97,22 +97,22 @@ bim3a_advection_diffusion (tmesh_3d& mesh,
       bp57 *= l57; bm57 *= l57;
       bp67 *= l67; bm67 *= l67;
 
-      Aloc[0] = {bm01+bm02+bm04,-bp01,         -bp02,         0.,
-                 -bp04,         0.,            0.,            0.};
-      Aloc[1] = {-bm01,         bp01+bm13+bm15,0.,            -bp13,
-                 0.,            -bp15,         0.,            0.};
-      Aloc[2] = {-bm02,         0.,            bp02+bm23+bm26,-bp23,
-                 0.,            0.,            -bp26,         0.};
-      Aloc[3] = {0.,            -bm13,         -bm23,         bp13+bp23+bm37,
-                 0.,            0.,            0.,            -bp37};
-      Aloc[4] = {-bm04,         0.,            0.,            0.,
-                 bp04+bm45+bm46,-bp45,         -bp46,         0.};
-      Aloc[5] = {0.,            -bm15,         0.,            0.,
-                 -bm45,         bp15+bp45+bm57,0.,            -bp57};
-      Aloc[6] = {0.,            0.,            -bm26,         0.,
-                 -bm46,         0.,            bp26+bp46+bm67,-bp67};
-      Aloc[7] = {0.,            0.,            0.,            -bm37,
-                 0.,            -bm57,         -bm67,         bp37+bp57+bp67 };
+      Aloc[0] = {bm01+bm02+bm04, -bp01,      -bp02,      0.,
+                     -bp04,      0.,         0.,         0.         };
+      Aloc[1] = {    -bm01,  bp01+bm13+bm15, 0.,         -bp13,
+                     0.,         -bp15,      0.,         0.         };
+      Aloc[2] = {    -bm02,      0.,     bp02+bm23+bm26, -bp23,
+                     0.,         0.,         -bp26,      0.         };
+      Aloc[3] = {    0.,         -bm13,      -bm23,  bp13+bp23+bm37,
+                     0.,         0.,         0.,         -bp37      };
+      Aloc[4] = {    -bm04,      0.,         0.,         0.,
+                 bp04+bm45+bm46, -bp45,      -bp46,      0.         };
+      Aloc[5] = {    0.,         -bm15,      0.,         0.,
+                     -bm45,  bp15+bp45+bm57, 0.,         -bp57      };
+      Aloc[6] = {    0.,         0.,         -bm26,      0.,
+                     -bm46,      0.,     bp26+bp46+bm67, -bp67      };
+      Aloc[7] = {    0.,         0.,         0.,         -bm37,
+                     0.,         -bm57,      -bm67,  bp37+bp57+bp67 };
       
       for(int i = 0; i < 8; ++i)
         {
@@ -183,7 +183,7 @@ bim3a_reaction (tmesh_3d& mesh,
               {
                 rows.push_back (quadrant->gparent (pp, i));
                 z_loc += zeta[quadrant->gparent (pp, i)] /
-                                quadrant->num_parents (i);
+                              quadrant->num_parents (i);
               }
           
           for (int r = 0; r < rows.size (); ++r)
@@ -191,6 +191,54 @@ bim3a_reaction (tmesh_3d& mesh,
               (delta[iel] * z_loc * hx * hy * hz / 8) / rows.size ();
         }
     }
+}
+
+void
+bim3a_rhs (tmesh_3d& mesh,
+           const std::vector<double>& f,
+           const std::vector<double>& g,
+           std::vector<double>& rhs)
+{
+   double hx, hy, hz;
+   
+   unsigned int iel = 0;
+   std::vector<unsigned int> rows;
+   rows.reserve (4);
+   
+   double g_loc = 0;
+   
+   for (auto quadrant = mesh.begin_quadrant_sweep ();
+        quadrant != mesh.end_quadrant_sweep ();
+        ++quadrant)
+     {
+        hx = quadrant->p (0, 7) - quadrant->p (0, 0);
+        hy = quadrant->p (1, 7) - quadrant->p (1, 0);
+        hz = quadrant->p (2, 7) - quadrant->p (2, 0);
+        
+        iel = quadrant->get_forest_quad_idx ();
+        
+        for(int i = 0; i < 8; ++i)
+          {
+            rows.clear ();
+            g_loc = 0;
+            if (! quadrant->is_hanging (i))
+              {
+                rows.push_back (quadrant->gt (i));
+                g_loc = g[quadrant->gt (i)];
+              }
+            else
+              for (int pp = 0; pp < quadrant->num_parents (i); ++pp)
+                {
+                  rows.push_back (quadrant->gparent (pp, i));
+                  g_loc += g[quadrant->gparent (pp, i)] /
+                             quadrant->num_parents (i);
+                }
+            
+            for (int r = 0; r < rows.size(); ++r)
+              rhs[rows[r]] +=
+                (f[iel] * g_loc * hx * hy *hz / 8) / rows.size ();
+          }
+     }
 }
 
 
