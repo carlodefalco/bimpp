@@ -87,7 +87,7 @@ zz_marker_grad (tmesh_3d::quadrant_iterator q,
 double
 estimator_sol (tmesh_3d::quadrant_iterator q,
                const q2_vec3 & ustar,
-               const q1_vec3 & u);
+               const q1_vec & u);
 
 int 
 zz_marker_sol (tmesh_3d::quadrant_iterator q,
