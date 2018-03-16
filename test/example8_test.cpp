@@ -40,8 +40,17 @@ int main (int argc, char **argv)
   linear_solver *lis_solver = new lis (); // non sono riuscita a trovare il GMRES
  // linear_solver *lis_solver = new mumps ();
   
+  
+  std::vector<double> b1,b2;
+  
+  const int n=100;
+  // Assign the limits for the solution, b1 lower limit, b2 upper limit
+   b1.assign (n , 0.5);
+   b2.assign (n , 2.0);
+   b1[0] = 0.8; 
+      
   nonlinear_solver *solver =
-    new backtracking_inexact_newton_example8(lis_solver);
+    new backtracking_inexact_newton_example8(lis_solver, &b1, &b2);
   
   run_test_problem (solver);
 
@@ -57,8 +66,7 @@ run_test_problem (nonlinear_solver *solver)
 
   std::vector<double> exactsolution;
 
-  std::vector<double> uold, b1,b2;
-
+  std::vector<double> uold;
   const int n=100;
   abstract_nonlinear_problem *nonlinear_system = new example8 (n);
   
@@ -77,10 +85,7 @@ run_test_problem (nonlinear_solver *solver)
 
       exactsolution.assign (n , 1.0);
       uold.assign (n , 0.0);
-      // Assign the limits for the solution, b1 lower limit, b2 upper limit
-      b1.assign (n , 0.5);
-      b2.assign (n , 2.0);
-      b1[0] = 0.8; 
+      
       // Assign x0 
       for (int i=0; i <20 ; ++i)
 	{
@@ -100,15 +105,6 @@ run_test_problem (nonlinear_solver *solver)
       solver->set_problem (nonlinear_system);
       solver->set_forcing_term (forcing);
       solver->set_initial_guess (uold);
-      if (solver->solver_name () == "Backtracking Inexact Newton Example8")
-        {
-          auto tmp = static_cast<backtracking_inexact_newton_example8*> (solver);
-          tmp -> set_backtracking_parameters (1e-4, 1e-4, 0, 1);
-          tmp -> set_thetaPN (0.5);
-          tmp -> set_thetaPG (0.8);
-	  tmp -> set_backtracking_max_it(20);
-	  tmp -> set_bounds (b1, b2);
-      }
     }
 
   solver->set_max_iterations (5);

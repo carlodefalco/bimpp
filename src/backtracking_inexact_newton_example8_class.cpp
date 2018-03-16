@@ -65,7 +65,7 @@ backtracking_inexact_newton_example8::solve ()
     std::vector<int> nonlinear_iter;
   #endif
 
-  unsigned int n = ((example8*) problem)->n;  // VA BENE??
+  unsigned int n = ((example8*) problem)->n; 
 
   if (rank == 0)
    {

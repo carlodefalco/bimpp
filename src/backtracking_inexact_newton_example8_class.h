@@ -143,7 +143,10 @@ public :
 
   /// Default costructor.
   backtracking_inexact_newton_example8
-  (linear_solver *solver_, int verbose_ = 2) :
+  (linear_solver *solver_, std::vector<double> *b1_ ,
+   std::vector<double> *b2_ ,int verbose_ = 2, double t_ = 1e-4,
+  double sigma_ = 1e-4, double theta_min_ =0, double theta_max_ =1, 
+  double theta_ =0.5, double thetaPG_ =0.8, int max_back_it_=20) :
     nonlinear_solver ("Backtracking Inexact Newton Example8"),
     lin_solver (solver_),
     max_iter (100),
@@ -154,14 +157,16 @@ public :
     step_norm (0.0),
     iteration (0),
     norm_t (L2),
-    t (1e-4),
-    sigma(1e-4),
-    theta (0.5),
-    thetaPG (0.8),
-    theta_min (0),
-    theta_max (1),
-    max_back_it(20),
+    t (t_),
+    sigma(sigma_),
+    theta (theta_),
+    thetaPG (thetaPG_),
+    theta_min (theta_min_),
+    theta_max (theta_max_),
+    max_back_it(max_back_it_),
     verbose (verbose_),
+    b1(b1_),
+    b2(b2_),
     filename ("output.txt")
   {
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);
