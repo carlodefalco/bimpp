@@ -134,8 +134,8 @@ main (int argc, char **argv)
           };
       
       dirichlet_bcs bcs;
-      bcs.push_back (std::make_tuple(0, 2, u_ex));
-      bcs.push_back (std::make_tuple(0, 3, u_ex));
+      for (int i = 0; i < 4; ++i)
+        bcs.push_back (std::make_tuple(0, i, u_ex));
       
       bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
       
