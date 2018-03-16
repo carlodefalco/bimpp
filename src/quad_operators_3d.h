@@ -16,7 +16,7 @@ using dirichlet_bcs = std::vector<std::tuple<int, int, func>>;
 
 using q1_vec = std::vector<double>;
 
-using gradient = std::pair<q1_vec, q1_vec>;
+using gradient = std::tuple<q1_vec, q1_vec, q1_vec>;
 
 /// Nodes, faces, cell midpoint dofs.
 using q2_vec = std::vector<std::array<double, 27>>;
