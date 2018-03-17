@@ -146,6 +146,8 @@ public :
   ///
   /// "SOR" for SOR Method
   ///
+  /// "GMRES" for GMRES Method
+  ///
   /// If iterative method sent to solver is invalid,
   /// the program will run with default
   /// iterative method "Biconjugate Gradient".
