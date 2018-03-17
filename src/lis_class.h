@@ -56,6 +56,10 @@ private :
   /// \details [default = 1000].
   int max_iter;
 
+  /// \brief Number of iterations after which the iterative method is restarted.
+  /// \details [default = 40].
+  int restart_iterations;
+
   /// \brief Tolerance of linear solver.
   /// \details [default = 1e-12].
   double tolerance;
@@ -148,6 +152,7 @@ public :
     initial_guess (0),
     have_initial_guess (false),
     max_iter (1000),
+    restart_iterations(40),
     tolerance (1.0e-12),
     iterative_method ("bicg"),
     preconditioner ("none"),
@@ -248,6 +253,14 @@ public :
   set_max_iterations (int max_iter_)
   {
     max_iter = max_iter_;
+    option_string_set = false;
+  }
+  
+  /// Set number of restart iterations (default = 40).
+  void
+  set_restart_iterations (int restart_iterations_)
+  {
+    restart_iterations = restart_iterations_;
     option_string_set = false;
   }
 

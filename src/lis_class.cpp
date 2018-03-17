@@ -77,6 +77,7 @@ lis::invoke_lis_solver ()
     {
       std::stringstream opt;
       opt << "-maxiter " << max_iter
+          << "-restrart " << restart_iterations
           << " -tol " << tolerance
           << " -i " << iterative_method
           << " -p " << preconditioner

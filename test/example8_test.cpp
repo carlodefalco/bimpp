@@ -107,7 +107,7 @@ run_test_problem (nonlinear_solver *solver)
       solver->set_initial_guess (uold);
     }
 
-  solver->set_max_iterations (5);
+  solver->set_max_iterations (100);
   solver->set_tolerance (1e-12);
   solver->set_min_residual (1e-12);
   solver->set_norm_type (L2);
@@ -115,6 +115,7 @@ run_test_problem (nonlinear_solver *solver)
     { 
      auto tmp = static_cast<backtracking_inexact_newton_example8*> (solver);
      static_cast<lis*> (tmp->lin_solver)->set_iterative_method("GMRES"); 
+     static_cast<lis*> (tmp->lin_solver)->set_restart_iterations(n); 
      solver->set_max_iterations_of_linear_solver(n); 
      solver->set_initial_tolerance_of_linear_solver(.765518617913987);   
     }
