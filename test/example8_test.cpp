@@ -114,7 +114,7 @@ run_test_problem (nonlinear_solver *solver)
   if (solver->linear_solver_type () == "iterative")  
     { 
      solver->set_iterative_method_of_linear_solver("GMRES");
-     solver->set_options_iterative_method_of_linear_solver(" -restart 5");
+     solver->set_options_iterative_method_of_linear_solver(" -restart 40");
      solver->set_max_iterations_of_linear_solver(n);
      solver->set_initial_tolerance_of_linear_solver(.765518617913987);   
     }
