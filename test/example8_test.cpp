@@ -89,11 +89,11 @@ run_test_problem (nonlinear_solver *solver)
       // Assign x0 
       for (int i=0; i <20 ; ++i)
 	{
-          uold[i]=0.9; 
+          uold[i]=0.0; 
 	}
       for (int i=20; i <n ; ++i)
 	{
-          uold[i]=0.5;
+          uold[i]=2.0;
 	}
       nonlinear_system->set_exact_solution (exactsolution);
     }
@@ -107,7 +107,7 @@ run_test_problem (nonlinear_solver *solver)
       solver->set_initial_guess (uold);
     }
 
-  solver->set_max_iterations (100);
+  solver->set_max_iterations (5);
   solver->set_tolerance (1e-12);
   solver->set_min_residual (1e-12);
   solver->set_norm_type (L2);
@@ -116,7 +116,7 @@ run_test_problem (nonlinear_solver *solver)
      //auto tmp = static_cast<backtracking_inexact_newton_example8*> (solver);
      //static_cast<lis*> (tmp->lin_solver)->set_iterative_method("GMRES"); 
      solver->set_iterative_method_of_linear_solver("GMRES"); 
-     solver->set_restart_iterations_of_linear_solver(n); 
+     solver->set_restart_iterations_of_linear_solver(5); 
      solver->set_max_iterations_of_linear_solver(n); 
      solver->set_initial_tolerance_of_linear_solver(.765518617913987);   
     }
