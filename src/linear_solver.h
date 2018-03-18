@@ -155,6 +155,14 @@ public :
   set_iterative_method
   (const std::string &type_of_iterative_method) { };
 
+  /// \brief Set options of iterative method used to find solution of system.
+  /// \details Must be called only if linear solver is an iterative method.
+  /// Must be called on the master (rank == 0) and slave (rank != 0)
+  /// nodes at the same time.
+  virtual void
+  set_options_iterative_method
+  (const std::string &options_iterative_method) { };
+
   /// \brief Get type of iterative method sent to solver.
   /// \details Must be called only if linear solver is an iterative method.
   virtual void

@@ -122,6 +122,14 @@ public :
   set_iterative_method_of_linear_solver
   (const std::string &iterative_method) { };
 
+  /// \brief Set options of iterative method used by linear solver.
+  /// \details Must be called only if linear solver is an iterative method.
+  /// Must be called on the master (rank == 0) and slave (rank != 0)
+  /// nodes at the same time.
+  virtual void
+  set_options_iterative_method_of_linear_solver
+  (const std::string &options_iterative_method) { };
+
   /// \brief Set type of preconditioner used by linear solver.
   /// \details Must be called only if linear solver is an iterative method.
   /// Must be called on the master (rank == 0) and slave (rank != 0)
