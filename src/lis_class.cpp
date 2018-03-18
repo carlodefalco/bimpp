@@ -95,7 +95,7 @@ lis::invoke_lis_solver ()
   options = new char[option_string.length () + 1];
   std::copy (option_string.begin (),
              option_string.end (), options);
-  std::cout << options << std::endl;
+  //std::cout << options << std::endl;
   lis_solver_set_option (options, solver);
   lis_solve (A, b, x, solver);
 
