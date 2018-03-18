@@ -122,6 +122,15 @@ public :
   set_iterative_method_of_linear_solver
   (const std::string &iterative_method) { };
 
+  /// \brief Set number of iterations for which the iterative method used
+  ///  by linear solver is restarted.
+  /// \details Must be called only if linear solver is an iterative method.
+  /// Must be called on the master (rank == 0) and slave (rank != 0)
+  /// nodes at the same time.
+  virtual void
+  set_restart_iterations_of_linear_solver
+  (int restart_iterations) { };
+
   /// \brief Set type of preconditioner used by linear solver.
   /// \details Must be called only if linear solver is an iterative method.
   /// Must be called on the master (rank == 0) and slave (rank != 0)

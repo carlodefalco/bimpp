@@ -506,6 +506,14 @@ backtracking_inexact_newton_example8::set_iterative_method_of_linear_solver
 }
 
 void
+backtracking_inexact_newton_example8::set_restart_iterations_of_linear_solver
+(int restart_iterations)
+{
+  lin_solver->set_restart_iterations (restart_iterations);
+}
+
+
+void
 backtracking_inexact_newton_example8::set_preconditioner_of_linear_solver
 (const std::string &preconditioner)
 {

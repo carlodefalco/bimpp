@@ -296,6 +296,12 @@ public :
   set_iterative_method_of_linear_solver
   (const std::string &iterative_method);
 
+  /// Set number of iterations for which the iterative method  
+  /// used by linear solver is restarted.
+  void
+  set_restart_iterations_of_linear_solver
+  (int restart_iterations);
+
   /// Set type of preconditioner used by linear solver.
   void
   set_preconditioner_of_linear_solver
