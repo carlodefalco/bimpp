@@ -302,6 +302,11 @@ public :
   set_restart_iterations_of_linear_solver
   (int restart_iterations);
 
+  /// Set options of iterative method used by linear solver.
+  void
+  set_options_iterative_method_of_linear_solver
+  (const std::string &options_iterative_method);
+
   /// Set type of preconditioner used by linear solver.
   void
   set_preconditioner_of_linear_solver

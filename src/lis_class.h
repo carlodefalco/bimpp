@@ -67,7 +67,7 @@ private :
   /// \brief Name of preconditioner.
   /// \details [default = none].
   std::string preconditioner;
-
+  
   /// \brief Type of convergence condition.
   /// \details [default = norm 2 of residual]
   std::string convergence_condition;
@@ -137,7 +137,9 @@ public :
 
   /// \brief Option string.
   std::string option_string;
+  std::string options_iterative_method;
   bool option_string_set;
+
   bool verbose;
   
   /// Default costructor.
@@ -157,6 +159,7 @@ public :
     iterative_method ("bicg"),
     preconditioner ("none"),
     convergence_condition ("nrm2_r"),
+    options_iterative_method (" "),
     option_string (""),
     option_string_set (false),
     verbose (true)
@@ -300,11 +303,18 @@ public :
   get_convergence_condition (std::string &s)
   { s = convergence_condition; }
 
-
-
   /// Set type of iterative method (default = cg).
   void
   set_iterative_method (const std::string &s);
+
+  /// Set options of iterative method .
+  void
+  set_options_iterative_method
+  (const std::string &options_iterative_method_)
+  {
+    options_iterative_method = options_iterative_method_;
+    option_string_set = false;
+  }
 
   /// Set type of preconditioner (default = none).
   void

@@ -80,9 +80,10 @@ lis::invoke_lis_solver ()
           << " -restrart " << restart_iterations
           << " -tol " << tolerance
           << " -i " << iterative_method
+          << options_iterative_method
           << " -p " << preconditioner
           << " -conv_cond " << convergence_condition;
-
+          
       if (have_initial_guess)
         opt << " -initx_zeros false ";
       else
@@ -95,7 +96,7 @@ lis::invoke_lis_solver ()
   options = new char[option_string.length () + 1];
   std::copy (option_string.begin (),
              option_string.end (), options);
-
+  //std::cout << options << std::endl;
   lis_solver_set_option (options, solver);
   lis_solve (A, b, x, solver);
 
