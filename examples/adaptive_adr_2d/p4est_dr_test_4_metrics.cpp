@@ -52,64 +52,39 @@ main (int argc, char **argv)
       std::cout << "*** Step " << adapt << " ***" << std::endl;
       
       // Compute coefficients.
-      double eps1 = 5e-5;
-      double eps2 = 1e-1;
+      double R = 0.25;
       
-      auto c = [eps1, eps2] (double x)
-        {
-          return
-          ((0.71875 - (0.125 * x - 0.375) * x) * eps2) /
-          (
-            (x - 1.5) * std::sqrt(eps1) *
-            std::cosh((0.5 * x + 0.25) / std::sqrt(eps1)) - 
-            2 * eps2 * std::sinh((0.5 * x + 0.25) / std::sqrt(eps1))
-          );
-        };
+      double kG = 1;
+      double kS = 100;
       
-      auto d = [eps1, eps2] (double x)
-        {
-          return
-          (
-            (-1.8125 - (0.25 * x - 0.25) * x) * std::sqrt(eps1) *
-            std::cosh((0.5 * x + 0.25) / std::sqrt(eps1)) +
-            (x - 0.5) * eps2 * std::sinh((0.5 * x + 0.25) / std::sqrt(eps1))
-          ) /
-          (
-            (x - 1.5) * std::sqrt(eps1) *
-            std::cosh((0.5 * x + 0.25) / std::sqrt(eps1)) - 
-            2 * eps2 * std::sinh((0.5 * x + 0.25) / std::sqrt(eps1))
-          );
-        };
-      
-      std::vector<double> alpha(tmsh.num_global_nodes (), eps1);
+      std::vector<double> alpha(tmsh.num_global_nodes (), kG);
       std::vector<double> psi(tmsh.num_global_nodes (), 0);
-      
-      std::vector<double> delta(tmsh.num_local_quadrants (), 1);
-      std::vector<double> zeta(tmsh.num_global_nodes (), 1);
       
       std::vector<double> f(tmsh.num_local_quadrants (), 1);
       std::vector<double> g(tmsh.num_global_nodes (), 1);
+      
+      double x = 0, y = 0;
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
           for (int ii = 0; ii < 4; ++ii)
-            if (! quadrant->is_hanging (ii)
-                && quadrant->p(1, ii) > 0.5 * quadrant->p(0, ii) + 0.25)
-              alpha[quadrant->gt(ii)] = eps2;
-          
-          if (quadrant->centroid(1) > 0.5 * quadrant->centroid(0) + 0.25)
             {
-              delta[quadrant->get_forest_quad_idx()] = 0;
-              f[quadrant->get_forest_quad_idx()] = eps2;
+              x = quadrant->p(0, ii);
+              y = quadrant->p(1, ii);
+                
+              if (! quadrant->is_hanging (ii) &&
+                  std::pow(x - 0.5, 2) +
+                  std::pow(y - 0.5, 2) <=
+                  std::pow(R, 2))
+                alpha[quadrant->gt(ii)] = kS;
             }
         }
       
       // Assemble system matrix and right-hand side.
-      sparse_matrix A, M;
+      sparse_matrix A;
       A.resize(tmsh.num_global_nodes());
-      M.resize(tmsh.num_global_nodes());
       
       // Reduce coefficients.
       std::vector<double> global_alpha(tmsh.num_global_nodes(), 0);
@@ -117,20 +92,25 @@ main (int argc, char **argv)
                     MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
       
       bim2a_advection_eafe_diffusion (tmsh, global_alpha, psi, A);
-      bim2a_reaction (tmsh, delta, zeta, M);
-      A += M;
       
       std::vector<double> rhs(tmsh.num_global_nodes (), 0);
       bim2a_rhs (tmsh, f, g, rhs);
       
       // Set boundary conditions.
       func u_ex =
-        [eps1, eps2, c, d] (double x, double y)
+        [kG, kS, R] (double x, double y)
           {
-            if (y <= 0.5 * x + 0.25)
-              return (1 + 2 * c(x) * std::sinh(y / std::sqrt(eps1)));
+            if (std::pow(x - 0.5, 2) +
+                std::pow(y - 0.5, 2) >
+                std::pow(R, 2))
+              return
+                (1.0 / 8 - 1 / (4 * kG) *
+                 (std::pow(x - 0.5, 2) + std::pow(y - 0.5, 2)));
             else
-              return (-0.5 * (y - 1) * (y + 2 * d(x)));
+              return
+                (1.0 / 8 - 1 / (4 * kS) *
+                 (std::pow(x - 0.5, 2) + std::pow(y - 0.5, 2)) -
+                 std::pow(R, 2) / 4 * (1 - 1 / kS));
           };
       
       dirichlet_bcs bcs;
@@ -188,14 +168,18 @@ main (int argc, char **argv)
       // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient and estimator.";
       
-      active_fun region0 = [] (tmesh::quadrant_iterator q)
-        { return (q->centroid(1) <= 0.5 * q->centroid(0) + 0.25); };
+      active_fun regionG = [R] (tmesh::quadrant_iterator q)
+        { return (std::pow(q->centroid(0) - 0.5, 2) +
+                  std::pow(q->centroid(1) - 0.5, 2) >
+                  std::pow(R, 2)); };
       
-      active_fun region1 = [] (tmesh::quadrant_iterator q)
-        { return (q->centroid(1) > 0.5 * q->centroid(0) + 0.25); };
+      active_fun regionS = [R] (tmesh::quadrant_iterator q)
+        { return (std::pow(q->centroid(0) - 0.5, 2) +
+                  std::pow(q->centroid(1) - 0.5, 2) <=
+                  std::pow(R, 2)); };
       
-      gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, region0);
-      gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, region1);
+      gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, regionG);
+      gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, regionS);
       
       q2_vec u_star0 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du0);
       q2_vec u_star1 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du1);
@@ -210,12 +194,14 @@ main (int argc, char **argv)
       tmsh.octbin_export ((std::string("p4est_dr_test_4_metrics_du1_y_")
                            + std::to_string(adapt)).c_str(), du1.second);
       
-      auto estimator = [& u_star0, & u_star1, & global_rhs] (tmesh::quadrant_iterator q)
+      auto estimator = [& du0, & du1, & global_rhs, R] (tmesh::quadrant_iterator q)
         {
-          if (q->centroid(1) <= 0.5 * q->centroid(0) + 0.25)
-            return estimator_sol (q, u_star0, global_rhs);
+          if (std::pow(q->centroid(0) - 0.5, 2) +
+              std::pow(q->centroid(1) - 0.5, 2) >
+              std::pow(R, 2))
+            return estimator_grad (q, du0, global_rhs);
           else
-            return estimator_sol (q, u_star1, global_rhs);
+            return estimator_grad (q, du1, global_rhs);
         };
       
       std::cout << " Done." << std::endl;
@@ -252,7 +238,7 @@ main (int argc, char **argv)
         break;
       
       // Refine.
-      tmsh.set_metrics_marker (estimator, 1e-10, 4);
+      tmsh.set_metrics_marker (estimator, 1e-3, 4);
       tmsh.metrics_refine (1e5);
       
       tmsh.vtk_export ((std::string("p4est_dr_test_4_metrics_newmesh_")
