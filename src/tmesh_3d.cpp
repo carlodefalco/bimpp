@@ -6,21 +6,21 @@
 #include <array>
 
 double
-tmesh_3d::quadrant_t::p (tmesh_3d::idx_t ii, tmesh_3d::idx_t jj) 
+tmesh_3d::quadrant_t::p (tmesh_3d::idx_t ii, tmesh_3d::idx_t jj)
 {
-  double retval = vxyz[3*jj+ii];
+  double retval = vxyz[3 * jj + ii];
   return (retval);
 };
 
 double
-tmesh_3d::quadrant_t::centroid (tmesh_3d::idx_t ii) 
+tmesh_3d::quadrant_t::centroid (tmesh_3d::idx_t ii)
 {
   double retval = 0;
-  
+
   for (tmesh_3d::idx_t c = 0; c < P8EST_CHILDREN; ++c)
-    retval += this->p(ii, c);
+    retval += this->p (ii, c);
   retval /= P8EST_CHILDREN;
-  
+
   return (retval);
 };
 
@@ -28,11 +28,11 @@ double
 tmesh_3d::quadrant_t::face_centroid (tmesh_3d::idx_t ii, int jj)
 {
   double retval = 0;
-  
+
   for (tmesh_3d::idx_t c = 0; c < P8EST_HALF; ++c)
-    retval += this->p(ii, p8est_face_corners[jj][c]);
+    retval += this->p (ii, p8est_face_corners[jj][c]);
   retval /= P8EST_HALF;
-  
+
   return (retval);
 }
 
@@ -52,34 +52,36 @@ tmesh_3d::quadrant_t::face_centroid (tmesh_3d::idx_t ii, int jj)
 static const int  zero = 0; /**< Constant zero. */
 static const int  ones = P8EST_CHILDREN - 1; /**< One bit per dimension. */
 static const int *corner_to_hanging[P8EST_CHILDREN];
-static const int  corner_num_hanging[P8EST_CHILDREN] = { 1, 2, 2, 4,
-                                                         2, 4, 4, 1 };
+static const int  corner_num_hanging[P8EST_CHILDREN] = {1, 2, 2, 4,
+                                                        2, 4, 4, 1};
 
 static int
 lnodes_decode2 (p8est_lnodes_code_t face_code,
                 int hanging_corner[P8EST_CHILDREN])
 {
-  if (face_code) {
-    const int           c = (int) (face_code & ones);
-    int                 i, h;
-    int                 work = (int) (face_code >> P8EST_DIM);
+  if (face_code)
+    {
+      const int           c = (int) (face_code & ones);
+      int                 i, h;
+      int                 work = (int) (face_code >> P8EST_DIM);
 
-    /* These two corners are never hanging by construction. */
-    hanging_corner[c] = hanging_corner[c ^ ones] = -1;
-    for (i = 0; i < P8EST_DIM; ++i) {
-      /* Process face hanging corners. */
-      h = c ^ (1 << i);
-      hanging_corner[h ^ ones] = (work & 1) ? c : -1;
-      /* Process edge hanging corners. */
-      hanging_corner[h] = (work & P8EST_CHILDREN) ? c : -1;
-      work >>= 1;
+      /* These two corners are never hanging by construction. */
+      hanging_corner[c] = hanging_corner[c ^ ones] = -1;
+      for (i = 0; i < P8EST_DIM; ++i)
+        {
+          /* Process face hanging corners. */
+          h = c ^ (1 << i);
+          hanging_corner[h ^ ones] = (work & 1) ? c : -1;
+          /* Process edge hanging corners. */
+          hanging_corner[h] = (work & P8EST_CHILDREN) ? c : -1;
+          work >>= 1;
+        }
+      return 1;
     }
-    return 1;
-  }
   return 0;
 }
 
-void 
+void
 tmesh_3d::quadrant_iterator::operator++ ()
 {
 
@@ -91,14 +93,14 @@ tmesh_3d::quadrant_iterator::operator++ ()
   if (data->tree_quad_idx >= data->num_quadrants)
     {
       data->tree_idx++;
-      
+
       if ((data->tree_idx) > (p8->last_local_tree))
         {
           this->data = nullptr;
           return;
         }
       data->tree_quad_idx = 0;
-      
+
       data->tree = p8est_tree_array_index (p8->trees, data->tree_idx);
       data->tquadrants = &(data->tree)->quadrants;
 
@@ -109,10 +111,10 @@ tmesh_3d::quadrant_iterator::operator++ ()
   auto tmp = p8est_quadrant_array_index (data->tquadrants,
                                          data->tree_quad_idx);
   data->update (data->tree_idx, tmp);
-  
+
 };
 
-void 
+void
 tmesh_3d::neighbor_iterator::operator++ ()
 {
   p4est_topidx_t which_tree;
@@ -120,24 +122,24 @@ tmesh_3d::neighbor_iterator::operator++ ()
   int nface, nrank;
   tmesh_3d *tmsh = data->the_tmesh;
   p8est_t *p8 = tmsh->p8est;
-  
+
   p8est_quadrant_t * neighbor =
     p8est_mesh_face_neighbor_next (face_neighbor, &which_tree,
                                    &which_quad, &nface, &nrank);
-  
+
   if (neighbor != nullptr)
     {
       p8est_tree_t * tree =
         p8est_tree_array_index (p8->trees,
                                 which_tree);
-      
+
       // If non-ghost.
       if (face_neighbor->current_qtq <
           tmsh->num_local_quadrants ())
         {
           data->is_ghost = false;
           data->qtq = -1;
-          
+
           data->forest_quad_idx = tree->quadrants_offset + which_quad;
           data->tree_quad_idx = which_quad;
         }
@@ -146,18 +148,18 @@ tmesh_3d::neighbor_iterator::operator++ ()
         {
           data->is_ghost = true;
           data->qtq = face_neighbor->current_qtq;
-          
+
           data->forest_quad_idx =
             neighbor->p.piggy3.local_num +
             (p8->global_first_quadrant[nrank] -
              p8->global_first_quadrant[tmsh->rank]);
-          
+
           data->tree_quad_idx = data->forest_quad_idx -
             tree->quadrants_offset;
         }
-      
+
       this->face_idx = nface;
-      
+
       data->update (which_tree, neighbor);
     }
   else
@@ -179,7 +181,7 @@ tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
 
   int c, h, n_parents;
   const int *base_corner;
-  
+
   corner_to_hanging[0]        = &zero;
   corner_to_hanging[1]        = p8est_edge_corners[0];
   corner_to_hanging[2]        = p8est_edge_corners[4];
@@ -188,10 +190,10 @@ tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
   corner_to_hanging[ones - 2] = p8est_face_corners[2];
   corner_to_hanging[ones - 1] = p8est_face_corners[0];
   corner_to_hanging[ones]     = &ones;
-  
+
   this->tree_idx     = tree;
   this->the_quadrant = q;
-  
+
   for (i = 0; i < 8; ++i)
     {
       p8est_quadrant_corner_node (this->the_quadrant, i, &node);
@@ -232,11 +234,11 @@ tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
         {
           p4est_locidx_t idx = this->qtq -
             the_tmesh->num_local_quadrants ();
-          
+
           for (i = 0; i < 8; ++i)
             {
               tbuff[i] = the_tmesh->ghost_data[40 * idx + i];
-              
+
               pbuff[4 * i]     =
                 the_tmesh->ghost_data[40 * idx + 8  + 4 * i];
               pbuff[4 * i + 1] =
@@ -245,7 +247,7 @@ tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
                 the_tmesh->ghost_data[40 * idx + 10 + 4 * i];
               pbuff[4 * i + 3] =
                 the_tmesh->ghost_data[40 * idx + 11 + 4 * i];
-              
+
               for (j = 0; j < 4; ++j)
                 if (pbuff[4 * i + j] == -1)
                   break;
@@ -264,7 +266,7 @@ tmesh_3d::quadrant_t::parent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
 
 int
 tmesh_3d::quadrant_t::gparent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
-{  
+{
   if (! is_ghost)
     {
       assert (pbuff[4 * in + ip] >= 0);
@@ -275,17 +277,17 @@ tmesh_3d::quadrant_t::gparent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
          (tbuff[pbuff[4 * in + ip]]));
     }
   else
-      return pbuff[4 * in + ip];
+    return pbuff[4 * in + ip];
 };
 
 tmesh_3d::idx_t
 tmesh_3d::quadrant_t::e (idx_t i)
-{  
+{
   assert (i < 8);
   idx_t retval = NOT_ON_BOUNDARY;
   p8est_quadrant_t node;
   p8est_quadrant_corner_node (this->the_quadrant, i, &node);
-  
+
   if      (node.z == 0)
     retval = 4;
   else if (node.z == P8EST_ROOT_LEN)
@@ -306,31 +308,31 @@ tmesh_3d::neighbor_iterator
 tmesh_3d::quadrant_t::begin_neighbor_sweep ()
 {
   neighbor_iterator ni;
-  
+
   if (this->the_tmesh->mesh == nullptr)
     this->the_tmesh->update ();
-  
+
   p8est_mesh_face_neighbor_init (ni.face_neighbor,
                                  this->the_tmesh->p8est,
                                  this->the_tmesh->ghost,
                                  this->the_tmesh->mesh,
                                  this->get_tree_idx (),
                                  this->the_quadrant);
-  
+
   p4est_topidx_t which_tree;
   p4est_locidx_t which_quad;
   int nface, nrank;
-  
+
   p8est_quadrant_t * neighbor =
     p8est_mesh_face_neighbor_next (ni.face_neighbor, &which_tree,
                                    &which_quad, &nface, &nrank);
-  
+
   ni.data = new quadrant_t (this->the_tmesh, which_tree, neighbor);
-  
+
   p8est_tree_t *tree =
     p8est_tree_array_index (this->the_tmesh->p8est->trees,
                             which_tree);
-  
+
   // If non-ghost.
   if (ni.face_neighbor->current_qtq <
       the_tmesh->num_local_quadrants ())
@@ -343,18 +345,18 @@ tmesh_3d::quadrant_t::begin_neighbor_sweep ()
     {
       ni.data->is_ghost = true;
       ni.data->qtq = ni.face_neighbor->current_qtq;
-      
+
       ni.data->forest_quad_idx =
         neighbor->p.piggy3.local_num +
         (the_tmesh->p8est->global_first_quadrant[nrank] -
          the_tmesh->p8est->global_first_quadrant[this->the_tmesh->rank]);
-      
+
       ni.data->tree_quad_idx =
         ni.data->forest_quad_idx - tree->quadrants_offset;
     }
-  
+
   ni.data->update (which_tree, neighbor);
-  
+
   ni.face_idx = nface;
   return ni;
 }
@@ -370,7 +372,7 @@ tmesh_3d::quadrant_t::gt (tmesh_3d::idx_t i)
     {
       if (the_tmesh->mesh == nullptr)
         the_tmesh->update ();
-      
+
       return p8est_lnodes_global_index
         (the_tmesh->lnodes,
          static_cast<p4est_locidx_t> (tbuff[i]));
@@ -389,20 +391,20 @@ tmesh_3d::quadrant_t::num_parents (tmesh_3d::idx_t i)
 
 tmesh_3d::~tmesh_3d ()
 {
-    if (! (this->p8est       == nullptr))
-      p8est_destroy (this->p8est);
-    if (! (this->conn        == nullptr))
-      p8est_connectivity_destroy (this->conn);
-    if (! (this->lnodes      == nullptr))
-      p8est_lnodes_destroy (this->lnodes);
-    if (! (this->mesh        == nullptr))
-      p8est_mesh_destroy   (this->mesh);
-    if (! (this->ghost       == nullptr))
-      p8est_ghost_destroy  (this->ghost);
-    if (! (this->mirror_data == nullptr))
-      delete[] this->mirror_data;
-    if (! (this->ghost_data  == nullptr))
-      delete[] this->ghost_data;
+  if (! (this->p8est       == nullptr))
+    p8est_destroy (this->p8est);
+  if (! (this->conn        == nullptr))
+    p8est_connectivity_destroy (this->conn);
+  if (! (this->lnodes      == nullptr))
+    p8est_lnodes_destroy (this->lnodes);
+  if (! (this->mesh        == nullptr))
+    p8est_mesh_destroy   (this->mesh);
+  if (! (this->ghost       == nullptr))
+    p8est_ghost_destroy  (this->ghost);
+  if (! (this->mirror_data == nullptr))
+    delete[] this->mirror_data;
+  if (! (this->ghost_data  == nullptr))
+    delete[] this->ghost_data;
 };
 
 template <class p_type, class p_type_count,
@@ -423,7 +425,7 @@ arrays2connectivity (const p_type *p_matrix_start,
 
   auto p_matrix_end = p_matrix_start + num_vertices * 3;
   while (p_iter < p_matrix_end)
-      *(v_iter++) = *(p_iter++);
+    *(v_iter++) = *(p_iter++);
 
   const t_type *t_iter = t_matrix_start;
   p4est_topidx_t *tv_iter = &((*conn)->tree_to_vertex[0]);
@@ -476,7 +478,7 @@ static void
 octbingz2connectivity
 (const char *filename, p8est_connectivity_t **conn)
 {
-    
+
   // load data from file
   octave_value tmp;
   octave_io_mode m = gz_read_mode;
@@ -504,7 +506,7 @@ tmesh_3d::read_connectivity (const char *filename, int source)
 {
   if (rank == source)
     octbingz2connectivity (filename, &conn);
-  
+
   conn = p8est_connectivity_bcast (conn, source, comm);
   p8est = p8est_new (comm, conn, 0, NULL, this);
 };
@@ -519,7 +521,7 @@ tmesh_3d::read_connectivity (const double *p,
   if (rank == source)
     arrays2connectivity (p, num_vertices,
                          t, num_trees, &conn);
-  
+
   conn = p8est_connectivity_bcast (conn, source, comm);
   p8est = p8est_new (comm, conn, 0, NULL, this);
 };
@@ -551,9 +553,9 @@ tmesh_3d::octbin_export (const char * basename,
                          const std::vector<double> & f)
 {
   assert (f.size () == num_global_nodes ());
-    
+
   std::vector<double> p (3 * num_owned_nodes ());
-  std::vector<double> f_loc (num_owned_nodes ());  
+  std::vector<double> f_loc (num_owned_nodes ());
 
   Array<octave_idx_type>
     oct_t (dim_vector (8, num_local_quadrants ()), 0);
@@ -599,24 +601,24 @@ tmesh_3d::octbin_export (const char * basename,
         }
     }
 
-    
+
   Matrix oct_p (3, p.size () / 3, 0.0);
   ColumnVector oct_f (f_loc.size (), 0.0);
-  
+
   std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
   std::copy_n (f_loc.begin (), f_loc.size (), oct_f.fortran_vec ());
-  
+
   octave_scalar_map the_map;
   the_map.assign ("p", oct_p);
   the_map.assign ("f", oct_f);
   the_map.assign ("t", oct_t);
-  
+
   octave_io_mode m = gz_write_mode;
-  
+
   // Define filename.
   char filename[255] = "";
   sprintf (filename, "%s_%4.4d.octbin.gz", basename, rank);
-  
+
   // Save to filename.
   assert (octave_io_open (filename, m, &m) == 0);
   assert (octave_save ("msh", octave_value (the_map)) == 0);
@@ -633,10 +635,10 @@ tmesh_3d::quadrant_iterator::reset ()
       data->tree_idx        = p8->first_local_tree;
       data->tree_quad_idx   = 0;
       data->forest_quad_idx = 0;
-      
+
       data->is_ghost = false;
       data->qtq = -1;
-      
+
       if (data->tree_idx != -1)
         {
           data->tree          =
@@ -651,7 +653,7 @@ tmesh_3d::quadrant_iterator::reset ()
           data->tquadrants    = nullptr;
           data->num_quadrants = 0;
         }
-          
+
       if (data->num_quadrants > 0)
         {
           auto tmp =
@@ -669,7 +671,7 @@ tmesh_3d::begin_quadrant_sweep ()
 {
   if (this->mesh == nullptr)
     this->update ();
-  
+
   quadrant_iterator qi (&current_quadrant);
   qi.reset ();
   return qi;
@@ -677,27 +679,27 @@ tmesh_3d::begin_quadrant_sweep ()
 
 void
 tmesh_3d::set_metrics_marker
-            (std::function<double(tmesh_3d::quadrant_iterator)> estim,
-             double tol, int max_depth)
+(std::function<double (tmesh_3d::quadrant_iterator)> estim,
+ double tol, int max_depth)
 {
   this->metrics_max_depth = max_depth;
-  
+
   double hxhat_hx = 0;
-  
+
   for (auto quadrant = this->begin_quadrant_sweep ();
        quadrant != this->end_quadrant_sweep (); ++quadrant)
     {
       hxhat_hx = std::log2 (estim (quadrant)
-                 * std::sqrt (this->num_global_quadrants ()) / tol);
-      
+                            * std::sqrt (this->num_global_quadrants ()) / tol);
+
       quadrant->the_quadrant->p.user_int =
         std::min (std::max (-double (max_depth),
                             std::ceil (hxhat_hx)),
-                            double (max_depth));
-      
+                  double (max_depth));
+
       std::cout << quadrant->the_quadrant->p.user_int << std::endl;
     }
-  
+
   return;
 }
 
@@ -706,24 +708,24 @@ tmesh_3d::refine (int recursive, int partforcoarsen, int balance)
 {
   quadrant_iterator qi (&current_quadrant);
   qi.reset ();
-  
+
   if (replace_fun == nullptr)
     p8est_refine (p8est, recursive, refine_callback, nullptr);
   else
     p8est_refine_ext (p8est, recursive, -1, refine_callback,
                       nullptr, replace_callback);
-  
+
   if (balance)
     p8est_balance (p8est, P8EST_CONNECT_FULL, nullptr);
-  
+
   p8est_partition (p8est, partforcoarsen, nullptr);
-  
+
   if (! (lnodes == nullptr)) p8est_lnodes_destroy (lnodes);
   lnodes = nullptr;
 
   if (! (mesh == nullptr)) p8est_mesh_destroy (mesh);
   mesh = nullptr;
-  
+
   if (! (ghost == nullptr)) p8est_ghost_destroy (ghost);
   ghost = nullptr;
 }
@@ -733,17 +735,17 @@ tmesh_3d::metrics_refine (idx_t max_elems)
 {
   int recursive = 0;
   int partforcoarsen = 1;
-  
+
   for (int i = 0; i < metrics_max_depth - 1; ++i)
     {
       coarsen (recursive, partforcoarsen, 0);
       refine (recursive, partforcoarsen, 0);
-      
+
       // Prevent large meshes.
       if (max_elems > 0 && this->num_global_quadrants () >= max_elems)
         break;
     }
-    
+
   coarsen (recursive, partforcoarsen, 0);
   refine (recursive, partforcoarsen, 1);
 }
@@ -756,18 +758,18 @@ tmesh_3d::coarsen (int recursive, int partforcoarsen, int balance)
   else
     p8est_coarsen_ext (p8est, recursive, 0, coarsen_callback,
                        nullptr, replace_callback);
-  
+
   if (balance)
     p8est_balance (p8est, P8EST_CONNECT_FULL, nullptr);
-  
+
   p8est_partition (p8est, partforcoarsen, nullptr);
 
   if (! (lnodes == nullptr)) p8est_lnodes_destroy (lnodes);
-  lnodes = nullptr;  
+  lnodes = nullptr;
 
   if (! (mesh == nullptr)) p8est_mesh_destroy (mesh);
   mesh = nullptr;
-  
+
   if (! (ghost == nullptr)) p8est_ghost_destroy (ghost);
   ghost = nullptr;
 };
@@ -778,7 +780,7 @@ tmesh_3d::update ()
   ghost  = p8est_ghost_new  (p8est, P8EST_CONNECT_FULL);
   lnodes = p8est_lnodes_new (p8est, ghost, 1);
   mesh   = p8est_mesh_new   (p8est, ghost, P8EST_CONNECT_FULL);
-  
+
   update_ghosts ();
 }
 
@@ -788,59 +790,59 @@ tmesh_3d::update_ghosts ()
   // Send mirror data.
   constexpr p4est_locidx_t chunk_len = 40;
   constexpr size_t data_size = sizeof (p4est_gloidx_t);
-  
+
   p4est_locidx_t mirror_data_len =
     ghost->mirror_proc_offsets[size] * chunk_len;
   mirror_data = new p4est_gloidx_t[mirror_data_len];
-  
+
   int mirror_end = 0;
   int mirror_begin = 0;
-  
+
   std::vector<MPI_Request> req_s;
   p4est_locidx_t start, end, n_mirror;
 
   int tag = 0;
   int send_size = 0;
-  
+
   // Loop over ranks.
   for (int i = 0; i < size; ++i)
     {
       start    = ghost->mirror_proc_offsets[i];
       end      = ghost->mirror_proc_offsets[i + 1];
       n_mirror = end - start;
-      
+
       p8est_quadrant_t * q;
-      
+
       // Loop over mirrors.
       for (p4est_locidx_t j = start; j < end; ++j)
         {
           q =
             p8est_quadrant_array_index (&ghost->mirrors,
                                         ghost->mirror_proc_mirrors[j]);
-          
+
           p8est_tree_t * tree =
             p8est_tree_array_index (p8est->trees, q->p.which_tree);
-      
+
           idx_t global_idx =
             p8est->global_first_quadrant[rank] +
             q->p.piggy3.local_num;
-          
+
           quadrant_t current_mirror (this, q->p.which_tree, q);
           current_mirror.forest_quad_idx = q->p.piggy3.local_num;
           current_mirror.tree_quad_idx =
             current_mirror.forest_quad_idx - tree->quadrants_offset;
           current_mirror.update (q->p.which_tree, q);
-          
+
           for (int node = 0; node < 8; ++node)
             mirror_data[mirror_end++] = current_mirror.gt (node);
-          
+
           for (int node = 0; node < 8; ++node)
             for (int pp = 0; pp < 4; ++pp)
               mirror_data[mirror_end++] =
                 current_mirror.num_parents (node) > pp ?
                 current_mirror.gparent (pp, node) : -1;
         }
-      
+
       if (n_mirror > 0)
         {
           MPI_Request req;
@@ -849,21 +851,21 @@ tmesh_3d::update_ghosts ()
           MPI_Isend (&(mirror_data[mirror_begin]), send_size,
                      MPI_CHAR, i, tag, comm, &req);
           req_s.push_back (req);
-          
+
           /*std::cout << "Rank " << rank
-                    << " is sending mirrors to rank "
-                    << i << "." << std::endl;*/
+            << " is sending mirrors to rank "
+            << i << "." << std::endl;*/
         }
-      
+
       mirror_begin = mirror_end;
     }
-  
+
   // Receive ghost data.
   p4est_locidx_t ghosts_data_len =
     ghost->ghosts.elem_count * chunk_len;
-  
+
   ghost_data = new p4est_gloidx_t[ghosts_data_len];
-  int ghost_begin = 0;  
+  int ghost_begin = 0;
   p4est_locidx_t n_ghosts = 0;
   int recv_size = 0;
   // Loop over ranks.
@@ -872,7 +874,7 @@ tmesh_3d::update_ghosts ()
       start    = ghost->proc_offsets[i];
       end      = ghost->proc_offsets[i + 1];
       n_ghosts = end - start;
-      
+
       if (n_ghosts > 0)
         {
           MPI_Request req;
@@ -881,15 +883,15 @@ tmesh_3d::update_ghosts ()
           MPI_Irecv (&(ghost_data[ghost_begin]), recv_size,
                      MPI_CHAR, i, tag, comm, &req);
           req_s.push_back (req);
-          
+
           /*std::cout << "Rank " << rank
-                    << " is receiving ghosts from rank "
-                    << i << "." << std::endl;*/
+            << " is receiving ghosts from rank "
+            << i << "." << std::endl;*/
         }
-      
+
       ghost_begin += chunk_len * n_ghosts;
     }
-  
+
   std::vector<MPI_Status> stats (req_s.size ());
   MPI_Waitall (req_s.size (), &(req_s[0]), &(stats[0]));
 };
@@ -898,12 +900,12 @@ std::vector<int>
 tmesh_3d::userint_replace (std::vector<int> old_userint)
 {
   std::vector<int> new_userint;
-  
+
   // Refinement.
   if (old_userint.size () == 1)
     {
       new_userint.resize (8);
-      
+
       for (size_t i = 0; i < new_userint.size (); ++i)
         new_userint[i] = old_userint[0] - 1;
     }
@@ -911,11 +913,11 @@ tmesh_3d::userint_replace (std::vector<int> old_userint)
   else if (old_userint.size () == 8)
     {
       new_userint.resize (1);
-      
+
       new_userint[0] = *std::min_element (old_userint.begin (),
                                           old_userint.end ()) + 1;
     }
-  
+
   return new_userint;
 }
 
@@ -949,16 +951,16 @@ tmesh_3d::replace_callback (p8est_t * p8,
                             p8est_quadrant_t * incoming[])
 {
   tmesh_3d *tm = reinterpret_cast<tmesh_3d*> (p8->user_pointer);
-  
+
   std::vector<int> old_userint (num_outgoing);
-  
+
   for (size_t i = 0; i < num_outgoing; ++i)
     old_userint[i] = outgoing[i]->p.user_int;
-  
+
   std::vector<int> new_userint = tm->replace_fun (old_userint);
-  
+
   for (size_t i = 0; i < num_incoming; ++i)
     incoming[i]->p.user_int = new_userint[i];
-  
+
   return;
 };
