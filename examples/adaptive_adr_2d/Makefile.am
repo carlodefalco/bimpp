@@ -21,6 +21,7 @@ bin_PROGRAMS = p4est_operator_segment_test \
                p4est_dr_test_2_marker p4est_dr_test_2_metrics \
                p4est_dr_test_3_marker p4est_dr_test_3_metrics p4est_dr_test_3_uniform \
                p4est_dr_test_4_marker p4est_dr_test_4_metrics p4est_dr_test_4_uniform \
+               p4est_dr_test_5_marker p4est_dr_test_5_metrics p4est_dr_test_5_uniform \
                p4est_test_discontinuous
 
 p4est_operator_test_SOURCES =  p4est_operator_test.cpp
@@ -160,6 +161,24 @@ p4est_dr_test_4_uniform_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
 p4est_dr_test_4_uniform_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 p4est_dr_test_4_uniform_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
 CLEANFILES += p4est_dr_test_4_uniform*.octbin.gz p4est_dr_test_4_uniform*.pvtu p4est_dr_test_4_uniform*.visit p4est_dr_test_4_uniform*.vtu
+
+p4est_dr_test_5_marker_SOURCES =  p4est_dr_test_5_marker.cpp 
+p4est_dr_test_5_marker_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+p4est_dr_test_5_marker_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+p4est_dr_test_5_marker_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+CLEANFILES += p4est_dr_test_5_marker*.octbin.gz p4est_dr_test_5_marker*.pvtu p4est_dr_test_5_marker*.visit p4est_dr_test_5_marker*.vtu
+
+p4est_dr_test_5_metrics_SOURCES =  p4est_dr_test_5_metrics.cpp 
+p4est_dr_test_5_metrics_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+p4est_dr_test_5_metrics_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+p4est_dr_test_5_metrics_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+CLEANFILES += p4est_dr_test_5_metrics*.octbin.gz p4est_dr_test_5_metrics*.pvtu p4est_dr_test_5_metrics*.visit p4est_dr_test_5_metrics*.vtu
+
+p4est_dr_test_5_uniform_SOURCES =  p4est_dr_test_5_uniform.cpp 
+p4est_dr_test_5_uniform_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+p4est_dr_test_5_uniform_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+p4est_dr_test_5_uniform_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+CLEANFILES += p4est_dr_test_5_uniform*.octbin.gz p4est_dr_test_5_uniform*.pvtu p4est_dr_test_5_uniform*.visit p4est_dr_test_5_uniform*.vtu
 
 p4est_test_discontinuous_SOURCES =  p4est_test_discontinuous.cpp
 p4est_test_discontinuous_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
