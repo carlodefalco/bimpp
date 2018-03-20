@@ -147,8 +147,8 @@ public :
   /// "SOR" for SOR Method
   ///
   /// If iterative method sent to solver is invalid,
-  /// the program will run with default
-  /// iterative method "Biconjugate Gradient".
+  /// the program will run with the default choice
+  /// of iterative method (that is back-end dependent).
   virtual void
   set_iterative_method
   (const std::string &type_of_iterative_method) { };
