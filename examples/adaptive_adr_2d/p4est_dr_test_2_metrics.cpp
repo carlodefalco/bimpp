@@ -55,7 +55,7 @@ main (int argc, char **argv)
       A.resize(tmsh.num_global_nodes());
       M.resize(tmsh.num_global_nodes());
       
-      double epsilon = std::pow(2, -30);
+      double epsilon = std::pow(2, -10);
       std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
       std::vector<double> psi(tmsh.num_global_nodes (), 0);
       
@@ -159,8 +159,8 @@ main (int argc, char **argv)
       tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du_y_")
                            + std::to_string(adapt)).c_str(), du.second);
       
-      auto estimator = [& u_star, & global_rhs] (tmesh::quadrant_iterator q)
-        { return estimator_sol (q, u_star, global_rhs); };
+      auto estimator = [& du, & global_rhs] (tmesh::quadrant_iterator q)
+        { return estimator_grad (q, du, global_rhs); };
       
       // Compute h.
       double hx = 0, hy = 0,
@@ -188,7 +188,7 @@ main (int argc, char **argv)
         break;
       
       // Refine.
-      tmsh.set_metrics_marker (estimator, 1e-6, 4);
+      tmsh.set_metrics_marker (estimator, 1e-3, 4);
       tmsh.metrics_refine (1e5);
       
       tmsh.vtk_export ((std::string("p4est_dr_test_2_metrics_newmesh_")

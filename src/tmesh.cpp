@@ -680,8 +680,6 @@ tmesh::set_metrics_marker
         std::min (std::max (-double (max_depth),
                             std::ceil (hxhat_hx) ),
                   double (max_depth));
-      
-      std::cout << quadrant->the_quadrant->p.user_int << std::endl;
     }
   
   return;
