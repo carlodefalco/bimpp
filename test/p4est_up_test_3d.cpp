@@ -1,12 +1,12 @@
 #include <bim_timing.h>
-#include <simple_connectivity_2d_2trees.h>
-#include <tmesh.h>
+#include <simple_connectivity_3d_2trees.h>
+#include <tmesh_3d.h>
 
 #include <vector>
 #include <cassert>
 
 static int
-fake_refinement (tmesh::quadrant_iterator quadrant)
+fake_refinement (tmesh_3d::quadrant_iterator quadrant)
 {
   int         rank, size;
 
@@ -21,9 +21,13 @@ fake_refinement (tmesh::quadrant_iterator quadrant)
             << (int) quadrant->get_tree_quad_idx () << " vertices (local numbering) "
             << (int) quadrant->t (0) << " " << (int) quadrant->t (1) << " "
             << (int) quadrant->t (2) << " " << (int) quadrant->t (3) << " "
+            << (int) quadrant->t (4) << " " << (int) quadrant->t (5) << " "
+            << (int) quadrant->t (6) << " " << (int) quadrant->t (7) << " "
             << " vertices (global numbering) "
             << (int) quadrant->gt (0) << " " << (int) quadrant->gt (1) << " "
             << (int) quadrant->gt (2) << " " << (int) quadrant->gt (3) << " "
+            << (int) quadrant->gt (4) << " " << (int) quadrant->gt (5) << " "
+            << (int) quadrant->gt (6) << " " << (int) quadrant->gt (7) << " "
             << std::endl;
   return 1;
 }
@@ -36,7 +40,7 @@ main (int argc, char **argv)
   int         recursive, partforcoarsen, balance;
   MPI_Comm    mpicomm = MPI_COMM_WORLD;  
   int         rank, size;
-  tmesh       tmsh;
+  tmesh_3d    tmsh;
   
   mpicomm = MPI_COMM_WORLD;
   MPI_Comm_rank (mpicomm, &rank);
@@ -69,7 +73,7 @@ main (int argc, char **argv)
   if (rank == 0)
     { tic (); }
 
-  tmsh.vtk_export ("p4est_up_test");
+  tmsh.vtk_export ("p4est_up_test_3d");
 
   MPI_Barrier (MPI_COMM_WORLD);
   if (rank == 0)
@@ -83,4 +87,3 @@ main (int argc, char **argv)
   return 0;
 
 }
-
