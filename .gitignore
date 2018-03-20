@@ -6,9 +6,6 @@ doc/latex/
 log/
 m4/
 test/output/
-include/
-lib/
-share/
 
 # Files.
 *in
