@@ -117,6 +117,7 @@ run_test_problem (nonlinear_solver *solver)
      //static_cast<lis*> (tmp->lin_solver)->set_iterative_method("GMRES"); 
      solver->set_iterative_method_of_linear_solver("GMRES"); 
      solver->set_restart_iterations_of_linear_solver(40); 
+     //solver->set_options_iterative_method_of_linear_solver(" -restart 40");
      solver->set_max_iterations_of_linear_solver(n); 
      solver->set_initial_tolerance_of_linear_solver(.765518617913987);   
     }
