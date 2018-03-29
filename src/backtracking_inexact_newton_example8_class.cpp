@@ -35,8 +35,8 @@ backtracking_inexact_newton_example8::set_initial_guess
 void
 backtracking_inexact_newton_example8::set_bounds
 (std::vector<double> &b1_ , std::vector<double> &b2_ )
-{ b1 = &b1_;
-  b2 = &b2_; }
+{ b1 = b1_;
+  b2 = b2_; }
 
 
 void
@@ -44,9 +44,9 @@ backtracking_inexact_newton_example8::projection
 (std::vector<double> &x )
 {
   for(int i = 0 ; i<x.size(); ++i)
-     x[i] = std::max(std::min(x[i], (*b2)[i]),(*b1)[i]);
+    x[i] = std::max(std::min(x[i], (b2)[i]),(b1)[i]);
 
- }
+}
 
 
 int
@@ -65,14 +65,14 @@ backtracking_inexact_newton_example8::solve ()
     std::vector<int> nonlinear_iter;
   #endif
 
-  unsigned int n = ((example8*) problem)->n; 
-
+ // unsigned int n = ((example8*) problem)->n; 
+  unsigned int n = b1.size();
   if (rank == 0)
-   {
+    {
       problem->operator () (lhs, rhs, (*initial_guess));
       for (unsigned int i = 0; i < rhs.size (); ++i)
         residual_norm += rhs[i] * rhs[i];
-
+      
       residual_norm = sqrt (residual_norm);
       std::cout<<"Initial residual "<< residual_norm<<std::endl;
       #ifdef VERIFY_CONVERGENCE
@@ -81,7 +81,7 @@ backtracking_inexact_newton_example8::solve ()
         nonlinear_iter.push_back (0);
       #endif
        
-   }
+    }
 
   MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
   if (residual_norm < min_residual)
@@ -90,31 +90,31 @@ backtracking_inexact_newton_example8::solve ()
                 << std::endl;
       return 1;
     }
-
+  
   if (rank == 0 && verbose >= 1)
     {
       fout.open (filename.c_str ());
-
+      
       std::cout << "Result of Non Linear Test "
                 << "\nwill be written in "
                 << filename
                 << std::endl << std::endl;
    
-        lin_initial_guess.assign (n, 0.0);
+      lin_initial_guess.assign (n, 0.0);
         
         
-        std::string type_of_iterative_method;
-        lin_solver->get_iterative_method(type_of_iterative_method);
-        std::cout <<"Linear solver used : ";
-        std::cout <<type_of_iterative_method << std::endl; 
-        std::cout <<std::endl;          
+      std::string type_of_iterative_method;
+      lin_solver->get_iterative_method(type_of_iterative_method);
+      std::cout <<"Linear solver used : ";
+      std::cout <<type_of_iterative_method << std::endl; 
+      std::cout <<std::endl;          
   
-        printf ("%10.10s | \t%10.10s | \t%10.10s | \t%s | \t%10.10s\n",
-          "  Iterates", "    lambda",
-          "     ||F||", "       eta",
-          "      flag");
+      printf ("%10.10s | \t%10.10s | \t%10.10s | \t%s | \t%10.10s\n",
+	      "  Iterates", "    lambda",
+	      "     ||F||", "       eta",
+	      "      flag");
 
-        printf ("__________________________________________________________________________\n");
+      printf ("__________________________________________________________________________\n");
     }
   
   bool FLAG = 0;
@@ -122,173 +122,169 @@ backtracking_inexact_newton_example8::solve ()
     {
       ++iteration;
       if (rank ==0)
-      {
+	{
              if (iteration > 1)
-              {
-                   df_gap = lhs * rhs;
-                   forcing_value = (*forcing)
-                       (f_old, f_new, df_gap, forcing_value);
-              }
+	       {
+		 df_gap = lhs * rhs;
+		 forcing_value = (*forcing)
+		   (f_old, f_new, df_gap, forcing_value);
+	       }
              f_old.assign (rhs.size (), 0.0);
              for (unsigned int i = 0; i < rhs.size (); ++i)
-                f_old[i] = rhs[i]; // Qui non ho messo il meno perchè f_old mi serve per
+	       f_old[i] = rhs[i]; // Qui non ho messo il meno perchè f_old mi serve per
                                     // d = J^T * f_old nella direzione del gradiente.
                                     // Uso f_old al posto di (-residuo) 
 
              lhs.aij (xa, ir, jc, lin_solver->get_index_base ());
              lin_solver->set_lhs_structure (lhs.rows (), ir, jc);
-       }
+	}
 
-          lin_solver->analyze ();
+      lin_solver->analyze ();
+      
+      if (rank == 0)
+	lin_solver->set_lhs_data (xa);
+      
+      lin_solver->factorize ();
+	  
+      if (rank == 0)
+	lin_solver->set_rhs (rhs);
 
-          if (rank == 0)
-            lin_solver->set_lhs_data (xa);
+      if (lin_solver->solver_type () == "iterative")
+	{
+	  lin_solver->set_tolerance (forcing_value);
+	  lin_solver->set_initial_guess (lin_initial_guess);
+	}
 
-          lin_solver->factorize ();
-
-          if (rank == 0)
-            lin_solver->set_rhs (rhs);
-
-         if (lin_solver->solver_type () == "iterative")
-            {
-             lin_solver->set_tolerance (forcing_value);
-             lin_solver->set_initial_guess (lin_initial_guess);
-            }
-
-          lin_solver->solve ();   ///*///*///*///*///*///*///*///*///*///*
+      lin_solver->solve ();   ///*///*///*///*///*///*///*///*///*///*
    
-          if (rank == 0)
-            {
-              if (verbose == 2)
-              {
-                 fout << "Iteration with PN: " << iteration << std::endl;
-                 fout<<"d : "<<std::endl;
+      if (rank == 0)
+	{
+	  if (verbose == 2)
+	    {
+	      fout << "Iteration with PN: " << iteration << std::endl;
+	      fout<<"d : "<<std::endl;
               
-               for (unsigned int i = 0; i < rhs.size (); ++i)
-                   fout << rhs[i] << std::endl;
-              }
-              std::vector<double> unew (initial_guess->size ());
-              for (unsigned int i = 0; i < rhs.size (); ++i)
-                unew[i] = rhs[i] + (*initial_guess)[i];
-              projection(unew);
-              double f_old_norm = residual_norm;
-              double f_new_norm = 0.0;
+	      for (unsigned int i = 0; i < rhs.size (); ++i)
+		fout << rhs[i] << std::endl;
+	    }
+	  std::vector<double> unew (initial_guess->size ());
+	  for (unsigned int i = 0; i < rhs.size (); ++i)
+	    unew[i] = rhs[i] + (*initial_guess)[i];
+	  projection(unew);
+	  double f_old_norm = residual_norm;
+	  double f_new_norm = 0.0;
+	  
+	  (*problem) (f_new, unew);
+	  
+	  for (unsigned int i = 0; i < f_new.size (); ++i)
+	    f_new_norm += f_new[i] * f_new[i];
 
-              (*problem) (f_new, unew);
+	  f_new_norm = sqrt (f_new_norm);
+	  
+          #ifdef VERIFY_CONVERGENCE
+	  temp_res.clear ();
+	  temp_res = lhs * rhs;
+	  for (unsigned int i = 0; i < temp_res.size (); ++i)
+	    temp_res[i] += f_old[i];
+	  
+	  double temp_norm = 0.0;
+	  for (unsigned int i = 0; i < temp_res.size (); ++i)
+	    temp_norm += temp_res[i] * temp_res[i];
 
-              for (unsigned int i = 0; i < f_new.size (); ++i)
-                f_new_norm += f_new[i] * f_new[i];
+	  temp_norm = sqrt (temp_norm);
 
-                f_new_norm = sqrt (f_new_norm);
-
-           #ifdef VERIFY_CONVERGENCE
-                temp_res.clear ();
-                temp_res = lhs * rhs;
-                for (unsigned int i = 0; i < temp_res.size (); ++i)
-                  temp_res[i] += f_old[i];
-
-                double temp_norm = 0.0;
-                for (unsigned int i = 0; i < temp_res.size (); ++i)
-                  temp_norm += temp_res[i] * temp_res[i];
-
-                temp_norm = sqrt (temp_norm);
-
-                linear_res.push_back (temp_norm);
-                nonlinear_res.push_back (f_new_norm);
-                nonlinear_iter.push_back (iteration);
-              #endif
-              unsigned int m = 0;
-              theta_k=1;  
-              while (f_new_norm >
-                (1 - t * theta_k*(1 - forcing_value)) * f_old_norm && m<20)
-                { 
+	  linear_res.push_back (temp_norm);
+	  nonlinear_res.push_back (f_new_norm);
+	  nonlinear_iter.push_back (iteration);
+          #endif
+	  unsigned int m = 0;
+	  theta_k=1;  
+	  while (f_new_norm >
+		 (1 - t * theta_k*(1 - forcing_value)) * f_old_norm && m < max_back_it)
+	    { 
                   // ricavo theta (lambda) come nell'articolo
                   theta_k=theta_k*theta;
                   for (unsigned int i = 0; i < rhs.size (); ++i)
-                     {
-                       rhs[i] *= theta;
-                       unew[i] = rhs[i] + (*initial_guess)[i];
-                     }
+		    {
+		      rhs[i] *= theta;
+		      unew[i] = rhs[i] + (*initial_guess)[i];
+		    }
                   projection(unew);
 
                   (*problem) (f_new, unew);
-                   f_new_norm = 0;  // l'ho aggiuto io !
+		  f_new_norm = 0;  // l'ho aggiuto io !
                   for (unsigned int i = 0; i < f_new.size (); ++i)
-                      f_new_norm += f_new[i] * f_new[i];
+		    f_new_norm += f_new[i] * f_new[i];
 
                   f_new_norm = sqrt (f_new_norm);
                   ++m;
-                }
+	    }
             
-              #ifdef VERIFY_CONVERGENCE
-                temp_res.clear ();
-                temp_res = lhs * rhs;
-                for (unsigned int i = 0; i < temp_res.size (); ++i)
-                  temp_res[i] += f_old[i];
+         #ifdef VERIFY_CONVERGENCE
+	  temp_res.clear ();
+	  temp_res = lhs * rhs;
+	  for (unsigned int i = 0; i < temp_res.size (); ++i)
+	    temp_res[i] += f_old[i];
+	  
+	  temp_norm = 0.0;
+	  for (unsigned int i = 0; i < temp_res.size (); ++i)
+	    temp_norm += temp_res[i] * temp_res[i];
 
-                temp_norm = 0.0;
-                for (unsigned int i = 0; i < temp_res.size (); ++i)
-                  temp_norm += temp_res[i] * temp_res[i];
-
-                temp_norm = sqrt (temp_norm);
-
-                linear_res.push_back (temp_norm);
-                nonlinear_res.push_back (f_new_norm);
-                nonlinear_iter.push_back (iteration);
-              #endif
+	  temp_norm = sqrt (temp_norm);
+	  
+	  linear_res.push_back (temp_norm);
+	  nonlinear_res.push_back (f_new_norm);
+	  nonlinear_iter.push_back (iteration);
+         #endif
               
              
-             if (m > 19) FLAG = 1;
-             else
-               { if (verbose >=1) {
-                    printf ("%10.5d |\t%10.5g |\t%10.5g |\t%10.5g |\t",
-                          iteration, theta_k, residual_norm, forcing_value);
-                    printf ("%10.10s\n", "PN");
-                 }
-
-                 if (verbose == 2)
-                  {
-                    fout<<"d dopo backtracking : "<<std::endl;
-                    for (unsigned int i = 0; i < rhs.size (); ++i)
-                      fout << rhs[i] << std::endl;
-                   }
-                 for (unsigned int i = 0; i < rhs.size (); ++i)
-                    (*initial_guess)[i] = rhs[i] + (*initial_guess)[i];
-                 projection(*initial_guess);
+	  if (m > 19) FLAG = 1;
+	  else
+	    {
+	      
+	      if (verbose == 2)
+		{
+		  fout<<"d dopo backtracking : "<<std::endl;
+		  for (unsigned int i = 0; i < rhs.size (); ++i)
+		    fout << rhs[i] << std::endl;
+		}
+	      for (unsigned int i = 0; i < rhs.size (); ++i)
+		(*initial_guess)[i] = rhs[i] + (*initial_guess)[i];
+	      projection(*initial_guess);
                  
-                 (*problem) ( lhs,rhs, (*initial_guess));
+	      (*problem) ( lhs,rhs, (*initial_guess));
 
-                  residual_norm = 0.0;
+	      residual_norm = 0.0;
 
-                  for (unsigned int i = 0; i < rhs.size (); ++i)
-                    residual_norm += rhs[i] * rhs[i];
-                  residual_norm = sqrt (residual_norm);
-                  
-                  
-                  if (verbose == 2)
-                  {
-                    fout<<"x : "<<std::endl;
-                    for (unsigned int i = 0; i < initial_guess->size (); ++i)
-                      fout << (*initial_guess)[i] << std::endl;
-		  }
-                }
+	      for (unsigned int i = 0; i < rhs.size (); ++i)
+		residual_norm += rhs[i] * rhs[i];
+	      residual_norm = sqrt (residual_norm);
+	      if (verbose >=1)
+		{
+		  printf ("%10.5d |\t%10.5g |\t%10.5g |\t%10.5g |\t",
+			  iteration, theta_k, residual_norm, forcing_value);
+		  printf ("%10.10s\n", "PN");
+		}
+	          
+	      if (verbose == 2)
+		{
+		  fout<<"x : "<<std::endl;
+		  for (unsigned int i = 0; i < initial_guess->size (); ++i)
+		    fout << (*initial_guess)[i] << std::endl;
+		}
+	    }
             
-          } // rank ==0
+	} // rank ==0
 
-          MPI_Bcast (&step_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-          MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-          MPI_Bcast (&forcing_value, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast (&step_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast (&forcing_value, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     
         
-        if(FLAG == 1)
-          {
-            if (rank==0 && verbose >= 1){
-                   printf ("%10.5d |\t%10.5g |\t%10.5g |\t%10.5g |\t",
-                          iteration, theta_k, residual_norm, forcing_value);
-                   printf ("%10.10s\n", "PG"); 
-                  }
+      if(FLAG == 1)
+	{
             
-            if (rank == 0 )
+	  if (rank == 0 )
             { 
               // dato che il pattern di J^T non cambia, è meglio andare a modificare i valori,
 	      // che crearla di nuovo ogni volta, quindi questo è da aggiustare 
@@ -296,42 +292,43 @@ backtracking_inexact_newton_example8::solve ()
               lhsT.resize (n);
 
               if (lin_solver->solver_type () == "iterative")
-              {
-                 for (int i = 0 ; i <xa.size(); ++i)
-                 {  
-                     lhsT[jc[i]][ir[i]] = xa[i] ;
-                 }
-              }
+		{
+		  for (int i = 0 ; i <xa.size(); ++i)
+		    {  
+		      lhsT[jc[i]][ir[i]] = xa[i] ;
+		    }
+		}
               else
-              {
-                 for (int i = 0 ; i <xa.size(); ++i)
-                 {  
-                     lhsT[jc[i]-1][ir[i]-1] = xa[i] ;
-                 }
-              }
+		{
+		  for (int i = 0 ; i <xa.size(); ++i)
+		    {  
+		      lhsT[jc[i]-1][ir[i]-1] = xa[i] ;
+		    }
+		}
               rhs = lhsT*f_old;
+	      std::vector<double> rhs_0 = rhs; 
 
               if (verbose == 2)
-              {
-                fout << "Iteration with PG: " << iteration << std::endl;
-
-                fout<<"d : "<<std::endl;
-                for (unsigned int i = 0; i < rhs.size (); ++i)
-                   fout << rhs[i] << std::endl;
+		{
+		  fout << "Iteration with PG: " << iteration << std::endl;
+		  
+		  fout<<"d : "<<std::endl;
+		  for (unsigned int i = 0; i < rhs.size (); ++i)
+		    fout << rhs[i] << std::endl;
           
-              }
+		}
               std::vector<double> unew (initial_guess->size ());
               for (unsigned int i = 0; i < rhs.size (); ++i)
                 unew[i] = rhs[i] + (*initial_guess)[i];
               projection(unew);
               double f_old_norm = residual_norm;
               double f_new_norm = 0.0;
-
+	      
               (*problem) (f_new, unew);
- 
+	      
               for (unsigned int i = 0; i < f_new.size (); ++i)
-                 f_new_norm += f_new[i] * f_new[i];
-
+		f_new_norm += f_new[i] * f_new[i];
+	      
               f_new_norm = sqrt (f_new_norm);
               unsigned int m = 0;
               double val=0;
@@ -339,85 +336,89 @@ backtracking_inexact_newton_example8::solve ()
               diff.resize(n);
 
               for (int i=0 ; i <  n ; ++i)
-              {
-                 diff[i] = unew[i] - (*initial_guess)[i];
-              }
-              std::vector<double> valm = lhs*diff;
+		{
+		  diff[i] = unew[i] - (*initial_guess)[i];
+		}
               for (int i = 0 ; i< unew.size(); ++i)
-              {
-                 val += f_old[i]*valm[i];
-              }
-              val = sigma*val;
+		{
+		  val += - sigma*rhs[i]*diff[i];
+		}
               theta_k=1;
+	     
               while (0.5*f_new_norm*f_new_norm >
-                    0.5*f_old_norm*f_old_norm + val && m<20)
-              {
-                 theta_k=theta_k*thetaPG;
-
-                 for (unsigned int i = 0; i < rhs.size (); ++i)
-                 {
-                   rhs[i] *= thetaPG;
-                   unew[i] = rhs[i] + (*initial_guess)[i];
-                 }
-                 projection(unew);
-
-                 (*problem) (f_new, unew);
-                 f_new_norm = 0;  // l'ho aggiuto io !
-                 for (unsigned int i = 0; i < f_new.size (); ++i)
+		     0.5*f_old_norm*f_old_norm + val && m < max_back_it + 1)
+		{
+		  theta_k=theta_k*thetaPG;
+		  
+		  for (unsigned int i = 0; i < rhs.size (); ++i)
+		    {
+		      rhs[i] *= thetaPG;
+		      unew[i] = rhs[i] + (*initial_guess)[i];
+		    }
+		  projection(unew);
+		  
+		  (*problem) (f_new, unew);
+		  f_new_norm = 0;  // l'ho aggiuto io !
+		  for (unsigned int i = 0; i < f_new.size (); ++i)
                     f_new_norm += f_new[i] * f_new[i];
-
-                 f_new_norm = sqrt (f_new_norm);
-                 val=0;
-
-                 for (int i=0 ; i <  n ; ++i)
-                 {
-                    diff[i] = unew[i] - (*initial_guess)[i];
-                 }
-                 std::vector<double> valm = lhs*diff;
-
+		  
+		  f_new_norm = sqrt (f_new_norm);
+		  val=0;
+		  
+		  for (int i=0 ; i <  n ; ++i)
+		    {
+		      diff[i] = unew[i] - (*initial_guess)[i];
+		    }
+                 
                  for (int i = 0 ; i< unew.size(); ++i)
-                 {
-                    val += f_old[i]*valm[i];
-                 }
-                 val = sigma*val;
+		   {
+		     val += - sigma*rhs_0[i]*diff[i];
+		   }
+
                  ++m;
-              }
-    
+		}
+	     
               FLAG=0;
               df_gap = lhs * rhs;
-
+	      
               if (verbose == 2 )
-              {
-                fout<<"d dopo backtracking : "<<std::endl;
-                for (unsigned int i = 0; i < rhs.size (); ++i)
-                  fout << rhs[i] << std::endl;
-              }
-             for (unsigned int i = 0; i < rhs.size (); ++i)
-               (*initial_guess)[i] = rhs[i] + (*initial_guess)[i];
-             projection(*initial_guess);
-             (*problem) ( lhs,rhs, (*initial_guess));
+		{
+		  fout<<"d dopo backtracking : "<<std::endl;
+		  for (unsigned int i = 0; i < rhs.size (); ++i)
+		    fout << rhs[i] << std::endl;
+		}
+	      for (unsigned int i = 0; i < rhs.size (); ++i)
+		(*initial_guess)[i] = rhs[i] + (*initial_guess)[i];
+	      projection(*initial_guess);
+	      (*problem) ( lhs,rhs, (*initial_guess));
 
-             residual_norm = 0.0;
+	      residual_norm = 0.0;
 
-             for (unsigned int i = 0; i < rhs.size (); ++i)
-               residual_norm += rhs[i] * rhs[i];
+	      for (unsigned int i = 0; i < rhs.size (); ++i)
+		residual_norm += rhs[i] * rhs[i];
 
 
-             residual_norm = sqrt (residual_norm);
+	      residual_norm = sqrt (residual_norm);
              
-             if (verbose == 2)
-             {
-               fout<<"u : "<<std::endl;
-               for (unsigned int i = 0; i < initial_guess->size (); ++i)
-                 fout << (*initial_guess)[i] << std::endl;
-             }
+	      if (rank==0 && verbose >= 1)
+		{
+		  printf ("%10.5d |\t%10.5g |\t%10.5g |\t%10.5g |\t",
+			  iteration, theta_k, residual_norm, forcing_value);
+		  printf ("%10.10s\n", "PG"); 
+		}
+	      if (verbose == 2)
+		{
+		  fout<<"u : "<<std::endl;
+		  for (unsigned int i = 0; i < initial_guess->size (); ++i)
+		    fout << (*initial_guess)[i] << std::endl;
+		}
             }// rank == 0
-        MPI_Bcast (&step_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        MPI_Bcast (&forcing_value, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast (&step_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast (&forcing_value, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         } // FLAG == 1
-
-  }
+      
+    }
   while (iteration <= max_iter
          && residual_norm > min_residual);
 
@@ -430,7 +431,7 @@ backtracking_inexact_newton_example8::solve ()
 
   if (rank == 0 && verbose >=1)
     fout.close ();
-
+  
   if (iteration > max_iter)
     {
       if (rank == 0)

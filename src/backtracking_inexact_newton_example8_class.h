@@ -7,8 +7,8 @@
   \brief interface for a nonlinear solver based on projected Newton method combined with prejected gradiet direction.
 */
 
-#ifndef HAVE_BACKTRACKING_INEXACT_NEWTON_H
-#define HAVE_BACKTRACKING_INEXACT_NEWTON_H 1
+#ifndef HAVE_BACKTRACKING_INEXACT_NEWTON_EXAMPLE8_H
+#define HAVE_BACKTRACKING_INEXACT_NEWTON_EXAMPLE8_H 1
 
 #include <linear_solver.h>
 #include <nonlinear_solver.h>
@@ -128,8 +128,8 @@ private :
   
   /// \brief Bounds for the solution.
   /// \details b1 lower bound, b2 upper bound.
-  std::vector<double> *b1;
-  std::vector<double> *b2;
+  std::vector<double> b1;
+  std::vector<double> b2;
   
   std::string filename;
   std::ofstream fout;
@@ -143,8 +143,8 @@ public :
 
   /// Default costructor.
   backtracking_inexact_newton_example8
-  (linear_solver *solver_, std::vector<double> *b1_ ,
-   std::vector<double> *b2_ ,int verbose_ = 2, double t_ = 1e-4,
+  (linear_solver *solver_, std::vector<double> &b1_ ,
+   std::vector<double> &b2_ ,int verbose_ = 2, double t_ = 1e-4,
   double sigma_ = 1e-4, double theta_min_ =0, double theta_max_ =1, 
   double theta_ =0.5, double thetaPG_ =0.8, int max_back_it_=20) :
     nonlinear_solver ("Backtracking Inexact Newton Example8"),
