@@ -1,27 +1,21 @@
-/*
-  Copyright (C) 2017 Carlo de Falco
-  This software is distributed under the terms
-  the terms of the GNU/GPL licence v3
-*/
-
-/*! \file tmesh.h
+/*! \file tmesh_3d.h
   \brief Interface for p4est library
 */
 
-#ifndef TMESH_H
-#define TMESH_H
+#ifndef TMESH_3D_H
+#define TMESH_3D_H
 
 
 #include <octave_file_io.h>
 
 #include <mpi.h>
 
-#include <p4est_algorithms.h>
-#include <p4est_bits.h>
-#include <p4est_extended.h>
-#include <p4est_lnodes.h>
-#include <p4est_mesh.h>
-#include <p4est_vtk.h>
+#include <p8est_algorithms.h>
+#include <p8est_bits.h>
+#include <p8est_extended.h>
+#include <p8est_lnodes.h>
+#include <p8est_mesh.h>
+#include <p8est_vtk.h>
 
 #include <cassert>
 #include <functional>
@@ -29,9 +23,9 @@
 #include <vector>
 
 
-/// C++ interface class for p4est 2d quadrant meshes.
+/// C++ interface class for p4est 3d quadrant meshes.
 class
-tmesh
+tmesh_3d
 {
 
 public:
@@ -107,9 +101,10 @@ public:
     operator++ ();
 
     /// Default constructor.
-    neighbor_iterator (quadrant_t *_data = nullptr, int _face_idx = -1) :
+    neighbor_iterator (quadrant_t *_data = nullptr,
+                       int _face_idx = -1) :
       quadrant_iterator (_data),
-      face_neighbor (new p4est_mesh_face_neighbor_t),
+      face_neighbor (new p8est_mesh_face_neighbor_t),
       face_idx (_face_idx)
     { };
 
@@ -118,12 +113,12 @@ public:
     get_face_idx ()
     { return face_idx; };
 
-    friend class tmesh::quadrant_t;
+    friend class tmesh_3d::quadrant_t;
 
   private:
-    p4est_mesh_face_neighbor_t * face_neighbor; // mfn
+    p8est_mesh_face_neighbor_t * face_neighbor; // mfn
 
-    int face_idx; /// Face index in 0...3 (-1 if not defined).
+    int face_idx; /// Face index in 0...5 (-1 if not defined).
   };
 
   /// C++ interface class to access properties of the
@@ -136,9 +131,9 @@ public:
 
     /// Simple constructor needs at least a pointer
     /// to the container tmesh.
-    quadrant_t (tmesh *_tmesh,
+    quadrant_t (tmesh_3d *_tmesh,
                 p4est_topidx_t _tree = 0,
-                p4est_quadrant_t *_quadrant = nullptr) :
+                p8est_quadrant_t *_quadrant = nullptr) :
       the_tmesh (_tmesh), the_quadrant (_quadrant), tree_idx (_tree),
       is_ghost (false), qtq (-1)
     { };
@@ -150,6 +145,10 @@ public:
     /// Get the i-th coordinate of the centroid.
     double
     centroid (idx_t i);
+
+    /// Get the i-th coordinate of the centroid of the j-th face
+    double
+    face_centroid (idx_t i, int j);
 
     /// Get rank-local index of the i-th vertex, or global index for ghosts.
     idx_t
@@ -163,6 +162,10 @@ public:
     bool
     is_hanging (idx_t i);
 
+    /// Get number of parents of the i-th vertex (0 if not hanging).
+    int
+    num_parents (idx_t i);
+
     /// Return the rank-local (or global for ghosts)
     /// ip-th parent for the in-th vertex.
     /// TODO : type should be p4est_gloidx_t
@@ -175,8 +178,8 @@ public:
     int
     gparent (idx_t ip, idx_t in);
 
-    static const idx_t NOT_ON_BOUNDARY = P4EST_ROOT_LEN + 1;
-    /// Index of the edge of the current tree
+    static const idx_t NOT_ON_BOUNDARY = P8EST_ROOT_LEN + 1;
+    /// Index of the face of the current tree
     //  on which the i-th vertex lies, return
     //  NOT_ON_BOUNDARY if an interior vertex.
     idx_t
@@ -210,7 +213,7 @@ public:
     get_global_quad_idx ()
     {
       return forest_quad_idx +
-        the_tmesh->p4est->global_first_quadrant[the_tmesh->rank];
+        the_tmesh->p8est->global_first_quadrant[the_tmesh->rank];
     };
 
     /// Return index of current tree.
@@ -221,17 +224,17 @@ public:
     /// Update stored data.
     void
     update (p4est_topidx_t tree,
-            p4est_quadrant_t *q);
+            p8est_quadrant_t *q);
 
     /// A pointer to the owning mesh is needed
     /// to get physical mapping.
-    tmesh                      *the_tmesh;
-    p4est_tree_t               *tree;
-    p4est_quadrant_t           *the_quadrant;
+    tmesh_3d                   *the_tmesh;
+    p8est_tree_t               *tree;
+    p8est_quadrant_t           *the_quadrant;
 
-    friend class tmesh::quadrant_iterator;
-    friend class tmesh::neighbor_iterator;
-    friend class tmesh;
+    friend class tmesh_3d::quadrant_iterator;
+    friend class tmesh_3d::neighbor_iterator;
+    friend class tmesh_3d;
 
   private:
 
@@ -248,15 +251,23 @@ public:
     p4est_locidx_t qtq;
 
     /// Buffer used when quering coordinates.
-    double                vxyz[12] = {0,0,0, 0,0,0, 0,0,0, 0,0,0};
-    idx_t                 tbuff[4] = {0,0,0,0};
-    bool                  hbuff[4] = {false,false,false,false};
-    int                   pbuff[8] = {-1,-1, -1,-1, -1,-1, -1,-1};
+    double vxyz [3 * 8] = {0,0,0, 0,0,0, 0,0,0, 0,0,0,
+                           0,0,0, 0,0,0, 0,0,0, 0,0,0};
+
+    /// Buffer for index of the i-th vertex.
+    idx_t  tbuff[8]     = {0,0,0,0,0,0,0,0};
+    /// Buffer for num. of parents of hanging nodes(0 if not hanging).
+    int    hbuff[8]     = {0,0,0,0,0,0,0,0};
+    /// Buffer for parents' t(-1 if not hanging or less than 4 parents).
+    int    pbuff[4 * 8] = {-1,-1,-1,-1, -1,-1,-1,-1,
+                           -1,-1,-1,-1, -1,-1,-1,-1,
+                           -1,-1,-1,-1, -1,-1,-1,-1,
+                           -1,-1,-1,-1, -1,-1,-1,-1};
   };
 
   /// Default constructor, set all pointers to nullptr.
-  tmesh (MPI_Comm _comm = MPI_COMM_WORLD)
-    : p4est (nullptr), conn (nullptr),
+  tmesh_3d (MPI_Comm _comm = MPI_COMM_WORLD)
+    : p8est (nullptr), conn (nullptr),
       current_quadrant (this, 0, nullptr),
       lnodes (nullptr), mesh (nullptr), ghost (nullptr),
       mirror_data (nullptr), ghost_data (nullptr),
@@ -267,29 +278,29 @@ public:
     MPI_Comm_size (comm, &size);
   };
 
-  /// Load a p4est and connectivity from a file.
-  tmesh (const char *filename, MPI_Comm _comm = MPI_COMM_WORLD)
-    : tmesh ()
+  /// Load a p8est and connectivity from a file.
+  tmesh_3d (const char *filename, MPI_Comm _comm = MPI_COMM_WORLD)
+    : tmesh_3d ()
   { load (filename); };
 
   /// Delete copy constructor.
-  tmesh (const tmesh &) = delete;
+  tmesh_3d (const tmesh_3d &) = delete;
 
   /// Delete assignment operator.
-  tmesh &
-  operator= (const tmesh &) = delete;
+  tmesh_3d &
+  operator= (const tmesh_3d &) = delete;
 
   /// Destructor.
-  ~tmesh ();
+  ~tmesh_3d ();
 
   /// Load a connectivity from a compressed binary
-  /// Octave file then init the p4est.
+  /// Octave file then init the p8est.
   void
   read_connectivity (const char *filename,
                      int source = 0);
 
-  /// Load a p4est and connectivity from a set of arrays
-  /// then init the p4est.
+  /// Load a p8est and connectivity from a set of arrays
+  /// then init the p8est.
   void
   read_connectivity (const double *p,
                      const p4est_topidx_t num_vertices,
@@ -297,11 +308,11 @@ public:
                      const p4est_topidx_t num_trees,
                      int source = 0);
 
-  /// Save the p4est and connectivity to a file.
+  /// Save the p8est and connectivity to a file.
   void
   save (const char *filename);
 
-  /// Load the p4est and connectivity from a file.
+  /// Load the p8est and connectivity from a file.
   void
   load (const char *filename);
 
@@ -313,12 +324,7 @@ public:
   void
   octbin_export (const char * filename,
                  const std::vector<double> & f);
-  
-  /// Export quadrant field f to a octbin.gz file for visualization.
-  void
-  octbin_export_quadrant (const char * filename,
-                          const std::vector<double> & f);
-  
+
   /// Get an iterator to the first quadrant of the mesh.
   quadrant_iterator
   begin_quadrant_sweep ();
@@ -328,7 +334,7 @@ public:
   end_quadrant_sweep ()
   { return quadrant_iterator (); };
 
-  /// Mark quadrants for refinement based on fun.
+  /// Mark quadrant for refinement based on fun.
   void
   set_refine_marker
   (std::function<int (quadrant_iterator)> fun)
@@ -362,11 +368,9 @@ public:
   void
   set_replace_fun
   (std::function<std::vector<int> (std::vector<int>)> fun)
-  {
-    replace_fun = fun;
-  };
+  { replace_fun = fun; };
 
-  /// Refine marked quadrants, balance the quadtree and
+  /// Refine marked quadrants, balance the octree and
   /// re-partition over the processors.
   void
   refine (int recursive = 0, int partforcoarsen = 1, int balance = 1);
@@ -375,7 +379,7 @@ public:
   void
   metrics_refine (idx_t max_elems = 0);
 
-  /// Coarsen marked quadrants, balance the quadtree and
+  /// Coarsen marked quadrants, balance the octree and
   /// re-partition over the processors.
   void
   coarsen (int recursive = 0, int partforcoarsen = 1, int balance = 1);
@@ -420,29 +424,33 @@ public:
   /// across all trees
   idx_t
   num_local_quadrants ()
-  { return p4est->local_num_quadrants; };
+  {
+    return p8est->local_num_quadrants;
+  };
 
   /// Return number of quadrants owned by all processes
   /// across all trees
   idx_t
   num_global_quadrants ()
-  { return p4est->global_num_quadrants; };
+  {
+    return p8est->global_num_quadrants;
+  };
 
   /// Replace fun based on quadrant user_int.
   static std::vector<int>
   userint_replace (std::vector<int>);
 
-  /// P4EST pointers describing the tmesh,
+  /// P8EST pointers describing the tmesh,
   /// temporarily public until the API is stable.
-  p4est_t              *p4est;
-  p4est_connectivity_t *conn;
+  p8est_t              *p8est;
+  p8est_connectivity_t *conn;
   quadrant_t            current_quadrant;
-  p4est_lnodes_t       *lnodes;
-  p4est_mesh_t         *mesh;
-  p4est_ghost_t        *ghost;
+  p8est_lnodes_t       *lnodes;
+  p8est_mesh_t         *mesh;
+  p8est_ghost_t        *ghost;
 
-  p4est_gloidx_t * mirror_data;
-  p4est_gloidx_t * ghost_data;
+  p4est_gloidx_t       *mirror_data;
+  p4est_gloidx_t       *ghost_data;
 
   MPI_Comm comm;
   int      rank;
@@ -453,15 +461,15 @@ private:
   std::function<std::vector<int> (std::vector<int>)> replace_fun;
 
   static int
-  refine_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t*);
+  refine_callback (p8est_t*, p4est_topidx_t, p8est_quadrant_t*);
 
   static int
-  coarsen_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t* []);
+  coarsen_callback (p8est_t*, p4est_topidx_t, p8est_quadrant_t* []);
 
   static void
-  replace_callback (p4est_t*, p4est_topidx_t,
-                    int, p4est_quadrant_t* [],
-                    int, p4est_quadrant_t* []);
+  replace_callback (p8est_t*, p4est_topidx_t,
+                    int, p8est_quadrant_t* [],
+                    int, p8est_quadrant_t* []);
 
   int metrics_max_depth;
 };
@@ -502,11 +510,11 @@ public :
 
 private :
 
-  tmesh *the_tmesh;
+  tmesh_3d *the_tmesh;
   // should probably use some sort of smart pointer here
   T *data;
 };
 
 
-#endif /* TMESH_H */
+#endif /* TMESH_3D_H */
 

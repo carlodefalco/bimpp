@@ -1,0 +1,39 @@
+#include <tmesh_3d.h>
+#include <simple_connectivity_3d_2trees.h>
+#include <iostream>
+int
+main (int argc, char **argv)
+{
+  MPI_Init (&argc, &argv);
+  
+  int                   recursive, partforcoarsen, balance;
+  MPI_Comm              mpicomm = MPI_COMM_WORLD;  
+  int                   rank, size;
+  tmesh_3d              tmsh;
+  
+  mpicomm = MPI_COMM_WORLD;
+  MPI_Comm_rank (mpicomm, &rank);
+  MPI_Comm_size (mpicomm, &size);
+  
+  std::cout << "conn test" << std::endl << (int*)nullptr << std::endl
+    << (int*)(tmsh.conn) << std::endl;
+    
+  tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
+                          simple_conn_t, simple_conn_num_trees);
+
+  std::cout << "conn test" << std::endl << (int*)nullptr << std::endl
+    << (int*)(tmsh.conn) << std::endl;
+  
+  std::cout << "num = " << tmsh.num_local_quadrants() << std::endl;
+  
+  tmesh_3d::quadrant_iterator oct = tmsh.begin_quadrant_sweep();
+  while (oct != tmsh.end_quadrant_sweep())
+    {
+      std::cout << "centroid (" << oct->centroid(0) << "," <<
+        oct->centroid(1) << ")" << std::endl;
+      ++oct;
+    }
+  
+  MPI_Finalize ();
+  return 0;
+}

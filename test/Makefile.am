@@ -29,7 +29,10 @@ if HAVE_P4EST
   check_PROGRAMS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 \
                     p4est_conn_test p4est_hanging_test p4est_coarsen_test \
                     p4est_iterator_test  p4est_load_save_test p4est_edge_id_test \
-                    p4est_neighbor_iterator_test p4est_up_test 
+                    p4est_neighbor_iterator_test p4est_up_test \
+                    tmesh_3d_test p4est_load_save_test_3d p4est_up_test_3d \
+                    p4est_refine_segment_test_3d p4est_ref_test_3d p4est_palla_3d \
+                    p4est_coarsen_test_3d p4est_hanging_test_3d p4est_operator_test_3d
 
 endif
 
@@ -223,6 +226,75 @@ if HAVE_P4EST
   p4est_up_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += p4est_up_test.octbin.gz p4est_up_test*.pvtu p4est_up_test*.visit p4est_up_test_*.vtu
 
+  tmesh_3d_test_SOURCES =  tmesh_3d_test.cpp 
+  tmesh_3d_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  tmesh_3d_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  tmesh_3d_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+  CLEANFILES += tmesh_3d_out.txt
+
+  p4est_load_save_test_3d_SOURCES =  p4est_load_save_test_3d.cpp mosfet_connectivity_3d.cpp
+  p4est_load_save_test_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_load_save_test_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_load_save_test_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+  CLEANFILES += p4est_load_save_test_3d.octbin.gz p4est_load_save_test_3d.p8est \
+                p4est_load_save_test_3d*.octbin.gz \
+                p4est_load_save_test_3d.pvtu p4est_load_save_test_3d.visit \
+                p4est_load_save_test_3d_*.vtu p4est_load_save_test_3d_2.pvtu \
+                p4est_load_save_test_3d_2.visit p4est_load_save_test_3d_2*.vtu
+
+  p4est_up_test_3d_SOURCES =  p4est_up_test_3d.cpp 
+  p4est_up_test_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_up_test_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_up_test_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+  CLEANFILES += p4est_up_test_3d.octbin.gz p4est_up_test_3d*.pvtu \
+                p4est_up_test_3d*.visit p4est_up_test_3d_*.vtu
+
+  p4est_refine_segment_test_3d_SOURCES =  p4est_refine_segment_test_3d.cpp
+  p4est_refine_segment_test_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_refine_segment_test_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_refine_segment_test_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+  CLEANFILES += p4est_unitcube.octbin.gz p4est_refine_segment_test_3d*.pvtu \
+                p4est_refine_segment_test_3d*.visit p4est_refine_segment_test_3d_*.vtu
+
+  p4est_ref_test_3d_SOURCES =  p4est_ref_test_3d.cpp mosfet_doping_3d.cpp mosfet_connectivity_3d.cpp
+  p4est_ref_test_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_ref_test_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_ref_test_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+  CLEANFILES += p4est_ref_test_3d.octbin*.gz p4est_ref_test_3d*.pvtu \
+                p4est_ref_test_3d*.visit p4est_ref_test_3d_*.vtu
+
+  p4est_palla_3d_SOURCES =  p4est_palla_3d.cpp 
+  p4est_palla_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_palla_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_palla_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+  CLEANFILES += palla_3d.octbin*.gz palla_*.pvtu \
+                palla_*.visit palla_*.vtu palla_initial_mesh*.*
+
+  p4est_coarsen_test_3d_SOURCES =  p4est_coarsen_test_3d.cpp  \
+                                   mosfet_doping_3d.cpp \
+                                   mosfet_connectivity_3d.cpp
+  p4est_coarsen_test_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_coarsen_test_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_coarsen_test_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+  CLEANFILES += p4est_coarsen_test_3d.octbin.gz p4est_coarsen_test_3d.pvtu \
+                p4est_coarsen_test_3d.visit p4est_coarsen_test_3d_*.vtu 
+
+  p4est_hanging_test_3d_SOURCES =  p4est_hanging_test_3d.cpp \
+                                   mosfet_doping_3d.cpp \
+                                   mosfet_connectivity_3d.cpp
+  p4est_hanging_test_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_hanging_test_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_hanging_test_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+  CLEANFILES += p4est_hanging_test_3d.octbin.gz p4est_hanging_test_3d.pvtu \
+                p4est_hanging_test_3d.visit p4est_hanging_test_3d_*.vtu
+  
+  p4est_operator_test_3d_SOURCES =  p4est_operator_test_3d.cpp
+  p4est_operator_test_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  p4est_operator_test_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  p4est_operator_test_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+  CLEANFILES += p4est_operator_test_3d*.octbin.gz p4est_operator_test_3d.pvtu \
+                p4est_operator_test_3d.visit p4est_operator_test_3d_*.vtu
+
 endif
 
 TESTS =
@@ -232,8 +304,10 @@ if HAVE_P4EST
 TESTS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 p4est_conn_test \
          p4est_hanging_test p4est_coarsen_test \
          p4est_iterator_test p4est_load_save_test p4est_edge_id_test \
-         p4est_neighbor_iterator_test p4est_up_test 
-
+         p4est_neighbor_iterator_test p4est_up_test \
+         tmesh_3d_test p4est_load_save_test_3d p4est_up_test_3d \
+         p4est_refine_segment_test_3d p4est_ref_test_3d p4est_palla_3d \
+         p4est_coarsen_test_3d p4est_hanging_test_3d p4est_operator_test_3d
 
 endif
 
