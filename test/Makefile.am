@@ -20,7 +20,7 @@ check_PROGRAMS = io_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 
 if HAVE_LIS
   check_PROGRAMS += lis_stationary_test lis_timedependent_test linear_solver_test \
                     linear_solver_test_repeated nonlinear_solver_test nonlinear_solver_test2 \
-                    nonlinear_solver_test3 nonlinear_solver_test4 nonlinear_solver_eq_test example8_test
+                    nonlinear_solver_test3 nonlinear_solver_test4 nonlinear_solver_eq_test example8_test tumor_growth_test
 
 endif
 
@@ -143,6 +143,12 @@ if HAVE_LIS
   example8_test_LDADD = $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLIB)
   CLEANFILES += Example8_Test.txt
 
+  tumor_growth_test_SOURCES = tumor_growth_test.cpp tumor_growth_class.h tumor_growth_class.cpp
+  tumor_growth_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+  tumor_growth_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+  tumor_growth_test_LDADD = $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMP4ESTLIB) $(BIMLIB) $(BIMIOLIB) @P4EST_LIB@
+  CLEANFILES += Example8_Test.txt mesh_tumor_growth.pvtu mesh_tumor_growth.visit mesh_tumor_growth_*.vtu tumor_growth*
+
   nonlinear_solver_eq_test_SOURCES =  nonlinear_solver_eq_test.cpp equation_class.h equation_class.cpp
   nonlinear_solver_eq_test_LDADD =  $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLIB)
   CLEANFILES += NonLinear_Equation_Test.txt
@@ -241,6 +247,6 @@ if HAVE_LIS
   TESTS += linear_solver_test linear_solver_test_repeated \
            lis_stationary_test lis_timedependent_test nonlinear_solver_eq_test \
            nonlinear_solver_test nonlinear_solver_test2 nonlinear_solver_test3 nonlinear_solver_test4 \
-           example8_test
+           example8_test tumor_growth_test
 endif
 
