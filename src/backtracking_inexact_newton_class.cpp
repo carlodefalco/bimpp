@@ -37,7 +37,6 @@ backtracking_inexact_newton::solve ()
   std::vector<int> ir, jc;
   std::vector<double> xa;
   std::vector<double> lin_initial_guess;
-
   sparse_matrix mass_matrix;
 
   std::vector<double> f_old, f_new, df_gap;
@@ -48,8 +47,9 @@ backtracking_inexact_newton::solve ()
   #endif
 
   if (rank == 0)
-    {
-      if (norm_t == L2 || norm_t == H1)
+    { 
+     // COMMENTED JUST FOR TUMOR_GROWTH
+     /* if (norm_t == L2 || norm_t == H1)
         {
           std::vector<double> ecoeff (problem->msh.nelements, 1.0);
           std::vector<double> ncoeff (problem->msh.nnodes, 1.0);
@@ -57,8 +57,9 @@ backtracking_inexact_newton::solve ()
           if (norm_t == H1)
             bim3a_laplacian (problem->msh, ecoeff, mass_matrix);
         }
+      */
+      problem->operator () (lhs, rhs, *initial_guess);
 
-      problem->operator () (lhs, rhs, (*initial_guess));
       for (unsigned int i = 0; i < rhs.size (); ++i)
         residual_norm += rhs[i] * rhs[i];
     
@@ -90,11 +91,15 @@ backtracking_inexact_newton::solve ()
     }
   if (rank == 0)
     {
-      if (problem->msh.nnodes !=0)
-        lin_initial_guess.assign (problem->msh.nnodes, 0.0);
-      else
-        lin_initial_guess.assign (1, 0.0);
+      // COMMENTED JUST FOR TUMOR_GROWTH
+      // if (problem->msh.nnodes !=0)   
+      lin_initial_guess.assign (rhs.size(), 0.0);  
+      // lin_initial_guess.assign (problem->msh.nnodes, 0.0);
+      // else
+      // lin_initial_guess.assign (1, 0.0);
     }
+  
+  iteration = 0; // ADDED JUST FOR TUMOR_GROWTH
 
   do
     {
@@ -166,10 +171,11 @@ backtracking_inexact_newton::solve ()
             nonlinear_res.push_back (f_new_norm);
             nonlinear_iter.push_back (iteration);
           #endif
-
+	  int m = 0;  
           while (f_new_norm >
-            (1 - t * (1 - forcing_value)) * f_old_norm)
+            (1 - t * (1 - forcing_value)) * f_old_norm && m < 5)  // m < 5 ADDED JUST FOR TUMOR_GROWTH
             {
+	      ++m;
               std::vector<double> temp;
               double temp_norm = 0.0;
 
@@ -184,7 +190,7 @@ backtracking_inexact_newton::solve ()
               double c = f_old_norm * f_old_norm;
 
               theta_choice (a, b, c);
-
+	      
               for (unsigned int i = 0; i < rhs.size (); ++i)
                 {
                   rhs[i] *= theta;
@@ -227,7 +233,7 @@ backtracking_inexact_newton::solve ()
 
           for (unsigned int i = 0; i < rhs.size (); ++i)
             (*initial_guess)[i] = rhs[i] + (*initial_guess)[i];
-
+/*        // COMMENTED JUST FOR TUMOR_GROWTH
           if (norm_t == Inf)
             bim3a_norm (problem->msh, rhs, step_norm, norm_t);
           else
@@ -239,7 +245,7 @@ backtracking_inexact_newton::solve ()
                 step_norm += rhs[i] * temp[i];
               step_norm = sqrt (step_norm);
             }
-
+*/
           (*problem) (lhs, rhs, (*initial_guess));
           residual_norm = 0.0;
           for (unsigned int i = 0; i < rhs.size (); ++i)
@@ -261,8 +267,8 @@ backtracking_inexact_newton::solve ()
       MPI_Bcast (&forcing_value, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     }
   while (iteration <= max_iter
-         && residual_norm > min_residual
-         && step_norm > tolerance);
+         && residual_norm > min_residual);
+         //&& step_norm > tolerance); // COMMENTED JUST FOR TUMOR_GROWTH
 
   if (rank == 0 && verbose == 1)
     {
@@ -281,7 +287,8 @@ backtracking_inexact_newton::solve ()
                   << std::endl
                   << "Nonlinear solver not converged."
                   << std::endl;
-      return 0;
+       // COMMENTED JUST FOR TUMOR_GROWTH
+       //  return 0;   
     }
   else
     {
