@@ -4,7 +4,17 @@
   the terms of the GNU/GPL licence v3
 */
 /*!
-     System of nonlinear equations for \f[x = (x_1, ..., x_n)^T\f] with \f[x \in \Omega \f]
+     System of nonlinear equations 
+    \f[
+       \begin{cases}
+       x_1^2 - 1 = 0 \\
+       x_1 - x_2^3 = 0 \\
+       \vdots \\
+       x_{n-2} - x_{n-1}^3 = 0 \\
+       x_{n-1} - x_{n} = 0 
+      \end{cases} \f]
+   with \f$ \textbf{x} \f$ constrained, that is \f$ \textbf{x} \in \Omega \subseteq \mathbf{R}^n \f$
+  
   Linear Solver: lis or numps
 
   NonLinear Solver: backtracking_inexact_newton_example8
@@ -26,6 +36,10 @@
 #include "bim_config.h"
 #include "example8_class.h"
 #include <sstream>
+
+/// \brief The example is used to test the projected-Newton method mixed with gradiend direction presented in the paper "Globalization technique for ptojeced Newton-Krylov methods" of Jinhai Chen and Cornelis Vuik. 
+
+
 void
 run_test_problem (nonlinear_solver *solver);
 

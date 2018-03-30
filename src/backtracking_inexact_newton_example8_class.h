@@ -4,7 +4,7 @@
   the terms of the GNU/GPL licence v3
 */
 /*! \file backtracking_inexact_newton_example8_class.h
-  \brief interface for a nonlinear solver based on projected Newton method combined with prejected gradiet direction.
+  \brief interface for a nonlinear solver based on projected Newton method combined with projected gradient direction.
 */
 
 #ifndef HAVE_BACKTRACKING_INEXACT_NEWTON_EXAMPLE8_H

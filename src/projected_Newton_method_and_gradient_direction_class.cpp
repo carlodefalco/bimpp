@@ -4,8 +4,8 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-/*! \file backtracking_inexact_newton_example8_class.cpp
-  \brief interface for a nonlinear solver based on projected Newton method combined with prejected gradiet direction.
+/*! \file projected_Newton_method_and_gradient_direction_class.cpp
+  \brief interface for a nonlinear solver based on projected Newton method combined with projected gradient direction.
 */
 
 #include <abstract_nonlinear_problem.h>

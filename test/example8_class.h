@@ -5,15 +5,18 @@
 */
 /*!
   Problem:
-  \f[ x_1^2 - 1 = 0 \f]
-  \f[ x_1 - x_2^3 = 0\f]
-  \f[ ... \f]
-  \f[ x_{n-2} - x_{n-1}^3 = 0 \f]
-  \f[ x_{n-1} - x_{n} = 0 \f]
-  \f[ x \in \Omega \f]
-  
+     \f[
+       \begin{cases}
+       x_1^2 - 1 = 0 \\
+       x_1 - x_2^3 = 0 \\
+       \vdots \\
+       x_{n-2} - x_{n-1}^3 = 0 \\
+       x_{n-1} - x_{n} = 0 
+      \end{cases} \f]
+ with \f$ \textbf{x} \in \Omega \subseteq \mathbf{R}^n \f$
+
   Exact Solution:
-  \f[ x = (1, ... , 1)^T \f]
+  @f[ \textbf{x} = (1, \dots, 1)^T @f]
   
 */
 
@@ -26,7 +29,8 @@
 
 ///  \brief Interface for nonlinear problem is 
 ///   taken from Example 8 in the paper
-///  "Globalization technique for ptojeced Newton-Krylov methods"
+///  "Globalization technique for ptojeced Newton-Krylov methods" of Jinhai Chen and Cornelis Vuik
+
 
 class example8 : public abstract_nonlinear_problem
 {

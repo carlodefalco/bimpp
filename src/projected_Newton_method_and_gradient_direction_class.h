@@ -3,8 +3,8 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-/*! \file backtracking_inexact_newton_example8_class.h
-  \brief interface for a nonlinear solver based on projected Newton method combined with prejected gradiet direction.
+/*! \file projected_Newton_method_and_gradient_direction_class.h
+  \brief interface for a nonlinear solver based on projected Newton method combined with projected gradient direction.
 */
 
 #ifndef HAVE_PROJECTED_NEWTON_METHOD_AND_GRADIENT_DIRECTION_H
@@ -128,10 +128,13 @@ private :
   int verbose;
   
   /// \brief Bounds for the solution.
-  /// \details b1 lower bound, b2 upper bound.
+  /// \details b1 lower bound
   std::vector<double> b1;
+   
+  /// \brief Bounds for the solution.
+  /// \details b2 upper bound.
   std::vector<double> b2;
-  
+ 
   std::string filename;
   std::ofstream fout;
 

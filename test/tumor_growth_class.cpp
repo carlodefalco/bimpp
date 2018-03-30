@@ -3,9 +3,22 @@
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
-/*! \file plaplacian_class.cpp
-  \brief interface for nonlinear problem
-  \f$ -div (|\nabla u|^{p-2}\nabla u) = f \f$
+/*! \file tumor_growth_class.cpp
+  
+  \brief Interface for nonlinear problem
+   \f[ 
+      \begin{cases}
+        \partial_t m - \mu \; div  (m \nabla p) = G(p) m \\
+        \partial_t n - \nu \; div (n \nabla p) = 0 
+      \end{cases}
+   \f]
+with \f$ p := K_{\gamma}(n+m)^{\gamma} \f$ , \f$ K_{\gamma} := \frac{\gamma + 1}{\gamma} \f$,
+
+\f$ G(p) := \frac{200}{\pi} \arctan( 4 (p - P_M)) \f$ ,
+ 
+\f$ m \f$ local density of dividing cells (tumor cells), 
+\f$ n \f$ local density of non-dividing cells (not tumor cells) .
+
 */
 
 #include "tumor_growth_class.h"

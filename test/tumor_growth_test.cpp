@@ -5,22 +5,31 @@
 */
 /*!
   Problem:  
-  \f[ -div (|\nabla (u)|^{p-2} \nabla (u)) = f \f]
+   \f[ 
+      \begin{cases}
+        \partial_t m - \mu \; div  (m \nabla p) = G(p) m \\
+        \partial_t n - \nu \; div (n \nabla p) = 0 
+      \end{cases}
+   \f]
+with \f$ p := K_{\gamma}(n+m)^{\gamma} \f$ , \f$ K_{\gamma} := \frac{\gamma + 1}{\gamma} \f$,
+\f$ G(p) := \frac{200}{\pi} \arctan( 4 (p - P_M)) \f$ , 
+\f$ m \f$ local density of dividing cells (tumor cells), 
+\f$ n \f$ local density of non-dividing cells (not tumor cells) 
 
-  \f[ u = 1/q \cdot (0.5^q -
-     [ (x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2)]^{q/2} \:on \:boundary \f]
+ \f$ P_M = 30 \f$, \f$ \gamma = 30 \f$.
 
-  \f[ f = 3.0 \f]
+  Initial conditions: 
+  \f$ m(x,y, t=0) := 0.1 e^{-5 \times 10^{-1}(x^2 + y^2)} \f$,
+  \f$  n(x,y, t=0) := 0.8 e^{-5 \times 10^{-7}(x^2 + y^2)} \f$.
 
-  \f[ p = 3.0 \f]
+  Boundary conditions: 
+   Neumann homogeneous 
 
   Exact Solution: 
-  \f[  u = 1/q \cdot (0.5^q -
-           [ (x-0.5)^2 + (y-0.5)^2 + (z-0.5)^2)]^{q/2} \f]
+ 
+  Linear Solver: lis or mumps
 
-  Linear Solver: lis
-
-  NonLinear Solver: backtracking_inexact_newton
+  NonLinear Solver: projected_Newton_method_and_gradient_direction
 
   Forcing Term: forcing_type3 (1, 2, 0.9)
 */
