@@ -147,10 +147,7 @@ public :
 
   /// Default costructor.
   projected_Newton_method_and_gradient_direction
-  (linear_solver *solver_, std::vector<double> &b1_ ,
-   std::vector<double> &b2_ ,int verbose_ = 2, double t_ = 1e-4,
-  double sigma_ = 1e-4, double theta_min_ =0, double theta_max_ =1, 
-  double theta_ =0.5, double thetaPG_ =0.8, int max_back_it_=20) :
+  (linear_solver *solver_, int verbose_ = 2) :
     nonlinear_solver ("projected_Newton_method_and_gradient_direction"),
     lin_solver (solver_),
     max_iter (100),
@@ -161,16 +158,14 @@ public :
     step_norm (0.0),
     iteration (0),
     norm_t (L2),
-    t (t_),
-    sigma(sigma_),
-    theta (theta_),
-    thetaPG (thetaPG_),
-    theta_min (theta_min_),
-    theta_max (theta_max_),
-    max_back_it(max_back_it_),
+    t (1e-4),
+    sigma(1e-4),
+    theta (0.5),
+    thetaPG (0.8),
+    theta_min (0),
+    theta_max (1),
+    max_back_it(20),
     verbose (verbose_),
-    b1(b1_),
-    b2(b2_),
     filename ("output.txt")
   {
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);
@@ -225,37 +220,25 @@ public :
   { norm_t = norm_t_; }
 
   /// Set backtracking parameters.
-  /// \f$ t, \sigma \in (0, 1) \f$
-  /// \f$ \theta \in [ \theta_{min}, \theta_{max}] \f$
+  /// \f$ t, \sigma \in (0, 1) \f$, 
+  /// \f$ \theta \in [ \theta_{min}, \theta_{max}] \f$ for both Newton and gradient direction's
+  /// backtracking inequalities
   void
   set_backtracking_parameters
   (double t_,
-   double sigma_, 
+   double sigma_,
+   double theta_,
+   double thetaPG_, 
    double theta_min_,
    double theta_max_)
   {
     t = t_;
     sigma = sigma_;
+    theta = theta_;
+    thetaPG = thetaPG_; 
     theta_min = theta_min_;
     theta_max = theta_max_;
   }
-
-  /// Set theta of the projected Newton direction.
-  void
-  set_thetaPN
-  (double  theta_)
-  {
-   theta = theta_;
-  }
- 
-  /// Set theta of the projected gradient direction.
-  void
-  set_thetaPG
-  (double  thetaPG_)
-  {
-    thetaPG = thetaPG_;
-  }
-
 
   /// Set backtracking max iterations.
   void
