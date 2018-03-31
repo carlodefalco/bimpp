@@ -43,7 +43,6 @@ with \f$ p := K_{\gamma}(n+m)^{\gamma} \f$ , \f$ K_{\gamma} := \frac{\gamma + 1}
 #include "nonlinear_solver.h"
 #include "backtracking_inexact_newton_class.h"
 #include "projected_Newton_method_and_gradient_direction_class.h"
-#include "backtracking_inexact_newton_example8_class.h"
 #include "abstract_nonlinear_problem.h"
 #include "abstract_forcing_term.h"
 #include "forcing_class.h"
@@ -76,16 +75,11 @@ int main (int argc, char **argv)
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
  
-  /// Limits
-  std::vector<double> b1, b2;
-  b1.assign (50 , 0);
-  b2.assign (50 ,  std::numeric_limits<double>::infinity());
-
   linear_solver *lin_solver = new lis ();
   //  linear_solver *lin_solver = new mumps ();
    
   nonlinear_solver *solver =
-    new projected_Newton_method_and_gradient_direction (lin_solver, b1 , b2 );
+    new projected_Newton_method_and_gradient_direction (lin_solver);
   
   run_test_problem (solver);
   
@@ -111,10 +105,11 @@ run_test_problem (nonlinear_solver *solver)
   /// Problem's parameters 
   double mu = 1;
   double nu = 2;
+  double gamma = 30, PM = 30; 
   double Lx = 0, Rx = 45;  
-  int number_cycles = 2; 
+  int number_cycles = 6; 
 
-  /// Generate the mesh in 2D
+  /// Generate the mesh in 2d
   tmesh tmsh;
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
@@ -133,8 +128,8 @@ run_test_problem (nonlinear_solver *solver)
   tmsh.save("file_mesh_tumor_growth");
   int n_nodes = tmsh.num_global_nodes ();
   
-  std::vector<double> tstore, uold (2 * n_nodes), mold (n_nodes), nold (n_nodes), u (2*n_nodes) ;
-
+  std::vector<double> tstore, uold (2 * n_nodes), mold (n_nodes), nold (n_nodes);
+  std::vector<double> u (2*n_nodes), p (n_nodes) ;
   
   /// Implementation of the initial condition of m and n
   double x = 0, y = 0; 
@@ -160,9 +155,10 @@ run_test_problem (nonlinear_solver *solver)
   if (rank == 0)
     {
       for (int i = 0; i < 2 * n_nodes; ++i)
-	{
-	  uold[i] = i < n_nodes ? mold [i] : nold [i-n_nodes];
-	}
+	uold[i] = i < n_nodes ? mold [i] : nold [i-n_nodes];
+
+      for (int i = 0; i <  n_nodes; ++i)
+	p[i] = (gamma + 1) / gamma * std::pow (mold[i] + nold[i], gamma);
     }
 
   if (rank == 0)
@@ -171,13 +167,15 @@ run_test_problem (nonlinear_solver *solver)
 			   + std::to_string(0)).c_str() , mold );
       tmsh.octbin_export ((std::string("tumor_growth_n_")
 			   + std::to_string(0)).c_str() , nold );
+      tmsh.octbin_export ((std::string("tumor_growth_p_")
+			   + std::to_string(0)).c_str() , p );
     }
   
   /// Time's parameters
   double t = 0, T = 1;
-  double dt = 0.1;
+  double dt = 0.001;
   double dt_original = dt;
-  int nt = 2;
+  int nt = 10;
   std::vector<double> t_save(nt + 1);
   if (rank == 0)
     {
@@ -187,7 +185,8 @@ run_test_problem (nonlinear_solver *solver)
 	  t_save [i] = t_save[i-1] + (T-t)/nt;
 	}
     }
-  abstract_nonlinear_problem *t_growth = new tumor_growth (mu, nu, t+dt, dt, uold);
+
+  abstract_nonlinear_problem *t_growth = new tumor_growth (mu, nu, t+dt, dt, uold, gamma, PM);
   abstract_forcing_term *forcing = new  forcing_type3 (1, 2, 0.9);
 
   if (rank == 0)
@@ -205,14 +204,30 @@ run_test_problem (nonlinear_solver *solver)
 
   if (rank == 0)
     {
+      /// Set the parameters for projected Newton with gredient direction
+      if (solver->solver_name() == "projected_Newton_method_and_gradient_direction")
+	{
+	  // Bounds of the variables
+	  std::vector<double> b1, b2;
+	  b1.assign (2*n_nodes, 0);
+	  b2.assign (2*n_nodes,  std::numeric_limits<double>::infinity());
+	  ((projected_Newton_method_and_gradient_direction*)solver)->set_bounds (b1,b2);
+	  // Backtracking parameters
+	  ((projected_Newton_method_and_gradient_direction*)solver)
+	    ->set_backtracking_parameters (1e-4, 1e-4, 0.5, 0.8, 0, 1);
+	  ((projected_Newton_method_and_gradient_direction*)solver)->set_backtracking_max_it (20);
+	}
+      
+      /// Set the parameters for backtracking inexact Newton
       if (solver->solver_name () == "Backtracking Inexact Newton")
         ((backtracking_inexact_newton *) solver)->
           set_backtracking_parameters (1e-4, 0.1, 0.5);
+   
       solver->set_problem (t_growth);
       solver->set_forcing_term (forcing);
       solver->set_initial_guess (uold);
     }
-
+  
   solver->set_max_iterations (20);
   solver->set_tolerance (1e-10);
   solver->set_min_residual (1e-10);
@@ -222,7 +237,8 @@ run_test_problem (nonlinear_solver *solver)
     {
       solver->set_max_iterations_of_linear_solver (1000);
       solver->set_iterative_method_of_linear_solver
-	("Conjugate Gradient");
+	("GMRES");
+      solver->set_restart_iterations_of_linear_solver (2*n_nodes);
       solver->set_initial_tolerance_of_linear_solver (0.5);
       solver->set_convergence_condition_of_linear_solver ("norm2_of_rhs");
     }
@@ -270,11 +286,15 @@ run_test_problem (nonlinear_solver *solver)
 	    {
 	      mold[i] = uold[i];
 	      nold[i] = uold[i + n_nodes];
+	      p[i] = (gamma + 1) / gamma * std::pow (mold[i] + nold[i], gamma);
 	    }
 	  tmsh.octbin_export ((std::string("tumor_growth_m_")
 			       + std::to_string(its)).c_str() , mold );
 	  tmsh.octbin_export ((std::string("tumor_growth_n_")
 			       + std::to_string(its)).c_str() , nold );
+	  tmsh.octbin_export ((std::string("tumor_growth_p_")
+			       + std::to_string(its)).c_str() , p);
+
 	}
     }
 
