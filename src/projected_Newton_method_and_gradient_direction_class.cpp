@@ -134,9 +134,7 @@ projected_Newton_method_and_gradient_direction::solve ()
 	     
              f_old.assign (rhs.size (), 0.0);
              for (unsigned int i = 0; i < rhs.size (); ++i)
-	       f_old[i] = rhs[i]; // Qui non ho messo il meno perchè f_old mi serve per
-                                    // d = J^T * f_old nella direzione del gradiente.
-                                    // Uso f_old al posto di (-residuo) 
+	       f_old[i] = - rhs[i];
 
              lhs.aij (xa, ir, jc, lin_solver->get_index_base ());
              lin_solver->set_lhs_structure (lhs.rows (), ir, jc);
@@ -197,8 +195,28 @@ projected_Newton_method_and_gradient_direction::solve ()
 	  theta_k=1;  
 	  while (f_new_norm >
 		 (1 - t * theta_k*(1 - forcing_value)) * f_old_norm && m < max_back_it)
-	    { 
-                  theta_k=theta_k*theta;
+	    {
+	      ///////// Theta Choice //////////////
+	      std::vector<double> temp;
+              double temp_norm = 0.0;
+
+              temp = lhs * rhs;
+              for (unsigned int i = 0; i < rhs.size (); ++i)
+                temp_norm += f_old[i] * temp[i];
+
+              double a = f_new_norm * f_new_norm -
+                f_old_norm * f_old_norm - 2 * temp_norm;
+
+              double b = 2* temp_norm;
+              double c = f_old_norm * f_old_norm;
+
+              theta_choice (a, b, c);
+	     theta_k = theta ; 
+              /////////
+
+	     // theta_k=theta_k*theta;
+         
+
                   for (unsigned int i = 0; i < rhs.size (); ++i)
 		    {
 		      rhs[i] *= theta;
@@ -231,8 +249,8 @@ projected_Newton_method_and_gradient_direction::solve ()
 	  nonlinear_res.push_back (f_new_norm);
 	  nonlinear_iter.push_back (iteration);
          #endif
-              
-	  if (m > 19) FLAG = 1;
+              std::cout<< "m " << m <<std::endl;
+	  if (m > (max_back_it-1)) {FLAG = 1;}
 	  else
 	    {
 	      for (unsigned int i = 0; i < rhs.size (); ++i)
@@ -281,6 +299,8 @@ projected_Newton_method_and_gradient_direction::solve ()
 		    
 		
               rhs = lhsT*f_old;
+	      for (int i = 0; i < rhs.size(); ++i)
+		rhs[i] = - rhs[i];
 	      std::vector<double> rhs_0 = rhs; 
               std::vector<double> unew (initial_guess->size ());
               for (unsigned int i = 0; i < rhs.size (); ++i)
