@@ -173,7 +173,7 @@ backtracking_inexact_newton::solve ()
           #endif
 	  int m = 0;  
           while (f_new_norm >
-            (1 - t * (1 - forcing_value)) * f_old_norm && m < 5)  // m < 5 ADDED JUST FOR TUMOR_GROWTH
+            (1 - t * (1 - forcing_value)) * f_old_norm && m < 0)  // m < 5 ADDED JUST FOR TUMOR_GROWTH
             {
 	      ++m;
               std::vector<double> temp;

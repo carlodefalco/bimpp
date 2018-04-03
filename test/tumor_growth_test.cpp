@@ -42,6 +42,7 @@ with \f$ p := K_{\gamma}(n+m)^{\gamma} \f$ , \f$ K_{\gamma} := \frac{\gamma + 1}
 #include "mesh.h"
 #include "nonlinear_solver.h"
 #include "backtracking_inexact_newton_class.h"
+#include "adaptive_inexact_newton_class.h"
 #include "projected_Newton_method_and_gradient_direction_class.h"
 #include "abstract_nonlinear_problem.h"
 #include "abstract_forcing_term.h"
@@ -53,6 +54,10 @@ with \f$ p := K_{\gamma}(n+m)^{\gamma} \f$ , \f$ K_{\gamma} := \frac{\gamma + 1}
 #include "quad_operators.h"
 #include <math.h> 
 #include <limits>
+
+#define NUM_CYCLES  5;
+#define DT  0.01;
+#define NT  10;
 
 constexpr p4est_topidx_t simple_conn_num_vertices = 4;
 constexpr p4est_topidx_t simple_conn_num_trees = 1;
@@ -79,8 +84,11 @@ int main (int argc, char **argv)
   //  linear_solver *lin_solver = new mumps ();
    
   nonlinear_solver *solver =
-    new projected_Newton_method_and_gradient_direction (lin_solver);
-  
+     new projected_Newton_method_and_gradient_direction (lin_solver);
+     
+ // nonlinear_solver *solver =
+   // new backtracking_inexact_newton (lin_solver);
+
   run_test_problem (solver);
   
   MPI_Finalize ();
@@ -107,7 +115,7 @@ run_test_problem (nonlinear_solver *solver)
   double nu = 2;
   double gamma = 30, PM = 30; 
   double Lx = 0, Rx = 45;  
-  int number_cycles = 6; 
+  int number_cycles = NUM_CYCLES; 
 
   /// Generate the mesh in 2d
   tmesh tmsh;
@@ -173,9 +181,9 @@ run_test_problem (nonlinear_solver *solver)
   
   /// Time's parameters
   double t = 0, T = 1;
-  double dt = 0.001;
+  double dt = DT;
   double dt_original = dt;
-  int nt = 10;
+  int nt = NT;
   std::vector<double> t_save(nt + 1);
   if (rank == 0)
     {
@@ -201,6 +209,12 @@ run_test_problem (nonlinear_solver *solver)
 
       t_growth->read_mesh ("file_mesh_tumor_growth");
     }
+  
+  std::ofstream fout; 
+  if(rank ==0 )
+    {
+      fout.open ("Output.txt");
+    }
 
   if (rank == 0)
     {
@@ -214,8 +228,8 @@ run_test_problem (nonlinear_solver *solver)
 	  ((projected_Newton_method_and_gradient_direction*)solver)->set_bounds (b1,b2);
 	  // Backtracking parameters
 	  ((projected_Newton_method_and_gradient_direction*)solver)
-	    ->set_backtracking_parameters (1e-4, 1e-4, 0.5, 0.8, 0, 1);
-	  ((projected_Newton_method_and_gradient_direction*)solver)->set_backtracking_max_it (20);
+	    ->set_backtracking_parameters (1e-4, 1e-4, 0.5, 0.8, 0.1, 1);
+	  ((projected_Newton_method_and_gradient_direction*)solver)->set_backtracking_max_it (10);
 	}
       
       /// Set the parameters for backtracking inexact Newton
@@ -228,7 +242,7 @@ run_test_problem (nonlinear_solver *solver)
       solver->set_initial_guess (uold);
     }
   
-  solver->set_max_iterations (20);
+  solver->set_max_iterations (60);
   solver->set_tolerance (1e-10);
   solver->set_min_residual (1e-10);
   solver->set_norm_type (L2);
@@ -246,6 +260,8 @@ run_test_problem (nonlinear_solver *solver)
   ///////////////////////////////////////////////////////////////////////////////////////////
   
   bool converged;
+  double residual_norm;
+  int nonlinear_it; 
   t += dt;
   for (int its = 1; its < nt + 1; ++its)
     {
@@ -254,7 +270,8 @@ run_test_problem (nonlinear_solver *solver)
 	  if (rank == 0)
 	    {
 	      std::cout << "############## TIME ############## : "<< t << std::endl;
-	      dt = dt_original;
+	      fout <<"\n############## TIME ############## : "<< t << std::endl;
+              dt = dt_original;
 
 	      if (t + dt > t_save[its] )
 		dt = t_save[its] - t;
@@ -263,6 +280,12 @@ run_test_problem (nonlinear_solver *solver)
 	  converged = solver->solve ();
 	  if ( rank == 0)
 	    {
+              
+              solver->get_result_residual_norm (residual_norm);
+              solver->get_result_iterations ( nonlinear_it);
+              fout <<"Nonlinear_iterations : "<< nonlinear_it << std::endl;
+              fout <<"Residual norm : "<< residual_norm << std::endl;
+             
 	      if (converged == 0)
 		{
 		  std::cout << "The algorithm did't converge"<< std::endl;
@@ -274,7 +297,6 @@ run_test_problem (nonlinear_solver *solver)
 		uold[i] = u[i];
 	      
 	      solver->set_initial_guess (uold);
-
 	      t += dt;
 	      ((tumor_growth*) t_growth)->set_initial_condition(uold);
 	      ((tumor_growth*) t_growth)->set_t_dt (t, dt);
@@ -297,6 +319,9 @@ run_test_problem (nonlinear_solver *solver)
 
 	}
     }
+
+   if (rank == 0)
+      fout.close ();
 
   ///////////////////////////////////////////////////////////////////////////////////////////
 
