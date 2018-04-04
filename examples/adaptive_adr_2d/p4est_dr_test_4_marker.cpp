@@ -21,7 +21,7 @@ main (int argc, char **argv)
   MPI_Init (&argc, &argv);
   
   int                   recursive, partforcoarsen, balance;
-  MPI_Comm              mpicomm = MPI_COMM_WORLD;  
+  MPI_Comm              mpicomm = MPI_COMM_WORLD;
   int                   rank, size;
   tmesh                 tmsh;
   
@@ -35,7 +35,7 @@ main (int argc, char **argv)
   tmsh.set_replace_fun (tmesh::userint_replace);
   
   recursive = 0; partforcoarsen = 1;
-  for (int cycle = 0; cycle < 3; ++cycle)
+  for (int cycle = 0; cycle < 2; ++cycle)
     {
       tmsh.set_refine_marker (uniform_refinement);
       tmsh.refine (recursive, partforcoarsen);
@@ -55,13 +55,24 @@ main (int argc, char **argv)
       std::cout << "*** Step " << adapt << " ***" << std::endl;
       
       // Compute coefficients.
-      double R = 0.25;
+      double eps1 = 5e-7;
+      double eps2 = 1e-6;
       
-      double kG = 1;
-      double kS = 100;
+      double c = -0.4375 * eps2 /
+        (0.5 * std::sqrt(eps1) * std::cosh(0.5 / std::sqrt(eps1)) +
+         eps2 * std::sinh(0.5 / std::sqrt(eps1)));
       
-      std::vector<double> alpha(tmsh.num_global_nodes (), kG);
+      double d = 1.75 * std::sqrt(eps1) * std::cosh(0.5 / std::sqrt(eps1)) /
+        (std::sqrt(eps1) * std::cosh(0.5 / std::sqrt(eps1)) +
+         2 * eps2 * std::sinh(0.5 / std::sqrt(eps1)));
+      
+      double theta = -M_PI / 8;
+      
+      std::vector<double> alpha(tmsh.num_global_nodes (), eps1);
       std::vector<double> psi(tmsh.num_global_nodes (), 0);
+      
+      std::vector<double> delta(tmsh.num_local_quadrants (), 1);
+      std::vector<double> zeta(tmsh.num_global_nodes (), 1);
       
       std::vector<double> f(tmsh.num_local_quadrants (), 1);
       std::vector<double> g(tmsh.num_global_nodes (), 1);
@@ -76,18 +87,24 @@ main (int argc, char **argv)
             {
               x = quadrant->p(0, ii);
               y = quadrant->p(1, ii);
-                
-              if (! quadrant->is_hanging (ii) &&
-                  std::pow(x - 0.5, 2) +
-                  std::pow(y - 0.5, 2) <=
-                  std::pow(R, 2))
-                alpha[quadrant->gt(ii)] = kS;
+              
+              if (std::sin(theta) * x +
+                  std::cos(theta) * y > 0.5)
+                alpha[quadrant->gt(ii)] = eps2;
+            }
+            
+          if (std::sin(theta) * quadrant->centroid(0) +
+              std::cos(theta) * quadrant->centroid(1) > 0.5)
+            {
+              delta[quadrant->get_forest_quad_idx()] = 0;
+              f[quadrant->get_forest_quad_idx()] = eps2;
             }
         }
       
       // Assemble system matrix and right-hand side.
-      sparse_matrix A;
+      sparse_matrix A, M;
       A.resize(tmsh.num_global_nodes());
+      M.resize(tmsh.num_global_nodes());
       
       // Reduce coefficients.
       std::vector<double> global_alpha(tmsh.num_global_nodes(), 0);
@@ -96,24 +113,23 @@ main (int argc, char **argv)
       
       bim2a_advection_eafe_diffusion (tmsh, global_alpha, psi, A);
       
+      bim2a_reaction (tmsh, delta, zeta, M);
+      A += M;
+      
       std::vector<double> rhs(tmsh.num_global_nodes (), 0);
       bim2a_rhs (tmsh, f, g, rhs);
       
       // Set boundary conditions.
       func u_ex =
-        [kG, kS, R] (double x, double y)
+        [eps1, eps2, c, d, theta] (double x, double y)
           {
-            if (std::pow(x - 0.5, 2) +
-                std::pow(y - 0.5, 2) >
-                std::pow(R, 2))
-              return
-                (1.0 / 8 - 1 / (4 * kG) *
-                 (std::pow(x - 0.5, 2) + std::pow(y - 0.5, 2)));
+            double new_x = std::cos(theta) * x - std::sin(theta) * y;
+            double new_y = std::sin(theta) * x + std::cos(theta) * y;
+            
+            if (new_y <= 0.5)
+              return (1 + 2 * c * std::sinh(new_y / std::sqrt(eps1)));
             else
-              return
-                (1.0 / 8 - 1 / (4 * kS) *
-                 (std::pow(x - 0.5, 2) + std::pow(y - 0.5, 2)) -
-                 std::pow(R, 2) / 4 * (1 - 1 / kS));
+              return (-0.5 * (new_y - 1) * (new_y + 2 * d));
           };
       
       dirichlet_bcs bcs;
@@ -171,18 +187,16 @@ main (int argc, char **argv)
       // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient, solution and estimator.";
       
-      active_fun regionG = [R] (tmesh::quadrant_iterator q)
-        { return (std::pow(q->centroid(0) - 0.5, 2) +
-                  std::pow(q->centroid(1) - 0.5, 2) >
-                  std::pow(R, 2)); };
+      active_fun tree0 = [theta] (tmesh::quadrant_iterator q)
+        { return (std::sin(theta) * q->centroid(0) +
+                  std::cos(theta) * q->centroid(1) <= 0.5); };
       
-      active_fun regionS = [R] (tmesh::quadrant_iterator q)
-        { return (std::pow(q->centroid(0) - 0.5, 2) +
-                  std::pow(q->centroid(1) - 0.5, 2) <=
-                  std::pow(R, 2)); };
+      active_fun tree1 = [theta] (tmesh::quadrant_iterator q)
+        { return (std::sin(theta) * q->centroid(0) +
+                  std::cos(theta) * q->centroid(1) > 0.5); };
       
-      gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, regionG);
-      gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, regionS);
+      gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree0);
+      gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree1);
       
       q2_vec u_star0 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du0);
       q2_vec u_star1 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du1);
@@ -197,28 +211,26 @@ main (int argc, char **argv)
       tmsh.octbin_export ((std::string("p4est_dr_test_4_marker_du1_y_")
                            + std::to_string(adapt)).c_str(), du1.second);
       
-      auto refine_fun = [& delta1, & du0, & du1, & global_rhs, & tmsh, R] (tmesh::quadrant_iterator q)
+      auto refine_fun = [& delta1, & u_star0, & u_star1, & global_rhs, & tmsh, theta] (tmesh::quadrant_iterator q)
         {
-          if (std::pow(q->centroid(0) - 0.5, 2) +
-              std::pow(q->centroid(1) - 0.5, 2) >
-              std::pow(R, 2))
-            return zz_marker_grad (q, du0, global_rhs,
-                                   delta1 * 1e-3 / std::sqrt(tmsh.num_global_nodes()));
+          if (std::sin(theta) * q->centroid(0) +
+              std::cos(theta) * q->centroid(1) <= 0.5)
+            return zz_marker_sol (q, u_star0, global_rhs,
+                                  delta1 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
           else
-            return zz_marker_grad (q, du1, global_rhs,
-                                   delta1 * 1e-3 / std::sqrt(tmsh.num_global_nodes()));
+            return zz_marker_sol (q, u_star1, global_rhs,
+                                  delta1 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
         };
       
-      auto coarsen_fun = [& delta2, & du0, & du1, & global_rhs, & tmsh, R] (tmesh::quadrant_iterator q)
+      auto coarsen_fun = [& delta2, & u_star0, & u_star1, & global_rhs, & tmsh, theta] (tmesh::quadrant_iterator q)
         {
-          if (std::pow(q->centroid(0) - 0.5, 2) +
-              std::pow(q->centroid(1) - 0.5, 2) >
-              std::pow(R, 2))
-            return !zz_marker_grad (q, du0, global_rhs,
-                                    delta2 * 1e-3 / std::sqrt(tmsh.num_global_nodes()));
+          if (std::sin(theta) * q->centroid(0) +
+              std::cos(theta) * q->centroid(1) <= 0.5)
+            return !zz_marker_sol (q, u_star0, global_rhs,
+                                   delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
           else
-            return !zz_marker_grad (q, du1, global_rhs,
-                                    delta2 * 1e-3 / std::sqrt(tmsh.num_global_nodes()));
+            return !zz_marker_sol (q, u_star1, global_rhs,
+                                   delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
         };
       
       // Compute h and error.

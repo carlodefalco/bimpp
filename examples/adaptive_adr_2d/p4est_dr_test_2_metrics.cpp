@@ -162,7 +162,12 @@ main (int argc, char **argv)
       auto estimator = [& du, & global_rhs] (tmesh::quadrant_iterator q)
         { return estimator_grad (q, du, global_rhs); };
       
-      // Compute h.
+      double tol = 1e-3;
+      tmsh.set_metrics_marker (estimator, tol, 4);
+      
+      // Compute metrics and h.
+      std::vector<double> metrics(tmsh.num_local_quadrants ());
+      
       double hx = 0, hy = 0,
              h = std::numeric_limits<double>::max (),
              global_h = 0;
@@ -171,12 +176,19 @@ main (int argc, char **argv)
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
+          metrics[quadrant->get_forest_quad_idx ()] =
+            estimator (quadrant) * std::sqrt (tmsh.num_global_quadrants ())
+            / tol;
+          
           hx = quadrant->p(0, 1) - quadrant->p(0, 0);
           hy = quadrant->p(1, 2) - quadrant->p(1, 0);
           
           h = std::min(h, std::sqrt(hx*hx + hy*hy));
         }
-        
+      
+      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_hx")
+                           + std::to_string(adapt)).c_str(), metrics);
+      
       MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       
       nnodes.push_back (tmsh.num_global_nodes ());
@@ -188,7 +200,6 @@ main (int argc, char **argv)
         break;
       
       // Refine.
-      tmsh.set_metrics_marker (estimator, 1e-3, 4);
       tmsh.metrics_refine (1e5);
       
       tmsh.vtk_export ((std::string("p4est_dr_test_2_metrics_newmesh_")
