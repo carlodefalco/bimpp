@@ -9,11 +9,11 @@
 
 static std::array<double, 3> x0 = {.5, .5, .5};
 static std::array<double, 3> x = x0;
-static std::array<double, 3> v0 = {0.2, 0.0, 0.8};;
+static std::array<double, 3> v0 = {0.2, 0.0, 0.8};
 static std::array<double, 3> v = v0;
 static std::array<double, 3> L = {1., 1., 1.};
 static std::array<double, 3> g = {0., -9.81, 0.};
-static constexpr double r = .0625;;
+static constexpr double r = .0625;
 static constexpr double dt = .01;
 static const int maxlevel =  8;
 static const int minlevel =  3;
@@ -29,7 +29,7 @@ refinement (tmesh_3d::quadrant_iterator quadrant)
   int currentlevel = static_cast<int> (quadrant->the_quadrant->level);
   double xcoord, ycoord, zcoord, dist = .0;
   int retval = 0;
-  for (int ii = 0; ii < 4; ++ii)
+  for (int ii = 0; ii < 8; ++ii)
     {
       xcoord = quadrant->p(0, ii);
       ycoord = quadrant->p(1, ii);
@@ -59,7 +59,7 @@ coarsening (tmesh_3d::quadrant_iterator quadrant)
   int currentlevel = static_cast<int> (quadrant->the_quadrant->level);
   double xcoord, ycoord, zcoord, dist = .0;
   int retval = currentlevel - minlevel;
-  for (int ii = 0; ii < 4; ++ii)
+  for (int ii = 0; ii < 8; ++ii)
     {
       xcoord = quadrant->p(0, ii);
       ycoord = quadrant->p(1, ii);
@@ -118,9 +118,13 @@ main (int argc, char **argv)
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
 
+  
+  MPI_Barrier (MPI_COMM_WORLD);
+  if (rank == 0) { tic (); }
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
-
+  if (rank == 0) { toc ("read connectivity"); }
+  MPI_Barrier (MPI_COMM_WORLD);
 
   for (auto i = 0; i < minlevel; ++i)
     {
@@ -155,7 +159,7 @@ main (int argc, char **argv)
       tmsh.set_refine_marker (refinement);
       tmsh.refine (recursive, partforcoarsen);
       if (rank == 0) { toc ("refinement"); }
-      MPI_Barrier (MPI_COMM_WORLD);
+
             
       MPI_Barrier (MPI_COMM_WORLD); 
       if (rank == 0) { tic (); }
@@ -165,7 +169,7 @@ main (int argc, char **argv)
       if (rank == 0) { toc ("coarsening"); }
       MPI_Barrier (MPI_COMM_WORLD);
             
-      MPI_Barrier (MPI_COMM_WORLD); 
+
       if (rank == 0) { tic (); }
       sprintf (filename, "palla_%5.5d", iframe++);
       tmsh.vtk_export (filename);

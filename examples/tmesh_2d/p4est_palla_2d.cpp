@@ -15,7 +15,7 @@ static std::array<double, 3> L = {1., 1., 1.};
 static std::array<double, 3> g = {0., -9.81, 0.};
 static constexpr double r = .0625;;
 static constexpr double dt = .01;
-static const int maxlevel =  13;
+static const int maxlevel =  9;
 static const int minlevel =  4;
 static char filename[255] = "\0";
 

@@ -417,14 +417,14 @@ arrays2connectivity (const p_type *p_matrix_start,
         v[n] = *(t_iter++);
       ++t_iter;
 
-      *(tv_iter++) = v[0] - 1;
-      *(tv_iter++) = v[1] - 1;
-      *(tv_iter++) = v[3] - 1;
-      *(tv_iter++) = v[2] - 1;
+      *(tv_iter++) = v[0] - static_cast<t_type> (1);
+      *(tv_iter++) = v[1] - static_cast<t_type> (1);
+      *(tv_iter++) = v[3] - static_cast<t_type> (1);
+      *(tv_iter++) = v[2] - static_cast<t_type> (1);
 
     }
 
-  for (t_type tree = 0; tree < (*conn)->num_trees; ++tree)
+  for (t_type_count tree = 0; tree < num_trees; ++tree)
     for (face = 0; face < 4; ++face)
       {
         (*conn)->tree_to_tree[4 * tree + face] = tree;
@@ -472,8 +472,12 @@ octbingz2connectivity
   Matrix p_matrix =
     tmp.scalar_map_value ().contents ("p").matrix_value ();
 
-  Array<int> t_matrix =
-    tmp.scalar_map_value ().contents ("t").array_value ();
+#ifdef HAVE_OCTAVE_44
+  Array<octave_int32> 
+#else
+  Array<int> 
+#endif
+    t_matrix = tmp.scalar_map_value ().contents ("t").array_value ();
 
   p4est_topidx_t num_vertices = p_matrix.cols (),
     num_trees = t_matrix.cols ();
