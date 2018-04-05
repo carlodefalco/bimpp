@@ -79,8 +79,8 @@ estimator_grad (tmesh::quadrant_iterator q,
 
 int 
 zz_marker_grad (tmesh::quadrant_iterator q,
-                const gradient& du_star,
-                const q1_vec& u,
+                const gradient & du_star,
+                const q1_vec & u,
                 double limit);
 
 double
@@ -98,5 +98,22 @@ double
 l2_error (tmesh::quadrant_iterator q,
           const func & u_ex,
           const q1_vec & u);
+
+double
+semih1_error (tmesh::quadrant_iterator q,
+              const func & dudx_ex,
+              const func & dudy_ex,
+              const q1_vec & u);
+
+double
+l2_star_error (tmesh::quadrant_iterator q,
+               const func & u_ex,
+               const q2_vec & ustar);
+
+double
+semih1_star_error (tmesh::quadrant_iterator q,
+                   const func & dudx_ex,
+                   const func & dudy_ex,
+                   const gradient & du_star);
 
 #endif

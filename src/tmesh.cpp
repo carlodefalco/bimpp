@@ -726,7 +726,7 @@ tmesh::refine (int recursive, int partforcoarsen, int balance)
                       nullptr, replace_callback);
 
   if (balance)
-    p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
+    p4est_balance (p4est, P4EST_CONNECT_FACE, nullptr);
 
   p4est_partition (p4est, partforcoarsen, nullptr);
 
@@ -770,7 +770,7 @@ tmesh::coarsen (int recursive, int partforcoarsen, int balance)
                        nullptr, replace_callback);
 
   if (balance)
-    p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
+    p4est_balance (p4est, P4EST_CONNECT_FACE, nullptr);
 
   p4est_partition (p4est, partforcoarsen, nullptr);
 
@@ -789,7 +789,7 @@ tmesh::update ()
 {
   ghost  = p4est_ghost_new  (p4est, P4EST_CONNECT_FULL);
   lnodes = p4est_lnodes_new (p4est, ghost, 1);
-  mesh   = p4est_mesh_new   (p4est, ghost, P4EST_CONNECT_FULL);
+  mesh   = p4est_mesh_new   (p4est, ghost, P4EST_CONNECT_FACE);
 
   update_ghosts ();
 }
