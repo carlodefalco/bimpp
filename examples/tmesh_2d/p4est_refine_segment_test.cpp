@@ -19,12 +19,7 @@ unit_square (const char * filename)
     
   // Save data to file.
   Matrix oct_p (4, 2, 0);
-#ifdef HAVE_OCTAVE_44
-  Array<octave_int32> 
-#else
-    Array<int> 
-#endif
-    oct_t (dim_vector(5, 1), 0);
+  Array<octave_idx_type> oct_t (dim_vector(5, 1), 0);
     
   std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
   oct_p = oct_p.transpose ();

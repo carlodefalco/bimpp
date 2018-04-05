@@ -99,7 +99,7 @@ main (int argc, char **argv)
   
   std::vector<double> p(2 * tmsh.num_local_nodes());
   std::vector<double> p_hanging;
-  std::vector<int> t;
+  std::vector<octave_idx_type> t;
   
   std::array<int, 4> local_idx = {0, 1, 3, 2};
   
@@ -155,8 +155,8 @@ main (int argc, char **argv)
   Matrix oct_p(2, p.size() / 2, 0.0);
   Matrix oct_p_hanging(2, p_hanging.size() / 2, 0.0);
   
-  Array<int> oct_t(dim_vector(4, t.size() / 4), 0);
-  Array<int> oct_children (oct_t);
+  Array<octave_idx_type> oct_t(dim_vector(4, t.size() / 4), 0);
+  Array<octave_idx_type> oct_children (oct_t);
   
   std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
   std::copy_n (p_hanging.begin (), p_hanging.size (), oct_p_hanging.fortran_vec ());

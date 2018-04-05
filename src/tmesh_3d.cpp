@@ -488,8 +488,8 @@ octbingz2connectivity
   Matrix p_matrix =
     tmp.scalar_map_value ().contents ("p").matrix_value ();
 
-  Array<int> t_matrix =
-    tmp.scalar_map_value ().contents ("t").array_value ();
+  Array<octave_idx_type> t_matrix =
+    tmp.scalar_map_value ().contents ("t").octave_idx_type_vector_value ();
 
   p4est_topidx_t num_vertices = p_matrix.cols (),
     num_trees = t_matrix.cols ();

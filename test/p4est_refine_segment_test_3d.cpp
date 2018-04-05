@@ -25,11 +25,11 @@ unit_cube (const char * filename)
                            0., 0., 1.,  1., 0., 1.,
                            0., 1., 1.,  1., 1., 1.};
     
-  std::vector<int> t = {1, 2, 3, 4, 5, 6, 7, 8, 1};
+  std::vector<octave_idx_type> t = {1, 2, 3, 4, 5, 6, 7, 8, 1};
     
   // Save data to file.
   Matrix oct_p (3, 8, 0);
-  Array<int> oct_t (dim_vector(9, 1), 0);
+  Array<octave_idx_type> oct_t (dim_vector(9, 1), 0);
     
   std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
   std::copy_n (t.begin (), t.size (), oct_t.fortran_vec ());
