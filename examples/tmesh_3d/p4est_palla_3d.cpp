@@ -26,6 +26,7 @@ uniform_refinement (tmesh_3d::quadrant_iterator quadrant)
 static int
 refinement (tmesh_3d::quadrant_iterator quadrant)
 {
+  int currentlevel = static_cast<int> (quadrant->the_quadrant->level);
   double xcoord, ycoord, zcoord, dist = .0;
   int retval = 0;
   for (int ii = 0; ii < 4; ++ii)
@@ -41,12 +42,12 @@ refinement (tmesh_3d::quadrant_iterator quadrant)
 
       if (dist > .9 * r && dist < 1.1 * r)
         {
-          retval = 1;
+          retval = maxlevel - currentlevel;
           break;
         }
     }
 
-  if (static_cast<int> (quadrant->the_quadrant->level) >= maxlevel)
+  if (currentlevel >= maxlevel)
     retval = 0;
       
   return (retval);
@@ -55,8 +56,9 @@ refinement (tmesh_3d::quadrant_iterator quadrant)
 static int
 coarsening (tmesh_3d::quadrant_iterator quadrant)
 {
+  int currentlevel = static_cast<int> (quadrant->the_quadrant->level);
   double xcoord, ycoord, zcoord, dist = .0;
-  int retval = 1;
+  int retval = currentlevel - minlevel;
   for (int ii = 0; ii < 4; ++ii)
     {
       xcoord = quadrant->p(0, ii);
@@ -75,7 +77,7 @@ coarsening (tmesh_3d::quadrant_iterator quadrant)
         }
     }
 
-  if (static_cast<int> (quadrant->the_quadrant->level) <= minlevel)
+  if (currentlevel <= minlevel)
     retval = 0;
   
   return (retval);
@@ -120,7 +122,7 @@ main (int argc, char **argv)
                           simple_conn_t, simple_conn_num_trees);
 
 
-  for (auto i = 0; i < 5; ++i)
+  for (auto i = 0; i < minlevel; ++i)
     {
 
       MPI_Barrier (MPI_COMM_WORLD);
@@ -147,30 +149,6 @@ main (int argc, char **argv)
       
       x0 = x; v0 = v;
 
-            
-#ifdef WA_RECURSIVE
-      for (int j = 0; j < 10; ++j){
-#endif      MPI_Barrier (MPI_COMM_WORLD); 
-      if (rank == 0) { tic (); }
-      recursive = 1;  partforcoarsen = 1;  
-      tmsh.set_coarsen_marker (coarsening);
-      tmsh.coarsen (recursive, partforcoarsen);
-      if (rank == 0) { toc ("coarsening"); }
-      MPI_Barrier (MPI_COMM_WORLD);
-#ifdef WA_RECURSIVE
-      }
-#endif
-      
-      // MPI_Barrier (MPI_COMM_WORLD); 
-      // if (rank == 0) { tic (); }
-      // sprintf (filename, "palla_%5.5d", iframe++);
-      // tmsh.vtk_export (filename);
-      // if (rank == 0) { toc ("io"); }
-      // MPI_Barrier (MPI_COMM_WORLD);
-
-#ifdef WA_RECURSIVE
-      for (int j = 0; j < 10; ++j){
-#endif
       MPI_Barrier (MPI_COMM_WORLD); 
       if (rank == 0) { tic (); }
       recursive = 1;  partforcoarsen = 1;  
@@ -178,10 +156,15 @@ main (int argc, char **argv)
       tmsh.refine (recursive, partforcoarsen);
       if (rank == 0) { toc ("refinement"); }
       MPI_Barrier (MPI_COMM_WORLD);
-#ifdef WA_RECURSIVE
-      }
-#endif
-      
+            
+      MPI_Barrier (MPI_COMM_WORLD); 
+      if (rank == 0) { tic (); }
+      recursive = 1;  partforcoarsen = 1;  
+      tmsh.set_coarsen_marker (coarsening);
+      tmsh.coarsen (recursive, partforcoarsen);
+      if (rank == 0) { toc ("coarsening"); }
+      MPI_Barrier (MPI_COMM_WORLD);
+            
       MPI_Barrier (MPI_COMM_WORLD); 
       if (rank == 0) { tic (); }
       sprintf (filename, "palla_%5.5d", iframe++);
