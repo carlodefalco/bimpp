@@ -194,20 +194,20 @@ main (int argc, char **argv)
         {
           if (q->p(1, 2) <= 0.5)
             return zz_marker_sol (q, u_star0, global_rhs,
-                                  delta1 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
+                                  delta1 * 1e-6 / std::sqrt(tmsh.num_global_nodes()));
           else
             return zz_marker_sol (q, u_star1, global_rhs,
-                                  delta1 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
+                                  delta1 * 1e-6 / std::sqrt(tmsh.num_global_nodes()));
         };
       
       auto coarsen_fun = [& delta2, & u_star0, & u_star1, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         {
           if (q->p(1, 2) <= 0.5)
             return !zz_marker_sol (q, u_star0, global_rhs,
-                                   delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
+                                   delta2 * 1e-6 / std::sqrt(tmsh.num_global_nodes()));
           else
             return !zz_marker_sol (q, u_star1, global_rhs,
-                                   delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
+                                   delta2 * 1e-6 / std::sqrt(tmsh.num_global_nodes()));
         };
       
       auto estimator = [& u_star0, & u_star1, & global_rhs] (tmesh::quadrant_iterator q)

@@ -195,7 +195,7 @@ main (int argc, char **argv)
             return estimator_sol (q, u_star1, global_rhs);
         };
       
-      double tol = 1e-10;
+      double tol = 1e-6;
       tmsh.set_metrics_marker (estimator, tol, 4);
       
       // Compute metrics, h, error and estimator.
@@ -224,8 +224,8 @@ main (int argc, char **argv)
           est += std::pow(estimator(quadrant), 2);
         }
       
-      tmsh.octbin_export ((std::string("p4est_dr_test_3_metrics_hx")
-                           + std::to_string(adapt)).c_str(), metrics);
+      tmsh.octbin_export_quadrant ((std::string("p4est_dr_test_3_metrics_hx")
+				    + std::to_string(adapt)).c_str(), metrics);
       
       MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);

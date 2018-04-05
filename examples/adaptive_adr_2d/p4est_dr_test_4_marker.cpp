@@ -216,10 +216,10 @@ main (int argc, char **argv)
           if (std::sin(theta) * q->centroid(0) +
               std::cos(theta) * q->centroid(1) <= 0.5)
             return zz_marker_sol (q, u_star0, global_rhs,
-                                  delta1 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
+                                  delta1 * 1e-5 / std::sqrt(tmsh.num_global_nodes()));
           else
             return zz_marker_sol (q, u_star1, global_rhs,
-                                  delta1 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
+                                  delta1 * 1e-5 / std::sqrt(tmsh.num_global_nodes()));
         };
       
       auto coarsen_fun = [& delta2, & u_star0, & u_star1, & global_rhs, & tmsh, theta] (tmesh::quadrant_iterator q)
@@ -227,10 +227,10 @@ main (int argc, char **argv)
           if (std::sin(theta) * q->centroid(0) +
               std::cos(theta) * q->centroid(1) <= 0.5)
             return !zz_marker_sol (q, u_star0, global_rhs,
-                                   delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
+                                   delta2 * 1e-5 / std::sqrt(tmsh.num_global_nodes()));
           else
             return !zz_marker_sol (q, u_star1, global_rhs,
-                                   delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
+                                   delta2 * 1e-5 / std::sqrt(tmsh.num_global_nodes()));
         };
       
       // Compute h and error.

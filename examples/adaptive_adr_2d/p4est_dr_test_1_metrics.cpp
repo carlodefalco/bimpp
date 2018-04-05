@@ -191,8 +191,8 @@ main (int argc, char **argv)
           est += std::pow(estimator(quadrant), 2);
         }
       
-      tmsh.octbin_export ((std::string("p4est_dr_test_1_metrics_hx")
-                           + std::to_string(adapt)).c_str(), metrics);
+      tmsh.octbin_export_quadrant ((std::string("p4est_dr_test_1_metrics_hx")
+				    + std::to_string(adapt)).c_str(), metrics);
       
       MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
