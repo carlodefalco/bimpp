@@ -178,8 +178,8 @@ main (int argc, char **argv)
           h = std::min(h, std::sqrt(hx*hx + hy*hy));
         }
       
-      tmsh.octbin_export_quadrant ((std::string("p4est_adr_test_2_metrics_hx")
-				    + std::to_string(adapt)).c_str(), metrics);
+      tmsh.octbin_export_quadrant ((std::string("p4est_adr_test_2_metrics_hx_")
+                                   + std::to_string(adapt)).c_str(), metrics);
         
       MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       
