@@ -30,7 +30,7 @@ double
 hm (const double & a, const double & b);
 
 void
-bim3a_structure (tmesh &tmsh,
+bim2a_structure (tmesh &tmsh,
                  sparse_matrix& A);
 
 void

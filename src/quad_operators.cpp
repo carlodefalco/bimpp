@@ -16,7 +16,7 @@ hm (const double & a, const double & b)
 
 
 void
-bim3a_structure (tmesh &tmsh,
+bim2a_structure (tmesh &tmsh,
                  sparse_matrix& A)
 {
 
@@ -57,6 +57,8 @@ bim3a_structure (tmesh &tmsh,
               A[rows[r]][cols[c]] = 0.0;
         }
     }
+  
+  A.set_properties ();
 }
 
 void 
