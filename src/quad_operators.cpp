@@ -116,6 +116,8 @@ bim2a_advection_diffusion (tmesh& mesh,
             }
         }
     }
+  
+  A.set_properties ();
 }
 
 void 
@@ -227,6 +229,8 @@ bim2a_advection_eafe_diffusion (tmesh& mesh,
             }
         }
     }
+  
+  A.set_properties ();
 }
 
 void
@@ -275,6 +279,8 @@ bim2a_reaction (tmesh& mesh,
               rows.size ();
         }
     }
+  
+  A.set_properties ();
 }
 
 void
