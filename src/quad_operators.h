@@ -30,6 +30,10 @@ double
 hm (const double & a, const double & b);
 
 void
+bim3a_structure (tmesh &tmsh,
+                 sparse_matrix& A);
+
+void
 bim2a_advection_diffusion (tmesh & mesh,
                            const std::vector<double>& alpha,
                            const std::vector<double>& psi,

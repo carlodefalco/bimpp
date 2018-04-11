@@ -14,6 +14,51 @@ hm (const double & a, const double & b)
   return 2 / (1 / a + 1 / b);
 }
 
+
+void
+bim3a_structure (tmesh &tmsh,
+                 sparse_matrix& A)
+{
+
+  std::vector<unsigned int> rows, cols;
+  rows.reserve (2);
+  cols.reserve (2);
+  int i, j, r, c;
+  
+  for (auto quadrant = tmsh.begin_quadrant_sweep ();
+       quadrant != tmsh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      for (i = 0; i < 4; ++i)
+        {
+          rows.clear ();
+          if (! quadrant->is_hanging (i))
+            rows.push_back (quadrant->gt (i));
+          else
+            {
+              rows.push_back (quadrant->gparent (0, i));
+              rows.push_back (quadrant->gparent (1, i));
+            }
+        }
+
+      for (j = 0; j < 4; ++j)
+        {
+          cols.clear();
+          if (! quadrant->is_hanging (j))
+            cols.push_back (quadrant->gt (j));
+          else
+            {
+              cols.push_back (quadrant->gparent (0, j));
+              cols.push_back (quadrant->gparent (1, j));
+            }
+              
+          for (int r = 0; r < rows.size(); ++r)
+            for (int c = 0; c < cols.size(); ++c)
+              A[rows[r]][cols[c]] = 0.0;
+        }
+    }
+}
+
 void 
 bim2a_advection_diffusion (tmesh& mesh,
                            const std::vector<double>& alpha,
