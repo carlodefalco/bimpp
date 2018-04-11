@@ -9,7 +9,7 @@
 #include <iomanip>
 
 void
-bim2a_structure (tmesh &tmsh,
+bim3a_structure (tmesh &tmsh,
                  sparse_matrix& A)
 {
 
