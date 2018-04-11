@@ -183,8 +183,6 @@ bim3a_advection_diffusion (tmesh_3d& mesh,
             }
         }
     }
-  
-  A.set_properties ();
 }
 
 void
@@ -233,8 +231,6 @@ bim3a_reaction (tmesh_3d& mesh,
               (delta[iel] * z_loc * hx * hy * hz / 8) / rows.size ();
         }
     }
-  
-  A.set_properties ();
 }
 
 void
