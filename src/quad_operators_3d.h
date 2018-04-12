@@ -2,7 +2,7 @@
 #define HAVE_QUAD_OPERATORS_3D_H 1
 
 #include "bim_sparse.h"
-#include "quad_operators.h"
+#include "operators.h"
 #include "tmesh_3d.h"
 
 #include <functional>
@@ -12,7 +12,7 @@
 /// f(x, y, z).
 using func3 = std::function<double (double, double, double)>; 
 
-using dirichlet_bcs = std::vector<std::tuple<int, int, func3>>;
+using dirichlet_bcs3 = std::vector<std::tuple<int, int, func3>>;
 
 using q1_vec = std::vector<double>;
 
@@ -23,10 +23,10 @@ using q2_vec3 = std::vector<std::array<double, 27>>;
 
 /// Function to mark if a quadrant has to be taken into
 /// account when computing the recovered gradient.
-using active_fun = std::function<bool (tmesh_3d::quadrant_iterator)>;
+using active_fun3 = std::function<bool (tmesh_3d::quadrant_iterator)>;
 
 void
-bim3a_structure (tmesh &tmsh,
+bim3a_structure (tmesh_3d &tmsh,
                  sparse_matrix& A);
 
 void
@@ -54,7 +54,7 @@ bim3a_rhs (tmesh_3d& mesh,
            std::vector<double>& rhs);
 
 void
-bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs& bcs,
+bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                     sparse_matrix& A, std::vector<double>& rhs);
 
 double
@@ -64,7 +64,7 @@ nedelec_gradient (tmesh_3d::quadrant_iterator & q,
 gradient3
 bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
                                        const q1_vec& u,
-                                       active_fun is_active =
+                                       active_fun3 is_active =
                                         [] (tmesh_3d::quadrant_iterator)
                                          {return true;});
 
