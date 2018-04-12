@@ -21,11 +21,10 @@ with \f$ p := K_{\gamma}(n+m)^{\gamma} \f$ , \f$ K_{\gamma} := \frac{\gamma + 1}
 
 */
 
-#ifndef HAVE_PLAPLACIAN_CLASS_H
-#define HAVE_PLAPLACIAN_CLASS_H
+#ifndef HAVE_TUMOR_GROWTH_H
+#define HAVE_TUMOR_GROWTH_H 1
 
 #include "abstract_nonlinear_problem.h"
-#include "operators.h"
 #include "bim_sparse.h"
 #include "tmesh.h"
 #include <math.h>
@@ -84,20 +83,37 @@ private :
   /// Stores boundary nodes.
   std::vector<int> boundary_nodes;
 
+  /// Index of the basis
+  int indx;
+ 
   /// mesh 
-  tmesh tmsh;  // VA GESTITO COSÌ ? 
+  tmesh *tmsh;  
+  tmesh::idx_t n_nodes = tmsh->num_global_nodes (); 
+  tmesh::idx_t n_elements = tmsh->num_local_quadrants ();
+
+  /// Matrixes and vectors used 
+  sparse_matrix Amm, Ann, mass, Sm, Sn, mat_temp;
+  std::vector<double> m, n, mold, nold;
+  std::vector<double> diffm, diffn, p;
+  std::vector<double> G, mdGdm, mdGdn;
+  std::vector<double> tempm , tempn, tempb;
+  std::vector<double> xa;
+  std::vector<int> jc, ir;
+  std::vector<double> ecoeff;
+  std::vector<double> ncoeff;
 
 public :
 
   /// Default costructor.
   tumor_growth (double mu_, double nu_, double t_, double dt_, std::vector<double> &uold_,
-		double g_=30, double PM_ = 30) :
-    abstract_nonlinear_problem ("tumor_growth"),
-      mu (mu_), nu(nu_), t(t_), dt(dt_), uold(uold_), g(g_), PM(PM_) { };
-
+	        tmesh *tmsh_, double g_=30, double PM_ = 30, int indx_ = 0) :
+  abstract_nonlinear_problem ("tumor_growth"),
+    mu (mu_), nu (nu_), t (t_), dt (dt_), uold (uold_), tmsh (tmsh_), g (g_), PM (PM_),
+    indx (indx_) { };
+  
   /// Read mesh.
   void
-  read_mesh (const std::string &mesh_name);
+    read_mesh (const std::string &mesh_name) {};
 
   /// Set t and dt
   void
@@ -106,10 +122,10 @@ public :
     t = t_ ;
     dt = dt_;
   }
-  
-  /// Set the exact solution of nonlinear problem.
-  void
-  set_exact_solution (const std::vector<double> & exact_solution_);
+
+  /// Initialize the structure of the sparse matrices used in operator()
+  void 
+  set_matrices_structure () ;
 
   /// Set the solution at the previous time step.
   void
@@ -136,9 +152,17 @@ public :
   operator () (std::vector<double>& functional,
                const std::vector<double>& guess);
 
-  /// Get the exact solution of nonlinaer problem.
+  /// Set exact solution of the nonlinear problem.
+  /// Must be called on the master (rank == 0) node only.
   void
-  get_exact_solution (std::vector<double> &exact_solution_);
+  set_exact_solution (const std::vector<double> exact_solution) { };
+
+  /// Get the exact solution of the nonlinear problem.
+  /// Must be called on the master (rank == 0) node only.
+  void
+  get_exact_solution (std::vector<double> &exact_solution) { };
+
+  
 };
 
 #endif

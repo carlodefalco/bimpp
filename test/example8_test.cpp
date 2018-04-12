@@ -121,7 +121,7 @@ run_test_problem (nonlinear_solver *solver)
       solver->set_initial_guess (uold);
     }
 
-  solver->set_max_iterations (10);
+  solver->set_max_iterations (1000);
   solver->set_tolerance (1e-12);
   solver->set_min_residual (1e-12);
   solver->set_norm_type (L2);
