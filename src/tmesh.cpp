@@ -417,14 +417,14 @@ arrays2connectivity (const p_type *p_matrix_start,
         v[n] = *(t_iter++);
       ++t_iter;
 
-      *(tv_iter++) = v[0] - 1;
-      *(tv_iter++) = v[1] - 1;
-      *(tv_iter++) = v[3] - 1;
-      *(tv_iter++) = v[2] - 1;
+      *(tv_iter++) = v[0] - static_cast<t_type> (1);
+      *(tv_iter++) = v[1] - static_cast<t_type> (1);
+      *(tv_iter++) = v[3] - static_cast<t_type> (1);
+      *(tv_iter++) = v[2] - static_cast<t_type> (1);
 
     }
 
-  for (t_type tree = 0; tree < (*conn)->num_trees; ++tree)
+  for (t_type_count tree = 0; tree < num_trees; ++tree)
     for (face = 0; face < 4; ++face)
       {
         (*conn)->tree_to_tree[4 * tree + face] = tree;
@@ -472,8 +472,8 @@ octbingz2connectivity
   Matrix p_matrix =
     tmp.scalar_map_value ().contents ("p").matrix_value ();
 
-  Array<int> t_matrix =
-    tmp.scalar_map_value ().contents ("t").array_value ();
+  Array<octave_idx_type> 
+    t_matrix = tmp.scalar_map_value ().contents ("t").octave_idx_type_vector_value ();
 
   p4est_topidx_t num_vertices = p_matrix.cols (),
     num_trees = t_matrix.cols ();
@@ -726,7 +726,7 @@ tmesh::refine (int recursive, int partforcoarsen, int balance)
                       nullptr, replace_callback);
 
   if (balance)
-    p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
+    p4est_balance (p4est, P4EST_CONNECT_FACE, nullptr);
 
   p4est_partition (p4est, partforcoarsen, nullptr);
 
@@ -770,7 +770,7 @@ tmesh::coarsen (int recursive, int partforcoarsen, int balance)
                        nullptr, replace_callback);
 
   if (balance)
-    p4est_balance (p4est, P4EST_CONNECT_FULL, nullptr);
+    p4est_balance (p4est, P4EST_CONNECT_FACE, nullptr);
 
   p4est_partition (p4est, partforcoarsen, nullptr);
 
@@ -789,7 +789,7 @@ tmesh::update ()
 {
   ghost  = p4est_ghost_new  (p4est, P4EST_CONNECT_FULL);
   lnodes = p4est_lnodes_new (p4est, ghost, 1);
-  mesh   = p4est_mesh_new   (p4est, ghost, P4EST_CONNECT_FULL);
+  mesh   = p4est_mesh_new   (p4est, ghost, P4EST_CONNECT_FACE);
 
   update_ghosts ();
 }

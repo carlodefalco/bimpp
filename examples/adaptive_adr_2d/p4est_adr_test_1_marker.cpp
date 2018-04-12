@@ -46,6 +46,7 @@ main (int argc, char **argv)
   std::vector<tmesh::idx_t> nnodes;
   std::vector<double> h_step;
   std::vector<double> error;
+  std::vector<double> estim;
   
   double delta1 = 1.5;
   double delta2 = 0.5;
@@ -172,11 +173,15 @@ main (int argc, char **argv)
                                  delta2 * 1e-10 / std::sqrt(tmsh.num_global_nodes()));
         };
       
-      // Compute h and error.
+      auto estimator = [& u_star, & global_rhs] (tmesh::quadrant_iterator q)
+        { return estimator_sol (q, u_star, global_rhs); };
+      
+      // Compute h, error and estimator.
       double hx = 0, hy = 0,
              h = std::numeric_limits<double>::max (),
              global_h = 0;
       double err = 0, global_err = 0;
+      double est = 0, global_est = 0;
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
@@ -188,15 +193,19 @@ main (int argc, char **argv)
           h = std::min(h, std::sqrt(hx*hx + hy*hy));
           
           err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
+          est += std::pow(estimator(quadrant), 2);
         }
         
       MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      MPI_Reduce(&est, &global_est, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
       global_err = std::sqrt(global_err);
+      global_est = std::sqrt(global_est);
       
       nnodes.push_back (tmsh.num_global_nodes ());
       h_step.push_back (global_h);
       error.push_back (global_err);
+      estim.push_back (global_est);
       
       std::cout << " Done." << std::endl;
       
@@ -219,7 +228,8 @@ main (int argc, char **argv)
       std::cout << "Step " << step << ", #nodes: "
                 << nnodes[step] << ", h: "
                 << h_step[step] << ", error: "
-                << error[step] << std::endl;
+                << error[step] << ", estimator: "
+                << estim[step] << std::endl;
   
   MPI_Finalize ();
   

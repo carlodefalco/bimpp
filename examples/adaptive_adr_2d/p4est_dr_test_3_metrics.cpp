@@ -50,6 +50,7 @@ main (int argc, char **argv)
   std::vector<tmesh::idx_t> nnodes;
   std::vector<double> h_step;
   std::vector<double> error;
+  std::vector<double> estim;
   
   for (int adapt = 0; adapt < refine_steps; ++adapt)
     {
@@ -194,33 +195,48 @@ main (int argc, char **argv)
             return estimator_sol (q, u_star1, global_rhs);
         };
       
-      std::cout << " Done." << std::endl;
+      double tol = 1e-6;
+      tmsh.set_metrics_marker (estimator, tol, 4);
       
-      // Compute h and error.
+      // Compute metrics, h, error and estimator.
+      std::vector<double> metrics(tmsh.num_local_quadrants ());
+      
       double hx = 0, hy = 0,
              h = std::numeric_limits<double>::max (),
              global_h = 0;
       double err = 0, global_err = 0;
+      double est = 0, global_est = 0;
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
+          metrics[quadrant->get_forest_quad_idx ()] =
+            estimator (quadrant) * std::sqrt (tmsh.num_global_quadrants ())
+            / tol;
+          
           hx = quadrant->p(0, 1) - quadrant->p(0, 0);
           hy = quadrant->p(1, 2) - quadrant->p(1, 0);
           
           h = std::min(h, std::sqrt(hx*hx + hy*hy));
           
           err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
+          est += std::pow(estimator(quadrant), 2);
         }
+      
+      tmsh.octbin_export_quadrant ((std::string("p4est_dr_test_3_metrics_hx_")
+                                   + std::to_string(adapt)).c_str(), metrics);
       
       MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      MPI_Reduce(&est, &global_est, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
       global_err = std::sqrt(global_err);
+      global_est = std::sqrt(global_est);
       
       nnodes.push_back (tmsh.num_global_nodes ());
       h_step.push_back (global_h);
       error.push_back (global_err);
+      estim.push_back (global_est);
       
       std::cout << " Done." << std::endl;
       
@@ -228,7 +244,6 @@ main (int argc, char **argv)
         break;
       
       // Refine.
-      tmsh.set_metrics_marker (estimator, 1e-10, 4);
       tmsh.metrics_refine (1e5);
       
       tmsh.vtk_export ((std::string("p4est_dr_test_3_metrics_newmesh_")
@@ -240,7 +255,8 @@ main (int argc, char **argv)
       std::cout << "Step " << step << ", #nodes: "
                 << nnodes[step] << ", h: "
                 << h_step[step] << ", error: "
-                << error[step] << std::endl;
+                << error[step] << ", estimator: "
+                << estim[step] << std::endl;
   
   MPI_Finalize ();
   

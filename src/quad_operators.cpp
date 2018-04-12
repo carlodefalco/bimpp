@@ -14,6 +14,53 @@ hm (const double & a, const double & b)
   return 2 / (1 / a + 1 / b);
 }
 
+
+void
+bim2a_structure (tmesh &tmsh,
+                 sparse_matrix& A)
+{
+
+  std::vector<unsigned int> rows, cols;
+  rows.reserve (2);
+  cols.reserve (2);
+  int i, j, r, c;
+  
+  for (auto quadrant = tmsh.begin_quadrant_sweep ();
+       quadrant != tmsh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      for (i = 0; i < 4; ++i)
+        {
+          rows.clear ();
+          if (! quadrant->is_hanging (i))
+            rows.push_back (quadrant->gt (i));
+          else
+            {
+              rows.push_back (quadrant->gparent (0, i));
+              rows.push_back (quadrant->gparent (1, i));
+            }
+        }
+
+      for (j = 0; j < 4; ++j)
+        {
+          cols.clear();
+          if (! quadrant->is_hanging (j))
+            cols.push_back (quadrant->gt (j));
+          else
+            {
+              cols.push_back (quadrant->gparent (0, j));
+              cols.push_back (quadrant->gparent (1, j));
+            }
+              
+          for (int r = 0; r < rows.size(); ++r)
+            for (int c = 0; c < cols.size(); ++c)
+              A[rows[r]][cols[c]] = 0.0;
+        }
+    }
+  
+  A.set_properties ();
+}
+
 void 
 bim2a_advection_diffusion (tmesh& mesh,
                            const std::vector<double>& alpha,
@@ -1087,10 +1134,10 @@ double estimator_grad(tmesh::quadrant_iterator q,
     (double X, double Y) -> double
     {
       return
-      std::pow (dudy (X, Y, x, y, u_loc) -
-                q1 (X, Y, x, y, dudystar_loc), 2) +
       std::pow (dudx (X, Y, x, y, u_loc) -
-                q1 (X, Y, x, y, dudxstar_loc), 2);
+                q1 (X, Y, x, y, dudxstar_loc), 2) +
+      std::pow (dudy (X, Y, x, y, u_loc) -
+                q1 (X, Y, x, y, dudystar_loc), 2);
     };
   
   return std::sqrt(quad_integral (x, y, fun));
@@ -1185,5 +1232,114 @@ l2_error (tmesh::quadrant_iterator q,
       std::pow (q1 (X, Y, x, y, u_loc) - u_ex(X, Y), 2);
     };
     
+  return std::sqrt(quad_integral (x, y, fun));
+}
+
+// Compute |u - u_ex|_H^1(q).
+double
+semih1_error (tmesh::quadrant_iterator q,
+              const func & dudx_ex,
+              const func & dudy_ex,
+              const q1_vec & u)
+{
+  double
+    x[2] = {q->p(0,0), q->p(0,1)},
+    y[2] = {q->p(1,0), q->p(1,3)};
+
+  double u_loc[4] = {0,0,0,0};
+
+  for (int ii = 0; ii < 4; ++ii)
+    {
+      if (! q->is_hanging (ii))
+        u_loc[ii] = u[q->gt(ii)];
+      else
+        u_loc[ii] = 0.5 * (u[q->gparent(0, ii)] +
+                           u[q->gparent(1, ii)]);
+    }
+
+  auto fun =
+    [x, y, dudx_ex, dudy_ex, u_loc]
+    (double X, double Y) -> double
+    {
+      return
+      std::pow (dudx (X, Y, x, y, u_loc) -
+                dudx_ex (X, Y), 2) +
+      std::pow (dudy (X, Y, x, y, u_loc) -
+                dudy_ex (X, Y), 2);
+    };
+    
+  return std::sqrt(quad_integral (x, y, fun));
+}
+
+// Compute ||u_star - u_ex||_L^2(q).
+double
+l2_star_error (tmesh::quadrant_iterator q,
+               const func & u_ex,
+               const q2_vec & ustar)
+{
+  double
+  x[2] = {q->p(0,0), q->p(0,1)},
+  y[2] = {q->p(1,0), q->p(1,3)};
+  
+  double ustar_loc[9] = {0,0,0,0,0,0,0,0,0};
+  
+  for (int ii = 0; ii < 9; ++ii)
+  {
+    ustar_loc[ii] = (ustar[q->get_forest_quad_idx()])[ii];
+  }
+  
+  auto fun =
+  [x, y, ustar_loc, u_ex]
+  (double X, double Y) -> double
+  {
+    return
+    std::pow (q2 (X, Y, x, y, ustar_loc) - u_ex(X, Y), 2);
+  };
+  
+  return std::sqrt(quad_integral (x, y, fun));
+}
+
+
+// Compute ||du_star - grad(u_ex)||_L^2(q).
+double
+semih1_star_error (tmesh::quadrant_iterator q,
+                   const func & dudx_ex,
+                   const func & dudy_ex,
+                   const gradient & du_star)
+{
+  double
+    x[2] = {q->p(0,0), q->p(0,1)},
+    y[2] = {q->p(1,0), q->p(1,3)};
+  
+  double dudxstar_loc[4] = {0,0,0,0};
+  double dudystar_loc[4] = {0,0,0,0};
+  
+  for (int ii = 0; ii < 4; ++ii)
+    {
+      if (! q->is_hanging (ii))
+        {
+          dudxstar_loc[ii] = (du_star.first)[q->gt(ii)];
+          dudystar_loc[ii] = (du_star.second)[q->gt(ii)];
+        }
+      else
+        {
+          dudxstar_loc[ii] = 0.5 * ((du_star.first)[q->gparent(0, ii)] +
+                                    (du_star.first)[q->gparent(1, ii)]);
+          dudystar_loc[ii] = 0.5 * ((du_star.second)[q->gparent(0, ii)] +
+                                    (du_star.second)[q->gparent(1, ii)]);
+        }
+    }
+  
+  auto fun =
+    [x, y, dudxstar_loc, dudystar_loc, dudx_ex, dudy_ex]
+    (double X, double Y) -> double
+    {
+      return
+      std::pow (dudx_ex (X, Y) -
+                q1 (X, Y, x, y, dudxstar_loc), 2) +
+      std::pow (dudy_ex (X, Y) -
+                q1 (X, Y, x, y, dudystar_loc), 2);
+    };
+  
   return std::sqrt(quad_integral (x, y, fun));
 }

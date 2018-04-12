@@ -65,7 +65,7 @@ write_example_connectivity (const char* filename)
 
   // save data to file
   Matrix oct_p (50, 2, 0.0);
-  Array<int> oct_t (dim_vector (5, 36), 0);
+  Array<octave_idx_type> oct_t (dim_vector (5, 36), 0);
 
   std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
   oct_p = oct_p.transpose ();
