@@ -190,7 +190,7 @@ main (int argc, char **argv)
   bim3a_rhs (tmsh, f, g, rhs);
   
   // Set boundary conditions.
-  dirichlet_bcs bcs;
+  dirichlet_bcs3 bcs;
   bcs.push_back (std::make_tuple(0,  0,
                   [] (double x, double y, double z) { return 0.3; }));
   bcs.push_back (std::make_tuple(0,  2,

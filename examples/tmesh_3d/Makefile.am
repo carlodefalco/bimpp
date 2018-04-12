@@ -12,7 +12,7 @@ bin_PROGRAMS = p4est_palla_3d
 CLEANFILES = 
 
 p4est_palla_3d_SOURCES =  p4est_palla_3d.cpp
-p4est_palla_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+p4est_palla_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
 p4est_palla_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 p4est_palla_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
 CLEANFILES += palla_initial_mesh*.pvtu palla_initial_mesh*.visit palla_initial_mesh*.vtu

@@ -9,7 +9,7 @@
 #include <iomanip>
 
 void
-bim3a_structure (tmesh &tmsh,
+bim3a_structure (tmesh_3d &tmsh,
                  sparse_matrix& A)
 {
 
@@ -282,7 +282,7 @@ bim3a_rhs (tmesh_3d& mesh,
 }
 
 void
-bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs& bcs,
+bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                     sparse_matrix& A, std::vector<double>& rhs)
 {
   std::vector<double> row_sum (A.size ());

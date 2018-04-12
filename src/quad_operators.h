@@ -25,10 +25,6 @@ using q2_vec = std::vector<std::array<double, 9>>;
 /// account when computing the recovered gradient.
 using active_fun = std::function<bool (tmesh::quadrant_iterator)>;
 
-// Compute harmonic mean of a and b.
-double
-hm (const double & a, const double & b);
-
 void
 bim2a_structure (tmesh &tmsh,
                  sparse_matrix& A);

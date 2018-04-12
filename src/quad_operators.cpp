@@ -8,7 +8,8 @@
 #include <limits>
 #include <iomanip>
 
-double
+// Compute harmonic mean of a and b.
+static double
 hm (const double & a, const double & b)
 {
   return 2 / (1 / a + 1 / b);
