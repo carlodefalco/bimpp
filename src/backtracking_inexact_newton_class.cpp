@@ -58,11 +58,11 @@ backtracking_inexact_newton::solve ()
             bim3a_laplacian (problem->msh, ecoeff, mass_matrix);
         }
       */
+     
       problem->operator () (lhs, rhs, *initial_guess);
-
       for (unsigned int i = 0; i < rhs.size (); ++i)
         residual_norm += rhs[i] * rhs[i];
-    
+
       residual_norm = sqrt (residual_norm);
 
       #ifdef VERIFY_CONVERGENCE
@@ -115,9 +115,8 @@ backtracking_inexact_newton::solve ()
             f_old[i] = - rhs[i];
 
           lhs.aij (xa, ir, jc, lin_solver->get_index_base ());
-          lin_solver->set_lhs_structure (lhs.rows (), ir, jc);
+          lin_solver->set_lhs_structure (lhs.rows (), ir, jc); // we need to change this with aij_update because the structure of lhs is always the same 
         }
-
       lin_solver->analyze ();
 
       if (rank == 0)
