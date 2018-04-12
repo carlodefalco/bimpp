@@ -15,7 +15,6 @@
 #include <nonlinear_solver.h>
 #include <linear_solver.h>
 
-
 void
 projected_Newton_method_and_gradient_direction::set_problem
 (abstract_nonlinear_problem *problem_)
@@ -44,7 +43,6 @@ projected_Newton_method_and_gradient_direction::projection
 {
   for(int i = 0 ; i<x.size(); ++i)
     x[i] = std::max (std::min (x [i], b2 [i]), b1 [i]);
-
 }
 
 
@@ -92,7 +90,6 @@ projected_Newton_method_and_gradient_direction::solve ()
   
   if (rank == 0 && verbose >= 1)
     {
-      // fout.open (filename.c_str ());
       
       std::cout << "Result of Non Linear Test "
                 << "\nwill be written in "
@@ -100,6 +97,7 @@ projected_Newton_method_and_gradient_direction::solve ()
                 << std::endl << std::endl;
    
       lin_initial_guess.assign (n, 0.0);
+      
       
       if (lin_solver->solver_type () == "iterative")
 	{
@@ -109,13 +107,14 @@ projected_Newton_method_and_gradient_direction::solve ()
 	  std::cout <<type_of_iterative_method << std::endl; 
 	  std::cout <<std::endl;
 	}
-  
       printf ("%10.10s | \t%10.10s | \t%10.10s | \t%s | \t%10.10s\n",
 	      "  Iterates", "    lambda",
 	      "     ||F||", "       eta",
 	      "      flag");
 
       printf ("__________________________________________________________________________\n");
+    
+       
     }
   
   iteration = 0; // DA AGGIUSTARE!!!
@@ -160,7 +159,34 @@ projected_Newton_method_and_gradient_direction::solve ()
    
       if (rank == 0)
 	{
-	  std::vector<double> unew (initial_guess->size ());
+
+	  /////////////////////
+	  
+	   /*   double temp, theta_dumping = 1;
+	      for (int i = 0; i < b1.size(); ++i)
+		{
+		  temp = (b1[i] - (*initial_guess)[i]) / rhs[i] ;
+		  if (temp > 0)
+		    theta_dumping = std::min (temp, theta_dumping);
+		}
+	      for (int i = 0; i < b2.size(); ++i)
+		{
+		  temp = (b2[i] - (*initial_guess)[i]) / rhs[i] ;
+		  if (temp > 0)
+		    theta_dumping = std::min (temp, theta_dumping);
+		}
+	      if (theta_dumping > 0.01 && theta_dumping < 1)
+		{
+		  std::cout << "Ha usato theta_dumping "<< theta_dumping << std::endl;
+		  for (int i = 0; i < rhs.size(); ++i )
+		    rhs[i] = theta_dumping * rhs[i];
+		}
+	  
+	   */   //////////////////////////
+	  
+	// for (unsigned int i = 0; i < rhs.size (); ++i)
+	  //  std::cout<<rhs[i] <<std::endl;
+          std::vector<double> unew (initial_guess->size ());
 	  for (unsigned int i = 0; i < rhs.size (); ++i)
 	    unew[i] = rhs[i] + (*initial_guess)[i];
 	  projection(unew);
@@ -214,7 +240,7 @@ projected_Newton_method_and_gradient_direction::solve ()
 	     theta_k = theta ; 
               /////////
 
-	     // theta_k=theta_k*theta;
+	    //  theta_k=theta_k*theta;
          
 
                   for (unsigned int i = 0; i < rhs.size (); ++i)
@@ -249,11 +275,12 @@ projected_Newton_method_and_gradient_direction::solve ()
 	  nonlinear_res.push_back (f_new_norm);
 	  nonlinear_iter.push_back (iteration);
          #endif
-              std::cout<< "m " << m <<std::endl;
-	  if (m > (max_back_it-1)) {FLAG = 1;}
+
+	  if (m > (max_back_it - 1)) {FLAG = 1;}
 	  else
-	    {
-	      for (unsigned int i = 0; i < rhs.size (); ++i)
+	    {  
+              std::cout<< "m = " << m <<std::endl;
+              for (unsigned int i = 0; i < rhs.size (); ++i)
 		(*initial_guess)[i] = rhs[i] + (*initial_guess)[i];
 	      projection(*initial_guess);
                  
@@ -270,7 +297,7 @@ projected_Newton_method_and_gradient_direction::solve ()
 		  printf ("%10.5d |\t%10.5g |\t%10.5g |\t%10.5g |\t",
 			  iteration, theta_k, residual_norm, forcing_value);
 		  printf ("%10.10s\n", "PN");
-		}
+        	}
 	    }
             
 	} // rank ==0
@@ -289,18 +316,54 @@ projected_Newton_method_and_gradient_direction::solve ()
               lhsT.reset ();
               lhsT.resize (n);
 
-              if (lin_solver->solver_type () == "iterative")
-		for (int i = 0 ; i <xa.size(); ++i)
-		  lhsT[jc[i]][ir[i]] = xa[i] ;
+	      for (int i = 0 ; i <xa.size(); ++i)
+	         lhsT[jc[i] - lin_solver->get_index_base ()][ir[i] - lin_solver->get_index_base ()]
+                            = xa[i];
 	        
-              else
-		for (int i = 0 ; i <xa.size(); ++i)
-		  lhsT[jc[i]-1][ir[i]-1] = xa[i] ;
-		    
-		
               rhs = lhsT*f_old;
 	      for (int i = 0; i < rhs.size(); ++i)
 		rhs[i] = - rhs[i];
+                
+              //------ STRATEGIA 2--------------
+           /*   
+              double norm_d = 0;
+              for (int i = 0; i < rhs.size(); ++i)
+		norm_d +=  rhs[i] * rhs[i];
+              norm_d = sqrt (norm_d);
+              std:: cout << "NORM DI d = " << norm_d <<std:: endl ;
+              if (norm_d < 0.01)
+               {
+	          std::cout << " USO STRATEGIA 2 " << std::endl;
+                  for (int i = 0; i < rhs.size(); ++i)
+		    rhs[i] = 10 * rhs[i];
+               }
+             */ 
+              //---------------------------------
+
+           //   for (int i = 0; i < rhs.size(); ++i)
+		//std::cout<<rhs[i] <<std::endl;
+
+	   
+	/*      double temp, theta_dumping = 1;
+	      for (int i = 0; i < b1.size(); ++i)
+		{
+		  temp = (b1[i] - (*initial_guess)[i]) / rhs[i] ;
+		  if (temp > 0)
+		    theta_dumping = std::min (temp, theta_dumping);
+		}
+	      for (int i = 0; i < b2.size(); ++i)
+		{
+		  temp = (b2[i] - (*initial_guess)[i]) / rhs[i] ;
+		  if (temp > 0)
+		    theta_dumping = std::min (temp, theta_dumping);
+		}
+	      if (theta_dumping > 0.01)
+		{
+		  std::cout << "Ha usato theta_dumping "<< theta_dumping << std::endl;
+		  for (int i = 0; i < rhs.size(); ++i )
+		    rhs[i] = theta_dumping * rhs[i];
+		}
+	*/
 	      std::vector<double> rhs_0 = rhs; 
               std::vector<double> unew (initial_guess->size ());
               for (unsigned int i = 0; i < rhs.size (); ++i)
@@ -331,6 +394,25 @@ projected_Newton_method_and_gradient_direction::solve ()
               while (0.5*f_new_norm*f_new_norm >
 		     0.5*f_old_norm*f_old_norm + val && m < max_back_it )
 		{
+
+              ///////// Theta Choice //////////////
+	    /*  std::vector<double> temp;
+              double temp_norm = 0.0;
+
+              temp = lhs * rhs;
+              for (unsigned int i = 0; i < rhs.size (); ++i)
+                temp_norm += f_old[i] * temp[i];
+
+              double a = f_new_norm * f_new_norm -
+                f_old_norm * f_old_norm - 2 * temp_norm;
+
+              double b = 2* temp_norm;
+              double c = f_old_norm * f_old_norm;
+
+              theta_choice (a, b, c);
+	      thetaPG = theta ; 
+              theta_k = thetaPG;*/
+              /////////
 		  theta_k = theta_k * thetaPG;
 		  
 		  for (unsigned int i = 0; i < rhs.size (); ++i)
@@ -366,8 +448,8 @@ projected_Newton_method_and_gradient_direction::solve ()
 	      */
               FLAG=0;
               df_gap = lhs * rhs;
-	      
-	      for (unsigned int i = 0; i < rhs.size (); ++i)
+	      std::cout<< "m = " << m <<std::endl;
+              for (unsigned int i = 0; i < rhs.size (); ++i)
 		(*initial_guess)[i] = rhs[i] + (*initial_guess)[i];
 	      projection(*initial_guess);
 	      (*problem) ( lhs,rhs, (*initial_guess));
@@ -381,9 +463,11 @@ projected_Newton_method_and_gradient_direction::solve ()
 	      residual_norm = sqrt (residual_norm);
               if (rank==0 && verbose >= 1)
                 {
-	           printf ("%10.5d |\t%10.5g |\t%10.5g |\t%10.5g |\t",
-		      iteration, theta_k, residual_norm, forcing_value);
-	           printf ("%10.10s\n", "PG"); 
+	          printf ("%10.5d |\t%10.5g |\t%10.5g |\t%10.5g |\t",
+			  iteration, theta_k, residual_norm, forcing_value);
+		  printf ("%10.10s\n", "PG");
+                
+           
 	        }
 
             }// rank == 0
@@ -395,9 +479,6 @@ projected_Newton_method_and_gradient_direction::solve ()
   while (iteration <= max_iter
          && residual_norm > min_residual);
 
-  if (rank == 0 && verbose >=1)
-    // fout.close ();
-  
   if (iteration > max_iter)
     {
       if (rank == 0)
@@ -405,7 +486,8 @@ projected_Newton_method_and_gradient_direction::solve ()
                   << std::endl
                   << "Nonlinear solver not converged."
                   << std::endl;
-     // return 0;
+    
+      // return 0;
     }
   else
     {
@@ -413,6 +495,7 @@ projected_Newton_method_and_gradient_direction::solve ()
         {
           std::cout << "\nNonlinear solver converged."
                     << std::endl;
+
 
           #ifdef VERIFY_CONVERGENCE
             std::cout << "Convergence of linear residual:" << std::endl;

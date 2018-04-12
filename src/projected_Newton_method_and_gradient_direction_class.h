@@ -136,12 +136,11 @@ private :
   std::vector<double> b2;
  
   std::string filename;
-  std::ofstream fout;
 
   int rank, size;
 
 public :
-
+  
   /// Pointer to the linear solver used by nonlinear solver.
   linear_solver *lin_solver;
 
