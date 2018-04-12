@@ -8,7 +8,53 @@
 #include <limits>
 #include <iomanip>
 
-void 
+void
+bim3a_structure (tmesh &tmsh,
+                 sparse_matrix& A)
+{
+
+  std::vector<unsigned int> rows, cols;
+  rows.reserve (2);
+  cols.reserve (2);
+  int i, j, r, c;
+  
+  for (auto quadrant = tmsh.begin_quadrant_sweep ();
+       quadrant != tmsh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      for(int i = 0; i < 8; ++i)
+        {
+          rows.clear();
+          
+          if (!quadrant->is_hanging(i))
+            rows.push_back (quadrant->gt(i));
+          else
+            for (int pp = 0; pp < quadrant->num_parents (i); ++pp)
+              rows.push_back (quadrant->gparent(pp, i));
+          
+          for(int j = 0; j < 8; ++j)
+            {
+              cols.clear();
+              
+              if (!quadrant->is_hanging(j))
+                cols.push_back (quadrant->gt(j));
+              else
+                for (int pp = 0; pp < quadrant->num_parents (j); ++pp)
+                  cols.push_back (quadrant->gparent(pp, j));
+              
+              for (int r = 0; r < rows.size(); ++r)
+                for (int c = 0; c < cols.size(); ++c)
+                  {
+                    A[rows[r]][cols[c]] = 0.0;
+                  }
+            }
+        }
+    }
+  
+  A.set_properties ();
+}
+
+void
 bim3a_advection_diffusion (tmesh_3d& mesh,
                            const std::vector<double>& alpha,
                            const std::vector<double>& psi,

@@ -111,7 +111,8 @@ main (int argc, char **argv)
     }
   
   Matrix oct_p(2, p.size() / 2, 0.0);
-  Array<int> oct_children (dim_vector(4, tmsh.num_local_quadrants()), 0);
+  Array<octave_idx_type>
+    oct_children (dim_vector (4, tmsh.num_local_quadrants ()), 0);
   
   std::copy_n (p.begin (), p.size (), oct_p.fortran_vec ());
   

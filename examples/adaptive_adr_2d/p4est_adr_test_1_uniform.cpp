@@ -45,7 +45,8 @@ main (int argc, char **argv)
   
   std::vector<tmesh::idx_t> nnodes;
   std::vector<double> h_step;
-  std::vector<double> error, error_du_x, error_du_y;
+  std::vector<double> error, error_du;
+  std::vector<double> error_star, error_star_du;
   
   double delta1 = 1.5;
   double delta2 = 0.5;
@@ -175,9 +176,10 @@ main (int argc, char **argv)
         { return (std::exp(lambda * x) - 1) / (std::exp(lambda) - 1) *
                  (lambda * std::exp(lambda * y)) / (std::exp(lambda) - 1); };
                  
-      double err = 0, global_err = 0;
-      double err_du_x = 0, global_err_du_x = 0;
-      double err_du_y = 0, global_err_du_y = 0;
+      double err    = 0, global_err    = 0;
+      double err_du = 0, global_err_du = 0;
+      double err_star    = 0, global_err_star    = 0;
+      double err_star_du = 0, global_err_star_du = 0;
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
@@ -189,24 +191,30 @@ main (int argc, char **argv)
           h = std::min(h, std::sqrt(hx*hx + hy*hy));
           
           err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
-          err_du_x += std::pow(l2_error(quadrant, du_x_ex, du.first), 2);
-          err_du_y += std::pow(l2_error(quadrant, du_y_ex, du.second), 2);
+          err_du += std::pow(semih1_error(quadrant, du_x_ex, du_y_ex, global_rhs), 2);
+          
+          err_star += std::pow(l2_star_error(quadrant, u_ex, u_star), 2);
+          err_star_du += std::pow(semih1_star_error(quadrant, du_x_ex, du_y_ex, du), 2);
         }
       
       MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
-      MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
-      MPI_Reduce(&err_du_x, &global_err_du_x, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
-      MPI_Reduce(&err_du_y, &global_err_du_y, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
       
-      global_err = std::sqrt(global_err);
-      global_err_du_x = std::sqrt(global_err_du_x);
-      global_err_du_y = std::sqrt(global_err_du_y);
+      MPI_Reduce(&err,    &global_err,    1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      MPI_Reduce(&err_du, &global_err_du, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      MPI_Reduce(&err_star,    &global_err_star,    1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      MPI_Reduce(&err_star_du, &global_err_star_du, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      
+      global_err    = std::sqrt(global_err);
+      global_err_du = std::sqrt(global_err_du);
+      global_err_star    = std::sqrt(global_err_star);
+      global_err_star_du = std::sqrt(global_err_star_du);
       
       nnodes.push_back (tmsh.num_global_nodes ());
       h_step.push_back (global_h);
       error.push_back (global_err);
-      error_du_x.push_back (global_err_du_x);
-      error_du_y.push_back (global_err_du_y);
+      error_du.push_back (global_err_du);
+      error_star.push_back (global_err_star);
+      error_star_du.push_back (global_err_star_du);
       
       std::cout << " Done." << std::endl;
       
@@ -226,9 +234,10 @@ main (int argc, char **argv)
       std::cout << "Step " << step << ", #nodes: "
                 << nnodes[step] << ", h: "
                 << h_step[step] << ", error: "
-                << error[step] <<  ", error_du_x: "
-                << error_du_x[step] <<  ", error_du_y: "
-                << error_du_y[step] << std::endl;
+                << error[step] << ", error_du: "
+                << error_du[step] << ", error^*: "
+                << error_star[step] << ", error_du^*: "
+                << error_star_du[step] << std::endl;
   
   MPI_Finalize ();
   

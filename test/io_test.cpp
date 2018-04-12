@@ -16,7 +16,7 @@ int main (int argc, char **argv)
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
-  std::vector<int>      n;
+  std::vector<octave_idx_type>      n;
   std::vector<double>   x;
   MPI_Status            status;
 
@@ -58,7 +58,7 @@ int main (int argc, char **argv)
       
       // save data to file
       ColumnVector oct_x (x.size (), 0.0);
-      Array<int> oct_n (dim_vector (n.size (), 1), 0);
+      Array<octave_idx_type> oct_n (dim_vector (n.size (), 1), 0);
 
       std::copy_n (x.begin (), x.size (), oct_x.fortran_vec ());
       std::copy_n (n.begin (), n.size (), oct_n.fortran_vec ());
@@ -78,7 +78,7 @@ int main (int argc, char **argv)
       assert (octave_io_open ("tmp_io_test.octbin.gz", m, &m) == 0);
       assert (octave_load ("the_map", tmp) == 0);
       ColumnVector x_new = tmp.scalar_map_value ().contents ("x").column_vector_value ();
-      Array<int> n_new = tmp.scalar_map_value ().contents ("n").column_vector_value ();
+      Array<octave_idx_type> n_new = tmp.scalar_map_value ().contents ("n").column_vector_value ();
 
       for (int ii = 0; ii < x_new.numel (); ++ii)
         assert (x_new(ii) == x[ii]);

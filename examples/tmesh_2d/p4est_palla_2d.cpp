@@ -1,71 +1,69 @@
 #include <bim_timing.h>
-#include <tmesh_3d.h>
+#include <tmesh.h>
 
 #include <array>
 #include <cassert>
 #include <cstdio>
 
-#include "simple_connectivity_3d.h"
+#include <simple_connectivity_2d.h>
 
-static std::array<double, 3> x0 = {.5, .5, .5};
+static std::array<double, 3> x0 = {.5, .5, 0.};
 static std::array<double, 3> x = x0;
-static std::array<double, 3> v0 = {0.2, 0.0, 0.8};;
+static std::array<double, 3> v0 = {0.2, 0.0, 0.0};;
 static std::array<double, 3> v = v0;
 static std::array<double, 3> L = {1., 1., 1.};
 static std::array<double, 3> g = {0., -9.81, 0.};
 static constexpr double r = .0625;;
 static constexpr double dt = .01;
-static const int maxlevel =  8;
-static const int minlevel =  3;
+static const int maxlevel =  9;
+static const int minlevel =  4;
 static char filename[255] = "\0";
 
 static int
-uniform_refinement (tmesh_3d::quadrant_iterator quadrant)
+uniform_refinement (tmesh::quadrant_iterator quadrant)
 { return 1; }
 
 static int
-refinement (tmesh_3d::quadrant_iterator quadrant)
+refinement (tmesh::quadrant_iterator quadrant)
 {
+  int currentlevel = static_cast<int> (quadrant->the_quadrant->level);
   double xcoord, ycoord, zcoord, dist = .0;
   int retval = 0;
   for (int ii = 0; ii < 4; ++ii)
     {
       xcoord = quadrant->p(0, ii);
       ycoord = quadrant->p(1, ii);
-      zcoord = quadrant->p(2, ii);
       
       dist = std::sqrt (std::pow (xcoord - x[0], 2) +
-                        std::pow (ycoord - x[1], 2) +
-                        std::pow (zcoord - x[2], 2));
+                        std::pow (ycoord - x[1], 2));
 
 
       if (dist > .9 * r && dist < 1.1 * r)
         {
-          retval = 1;
+          retval = maxlevel - currentlevel;
           break;
         }
     }
 
-  if (static_cast<int> (quadrant->the_quadrant->level) >= maxlevel)
+  if (currentlevel >= maxlevel)
     retval = 0;
       
   return (retval);
 }
 
 static int
-coarsening (tmesh_3d::quadrant_iterator quadrant)
+coarsening (tmesh::quadrant_iterator quadrant)
 {
+  int currentlevel = static_cast<int> (quadrant->the_quadrant->level);
   double xcoord, ycoord, zcoord, dist = .0;
-  int retval = 1;
+  int retval = currentlevel - minlevel;
   for (int ii = 0; ii < 4; ++ii)
     {
       xcoord = quadrant->p(0, ii);
       ycoord = quadrant->p(1, ii);
-      zcoord = quadrant->p(2, ii);
       
       dist = std::sqrt (std::pow (xcoord - x[0], 2) +
-                        std::pow (ycoord - x[1], 2) +
-                        std::pow (zcoord - x[2], 2));
+                        std::pow (ycoord - x[1], 2));
 
 
       if (dist > .9 * r && dist < 1.1 * r)
@@ -75,7 +73,7 @@ coarsening (tmesh_3d::quadrant_iterator quadrant)
         }
     }
 
-  if (static_cast<int> (quadrant->the_quadrant->level) <= minlevel)
+  if (currentlevel <= minlevel)
     retval = 0;
   
   return (retval);
@@ -110,7 +108,7 @@ main (int argc, char **argv)
   int                   recursive, partforcoarsen, balance;
   MPI_Comm              mpicomm = MPI_COMM_WORLD;  
   int                   rank, size;
-  tmesh_3d              tmsh;
+  tmesh                 tmsh;
   
   mpicomm = MPI_COMM_WORLD;
   MPI_Comm_rank (mpicomm, &rank);
@@ -120,7 +118,7 @@ main (int argc, char **argv)
                           simple_conn_t, simple_conn_num_trees);
 
 
-  for (auto i = 0; i < 5; ++i)
+  for (auto i = 0; i < minlevel; ++i)
     {
 
       MPI_Barrier (MPI_COMM_WORLD);
@@ -143,44 +141,30 @@ main (int argc, char **argv)
 
       palla_helper (x0[0], v0[0], L[0], g[0], dt, r, x[0], v[0]);
       palla_helper (x0[1], v0[1], L[1], g[1], dt, r, x[1], v[1]);
-      palla_helper (x0[2], v0[2], L[2], g[2], dt, r, x[2], v[2]);
       
       x0 = x; v0 = v;
 
-            
-#ifdef WA_RECURSIVE
-      for (int j = 0; j < 10; ++j){
-#endif      MPI_Barrier (MPI_COMM_WORLD); 
-      if (rank == 0) { tic (); }
-      recursive = 1;  partforcoarsen = 1;  
-      tmsh.set_coarsen_marker (coarsening);
-      tmsh.coarsen (recursive, partforcoarsen);
-      if (rank == 0) { toc ("coarsening"); }
-      MPI_Barrier (MPI_COMM_WORLD);
-#ifdef WA_RECURSIVE
-      }
-#endif
       
-      // MPI_Barrier (MPI_COMM_WORLD); 
-      // if (rank == 0) { tic (); }
-      // sprintf (filename, "palla_%5.5d", iframe++);
-      // tmsh.vtk_export (filename);
-      // if (rank == 0) { toc ("io"); }
-      // MPI_Barrier (MPI_COMM_WORLD);
+      if (rank == 0)
+        std::cout << "t = " << t << ", "
+                  << "x = " << x[0] << ", "
+                  << "y = " << x[1] << std::endl;
 
-#ifdef WA_RECURSIVE
-      for (int j = 0; j < 10; ++j){
-#endif
       MPI_Barrier (MPI_COMM_WORLD); 
       if (rank == 0) { tic (); }
       recursive = 1;  partforcoarsen = 1;  
       tmsh.set_refine_marker (refinement);
-      tmsh.refine (recursive, partforcoarsen);
+      tmsh.refine (recursive, partforcoarsen, 1);
       if (rank == 0) { toc ("refinement"); }
       MPI_Barrier (MPI_COMM_WORLD);
-#ifdef WA_RECURSIVE
-      }
-#endif
+
+      MPI_Barrier (MPI_COMM_WORLD); 
+      if (rank == 0) { tic (); }
+      recursive = 1;  partforcoarsen = 1;  
+      tmsh.set_coarsen_marker (coarsening);
+      tmsh.coarsen (recursive, partforcoarsen, 1);
+      if (rank == 0) { toc ("coarsening"); }
+      MPI_Barrier (MPI_COMM_WORLD);
       
       MPI_Barrier (MPI_COMM_WORLD); 
       if (rank == 0) { tic (); }

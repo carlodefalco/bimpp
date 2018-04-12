@@ -488,8 +488,8 @@ octbingz2connectivity
   Matrix p_matrix =
     tmp.scalar_map_value ().contents ("p").matrix_value ();
 
-  Array<int> t_matrix =
-    tmp.scalar_map_value ().contents ("t").array_value ();
+  Array<octave_idx_type> t_matrix =
+    tmp.scalar_map_value ().contents ("t").octave_idx_type_vector_value ();
 
   p4est_topidx_t num_vertices = p_matrix.cols (),
     num_trees = t_matrix.cols ();
@@ -716,7 +716,7 @@ tmesh_3d::refine (int recursive, int partforcoarsen, int balance)
                       nullptr, replace_callback);
 
   if (balance)
-    p8est_balance (p8est, P8EST_CONNECT_FULL, nullptr);
+    p8est_balance (p8est, P8EST_CONNECT_EDGE, nullptr);
 
   p8est_partition (p8est, partforcoarsen, nullptr);
 
@@ -760,7 +760,7 @@ tmesh_3d::coarsen (int recursive, int partforcoarsen, int balance)
                        nullptr, replace_callback);
 
   if (balance)
-    p8est_balance (p8est, P8EST_CONNECT_FULL, nullptr);
+    p8est_balance (p8est, P8EST_CONNECT_EDGE, nullptr);
 
   p8est_partition (p8est, partforcoarsen, nullptr);
 
@@ -779,7 +779,7 @@ tmesh_3d::update ()
 {
   ghost  = p8est_ghost_new  (p8est, P8EST_CONNECT_FULL);
   lnodes = p8est_lnodes_new (p8est, ghost, 1);
-  mesh   = p8est_mesh_new   (p8est, ghost, P8EST_CONNECT_FULL);
+  mesh   = p8est_mesh_new   (p8est, ghost, P8EST_CONNECT_EDGE);
 
   update_ghosts ();
 }
