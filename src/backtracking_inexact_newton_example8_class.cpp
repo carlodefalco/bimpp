@@ -156,16 +156,37 @@ backtracking_inexact_newton_example8::solve ()
 	}
 
       lin_solver->solve ();   ///*///*///*///*///*///*///*///*///*///*
-   
+  /*   ////-------------------------------------------------------------
+	      double temp, theta_dumping = 1;
+	      for (int i = 0; i < b1.size(); ++i)
+		{
+		  temp = (b1[i] - (*initial_guess)[i]) / rhs[i] ;
+		  if (temp > 0)
+		    theta_dumping = std::min (temp, theta_dumping);
+		}
+	      for (int i = 0; i < b2.size(); ++i)
+		{
+		  temp = (b2[i] - (*initial_guess)[i]) / rhs[i] ;
+		  if (temp > 0)
+		    theta_dumping = std::min (temp, theta_dumping);
+		}
+	      if (theta_dumping > 0.01)
+		{
+		  std::cout << "Ha usato theta_dumping "<< theta_dumping << std::endl;
+		 // fout << "Ha usato theta_dumping "<< theta_dumping << std::endl;
+		  for (int i = 0; i < rhs.size(); ++i )
+		    rhs[i] = theta_dumping * rhs[i];
+		} 
+  */   ///-----------------------------------------------------------------------	   
       if (rank == 0)
 	{
 	  if (verbose == 2)
 	    {
-	      fout << "Iteration with PN: " << iteration << std::endl;
-	      fout<<"d : "<<std::endl;
+	     // fout << "Iteration with PN: " << iteration << std::endl;
+	    //  fout<<"d : "<<std::endl;
               
-	      for (unsigned int i = 0; i < rhs.size (); ++i)
-		fout << rhs[i] << std::endl;
+	    //  for (unsigned int i = 0; i < rhs.size (); ++i)
+		//fout << rhs[i] << std::endl;
 	    }
 	  std::vector<double> unew (initial_guess->size ());
 	  for (unsigned int i = 0; i < rhs.size (); ++i)
@@ -202,6 +223,25 @@ backtracking_inexact_newton_example8::solve ()
 	  while (f_new_norm >
 		 (1 - t * theta_k*(1 - forcing_value)) * f_old_norm && m < max_back_it)
 	    { 
+                  
+	      ///////// Theta Choice //////////////
+	     /* std::vector<double> temp;
+              double temp_norm = 0.0;
+
+              temp = lhs * rhs;
+              for (unsigned int i = 0; i < rhs.size (); ++i)
+                temp_norm += f_old[i] * temp[i];
+
+              double a = f_new_norm * f_new_norm -
+                f_old_norm * f_old_norm - 2 * temp_norm;
+
+              double b = 2* temp_norm;
+              double c = f_old_norm * f_old_norm;
+
+              theta_choice (a, b, c);
+	     theta_k = theta ; */
+              /////////
+
                   // ricavo theta (lambda) come nell'articolo
                   theta_k=theta_k*theta;
                   for (unsigned int i = 0; i < rhs.size (); ++i)
@@ -244,9 +284,9 @@ backtracking_inexact_newton_example8::solve ()
 	      
 	      if (verbose == 2)
 		{
-		  fout<<"d dopo backtracking : "<<std::endl;
-		  for (unsigned int i = 0; i < rhs.size (); ++i)
-		    fout << rhs[i] << std::endl;
+		 // fout<<"d dopo backtracking : "<<std::endl;
+		 // for (unsigned int i = 0; i < rhs.size (); ++i)
+		 //   fout << rhs[i] << std::endl;
 		}
 	      for (unsigned int i = 0; i < rhs.size (); ++i)
 		(*initial_guess)[i] = rhs[i] + (*initial_guess)[i];
@@ -264,13 +304,14 @@ backtracking_inexact_newton_example8::solve ()
 		  printf ("%10.5d |\t%10.5g |\t%10.5g |\t%10.5g |\t",
 			  iteration, theta_k, residual_norm, forcing_value);
 		  printf ("%10.10s\n", "PN");
+                  fout<<residual_norm<<std::endl;
 		}
 	          
 	      if (verbose == 2)
 		{
-		  fout<<"x : "<<std::endl;
-		  for (unsigned int i = 0; i < initial_guess->size (); ++i)
-		    fout << (*initial_guess)[i] << std::endl;
+		 // fout<<"x : "<<std::endl;
+		 // for (unsigned int i = 0; i < initial_guess->size (); ++i)
+		  //  fout << (*initial_guess)[i] << std::endl;
 		}
 	    }
             
@@ -308,13 +349,53 @@ backtracking_inexact_newton_example8::solve ()
               rhs = lhsT*f_old;
 	      std::vector<double> rhs_0 = rhs; 
 
+                
+              //------ STRATEGIA 2--------------
+              
+              double norm_d = 0;
+              for (int i = 0; i < rhs.size(); ++i)
+		norm_d +=  rhs[i] * rhs[i];
+              norm_d = sqrt (norm_d);
+              std:: cout << "NORM DI norm_d = " << norm_d <<std:: endl ;
+              if (norm_d < 0.005)
+               {
+	          std::cout << " USO STRATEGIA 2 " << std::endl;
+                  for (int i = 0; i < rhs.size(); ++i)
+		    rhs[i] = 10 * rhs[i];
+               }
+
+              //---------------------------------
+
+
+              ////----------------------------------------------------------------------
+	   /*   double temp, theta_dumping = 1;
+	      for (int i = 0; i < b1.size(); ++i)
+		{
+		  temp = (b1[i] - (*initial_guess)[i]) / rhs[i] ;
+		  if (temp > 0)
+		    theta_dumping = std::min (temp, theta_dumping);
+		}
+	      for (int i = 0; i < b2.size(); ++i)
+		{
+		  temp = (b2[i] - (*initial_guess)[i]) / rhs[i] ;
+		  if (temp > 0)
+		    theta_dumping = std::min (temp, theta_dumping);
+		}
+	      if (theta_dumping > 0.01)
+		{
+		  std::cout << "Ha usato theta_dumping "<< theta_dumping << std::endl;
+		 // fout << "Ha usato theta_dumping "<< theta_dumping << std::endl;
+		  for (int i = 0; i < rhs.size(); ++i )
+		    rhs[i] = theta_dumping * rhs[i];
+		}
+	    */ ////----------------------------------------------------------------------
               if (verbose == 2)
 		{
-		  fout << "Iteration with PG: " << iteration << std::endl;
+		//  fout << "Iteration with PG: " << iteration << std::endl;
 		  
-		  fout<<"d : "<<std::endl;
-		  for (unsigned int i = 0; i < rhs.size (); ++i)
-		    fout << rhs[i] << std::endl;
+		//  fout<<"d : "<<std::endl;
+		//  for (unsigned int i = 0; i < rhs.size (); ++i)
+		  //  fout << rhs[i] << std::endl;
           
 		}
               std::vector<double> unew (initial_guess->size ());
@@ -348,6 +429,26 @@ backtracking_inexact_newton_example8::solve ()
               while (0.5*f_new_norm*f_new_norm >
 		     0.5*f_old_norm*f_old_norm + val && m < max_back_it + 1)
 		{
+
+            ///////// Theta Choice //////////////
+	    /*  std::vector<double> temp;
+              double temp_norm = 0.0;
+
+              temp = lhs * rhs;
+              for (unsigned int i = 0; i < rhs.size (); ++i)
+                temp_norm += f_old[i] * temp[i];
+
+              double a = f_new_norm * f_new_norm -
+                f_old_norm * f_old_norm - 2 * temp_norm;
+
+              double b = 2* temp_norm;
+              double c = f_old_norm * f_old_norm;
+
+              theta_choice (a, b, c);
+	      thetaPG = theta ; 
+              theta_k = thetaPG;*/
+              /////////
+
 		  theta_k=theta_k*thetaPG;
 		  
 		  for (unsigned int i = 0; i < rhs.size (); ++i)
@@ -383,9 +484,9 @@ backtracking_inexact_newton_example8::solve ()
 	      
               if (verbose == 2 )
 		{
-		  fout<<"d dopo backtracking : "<<std::endl;
-		  for (unsigned int i = 0; i < rhs.size (); ++i)
-		    fout << rhs[i] << std::endl;
+		//  fout<<"d dopo backtracking : "<<std::endl;
+		 // for (unsigned int i = 0; i < rhs.size (); ++i)
+		 //   fout << rhs[i] << std::endl;
 		}
 	      for (unsigned int i = 0; i < rhs.size (); ++i)
 		(*initial_guess)[i] = rhs[i] + (*initial_guess)[i];
@@ -405,12 +506,13 @@ backtracking_inexact_newton_example8::solve ()
 		  printf ("%10.5d |\t%10.5g |\t%10.5g |\t%10.5g |\t",
 			  iteration, theta_k, residual_norm, forcing_value);
 		  printf ("%10.10s\n", "PG"); 
+               fout<<residual_norm<<std::endl;
 		}
 	      if (verbose == 2)
 		{
-		  fout<<"u : "<<std::endl;
-		  for (unsigned int i = 0; i < initial_guess->size (); ++i)
-		    fout << (*initial_guess)[i] << std::endl;
+		//  fout<<"u : "<<std::endl;
+		//  for (unsigned int i = 0; i < initial_guess->size (); ++i)
+		  //  fout << (*initial_guess)[i] << std::endl;
 		}
             }// rank == 0
 	  MPI_Bcast (&step_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -424,9 +526,9 @@ backtracking_inexact_newton_example8::solve ()
 
   if (rank == 0 && verbose == 1)
     {
-      fout << "Solution: " << std::endl;
-      for (unsigned int i = 0; i < initial_guess->size (); ++i)
-        fout << (*initial_guess)[i] << std::endl;
+   //   fout << "Solution: " << std::endl;
+    //  for (unsigned int i = 0; i < initial_guess->size (); ++i)
+     //   fout << (*initial_guess)[i] << std::endl;
     }
 
   if (rank == 0 && verbose >=1)
