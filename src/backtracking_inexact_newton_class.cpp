@@ -45,7 +45,6 @@ backtracking_inexact_newton::solve ()
     std::vector<double> linear_res, nonlinear_res, temp_res;
     std::vector<int> nonlinear_iter;
   #endif
-
   if (rank == 0)
     { 
      // COMMENTED JUST FOR TUMOR_GROWTH
@@ -62,10 +61,8 @@ backtracking_inexact_newton::solve ()
       problem->operator () (lhs, rhs, *initial_guess);
       for (unsigned int i = 0; i < rhs.size (); ++i)
         residual_norm += rhs[i] * rhs[i];
-
       residual_norm = sqrt (residual_norm);
-
-      #ifdef VERIFY_CONVERGENCE
+    #ifdef VERIFY_CONVERGENCE
         nonlinear_res.push_back (residual_norm);
         linear_res.push_back (residual_norm);
         nonlinear_iter.push_back (0);
@@ -108,17 +105,21 @@ backtracking_inexact_newton::solve ()
       if (rank == 0 && verbose >= 1)
         std::cout << "\nNewton Iteration: "<< iteration << std::endl;
 
-      if (rank == 0)
+      f_old.assign (rhs.size (), 0.0);
+      for (unsigned int i = 0; i < rhs.size (); ++i)
+         f_old[i] = - rhs[i];
+
+      if (iteration == 1)
         {
-          f_old.assign (rhs.size (), 0.0);
-          for (unsigned int i = 0; i < rhs.size (); ++i)
-            f_old[i] = - rhs[i];
-
-          lhs.aij (xa, ir, jc, lin_solver->get_index_base ());
-          lin_solver->set_lhs_structure (lhs.rows (), ir, jc); // we need to change this with aij_update because the structure of lhs is always the same 
+           lhs.aij (xa, ir, jc, lin_solver->get_index_base ());
+           lin_solver->set_lhs_structure (lhs.rows (), ir, jc); 
+    
+           lin_solver->analyze ();
         }
-      lin_solver->analyze ();
-
+       else 
+          lhs.aij_update(xa, ir, jc, lin_solver->get_index_base ());
+              
+    
       if (rank == 0)
         lin_solver->set_lhs_data (xa);
 

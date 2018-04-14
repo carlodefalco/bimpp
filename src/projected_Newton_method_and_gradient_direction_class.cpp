@@ -49,10 +49,12 @@ projected_Newton_method_and_gradient_direction::projection
 int
 projected_Newton_method_and_gradient_direction::solve ()
 {
+  unsigned int n = b1.size(); 
   std::vector<int> ir, jc;
   std::vector<double> xa;
   std::vector<double> lin_initial_guess;
   sparse_matrix lhsT ;
+  lhsT.resize (n);
   sparse_matrix mass_matrix;
   double theta_k = 1;
   std::vector<double> f_old, f_new, df_gap;
@@ -62,7 +64,6 @@ projected_Newton_method_and_gradient_direction::solve ()
     std::vector<int> nonlinear_iter;
   #endif
 
-  unsigned int n = b1.size(); 
 
   if (rank == 0)
     {
@@ -122,8 +123,8 @@ projected_Newton_method_and_gradient_direction::solve ()
   do
     {
       ++iteration;
-      if (rank ==0)
-	{
+     // if (rank ==0)
+	//{
              if (iteration > 1)
 	       {
 		 df_gap = lhs * rhs;
@@ -134,12 +135,17 @@ projected_Newton_method_and_gradient_direction::solve ()
              f_old.assign (rhs.size (), 0.0);
              for (unsigned int i = 0; i < rhs.size (); ++i)
 	       f_old[i] = - rhs[i];
+             if (iteration == 1)
+               {
+                 lhs.aij (xa, ir, jc, lin_solver->get_index_base ());
+                 lin_solver->set_lhs_structure (lhs.rows (), ir, jc);
+	         lin_solver->analyze ();
+               }
+             else 
+               lhs.aij_update (xa, ir, jc, lin_solver->get_index_base ());
+                 
+      //  }
 
-             lhs.aij (xa, ir, jc, lin_solver->get_index_base ());
-             lin_solver->set_lhs_structure (lhs.rows (), ir, jc);
-	}
-
-      lin_solver->analyze ();
       
       if (rank == 0)
 	lin_solver->set_lhs_data (xa);
@@ -155,12 +161,17 @@ projected_Newton_method_and_gradient_direction::solve ()
 	  lin_solver->set_initial_guess (lin_initial_guess);
 	}
 
+
       lin_solver->solve ();   ///*///*///*///*///*///*///*///*///*///*
-   
+      
+     
+      
       if (rank == 0)
 	{
 
-	  /////////////////////
+   	
+     
+  /////////////////////
 	  
 	   /*   double temp, theta_dumping = 1;
 	      for (int i = 0; i < b1.size(); ++i)
@@ -222,7 +233,7 @@ projected_Newton_method_and_gradient_direction::solve ()
 	  while (f_new_norm >
 		 (1 - t * theta_k*(1 - forcing_value)) * f_old_norm && m < max_back_it)
 	    {
-	      ///////// Theta Choice //////////////
+	 /*     ///////// Theta Choice //////////////
 	      std::vector<double> temp;
               double temp_norm = 0.0;
 
@@ -238,9 +249,9 @@ projected_Newton_method_and_gradient_direction::solve ()
 
               theta_choice (a, b, c);
 	     theta_k = theta ; 
-              /////////
+        */      /////////
 
-	    //  theta_k=theta_k*theta;
+	      theta_k=theta_k*theta;
          
 
                   for (unsigned int i = 0; i < rhs.size (); ++i)
@@ -283,9 +294,10 @@ projected_Newton_method_and_gradient_direction::solve ()
               for (unsigned int i = 0; i < rhs.size (); ++i)
 		(*initial_guess)[i] = rhs[i] + (*initial_guess)[i];
 	      projection(*initial_guess);
-                 
+     
+      
 	      (*problem) ( lhs,rhs, (*initial_guess));
-
+     
 	      residual_norm = 0.0;
 
 	      for (unsigned int i = 0; i < rhs.size (); ++i)
@@ -311,11 +323,8 @@ projected_Newton_method_and_gradient_direction::solve ()
 	{
           if (rank == 0 )
             { 
-              // dato che il pattern di J^T non cambia, è meglio andare a modificare i valori,
-	      // che crearla di nuovo ogni volta, quindi questo è da aggiustare 
               lhsT.reset ();
-              lhsT.resize (n);
-
+              
 	      for (int i = 0 ; i <xa.size(); ++i)
 	         lhsT[jc[i] - lin_solver->get_index_base ()][ir[i] - lin_solver->get_index_base ()]
                             = xa[i];
