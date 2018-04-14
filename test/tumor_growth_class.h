@@ -83,22 +83,17 @@ private :
   /// Stores boundary nodes.
   std::vector<int> boundary_nodes;
 
-  /// Index of the basis
-  int indx;
- 
   /// mesh 
   tmesh *tmsh;  
   tmesh::idx_t n_nodes = tmsh->num_global_nodes (); 
   tmesh::idx_t n_elements = tmsh->num_local_quadrants ();
 
   /// Matrixes and vectors used 
-  sparse_matrix Amm, Ann, mass, Sm, Sn, mat_temp;
+  sparse_matrix Amm, Ann, mass, Sm, Sn, mat_temp, M;
   std::vector<double> m, n, mold, nold;
   std::vector<double> diffm, diffn, p;
   std::vector<double> G, mdGdm, mdGdn;
   std::vector<double> tempm , tempn, tempb;
-  std::vector<double> xa;
-  std::vector<int> jc, ir;
   std::vector<double> ecoeff;
   std::vector<double> ncoeff;
 
@@ -106,10 +101,9 @@ public :
 
   /// Default costructor.
   tumor_growth (double mu_, double nu_, double t_, double dt_, std::vector<double> &uold_,
-	        tmesh *tmsh_, double g_=30, double PM_ = 30, int indx_ = 0) :
+	        tmesh *tmsh_, double g_=30, double PM_ = 30 ) :
   abstract_nonlinear_problem ("tumor_growth"),
-    mu (mu_), nu (nu_), t (t_), dt (dt_), uold (uold_), tmsh (tmsh_), g (g_), PM (PM_),
-    indx (indx_) { };
+    mu (mu_), nu (nu_), t (t_), dt (dt_), uold (uold_), tmsh (tmsh_), g (g_), PM (PM_) { };
   
   /// Read mesh.
   void

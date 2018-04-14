@@ -55,6 +55,7 @@ tumor_growth::set_matrices_structure ()
   mat_temp.resize (n_nodes);
   Amm.resize (n_nodes);
   Ann.resize (n_nodes);
+  M.resize (2 * n_nodes);
   
   m.resize (n_nodes); 
   n.resize (n_nodes);
@@ -71,34 +72,25 @@ tumor_growth::set_matrices_structure ()
  
 };
 
-
 void
 tumor_growth::operator () (sparse_matrix& lhs,
                          std::vector<double>& rhs,
                          const std::vector<double>& guess)
 {
-
-  rhs.clear ();
-  rhs.resize (2 * n_nodes);
-  lhs.resize (2 * n_nodes);
+  if (rhs.size () != 2 * n_nodes)
+    rhs.resize (2 * n_nodes);
+  if (lhs.size () != 2 * n_nodes )
+    lhs.resize (2 * n_nodes);
+  
   lhs.reset ();
-
+  
   Sm.reset ();
   Sn.reset ();
   mass.reset ();
   Amm.reset ();
   Ann.reset ();
   mat_temp.reset ();
-  /*
-    std::cout << lhs << std::endl;
-  std::cout << Sm << std::endl;
-  std::cout << Sn << std::endl;
-  std::cout << mass << std::endl;
-  std::cout << mat_temp << std::endl;
-    std::cout << Amm << std::endl;
-  std::cout << Ann << std::endl;
-
-  */
+ 
   for (int i = 0; i < n_nodes; ++i)
     {
       m[i] = guess[i];
@@ -123,11 +115,15 @@ tumor_growth::operator () (sparse_matrix& lhs,
   
   bim2a_advection_eafe_diffusion (*tmsh, diffm, ncoeff, Sm); 
   bim2a_advection_eafe_diffusion (*tmsh, diffn, ncoeff, Sn);
-       
+  Sm.set_properties();
+  Sn.set_properties();
+  mass.set_properties();
+  
   for (int i = 0; i < n_nodes; ++i)
     mat_temp[i][i] = - dt * mass[i][i] * G[i];
+  mat_temp.set_properties();
+ 
   Amm = mass;
-  
   Amm += Sm;
   Amm += mat_temp;
   Ann = mass;
@@ -141,15 +137,14 @@ tumor_growth::operator () (sparse_matrix& lhs,
   
   for (int i = 0; i < n_nodes; ++i)
     rhs[i] = - tempm[i] - tempn[i] + tempb[i] ;
-  
-  indx = 0;
+    
 
   tempm = Sn * m;
   tempn = Ann * n;
   tempb = mass * nold;
   
-  for (int i = n_nodes; i < 2 * n_nodes; ++i)
-    rhs[i] = - tempm[i] - tempn[i] + tempb[i] ;
+  for (int i = 0; i <  n_nodes; ++i)
+    rhs[i + n_nodes] = - tempm[i] - tempn[i] + tempb[i] ;
   
   //rhs1 =  -(Amm * m) - (Sm * n) + mass * mold ;
   //rhs2 =  -(Sn * m) - (Ann * n) + mass * nold ;
@@ -160,51 +155,36 @@ tumor_growth::operator () (sparse_matrix& lhs,
     mat_temp[i][i] = - dt * mass[i][i] * mdGdm[i];
   Amm += mat_temp;
 
-
   mat_temp.reset ();
   for (int i = 0; i < n_nodes; ++i)
     mat_temp[i][i] = - dt * mass[i][i] * mdGdn[i];
   Sm += mat_temp;
+  
+  for (int i = 0; i < n_nodes; ++i)
+    for (auto j = Amm[i].begin (); j != Amm[i].end (); ++j)
+      lhs[i][j->first] = j->second;
 
-  std::cout << mat_temp << std::endl;
+  for (int i = 0; i < n_nodes; ++i)
+    for (auto j = Sm[i].begin (); j != Sm[i].end (); ++j)
+      lhs[i][j->first + n_nodes] = j->second;
+  
+  for (int i = 0; i < n_nodes; ++i)
+    for (auto j = Sn[i].begin (); j != Sn[i].end (); ++j)
+      lhs[i + n_nodes][j->first] = j->second;
+  
+  for (int i = 0; i < n_nodes; ++i)
+    for (auto j = Ann[i].begin (); j != Ann[i].end (); ++j)
+      lhs[i + n_nodes][j->first + n_nodes] = j->second;
 
   
-  
-  Amm.aij(xa, ir, jc, indx);
-  for (int i = 0 ; i < xa.size(); ++i)
-    {
-      //  for (int j=0; j < xa.size(); ++j)
-      //	std::cout << ir[j] << std::endl;
-      lhs[ir[i]][jc[i]] = xa[i];
-    }
-  
-  Sm.aij(xa, ir, jc, indx);  
-  for (int i = 0 ; i < xa.size(); ++i)
-    {
-      lhs[ir[i]][jc[i] + n_nodes] = xa[i];
-    }
-
-  Sn.aij(xa, ir, jc, indx);
-
-  for (int i = 0 ; i < xa.size(); ++i)
-    {
-      lhs[ir[i] + n_nodes][jc[i]] = xa[i];
-    }
-
-  Ann.aij(xa, ir, jc, indx);
-  for (int i = 0 ; i < xa.size(); ++i)
-    {
-      lhs[ir[i] + n_nodes][jc[i] + n_nodes] = xa[i];
-    }
- 
-
 }
+
 
 void
 tumor_growth::operator () (std::vector<double>& functional,
                         const std::vector<double>& guess)
 {
-  sparse_matrix M;
+  //  sparse_matrix M;
   operator () (M, functional, guess);
   for (unsigned int i = 0; i < functional.size (); ++i)
     functional[i] *= -1;

@@ -57,7 +57,7 @@ with \f$ p := K_{\gamma}(n+m)^{\gamma} \f$ , \f$ K_{\gamma} := \frac{\gamma + 1}
 #define DT  0.001
 #define NT  40
 #define MIN_RESIDUAL 1e-6
-#define MAX_IT 0
+#define MAX_IT 50
 
 
 constexpr p4est_topidx_t simple_conn_num_vertices = 4;
@@ -79,13 +79,18 @@ int main (int argc, char **argv)
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
  
-   linear_solver *lin_solver = new mumps ();
+  // linear_solver *lin_solver = new mumps ();
 
-   // linear_solver *lin_solver = new lis ();
+   linear_solver *lin_solver = new lis ();
   
-  nonlinear_solver *solver =
-    new backtracking_inexact_newton (lin_solver);
-       
+   //  nonlinear_solver *solver =
+   // new backtracking_inexact_newton (lin_solver);
+
+   nonlinear_solver *solver =
+     new projected_Newton_method_and_gradient_direction (lin_solver);
+
+
+   
   /// Problem parameters 
   double mu = 1;
   double nu = 2;
@@ -154,7 +159,7 @@ int main (int argc, char **argv)
     t_save [i] = t_save[i-1] + (T-t)/nt;
   
   abstract_nonlinear_problem *t_growth = new tumor_growth (mu, nu, t+dt, dt, uold, &tmsh, gamma,
-							   PM, lin_solver->get_index_base ());
+							   PM);
   abstract_forcing_term *forcing = new  forcing_type3 (1, 2, 0.9);
 
   if (rank == 0)
@@ -181,7 +186,7 @@ int main (int argc, char **argv)
           
       // Backtracking parameters
       tmp->set_backtracking_parameters (1e-4, 1e-4, 0.5, 0.8, 0.001, 1);
-      tmp->set_backtracking_max_it (10);
+      tmp->set_backtracking_max_it (15);
     }
       
   /// Set the parameters for backtracking inexact Newton
@@ -214,13 +219,12 @@ int main (int argc, char **argv)
   int nonlinear_it; 
   double dtold = dt;
 
-  static_cast<tumor_growth*>(t_growth)->set_matrices_structure (); 
 
   t += dt;
 
-  for (int its = 1; its < 2; ++its) // nt + 1
+  for (int its = 1; its < nt + 1; ++its) // nt + 1
     {
-      while (t < 5*dt) // t_save[its] )
+      while (t < t_save[its] )
 	{
 	  if (rank == 0)
 	    std::cout << "############## TIME ############## : "<< t << std::endl;
@@ -243,7 +247,9 @@ int main (int argc, char **argv)
 	      set_backtracking_parameters (1e-4, 0.1, 0.5);
 	    
 	  ////////////////////////////////////////////////
-	  
+
+	  static_cast<tumor_growth*>(t_growth)->set_matrices_structure (); 
+
 	  converged = solver->solve ();
 	  
 	  solver->get_result_residual_norm (residual_norm);
