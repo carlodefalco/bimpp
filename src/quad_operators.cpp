@@ -40,22 +40,23 @@ bim2a_structure (tmesh &tmsh,
               rows.push_back (quadrant->gparent (0, i));
               rows.push_back (quadrant->gparent (1, i));
             }
-        }
 
-      for (j = 0; j < 4; ++j)
-        {
-          cols.clear();
-          if (! quadrant->is_hanging (j))
-            cols.push_back (quadrant->gt (j));
-          else
+
+          for (j = 0; j < 4; ++j)
             {
-              cols.push_back (quadrant->gparent (0, j));
-              cols.push_back (quadrant->gparent (1, j));
-            }
+              cols.clear ();
+              if (! quadrant->is_hanging (j))
+                cols.push_back (quadrant->gt (j));
+              else
+                {
+                  cols.push_back (quadrant->gparent (0, j));
+                  cols.push_back (quadrant->gparent (1, j));
+                }
               
-          for (int r = 0; r < rows.size(); ++r)
-            for (int c = 0; c < cols.size(); ++c)
-              A[rows[r]][cols[c]] = 0.0;
+              for (r = 0; r < rows.size (); ++r)
+                for (c = 0; c < cols.size (); ++c)
+                  A[rows[r]][cols[c]] = 0.0;
+            }
         }
     }
   
