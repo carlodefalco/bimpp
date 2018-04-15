@@ -108,6 +108,16 @@ public:
       face_idx (_face_idx)
     { };
 
+    /// Destructor.
+    ~neighbor_iterator ()
+    {
+      if (data != nullptr)
+        delete data;
+      
+      if (face_neighbor != nullptr)
+        delete face_neighbor;
+    }
+
     /// Get the face index associated to the current neighbor.
     int
     get_face_idx ()
