@@ -33,6 +33,16 @@ static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return NUM_REFINEMENTS; }
 
+bool
+all_non_negative (std::vector<double> vect)
+{
+  for (int i = 0; i < vect.size () ; ++i)
+    if (vect[i] < 0)
+      return 0;
+  return 1; 
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -67,7 +77,7 @@ main (int argc, char **argv)
   auto its = [&t] ()
     {double out = t; t += ((T - T0) / NT); return out; };
   std::generate (t_save.begin (), t_save.end (), its);
-  t = T0;
+  t = T0;   // non dovrebbe servire dato che è inizializzato sopra...
 
   /// Newton variables
   double              residual_norm;
@@ -89,8 +99,9 @@ main (int argc, char **argv)
   // A * du = f
   // u = u + du
 
-  std::vector<double> uold;
+  std::vector<double> uold, uvold;
   uold.assign (n_nodes, 1.0);
+  uvold = uold;
   std::vector<double> u (uold);
   std::vector<double> du (uold);
   du.assign (n_nodes, 0.0);
@@ -132,9 +143,10 @@ main (int argc, char **argv)
   lin_solver->set_lhs_distributed ();
   lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
   lin_solver->analyze ();
-
-  int isave = 0;
+  
+  int isave = 0, ii = 2;
   t_vect.push_back (t);
+  t += dt;
   for (auto t_save_p = t_save.begin (); t_save_p != t_save.end (); ++t_save_p)
     {
 
@@ -142,104 +154,156 @@ main (int argc, char **argv)
         {
           if (rank == 0)
             {
-              t += dt;
               if (t > (*t_save_p)) t = (*t_save_p);
               dt = t - told;
             }
-
+	  if (rank == 0)
+	    std::cout << "TIME : "<< t << std::endl;
+	    
           MPI_Bcast (&t, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-          MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-          MPI_Bcast (&dtinv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-          MPI_Barrier (MPI_COMM_WORLD);
+	  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast (&dtinv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Barrier (MPI_COMM_WORLD);
 
-          if (rank == 0)
-            std::cout << "TIME : "<< t << std::endl;
+	  if (ii > 3)
+	    for (int i = 0; i < n_nodes ; ++i)
+	      uvold[i] = (t + dt - told ) /
+		(t - told) * uold[i] +
+		dt / (told - t) * uvold[i];                              
+	    
+	  if (!all_non_negative (uvold))
+	    {
+	      if (rank == 0)
+		std::cout << "Negative guess" <<std::endl;
+	      for (int i = 0; i < n_nodes; ++i)
+		uvold[i] = std::max (0.0, uvold[i]);
+	    }
 
-          for (it_nonlin = 0; it_nonlin < MAX_IT; ++it_nonlin)
-            {
+	  while (true) //////////////////////////////////////////////////////////////////
+	    {
+	      for (it_nonlin = 0; it_nonlin < MAX_IT; ++it_nonlin)
+		{
 
-              if (rank == 0) tic ();
-              f.assign (n_nodes, 0.0);
-              A.reset ();
-             
+		  if (rank == 0) tic ();
+		  f.assign (n_nodes, 0.0);
+		  A.reset ();
 
-              // A0
-              ecoeff.assign (n_elements, eps_u);
-              ncoeff.assign (n_nodes, 1.0);
-              bim2a_advection_diffusion (tmsh, ecoeff, ncoeff, A);
+		  // A0
+		  ecoeff.assign (n_elements, eps_u);
+		  ncoeff.assign (n_nodes, 1.0);
+		  bim2a_advection_diffusion (tmsh, ecoeff, ncoeff, A);
               
-              // f1
-              sparse_matrix::col_iterator ja;
-              for (unsigned int ia = 0; ia < A.size (); ++ia)
-                if (A[ia].size ())
-                  for (ja = A[ia].begin (); ja != A[ia].end (); ++ja)
-                    f[ia] -= A.col_val (ja) * u[A.col_idx (ja)];
+		  // f1
+		  sparse_matrix::col_iterator ja;
+		  for (unsigned int ia = 0; ia < A.size (); ++ia)
+		    if (A[ia].size ())
+		      for (ja = A[ia].begin (); ja != A[ia].end (); ++ja)
+			f[ia] -= A.col_val (ja) * u[A.col_idx (ja)];
 
-              // f0
-              ecoeff.assign (n_elements, 1.0);
-              iu = u.begin ();
-              iuo = uold.begin ();
-              std::generate (ncoeff.begin (), ncoeff.end (), rhsfun);
-              bim2a_rhs (tmsh, ecoeff, ncoeff, f);
+		  // f0
+		  ecoeff.assign (n_elements, 1.0);
+		  iu = u.begin ();
+		  iuo = uvold.begin (); // uso uvold al posto di uguess per non
+		  //creare un altro vettore
 
-              // A1
-              ecoeff.assign (n_elements, 1.0);
-              iu = u.begin ();
-              iuo = uold.begin ();
-              dtinv = 1 / dt;
-              std::generate (ncoeff.begin (), ncoeff.end (), expudtinv);
-              bim2a_reaction (tmsh, ecoeff, ncoeff, A);             
-              MPI_Barrier (MPI_COMM_WORLD);
-              if (rank == 0) toc ("assembly");
+		  std::generate (ncoeff.begin (), ncoeff.end (), rhsfun);
+		  bim2a_rhs (tmsh, ecoeff, ncoeff, f);
+
+		  // A1
+		  ecoeff.assign (n_elements, 1.0);
+		  iu = u.begin ();
+		  iuo = uvold.begin ();
+		  dtinv = 1 / dt;
+		  std::generate (ncoeff.begin (), ncoeff.end (), expudtinv);
+		  bim2a_reaction (tmsh, ecoeff, ncoeff, A);             
+		  MPI_Barrier (MPI_COMM_WORLD);
+		  if (rank == 0) toc ("assembly");
               
-              // TODO: MPI_Reduce f on rank 0
+		  // TODO: MPI_Reduce f on rank 0
 
-              if (rank == 0) tic ();
-              std::copy (f.begin (), f.end (), du.begin ());
-              lin_solver->set_rhs (du);
+		  if (rank == 0) tic ();
+		  std::copy (f.begin (), f.end (), du.begin ());
+		  lin_solver->set_rhs (du);
 
-              bim2a_dirichlet_bc (tmsh, bcs, A, du);
+		  bim2a_dirichlet_bc (tmsh, bcs, A, du);
 
-              A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
+		  A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
 
-              lin_solver->set_distributed_lhs_data (xa);
+		  lin_solver->set_distributed_lhs_data (xa);
 
-              lin_solver->factorize ();
-              lin_solver->solve ();
-              MPI_Barrier (MPI_COMM_WORLD);
-              if (rank == 0) toc ("solve");
+		  lin_solver->factorize ();
+		  lin_solver->solve ();
+		  MPI_Barrier (MPI_COMM_WORLD);
+		  if (rank == 0) toc ("solve");
 
-              if (rank == 0)
-                {
-                  tic ();
-                  residual_norm = 0.0;
-                  std::for_each (du.begin (), du.end (), compute_norm);
-                  residual_norm = std::sqrt (residual_norm);
-                }
-              MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		  if (rank == 0)
+		    {
+		      tic ();
+		      residual_norm = 0.0;
+		      std::for_each (du.begin (), du.end (), compute_norm);
+		      residual_norm = std::sqrt (residual_norm);
+		    }
+		  MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
               
-              for (iu = u.begin (), idu = du.begin (); iu != u.end (); ++iu, ++idu)
-                *iu += (*idu);
-              MPI_Barrier (MPI_COMM_WORLD);
-              if (rank == 0) toc ("increment");
+		  for (iu = u.begin (), idu = du.begin (); iu != u.end (); ++iu, ++idu)
+		    *iu += (*idu);
+		  MPI_Barrier (MPI_COMM_WORLD);
+		  if (rank == 0) toc ("increment");
               
-               if (rank == 0)
-                 std::cout << "iteration = "
-                           << it_nonlin
-                           << " incr norm = "
-                           << residual_norm
-                           << std::endl;
-              if (residual_norm <= MIN_RESIDUAL) break;
+		  if (rank == 0)
+		    std::cout << "iteration = "
+			      << it_nonlin
+			      << " incr norm = "
+			      << residual_norm
+			      << std::endl;
+		  if (residual_norm <= MIN_RESIDUAL) break;
                         
-            }
+		}
+	      if (residual_norm <= MIN_RESIDUAL && all_non_negative (u))
+	        break;
+	      else
+		{
+		  if (rank == 0)
+		    {
+		      dt *= 0.5;
+		      dtinv = 1 / dt;
+		      std::cout << "Reducing time step : t = " << t << ", dt = "<< dt << std::endl;
+		    }
+		  MPI_Bcast (&dtinv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		  MPI_Barrier (MPI_COMM_WORLD);
 
+		  if (ii > 3)
+		    for (int i = 0; i < n_nodes ; ++i)
+		      uvold[i] = (t + dt - *(t_vect.end () - 2) ) /
+			(t - *(t_vect.end () - 2)) * uold[i] +
+			dt / (*(t_vect.end () - 2) - t) * uvold[i];                              
+	    
+		  if (!all_non_negative (uvold))
+		    {
+		      if (rank == 0)
+			std::cout << "Negative guess" <<std::endl;
+		      for (int i = 0; i < n_nodes; ++i)
+			uvold[i] = std::max (0.0, uvold[i]);
+		    }
+
+		}
+	    }
+          std::copy (uold.begin (), uold.end (), uvold.begin ());
           std::copy (u.begin (), u.end (), uold.begin ());
-          
+          ++ii;
           told = t;
+	  t += dt;
           t_vect.push_back (t);
-          dt = DT;
-
-        }
+	  if (residual_norm == 0)
+	    {
+	      if (rank == 0)
+		dt *= 2;
+	    }
+	  else
+	    if (rank == 0)
+	      dt = dt * std::min (sqrt(.38) * std::sqrt (MIN_RESIDUAL / residual_norm), 2.0);
+	}
 
       
       
