@@ -53,8 +53,8 @@ with \f$ p := K_{\gamma}(n+m)^{\gamma} \f$ , \f$ K_{\gamma} := \frac{\gamma + 1}
 #include <math.h> 
 #include <limits>
 
-#define NUM_CYCLES  1
-#define DT  0.001
+#define NUM_CYCLES  6
+#define DT  0.01
 #define NT  40
 #define MIN_RESIDUAL 1e-6
 #define MAX_IT 50
@@ -279,9 +279,9 @@ int main (int argc, char **argv)
 	      t += dt;
 	      static_cast<tumor_growth*>(t_growth)->set_initial_condition(uold);
 	      static_cast<tumor_growth*>(t_growth)->set_t_dt (t, dt);
-	      if (rank == 0)
-		std::cout << "Times in which dt was halved : " << half <<std::endl;
-	      half = 0;
+	      //  if (rank == 0)
+	      //	std::cout << "Times in which dt was halved : " << half <<std::endl;
+	      // half = 0;
 	      // }
 	  dtold = dt;  
 

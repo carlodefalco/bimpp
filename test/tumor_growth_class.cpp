@@ -49,6 +49,9 @@ void
 tumor_growth::set_matrices_structure ()
 {
 
+  n_nodes = tmsh->num_global_nodes (); 
+  n_elements = tmsh->num_local_quadrants ();
+
   mass.resize (n_nodes);
   Sm.resize (n_nodes);
   Sn.resize (n_nodes);
@@ -77,7 +80,7 @@ tumor_growth::operator () (sparse_matrix& lhs,
                          std::vector<double>& rhs,
                          const std::vector<double>& guess)
 {
-  if (rhs.size () != 2 * n_nodes)
+  if (rhs.size () != 2 * n_nodes) // lo tolgo quando decido cosa fare con () (functional, guess)
     rhs.resize (2 * n_nodes);
   if (lhs.size () != 2 * n_nodes )
     lhs.resize (2 * n_nodes);
@@ -149,13 +152,10 @@ tumor_growth::operator () (sparse_matrix& lhs,
   //rhs1 =  -(Amm * m) - (Sm * n) + mass * mold ;
   //rhs2 =  -(Sn * m) - (Ann * n) + mass * nold ;
   
-   
-  mat_temp.reset ();
   for (int i = 0; i < n_nodes; ++i)
     mat_temp[i][i] = - dt * mass[i][i] * mdGdm[i];
   Amm += mat_temp;
 
-  mat_temp.reset ();
   for (int i = 0; i < n_nodes; ++i)
     mat_temp[i][i] = - dt * mass[i][i] * mdGdn[i];
   Sm += mat_temp;
@@ -184,7 +184,6 @@ void
 tumor_growth::operator () (std::vector<double>& functional,
                         const std::vector<double>& guess)
 {
-  //  sparse_matrix M;
   operator () (M, functional, guess);
   for (unsigned int i = 0; i < functional.size (); ++i)
     functional[i] *= -1;

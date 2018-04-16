@@ -84,9 +84,10 @@ private :
   std::vector<int> boundary_nodes;
 
   /// mesh 
-  tmesh *tmsh;  
-  tmesh::idx_t n_nodes = tmsh->num_global_nodes (); 
-  tmesh::idx_t n_elements = tmsh->num_local_quadrants ();
+  tmesh *tmsh;
+  
+  tmesh::idx_t n_nodes ; 
+  tmesh::idx_t n_elements ;
 
   /// Matrixes and vectors used 
   sparse_matrix Amm, Ann, mass, Sm, Sn, mat_temp, M;
