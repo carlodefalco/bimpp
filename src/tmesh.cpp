@@ -915,28 +915,28 @@ tmesh::update_ghosts ()
 };
 
 std::vector<int>
-tmesh::userint_replace (std::vector<int> old_userint)
+tmesh::user_int_replace (std::vector<int> old_user_int)
 {
-  std::vector<int> new_userint;
+  std::vector<int> new_user_int;
 
   // Refinement.
-  if (old_userint.size () == 1)
+  if (old_user_int.size () == 1)
     {
-      new_userint.resize (4);
+      new_user_int.resize (4);
 
-      for (size_t i = 0; i < new_userint.size (); ++i)
-        new_userint[i] = old_userint[0] - 1;
+      for (size_t i = 0; i < new_user_int.size (); ++i)
+        new_user_int[i] = old_user_int[0] - 1;
     }
   // Coarsening.
-  else if (old_userint.size () == 4)
+  else if (old_user_int.size () == 4)
     {
-      new_userint.resize (1);
+      new_user_int.resize (1);
 
-      new_userint[0] = *std::min_element (old_userint.begin (),
-                                          old_userint.end ()) + 1;
+      new_user_int[0] = *std::max_element (old_user_int.begin (),
+					   old_user_int.end ()) + 1;
     }
 
-  return new_userint;
+  return new_user_int;
 }
 
 int
@@ -966,16 +966,15 @@ tmesh::replace_callback (p4est_t * p4,
 {
   tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
 
-  std::vector<int> old_userint (num_outgoing);
+  std::vector<int> old_user_int (num_outgoing);
 
   for (size_t i = 0; i < num_outgoing; ++i)
-    old_userint[i] = outgoing[i]->p.user_int;
+    old_user_int[i] = outgoing[i]->p.user_int;
 
-  std::vector<int> new_userint = tm->replace_fun (old_userint);
+  std::vector<int> new_user_int = tm->replace_fun (old_user_int);
 
   for (size_t i = 0; i < num_incoming; ++i)
-    incoming[i]->p.user_int = new_userint[i];
+    incoming[i]->p.user_int = new_user_int[i];
 
   return;
 };
-
