@@ -85,9 +85,15 @@ public:
 
     /// Default constructor.
     quadrant_iterator (quadrant_t *_data = nullptr) :
-      data (_data)
+    data (_data)
     { };
-
+    
+    /// Destructor.
+    ~quadrant_iterator ()
+    {
+      if (data != nullptr) delete data;
+    }
+    
     /// Move to first forest quadrant
     void
     reset ();
@@ -261,7 +267,7 @@ public:
       lnodes (nullptr), mesh (nullptr), ghost (nullptr),
       mirror_data (nullptr), ghost_data (nullptr),
       comm (_comm), rank (0), size (1),
-      replace_fun (userint_replace)
+      replace_fun (user_int_replace)
   {
     MPI_Comm_rank (comm, &rank);
     MPI_Comm_size (comm, &size);
@@ -430,7 +436,7 @@ public:
 
   /// Replace fun based on quadrant user_int.
   static std::vector<int>
-  userint_replace (std::vector<int>);
+  user_int_replace (std::vector<int>);
 
   /// P4EST pointers describing the tmesh,
   /// temporarily public until the API is stable.
