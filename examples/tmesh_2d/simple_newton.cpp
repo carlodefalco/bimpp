@@ -12,7 +12,7 @@
 #include <quad_operators.h>
 
 
-constexpr int NUM_REFINEMENTS = 8;
+constexpr int NUM_REFINEMENTS = 5;
 constexpr double MIN_RESIDUAL = 1.e-6;
 constexpr int NT              = 20;
 constexpr int MAX_IT          = 50;
@@ -227,7 +227,8 @@ main (int argc, char **argv)
 		  std::copy (f.begin (), f.end (), du.begin ());
 		  lin_solver->set_rhs (du);
 
-		  //	  bim2a_dirichlet_bc (tmsh, bcs, A, du);
+	       	  bim2a_dirichlet_bc (tmsh, bcs, A, du);
+        
 
 		  A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
 
@@ -295,23 +296,23 @@ main (int argc, char **argv)
 	    }
           std::copy (uold.begin (), uold.end (), uvold.begin ());
           std::copy (u.begin (), u.end (), uold.begin ());
-          ++ii;
-	  tvold = told;
+     	  tvold = told;
           told = t;
 	  t_vect.push_back (t);
-	  t += dt;
-	  if (residual_norm == 0)
-	    {
+	  
+	  if (residual_norm < 10e-14)
 	      if (rank == 0)
 		dt *= 2;
-	    }
+	    
 	  else
 	    if (rank == 0)
 	      dt = dt * std::min (sqrt(.38) * std::sqrt (MIN_RESIDUAL / residual_norm), 2.0);
 	  if (rank == 0)
 	    t += dt;
-	  	    
-          MPI_Bcast (&t, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  std::cout <<"----dt = "<< dt << std::endl;    
+	  std::cout <<"----final step error = "<< residual_norm << std::endl;    
+
+	  MPI_Bcast (&t, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  MPI_Barrier (MPI_COMM_WORLD);
 
