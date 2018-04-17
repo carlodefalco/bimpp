@@ -100,7 +100,7 @@ main (int argc, char **argv)
   // A * du = f
   // u = u + du
 
-  std::vector<double> uold, uvold, uguess;
+  std::vector<double> uold, uvold, uguess, u_temp (n_nodes);
   uold.assign (n_nodes, 1.0);
   uvold.assign (n_nodes, 1.0);
   uguess.assign (n_nodes, 1.0);
@@ -142,7 +142,7 @@ main (int argc, char **argv)
   ecoeff.assign (n_elements, 1.0);
   ncoeff.assign (n_nodes, 1.0);
   f.assign (n_nodes, 0.0);
-
+ 
   lin_solver->set_lhs_distributed ();
   lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
   lin_solver->analyze ();
@@ -150,6 +150,7 @@ main (int argc, char **argv)
   int isave = 0;
   t_vect.push_back (t);
   t += dt;
+  
   for (auto t_save_p = t_save.begin (); t_save_p != t_save.end (); ++t_save_p)
     {
 
@@ -207,7 +208,7 @@ main (int argc, char **argv)
 		  ecoeff.assign (n_elements, 1.0);
 		  iu = u.begin ();
 		  iuo = uguess.begin ();
-
+		  
 		  std::generate (ncoeff.begin (), ncoeff.end (), rhsfun);
 		  bim2a_rhs (tmsh, ecoeff, ncoeff, f);
 
@@ -216,7 +217,7 @@ main (int argc, char **argv)
 		  iu = u.begin ();
 		  iuo = uguess.begin ();
 		  dtinv = 1 / dt;
-		  std::generate (ncoeff.begin (), ncoeff.end (), expudtinv);
+	          std::generate (ncoeff.begin (), ncoeff.end (), expudtinv);
 		  bim2a_reaction (tmsh, ecoeff, ncoeff, A);             
 		  MPI_Barrier (MPI_COMM_WORLD);
 		  if (rank == 0) toc ("assembly");
@@ -227,7 +228,7 @@ main (int argc, char **argv)
 		  std::copy (f.begin (), f.end (), du.begin ());
 		  lin_solver->set_rhs (du);
 
-	       	  bim2a_dirichlet_bc (tmsh, bcs, A, du);
+		  // 	  bim2a_dirichlet_bc (tmsh, bcs, A, du);
         
 
 		  A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
@@ -248,8 +249,9 @@ main (int argc, char **argv)
 		    }
 		  MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
               
-		  for (iu = u.begin (), idu = du.begin (); iu != u.end (); ++iu, ++idu)
-		    *iu += (*idu);
+		  for (int i = 0; i < n_nodes; ++i)
+		    u_temp[i] = u[i] + du[i];
+		  
 		  MPI_Barrier (MPI_COMM_WORLD);
 		  if (rank == 0) toc ("increment");
               
@@ -262,7 +264,7 @@ main (int argc, char **argv)
 		  if (residual_norm <= MIN_RESIDUAL) break;
                         
 		}
-	      if (residual_norm <= MIN_RESIDUAL && all_non_negative (u))
+	      if (residual_norm <= MIN_RESIDUAL && all_non_negative (u_temp))
 	        break;
 	      else
 		{
@@ -290,28 +292,32 @@ main (int argc, char **argv)
 			    std::cout << "Negative guess" <<std::endl;
 			  for (int i = 0; i < n_nodes; ++i)
 			    uguess[i] = std::max (0.0, uguess[i]);
+			    
 			}
 		    }
+		  
 		}
 	    }
+	  
+          std::copy (u_temp.begin (), u_temp.end (), u.begin ());
           std::copy (uold.begin (), uold.end (), uvold.begin ());
           std::copy (u.begin (), u.end (), uold.begin ());
      	  tvold = told;
           told = t;
 	  t_vect.push_back (t);
-	  
-	  if (residual_norm < 10e-14)
-	      if (rank == 0)
+	  if (rank == 0)
+	    {
+	      if (residual_norm < 1e-14)
 		dt *= 2;
 	    
-	  else
-	    if (rank == 0)
-	      dt = dt * std::min (sqrt(.38) * std::sqrt (MIN_RESIDUAL / residual_norm), 2.0);
-	  if (rank == 0)
-	    t += dt;
-	  std::cout <<"----dt = "<< dt << std::endl;    
-	  std::cout <<"----final step error = "<< residual_norm << std::endl;    
-
+	      else
+		dt = dt * std::min (std::sqrt(.38) * std::sqrt (MIN_RESIDUAL / residual_norm), 2.0);
+	    
+	      if (rank == 0)
+		t += dt;
+	      std::cout <<"----dt = "<< dt << std::endl;    
+	      std::cout <<"----final step error = "<< residual_norm << std::endl;    
+	    }
 	  MPI_Bcast (&t, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  MPI_Barrier (MPI_COMM_WORLD);
