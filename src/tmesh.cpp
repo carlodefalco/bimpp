@@ -797,6 +797,14 @@ tmesh::update ()
 void
 tmesh::update_ghosts ()
 {
+
+  // deallocate previously built storage arrays
+  if (! (this->mirror_data == nullptr))
+    delete[] this->mirror_data;
+  if (! (this->ghost_data  == nullptr))
+    delete[] this->ghost_data;
+
+  
   // Send mirror data.
   constexpr p4est_locidx_t chunk_len = 12;
   constexpr size_t data_size = sizeof (p4est_gloidx_t);
