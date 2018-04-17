@@ -295,7 +295,7 @@ main (int argc, char **argv)
       
       std::cout << " Done." << std::endl;
       
-      if (tmsh.num_global_nodes () >= 1e7)
+      if (tmsh.num_global_nodes () >= 2e6)
         break;
       
       // Refine.

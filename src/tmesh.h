@@ -88,12 +88,6 @@ public:
     data (_data)
     { };
     
-    /// Destructor.
-    ~quadrant_iterator ()
-    {
-      if (data != nullptr) delete data;
-    }
-    
     /// Move to first forest quadrant
     void
     reset ();
@@ -113,11 +107,22 @@ public:
     operator++ ();
 
     /// Default constructor.
-    neighbor_iterator (quadrant_t *_data = nullptr, int _face_idx = -1) :
+    neighbor_iterator (quadrant_t *_data = nullptr,
+                       int _face_idx = -1) :
       quadrant_iterator (_data),
       face_neighbor (new p4est_mesh_face_neighbor_t),
       face_idx (_face_idx)
     { };
+
+    /// Destructor.
+    ~neighbor_iterator ()
+    {
+      if (data != nullptr)
+        delete data;
+      
+      if (face_neighbor != nullptr)
+        delete face_neighbor;
+    }
 
     /// Get the face index associated to the current neighbor.
     int
