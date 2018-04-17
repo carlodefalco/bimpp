@@ -68,6 +68,7 @@ main (int argc, char **argv)
   /// Time stepping variables
   double t           = T0;
   double told        = T0;
+  double tvold       = T0;
   double dt          = DT;
   int nt             = NT;
 
@@ -77,8 +78,8 @@ main (int argc, char **argv)
   auto its = [&t] ()
     {double out = t; t += ((T - T0) / NT); return out; };
   std::generate (t_save.begin (), t_save.end (), its);
-  t = T0;   // non dovrebbe servire dato che è inizializzato sopra...
-
+  t = T0;
+  
   /// Newton variables
   double              residual_norm;
   int                 it_nonlin;
@@ -99,9 +100,11 @@ main (int argc, char **argv)
   // A * du = f
   // u = u + du
 
-  std::vector<double> uold, uvold;
+  std::vector<double> uold, uvold, uguess;
   uold.assign (n_nodes, 1.0);
-  uvold = uold;
+  uvold.assign (n_nodes, 1.0);
+  uguess.assign (n_nodes, 1.0);
+  
   std::vector<double> u (uold);
   std::vector<double> du (uold);
   du.assign (n_nodes, 0.0);
@@ -144,7 +147,7 @@ main (int argc, char **argv)
   lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
   lin_solver->analyze ();
   
-  int isave = 0, ii = 2;
+  int isave = 0;
   t_vect.push_back (t);
   t += dt;
   for (auto t_save_p = t_save.begin (); t_save_p != t_save.end (); ++t_save_p)
@@ -165,18 +168,18 @@ main (int argc, char **argv)
 	  MPI_Bcast (&dtinv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  MPI_Barrier (MPI_COMM_WORLD);
 
-	  if (ii > 3)
+	  if (told != tvold)
 	    for (int i = 0; i < n_nodes ; ++i)
-	      uvold[i] = (t + dt - told ) /
-		(t - told) * uold[i] +
-		dt / (told - t) * uvold[i];                              
+	      uguess[i] = (t - tvold ) /
+		(told - tvold) * uold[i] +
+		dt / (tvold - told) * uvold[i];                              
 	    
-	  if (!all_non_negative (uvold))
+	  if (!all_non_negative (uguess))
 	    {
 	      if (rank == 0)
 		std::cout << "Negative guess" <<std::endl;
 	      for (int i = 0; i < n_nodes; ++i)
-		uvold[i] = std::max (0.0, uvold[i]);
+		uguess[i] = std::max (0.0, uguess[i]);
 	    }
 
 	  while (true) //////////////////////////////////////////////////////////////////
@@ -203,8 +206,7 @@ main (int argc, char **argv)
 		  // f0
 		  ecoeff.assign (n_elements, 1.0);
 		  iu = u.begin ();
-		  iuo = uvold.begin (); // uso uvold al posto di uguess per non
-		  //creare un altro vettore
+		  iuo = uguess.begin ();
 
 		  std::generate (ncoeff.begin (), ncoeff.end (), rhsfun);
 		  bim2a_rhs (tmsh, ecoeff, ncoeff, f);
@@ -212,7 +214,7 @@ main (int argc, char **argv)
 		  // A1
 		  ecoeff.assign (n_elements, 1.0);
 		  iu = u.begin ();
-		  iuo = uvold.begin ();
+		  iuo = uguess.begin ();
 		  dtinv = 1 / dt;
 		  std::generate (ncoeff.begin (), ncoeff.end (), expudtinv);
 		  bim2a_reaction (tmsh, ecoeff, ncoeff, A);             
@@ -225,7 +227,7 @@ main (int argc, char **argv)
 		  std::copy (f.begin (), f.end (), du.begin ());
 		  lin_solver->set_rhs (du);
 
-		  bim2a_dirichlet_bc (tmsh, bcs, A, du);
+		  //	  bim2a_dirichlet_bc (tmsh, bcs, A, du);
 
 		  A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
 
@@ -267,34 +269,37 @@ main (int argc, char **argv)
 		    {
 		      dt *= 0.5;
 		      dtinv = 1 / dt;
+		      t = told + dt;
 		      std::cout << "Reducing time step : t = " << t << ", dt = "<< dt << std::endl;
 		    }
 		  MPI_Bcast (&dtinv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		  MPI_Barrier (MPI_COMM_WORLD);
 
-		  if (ii > 3)
-		    for (int i = 0; i < n_nodes ; ++i)
-		      uvold[i] = (t + dt - *(t_vect.end () - 2) ) /
-			(t - *(t_vect.end () - 2)) * uold[i] +
-			dt / (*(t_vect.end () - 2) - t) * uvold[i];                              
-	    
-		  if (!all_non_negative (uvold))
+		  if (told != tvold)
 		    {
-		      if (rank == 0)
-			std::cout << "Negative guess" <<std::endl;
-		      for (int i = 0; i < n_nodes; ++i)
-			uvold[i] = std::max (0.0, uvold[i]);
+		      for (int i = 0; i < n_nodes ; ++i)
+			uguess[i] = (t - tvold ) /
+			  (told - tvold) * uold[i] +
+			  dt / (tvold - told) * uvold[i];                              
+	    
+		      if (!all_non_negative (uguess))
+			{
+			  if (rank == 0)
+			    std::cout << "Negative guess" <<std::endl;
+			  for (int i = 0; i < n_nodes; ++i)
+			    uguess[i] = std::max (0.0, uguess[i]);
+			}
 		    }
-
 		}
 	    }
           std::copy (uold.begin (), uold.end (), uvold.begin ());
           std::copy (u.begin (), u.end (), uold.begin ());
           ++ii;
+	  tvold = told;
           told = t;
+	  t_vect.push_back (t);
 	  t += dt;
-          t_vect.push_back (t);
 	  if (residual_norm == 0)
 	    {
 	      if (rank == 0)
@@ -303,6 +308,13 @@ main (int argc, char **argv)
 	  else
 	    if (rank == 0)
 	      dt = dt * std::min (sqrt(.38) * std::sqrt (MIN_RESIDUAL / residual_norm), 2.0);
+	  if (rank == 0)
+	    t += dt;
+	  	    
+          MPI_Bcast (&t, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Barrier (MPI_COMM_WORLD);
+
 	}
 
       
