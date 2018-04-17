@@ -74,9 +74,10 @@ main (int argc, char **argv)
 
   std::array<double, NT+1> t_save {t};
   std::vector<double> t_vect;
-
-  auto its = [&t] ()
-    {double out = t; t += ((T - T0) / NT); return out; };
+  double dt_tsave = ((T - T0) / NT);
+  
+  auto its = [&t, &dt_tsave] ()
+    {double out = t; t += dt_tsave ; return out; };
   std::generate (t_save.begin (), t_save.end (), its);
   t = T0;
   
@@ -229,7 +230,7 @@ main (int argc, char **argv)
 		  std::copy (f.begin (), f.end (), du.begin ());
 		  lin_solver->set_rhs (du);
 
-		  // 	  bim2a_dirichlet_bc (tmsh, bcs, A, du);
+		  bim2a_dirichlet_bc (tmsh, bcs, A, du);
         
 
 		  A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
@@ -314,7 +315,7 @@ main (int argc, char **argv)
 	      else
 		dt = dt * std::min (std::sqrt(.38) * std::sqrt (MIN_RESIDUAL / residual_norm), 2.0);
 	      
-	      dt = std::min (dt ,  ((T - T0) / NT));
+	      dt = std::min (dt , dt_tsave);
 	      t += dt;
 	      std::cout <<"----dt = "<< dt << std::endl;    
 	      std::cout <<"----final step error = "<< residual_norm << std::endl;    
@@ -343,11 +344,11 @@ main (int argc, char **argv)
       //      if (rank == 0) toc ("export");
 
     }
-  std::cout <<" t_vect : " << std::endl; 
+  std::cout <<"--- t_vect --- " << std::endl; 
   for (int i = 0 ; i < t_vect.size () ; ++i)
     std::cout<<t_vect[i]<<std::endl;
 
-  std::cout <<" t_save : " << std::endl;
+  std::cout <<"--- t_save --- " << std::endl;
   for (int i = 0 ; i < t_save.size () ; ++i)
     std::cout<<t_save[i]<<std::endl;
  
