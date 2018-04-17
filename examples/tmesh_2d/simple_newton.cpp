@@ -14,7 +14,7 @@
 
 constexpr int NUM_REFINEMENTS = 5;
 constexpr double MIN_RESIDUAL = 1.e-6;
-constexpr int NT              = 20;
+constexpr int NT              = 10;
 constexpr int MAX_IT          = 50;
 constexpr double DT           = 1.0e-2;
 
@@ -100,7 +100,7 @@ main (int argc, char **argv)
   // A * du = f
   // u = u + du
 
-  std::vector<double> uold, uvold, uguess, u_temp (n_nodes);
+  std::vector<double> uold, uvold, uguess;
   uold.assign (n_nodes, 1.0);
   uvold.assign (n_nodes, 1.0);
   uguess.assign (n_nodes, 1.0);
@@ -150,16 +150,17 @@ main (int argc, char **argv)
   int isave = 0;
   t_vect.push_back (t);
   t += dt;
-  
+  int sentinella = 0;
   for (auto t_save_p = t_save.begin (); t_save_p != t_save.end (); ++t_save_p)
     {
 
-      while (t < (*t_save_p))
+      while (told < (*t_save_p))
         {
           if (rank == 0)
             {
               if (t > (*t_save_p)) t = (*t_save_p);
-              dt = t - told;
+	      dt = t - told;
+	      
             }
 	  if (rank == 0)
 	    std::cout << "TIME : "<< t << std::endl;
@@ -187,7 +188,7 @@ main (int argc, char **argv)
 	    {
 	      for (it_nonlin = 0; it_nonlin < MAX_IT; ++it_nonlin)
 		{
-
+		  
 		  if (rank == 0) tic ();
 		  f.assign (n_nodes, 0.0);
 		  A.reset ();
@@ -250,7 +251,7 @@ main (int argc, char **argv)
 		  MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
               
 		  for (int i = 0; i < n_nodes; ++i)
-		    u_temp[i] = u[i] + du[i];
+		    u[i] += du[i];
 		  
 		  MPI_Barrier (MPI_COMM_WORLD);
 		  if (rank == 0) toc ("increment");
@@ -264,7 +265,7 @@ main (int argc, char **argv)
 		  if (residual_norm <= MIN_RESIDUAL) break;
                         
 		}
-	      if (residual_norm <= MIN_RESIDUAL && all_non_negative (u_temp))
+	      if (residual_norm <= MIN_RESIDUAL && all_non_negative (u))
 	        break;
 	      else
 		{
@@ -295,11 +296,11 @@ main (int argc, char **argv)
 			    
 			}
 		    }
-		  
+		  std::copy (uold.begin (), uold.end (), u.begin ());
+         
 		}
 	    }
 	  
-          std::copy (u_temp.begin (), u_temp.end (), u.begin ());
           std::copy (uold.begin (), uold.end (), uvold.begin ());
           std::copy (u.begin (), u.end (), uold.begin ());
      	  tvold = told;
@@ -312,9 +313,9 @@ main (int argc, char **argv)
 	    
 	      else
 		dt = dt * std::min (std::sqrt(.38) * std::sqrt (MIN_RESIDUAL / residual_norm), 2.0);
-	    
-	      if (rank == 0)
-		t += dt;
+	      
+	      dt = std::min (dt ,  ((T - T0) / NT));
+	      t += dt;
 	      std::cout <<"----dt = "<< dt << std::endl;    
 	      std::cout <<"----final step error = "<< residual_norm << std::endl;    
 	    }
@@ -325,7 +326,7 @@ main (int argc, char **argv)
 	}
 
       
-      
+      // std::cout << "SALVO AL TEMPO "<< t <<std::endl;
 
       //      if (rank == 0) tic ();
 
@@ -342,7 +343,14 @@ main (int argc, char **argv)
       //      if (rank == 0) toc ("export");
 
     }
+  std::cout <<" t_vect : " << std::endl; 
+  for (int i = 0 ; i < t_vect.size () ; ++i)
+    std::cout<<t_vect[i]<<std::endl;
 
+  std::cout <<" t_save : " << std::endl;
+  for (int i = 0 ; i < t_save.size () ; ++i)
+    std::cout<<t_save[i]<<std::endl;
+ 
   print_timing_report ();
   lin_solver->cleanup ();
   MPI_Finalize ();
