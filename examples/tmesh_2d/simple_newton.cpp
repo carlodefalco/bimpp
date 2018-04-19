@@ -38,8 +38,8 @@ all_non_negative (std::vector<double> vect)
 {
   for (int i = 0; i < vect.size () ; ++i)
     if (vect[i] < 0)
-      return 0;
-  return 1; 
+      return 0; // false
+  return 1;  // true 
 }
 
 
@@ -111,7 +111,7 @@ main (int argc, char **argv)
   du.assign (n_nodes, 0.0);
   
   auto iu  = u.begin ();
-  auto idu = u.begin ();
+  //  auto idu = u.begin ();
   auto iuo = uold.begin ();
 
   auto rhsfun = [&iu, &iuo, &dt] ()
@@ -151,14 +151,15 @@ main (int argc, char **argv)
   int isave = 0;
   t_vect.push_back (t);
   t += dt;
-  int sentinella = 0;
+  //int sentinella = 0; // TODO : togliere
   for (auto t_save_p = t_save.begin (); t_save_p != t_save.end (); ++t_save_p)
     {
 
-      while (told < (*t_save_p))
-        {
+      while (told < (*t_save_p)) // t < (*t_save_p)
+        {	     
           if (rank == 0)
             {
+		// t = t + dt
               if (t > (*t_save_p)) t = (*t_save_p);
 	      dt = t - told;
 	      
@@ -173,11 +174,12 @@ main (int argc, char **argv)
 
 	  if (told != tvold)
 	    for (int i = 0; i < n_nodes ; ++i)
-	      uguess[i] = (t - tvold ) /
-		(told - tvold) * uold[i] +
+	      uguess[i] = (t - tvold ) /  // spazio prima della parentesi!
+		(told - tvold) * uold[i] + // calcolare dtold
 		dt / (tvold - told) * uvold[i];                              
 	    
-	  if (!all_non_negative (uguess))
+	  // attenzione in parallelo !! usare all_reduce !!    
+	  if (!all_non_negative (uguess)) // spazio dopo !
 	    {
 	      if (rank == 0)
 		std::cout << "Negative guess" <<std::endl;
@@ -263,7 +265,7 @@ main (int argc, char **argv)
 			      << " incr norm = "
 			      << residual_norm
 			      << std::endl;
-		  if (residual_norm <= MIN_RESIDUAL) break;
+		  if (residual_norm <= MIN_RESIDUAL) break; // controllo positività
                         
 		}
 	      if (residual_norm <= MIN_RESIDUAL && all_non_negative (u))
@@ -288,7 +290,7 @@ main (int argc, char **argv)
 			  (told - tvold) * uold[i] +
 			  dt / (tvold - told) * uvold[i];                              
 	    
-		      if (!all_non_negative (uguess))
+		      if (!all_non_negative (uguess)) // spazio dopo !
 			{
 			  if (rank == 0)
 			    std::cout << "Negative guess" <<std::endl;
@@ -304,19 +306,20 @@ main (int argc, char **argv)
 	  
           std::copy (uold.begin (), uold.end (), uvold.begin ());
           std::copy (u.begin (), u.end (), uold.begin ());
-     	  tvold = told;
-          told = t;
+     	  tvold = told;  // settare i parametri dei chech sul rank 0 e poi comunicarli
+          told = t;      // settare i parametri dei chech sul rank 0 e poi comunicarli
 	  t_vect.push_back (t);
 	  if (rank == 0)
 	    {
-	      if (residual_norm < 1e-14)
+	      if (residual_norm < 1e-14) // definire parametro
 		dt *= 2;
 	    
 	      else
-		dt = dt * std::min (std::sqrt(.38) * std::sqrt (MIN_RESIDUAL / residual_norm), 2.0);
-	      
+		dt = dt * std::min (std::sqrt(.38) * std::sqrt (MIN_RESIDUAL / residual_norm), 2.0); // spazio prima delle parentesi, tagliare linee lunghe
+	      											     // il passo va adattato rispetto 
+		                                                                                     // all'errore di troncamento
 	      dt = std::min (dt , dt_tsave);
-	      t += dt;
+	      t += dt; // all'inizio del ciclo
 	      std::cout <<"----dt = "<< dt << std::endl;    
 	      std::cout <<"----final step error = "<< residual_norm << std::endl;    
 	    }
