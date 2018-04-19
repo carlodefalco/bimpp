@@ -344,11 +344,16 @@ public:
   set_refine_marker
   (std::function<int (quadrant_iterator)> fun)
   {
+    int val = 0;
+
     for (auto q = this->begin_quadrant_sweep ();
          q != this->end_quadrant_sweep ();
          ++q)
-      if (fun (q))
-        q->the_quadrant->p.user_int = std::abs (fun (q));
+      {
+        val = fun (q);
+        if (val)
+          q->the_quadrant->p.user_int = std::abs (val);
+      }
   };
 
   /// Mark quadrants for coarsening based on fun.
@@ -356,11 +361,16 @@ public:
   set_coarsen_marker
   (std::function<int (quadrant_iterator)> fun)
   {
+    int val = 0;
+
     for (auto q = this->begin_quadrant_sweep ();
          q != this->end_quadrant_sweep ();
          ++q)
-      if (fun (q))
-        q->the_quadrant->p.user_int = -std::abs (fun (q));
+      {
+        val = fun (q);
+        if (val)
+          q->the_quadrant->p.user_int = -std::abs (val);
+      }
   };
 
   /// Mark quadrants for refinement based on metrics.
