@@ -12,11 +12,12 @@
 #include <quad_operators.h>
 
 
-constexpr int NUM_REFINEMENTS = 5;
-constexpr double MIN_RESIDUAL = 1.e-6;
-constexpr int NT              = 10;
-constexpr int MAX_IT          = 50;
-constexpr double DT           = 1.0e-2;
+constexpr int NUM_REFINEMENTS           = 5;
+constexpr double MIN_RESIDUAL           = 1.e-6;
+constexpr double MIN_RESIDUAL_TIME_STEP = 0.01;
+constexpr int NT                        = 10;
+constexpr int MAX_IT                    = 50;
+constexpr double DT                     = 1.0e-2;
 
 constexpr double T0    = 0.;
 constexpr double T     = 10.;
@@ -38,8 +39,8 @@ all_non_negative (std::vector<double> vect)
 {
   for (int i = 0; i < vect.size () ; ++i)
     if (vect[i] < 0)
-      return 0; // false
-  return 1;  // true 
+      return false;
+  return true; 
 }
 
 
@@ -70,6 +71,7 @@ main (int argc, char **argv)
   double told        = T0;
   double tvold       = T0;
   double dt          = DT;
+  double dtold       = DT;
   int nt             = NT;
 
   std::array<double, NT+1> t_save {t};
@@ -111,7 +113,6 @@ main (int argc, char **argv)
   du.assign (n_nodes, 0.0);
   
   auto iu  = u.begin ();
-  //  auto idu = u.begin ();
   auto iuo = uold.begin ();
 
   auto rhsfun = [&iu, &iuo, &dt] ()
@@ -150,36 +151,34 @@ main (int argc, char **argv)
   
   int isave = 0;
   t_vect.push_back (t);
-  t += dt;
-  //int sentinella = 0; // TODO : togliere
+  
   for (auto t_save_p = t_save.begin (); t_save_p != t_save.end (); ++t_save_p)
     {
 
-      while (told < (*t_save_p)) // t < (*t_save_p)
+      while (t < (*t_save_p))
         {	     
           if (rank == 0)
             {
-		// t = t + dt
+	      t += dt;
               if (t > (*t_save_p)) t = (*t_save_p);
 	      dt = t - told;
-	      
-            }
-	  if (rank == 0)
-	    std::cout << "TIME : "<< t << std::endl;
-	    
+	      dtinv = 1 / dt;
+	      std::cout << "TIME : "<< t << std::endl;
+	    }
+	  
           MPI_Bcast (&t, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  MPI_Bcast (&dtinv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  MPI_Barrier (MPI_COMM_WORLD);
 
 	  if (told != tvold)
-	    for (int i = 0; i < n_nodes ; ++i)
-	      uguess[i] = (t - tvold ) /  // spazio prima della parentesi!
-		(told - tvold) * uold[i] + // calcolare dtold
-		dt / (tvold - told) * uvold[i];                              
+	    for (int i = 0; i < n_nodes; ++i)
+	      uguess[i] = (t - tvold) /
+		(dtold) * uold[i] + 
+		dt / (-dtold) * uvold[i];                              
 	    
 	  // attenzione in parallelo !! usare all_reduce !!    
-	  if (!all_non_negative (uguess)) // spazio dopo !
+	  if (! all_non_negative (uguess)) 
 	    {
 	      if (rank == 0)
 		std::cout << "Negative guess" <<std::endl;
@@ -265,10 +264,11 @@ main (int argc, char **argv)
 			      << " incr norm = "
 			      << residual_norm
 			      << std::endl;
-		  if (residual_norm <= MIN_RESIDUAL) break; // controllo positività
+		  if (! all_non_negative (u)) it_nonlin = MAX_IT;
+		  if (residual_norm <= MIN_RESIDUAL) break;
                         
 		}
-	      if (residual_norm <= MIN_RESIDUAL && all_non_negative (u))
+	      if (residual_norm <= MIN_RESIDUAL && it_nonlin < MAX_IT)
 	        break;
 	      else
 		{
@@ -281,16 +281,17 @@ main (int argc, char **argv)
 		    }
 		  MPI_Bcast (&dtinv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		  MPI_Bcast (&t, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		  MPI_Barrier (MPI_COMM_WORLD);
 
 		  if (told != tvold)
 		    {
 		      for (int i = 0; i < n_nodes ; ++i)
-			uguess[i] = (t - tvold ) /
-			  (told - tvold) * uold[i] +
-			  dt / (tvold - told) * uvold[i];                              
-	    
-		      if (!all_non_negative (uguess)) // spazio dopo !
+			uguess[i] = (t - tvold) /
+			  (dtold) * uold[i] + 
+			  dt / (-dtold) * uvold[i];                              
+	  	    
+		      if (! all_non_negative (uguess))
 			{
 			  if (rank == 0)
 			    std::cout << "Negative guess" <<std::endl;
@@ -306,20 +307,37 @@ main (int argc, char **argv)
 	  
           std::copy (uold.begin (), uold.end (), uvold.begin ());
           std::copy (u.begin (), u.end (), uold.begin ());
-     	  tvold = told;  // settare i parametri dei chech sul rank 0 e poi comunicarli
-          told = t;      // settare i parametri dei chech sul rank 0 e poi comunicarli
-	  t_vect.push_back (t);
 	  if (rank == 0)
 	    {
-	      if (residual_norm < 1e-14) // definire parametro
+	      tvold = told;
+	      told = t;
+	    }
+	  MPI_Bcast (&tvold, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast (&told, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+          
+	  t_vect.push_back (t);
+	  dtold = dt;
+
+	  for (int i = 0; i < n_nodes; ++i)   // rendere parallelo il calcolo (?)
+	    du[i] = u[i] - uold[i];
+	  if (rank == 0)
+	    {
+	      residual_norm = 0.0;
+	      std::for_each (du.begin (), du.end (), compute_norm);
+	      residual_norm = std::sqrt (residual_norm);
+	    }
+	  MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        
+	  if (rank == 0)
+	    {
+	      if (residual_norm == 0) 
 		dt *= 2;
 	    
 	      else
-		dt = dt * std::min (std::sqrt(.38) * std::sqrt (MIN_RESIDUAL / residual_norm), 2.0); // spazio prima delle parentesi, tagliare linee lunghe
-	      											     // il passo va adattato rispetto 
-		                                                                                     // all'errore di troncamento
+		dt = dt * std::min (std::sqrt (.38)
+				    * std::sqrt (MIN_RESIDUAL_TIME_STEP / residual_norm), 2.0);
+	      	        
 	      dt = std::min (dt , dt_tsave);
-	      t += dt; // all'inizio del ciclo
 	      std::cout <<"----dt = "<< dt << std::endl;    
 	      std::cout <<"----final step error = "<< residual_norm << std::endl;    
 	    }
