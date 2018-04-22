@@ -14,7 +14,7 @@
 
 constexpr int NUM_REFINEMENTS           = 5;
 constexpr double MIN_RESIDUAL           = 1.e-6;
-constexpr double MIN_RESIDUAL_TIME_STEP = 0.01;
+constexpr double MIN_RESIDUAL_TIME_STEP = 1;
 constexpr int NT                        = 10;
 constexpr int MAX_IT                    = 50;
 constexpr double DT                     = 1.0e-2;
@@ -103,10 +103,9 @@ main (int argc, char **argv)
   // A * du = f
   // u = u + du
 
-  std::vector<double> uold, uvold, uguess;
+  std::vector<double> uold, uvold;
   uold.assign (n_nodes, 1.0);
   uvold.assign (n_nodes, 1.0);
-  uguess.assign (n_nodes, 1.0);
   
   std::vector<double> u (uold);
   std::vector<double> du (uold);
@@ -148,10 +147,12 @@ main (int argc, char **argv)
   lin_solver->set_lhs_distributed ();
   lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
   lin_solver->analyze ();
-  
   int isave = 0;
   t_vect.push_back (t);
+
   
+  std::copy (uold.begin (), uold.end (), u.begin ());
+       
   for (auto t_save_p = t_save.begin (); t_save_p != t_save.end (); ++t_save_p)
     {
 
@@ -173,17 +174,17 @@ main (int argc, char **argv)
 
 	  if (told != tvold)
 	    for (int i = 0; i < n_nodes; ++i)
-	      uguess[i] = (t - tvold) /
+	      u[i] = (t - tvold) /
 		(dtold) * uold[i] + 
 		dt / (-dtold) * uvold[i];                              
 	    
 	  // attenzione in parallelo !! usare all_reduce !!    
-	  if (! all_non_negative (uguess)) 
+	  if (! all_non_negative (u)) 
 	    {
 	      if (rank == 0)
 		std::cout << "Negative guess" <<std::endl;
 	      for (int i = 0; i < n_nodes; ++i)
-		uguess[i] = std::max (0.0, uguess[i]);
+		u[i] = std::max (0.0, u[i]);
 	    }
 
 	  while (true) //////////////////////////////////////////////////////////////////
@@ -210,7 +211,7 @@ main (int argc, char **argv)
 		  // f0
 		  ecoeff.assign (n_elements, 1.0);
 		  iu = u.begin ();
-		  iuo = uguess.begin ();
+		  iuo = uold.begin ();
 		  
 		  std::generate (ncoeff.begin (), ncoeff.end (), rhsfun);
 		  bim2a_rhs (tmsh, ecoeff, ncoeff, f);
@@ -218,7 +219,7 @@ main (int argc, char **argv)
 		  // A1
 		  ecoeff.assign (n_elements, 1.0);
 		  iu = u.begin ();
-		  iuo = uguess.begin ();
+		  iuo = uold.begin ();
 		  dtinv = 1 / dt;
 	          std::generate (ncoeff.begin (), ncoeff.end (), expudtinv);
 		  bim2a_reaction (tmsh, ecoeff, ncoeff, A);             
@@ -257,15 +258,17 @@ main (int argc, char **argv)
 		  
 		  MPI_Barrier (MPI_COMM_WORLD);
 		  if (rank == 0) toc ("increment");
-              
+                 
 		  if (rank == 0)
 		    std::cout << "iteration = "
 			      << it_nonlin
 			      << " incr norm = "
 			      << residual_norm
 			      << std::endl;
+		  std:: cout <<  all_non_negative (u) << std::endl;
 		  if (! all_non_negative (u)) it_nonlin = MAX_IT;
-		  if (residual_norm <= MIN_RESIDUAL) break;
+		      
+		  if (residual_norm <= MIN_RESIDUAL)  break;
                         
 		}
 	      if (residual_norm <= MIN_RESIDUAL && it_nonlin < MAX_IT)
@@ -287,24 +290,28 @@ main (int argc, char **argv)
 		  if (told != tvold)
 		    {
 		      for (int i = 0; i < n_nodes ; ++i)
-			uguess[i] = (t - tvold) /
+			u[i] = (t - tvold) /
 			  (dtold) * uold[i] + 
 			  dt / (-dtold) * uvold[i];                              
 	  	    
-		      if (! all_non_negative (uguess))
+		      if (! all_non_negative (u))
 			{
 			  if (rank == 0)
 			    std::cout << "Negative guess" <<std::endl;
 			  for (int i = 0; i < n_nodes; ++i)
-			    uguess[i] = std::max (0.0, uguess[i]);
+			    u[i] = std::max (0.0, u[i]);
 			    
 			}
 		    }
-		  std::copy (uold.begin (), uold.end (), u.begin ());
-         
+		  else 
+		    std::copy (uold.begin (), uold.end (), u.begin ());
+       
 		}
 	    }
 	  
+	  for (int i = 0; i < n_nodes; ++i)   // rendere parallelo il calcolo (?)
+	    du[i] = u[i] - uold[i];
+
           std::copy (uold.begin (), uold.end (), uvold.begin ());
           std::copy (u.begin (), u.end (), uold.begin ());
 	  if (rank == 0)
@@ -317,16 +324,13 @@ main (int argc, char **argv)
           
 	  t_vect.push_back (t);
 	  dtold = dt;
-
-	  for (int i = 0; i < n_nodes; ++i)   // rendere parallelo il calcolo (?)
-	    du[i] = u[i] - uold[i];
 	  if (rank == 0)
 	    {
 	      residual_norm = 0.0;
 	      std::for_each (du.begin (), du.end (), compute_norm);
 	      residual_norm = std::sqrt (residual_norm);
 	    }
-	  MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  //  MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD); // non serve mi sa...
         
 	  if (rank == 0)
 	    {
@@ -339,7 +343,8 @@ main (int argc, char **argv)
 	      	        
 	      dt = std::min (dt , dt_tsave);
 	      std::cout <<"----dt = "<< dt << std::endl;    
-	      std::cout <<"----final step error = "<< residual_norm << std::endl;    
+	      std::cout <<"----final step error = "<< residual_norm << std::endl;
+	      
 	    }
 	  MPI_Bcast (&t, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -368,10 +373,6 @@ main (int argc, char **argv)
   std::cout <<"--- t_vect --- " << std::endl; 
   for (int i = 0 ; i < t_vect.size () ; ++i)
     std::cout<<t_vect[i]<<std::endl;
-
-  std::cout <<"--- t_save --- " << std::endl;
-  for (int i = 0 ; i < t_save.size () ; ++i)
-    std::cout<<t_save[i]<<std::endl;
  
   print_timing_report ();
   lin_solver->cleanup ();
