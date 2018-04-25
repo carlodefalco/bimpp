@@ -12,7 +12,7 @@
 #include <quad_operators.h>
 
 
-constexpr int NUM_REFINEMENTS           = 5; //5;
+constexpr int NUM_REFINEMENTS           = 7; //5;
 constexpr double MIN_RESIDUAL           = 1.e-6;
 constexpr double MIN_RESIDUAL_TIME_STEP = 1;
 constexpr int NT                        = 10;
@@ -92,10 +92,10 @@ main (int argc, char **argv)
   t = T0;
   
   /// Newton variables
-  double              residual_norm;
+  double              residual_norm, residual_norm_loc;
   int                 it_nonlin;
-  auto compute_norm = [&residual_norm] (double x)
-    { residual_norm += std::pow (x, 2); };
+  auto compute_norm = [&residual_norm_loc] (double x)
+    { residual_norm_loc += std::pow (x, 2); };
 
   /// PDE arrays
   // (1/dt) * mass * (u - uold) + laplacian (eps) * u + mass * (exp (u)) = 1
@@ -165,9 +165,9 @@ main (int argc, char **argv)
   u_local.assign (n_nodes, 0.0);
   for (int i = first_node; i < last_node; ++i)
     u_local[i] = uold[i];
-  
+
   int flag_while_tsave, flag_tvold, flag_neg, flag_neg_global;
-  
+
   for (auto t_save_p = t_save.begin (); t_save_p != t_save.end (); ++t_save_p)
     {
       if (rank == 0)
@@ -189,7 +189,6 @@ main (int argc, char **argv)
           MPI_Bcast (&t, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  MPI_Bcast (&dtinv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  //MPI_Barrier (MPI_COMM_WORLD);
 
 	  if (rank == 0) flag_tvold = (told != tvold);
 	  MPI_Bcast (&flag_tvold, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -213,7 +212,6 @@ main (int argc, char **argv)
 	      for (int i = first_node; i < last_node; ++i)
 		u_local[i] = std::max (0.0, u_local[i]);
 	    }
-	  u.assign (n_nodes, 0.0);
 	  MPI_Allreduce (&u_local[0], &u[0], n_nodes, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         	 
 	  while (true) //////////////////////////////////////////////////////////////////
@@ -249,16 +247,13 @@ main (int argc, char **argv)
 		  ecoeff.assign (n_elements, 1.0);
 		  iu = u.begin ();
 		  iuo = uold.begin ();
-		  // dtinv = 1 / dt;
 	          std::generate (ncoeff.begin (), ncoeff.end (), expudtinv);
 		  bim2a_reaction (tmsh, ecoeff, ncoeff, A);             
 		  MPI_Barrier (MPI_COMM_WORLD);
 		  //if (rank == 0) toc ("assembly");
 
 		  bim2a_dirichlet_bc (tmsh, bcs, A, f);
-		
-		  if (rank == 0)
-		    du_global.assign (n_nodes, 0);
+
 		  MPI_Reduce (&f[0], &du_global[0], n_nodes, MPI_DOUBLE, MPI_SUM, 0,
 			      MPI_COMM_WORLD);
 
@@ -299,20 +294,16 @@ main (int argc, char **argv)
         
 		  // if (rank == 0) toc ("solve");
 
-		  if (rank == 0)  // da parallelizzare
-		    {
-		      //   tic ();
-		      residual_norm = 0.0;
-		      std::for_each (du_global.begin (), du_global.end (), compute_norm);
-		      residual_norm = std::sqrt (residual_norm);
-		    }
-		  MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		  residual_norm_loc = 0.0;
 		  MPI_Bcast (&du_global[0], n_nodes, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		  std::for_each (du_global.begin () + first_node, du_global.begin () +
+				 last_node, compute_norm);
+		  MPI_Allreduce (&residual_norm_loc, &residual_norm, 1, MPI_DOUBLE, MPI_SUM,
+				MPI_COMM_WORLD);
+		  residual_norm = std::sqrt (residual_norm);
 		  for (int i = first_node; i < last_node; ++i)
 		    u_local[i] += du_global[i];
 		  
-		  MPI_Barrier (MPI_COMM_WORLD);
-		  u.assign (n_nodes, 0.0);
 		  MPI_Allreduce (&u_local[0], &u[0], n_nodes, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
  
 		  // if (rank == 0) toc ("increment");
@@ -325,13 +316,11 @@ main (int argc, char **argv)
 			      << std::endl;
 		  
 		  flag_neg = ! all_non_negative (u_local, first_node, last_node);
-		  flag_neg_global = 0 ;
 		  MPI_Allreduce (&flag_neg, &flag_neg_global, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 	          MPI_Barrier (MPI_COMM_WORLD);
 	          if (flag_neg_global)   it_nonlin = MAX_IT;
 		  
 		  if (residual_norm <= MIN_RESIDUAL)  break;
-		  
         	}
 
 	      if (residual_norm <= MIN_RESIDUAL && it_nonlin < MAX_IT)
@@ -348,8 +337,7 @@ main (int argc, char **argv)
 		  MPI_Bcast (&dtinv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		  MPI_Bcast (&t, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		  // MPI_Barrier (MPI_COMM_WORLD);
-
+		 
 		  if (rank == 0) flag_tvold = (told != tvold);
 		  MPI_Bcast (&flag_tvold, 1, MPI_INT, 0, MPI_COMM_WORLD);
 		  MPI_Barrier (MPI_COMM_WORLD);
@@ -362,7 +350,6 @@ main (int argc, char **argv)
 			  dt / (-dtold) * uvold[i];                              
 	  	    
 		      flag_neg = ! all_non_negative (u_local, first_node, last_node);
-		      flag_neg_global = 0;
 		      MPI_Allreduce (&flag_neg, &flag_neg_global, 1, MPI_INT, MPI_SUM,
 				     MPI_COMM_WORLD);
 		      MPI_Barrier (MPI_COMM_WORLD);
@@ -376,7 +363,6 @@ main (int argc, char **argv)
 		    }
 		  else 
 		    {
-		      u_local.assign (n_nodes, 0.0); // per sicurezza, ma sarebbe da togliere
 		      for (int i = first_node; i < last_node; ++i)
 			u_local[i] = uold[i];
 		    }
@@ -388,9 +374,7 @@ main (int argc, char **argv)
 	  for (int i = first_node; i < last_node; ++i) 
 	    du[i] = u_local[i] - uold[i];
 
-	  if (rank == 0)
-	    du_global.assign (n_nodes, 0.0);
-	  MPI_Reduce (&du[0], &du_global[0], n_nodes, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	  MPI_Allreduce (&du[0], &du_global[0], n_nodes, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	 
 	  std::copy (uold.begin (), uold.end (), uvold.begin ());
           std::copy (u.begin (), u.end (), uold.begin ());
@@ -406,15 +390,18 @@ main (int argc, char **argv)
 	    t_vect.push_back (t);
 	  dtold = dt;
 
+	  residual_norm_loc = 0.0;
+	  std::for_each (du_global.begin () + first_node, du_global.begin () + last_node,
+			 compute_norm);
+	  MPI_Reduce (&residual_norm_loc, &residual_norm, 1, MPI_DOUBLE, MPI_SUM, 0,
+		      MPI_COMM_WORLD);
+	  residual_norm = std::sqrt (residual_norm);
+	     
 	  if (rank == 0)
 	    {
-	      residual_norm = 0.0;
-	      std::for_each (du_global.begin (), du_global.end (), compute_norm); // da rendere parallelo
-	      residual_norm = std::sqrt (residual_norm);
-
 	      if (residual_norm == 0) 
 		dt *= 2;
-	    
+	      
 	      else
 		dt = dt * std::min (std::sqrt (.38)
 				    * std::sqrt (MIN_RESIDUAL_TIME_STEP / residual_norm), 2.0);
