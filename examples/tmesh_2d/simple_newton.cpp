@@ -34,16 +34,6 @@ static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return NUM_REFINEMENTS; }
 
-bool
-some_negative (std::vector<double>::iterator &it_first, std::vector<double>::iterator &it_last )
-{
-  for (auto it = it_first; it != it_last; ++it)
-    if ((*it) < 0)
-      return true;
-  return false; 
-}
-
-
 int
 main (int argc, char **argv)
 {
