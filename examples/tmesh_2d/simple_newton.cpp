@@ -68,12 +68,17 @@ main (int argc, char **argv)
   tmesh::idx_t global_offset  = tmsh.lnodes->global_offset; 
   tmesh::idx_t first_node  = global_offset;
   int last_node = first_node + num_owned_nodes; 
- 
-  std::cout <<"RANK "<<rank<< " has : "<< num_local_quadrants <<" number of local quadrants"
-	    <<std::endl;
-  MPI_Barrier (MPI_COMM_WORLD);
-  std::cout <<"RANK "<<rank<< " has as first node : "<< global_offset <<std::endl;
-  MPI_Barrier (MPI_COMM_WORLD);
+
+  for (int i = 0; i < size; ++i)
+    {
+      if (rank == i)
+	{
+	  std::cout <<"RANK "<<rank<< " has : "<< num_local_quadrants <<" number of local quadrants"
+		    <<std::endl;
+	  std::cout <<"RANK "<<rank<< " has as first node : "<< global_offset <<std::endl;
+	}
+      MPI_Barrier (MPI_COMM_WORLD);
+    }
 
   /// Time stepping variables
   double t           = T0;
@@ -220,7 +225,7 @@ main (int argc, char **argv)
 		for (iu_local = iu_local_first; iu_local != iu_local_last; ++iu_local)
 		  (*iu_local) = (*(iuo++));
 
-	      flag_neg = some_negative (iu_local_first, iu_local_last);
+	      flag_neg = any_of (iu_local_first, iu_local_last, [] (double ii) {return ii < 0;});
 	      if (flag_neg)
 		{
 		  if (rank == 0)
@@ -307,7 +312,7 @@ main (int argc, char **argv)
 			      << residual_norm
 			      << std::endl;
 		  
-		  flag_neg = some_negative (iu_local_first, iu_local_last);
+		  flag_neg = any_of (iu_local_first, iu_local_last, [] (double ii){return ii < 0;});
 		  MPI_Allreduce (&flag_neg, &flag_neg_global, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 		  if (flag_neg_global)   it_nonlin = MAX_IT;
 		  
