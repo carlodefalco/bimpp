@@ -12,7 +12,7 @@
 #include <quad_operators.h>
 
 
-constexpr int NUM_REFINEMENTS           = 7; //5;
+constexpr int NUM_REFINEMENTS           = 3; //5;
 constexpr double MIN_RESIDUAL           = 1.e-6;
 constexpr double MIN_RESIDUAL_TIME_STEP = 1;
 constexpr int NT                        = 10;
@@ -35,13 +35,12 @@ uniform_refinement (tmesh::quadrant_iterator q)
 { return NUM_REFINEMENTS; }
 
 bool
-all_non_negative (std::vector<double> vect, tmesh::idx_t &first_node,
-		  int &last_node )
+some_negative (std::vector<double>::iterator &it_first, std::vector<double>::iterator &it_last )
 {
-  for (int i = first_node; i < last_node; ++i)
-    if (vect[i] < 0)
-      return false;
-  return true; 
+  for (auto it = it_first; it != it_last; ++it)
+    if ((*it) < 0)
+      return true;
+  return false; 
 }
 
 
@@ -63,15 +62,17 @@ main (int argc, char **argv)
   tmsh.set_refine_marker (uniform_refinement);
   tmsh.refine (recursive);
 
-  tmesh::idx_t n_nodes = tmsh.num_global_nodes ();
-  tmesh::idx_t n_elements = tmsh.num_local_quadrants ();
-  tmesh::idx_t num_local_nodes  = tmsh.num_owned_nodes ();
-  tmesh::idx_t first_node  = tmsh.lnodes->global_offset;
-  int last_node = first_node + num_local_nodes;  
+  tmesh::idx_t num_global_nodes = tmsh.num_global_nodes ();
+  tmesh::idx_t num_local_quadrants = tmsh.num_local_quadrants ();
+  tmesh::idx_t num_owned_nodes  = tmsh.num_owned_nodes ();
+  tmesh::idx_t global_offset  = tmsh.lnodes->global_offset; 
+  tmesh::idx_t first_node  = global_offset;
+  int last_node = first_node + num_owned_nodes; 
  
-  std::cout <<"RANK "<<rank<< " has : "<< num_local_nodes <<" number of nodes" <<std::endl;
+  std::cout <<"RANK "<<rank<< " has : "<< num_local_quadrants <<" number of local quadrants"
+	    <<std::endl;
   MPI_Barrier (MPI_COMM_WORLD);
-  std::cout <<"RANK "<<rank<< " has as first node : "<< first_node <<std::endl;
+  std::cout <<"RANK "<<rank<< " has as first node : "<< global_offset <<std::endl;
   MPI_Barrier (MPI_COMM_WORLD);
 
   /// Time stepping variables
@@ -112,19 +113,18 @@ main (int argc, char **argv)
   // u = u + du
 
   std::vector<double> uold, uvold;
-  uold.assign (n_nodes, 1.0);
-  uvold.assign (n_nodes, 1.0);
+  uold.assign (num_global_nodes, 1.0);
+  uvold.assign (num_global_nodes, 1.0);
   
   std::vector<double> u (uold);
-  std::vector<double> u_local (n_nodes), f_global (n_nodes), du_global (n_nodes);
-  std::vector<double> du;
-  
-  du.assign (n_nodes, 0.0);
-  du_global.assign (n_nodes, 0.0);
-  
+  std::vector<double> u_local (num_global_nodes), f_global (num_global_nodes);
+  std::vector<double> du (num_global_nodes), du_global (num_global_nodes);
+ 
+  du.assign (num_global_nodes, 0.0);
+  du_global.assign (num_global_nodes, 0.0);
+
   auto iu  = u.begin ();
   auto iuo = uold.begin ();
-
   auto rhsfun = [&iu, &iuo, &dt] ()
     {return -(*iu - *(iuo++)) / dt - std::exp (*(iu++)) + 1.0; };
 
@@ -139,7 +139,7 @@ main (int argc, char **argv)
   std::vector<int> ir, jc;
   
   sparse_matrix A;
-  A.resize (n_nodes);
+  A.resize (num_global_nodes);
   dirichlet_bcs bcs;
   for (int i = 0; i < 4; ++i)
     bcs.push_back (std::make_tuple (0, i, [](double x, double y){return .0;}));
@@ -147,13 +147,13 @@ main (int argc, char **argv)
   bim2a_structure (tmsh, A);
   A.aij (xa, ir, jc, lin_solver->get_index_base ());
 
-  std::vector<double> ecoeff (n_nodes);
-  std::vector<double> ncoeff (n_elements);
-  std::vector<double> f (n_nodes);
+  std::vector<double> ecoeff (num_global_nodes);
+  std::vector<double> ncoeff (num_local_quadrants);
+  std::vector<double> f (num_global_nodes);
 
-  ecoeff.assign (n_elements, 1.0);
-  ncoeff.assign (n_nodes, 1.0);
-  f.assign (n_nodes, 0.0);
+  ecoeff.assign (num_local_quadrants, 1.0);
+  ncoeff.assign (num_global_nodes, 1.0);
+  f.assign (num_global_nodes, 0.0);
  
   lin_solver->set_lhs_distributed ();
   lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
@@ -161,70 +161,85 @@ main (int argc, char **argv)
   int isave = 0;
   if (rank==0)
     t_vect.push_back (t);
+
+  auto iu_local_first = u_local.begin () + global_offset;
+  auto iu_local_last =  u_local.begin () + global_offset + num_owned_nodes;
+  std::vector<double>::iterator iu_local;
+
+  auto iuo_first = uold.begin () + global_offset;
   
-  u_local.assign (n_nodes, 0.0);
-  for (int i = first_node; i < last_node; ++i)
-    u_local[i] = uold[i];
+  auto iuvo_first = uvold.begin () + global_offset;
+  std::vector<double>::iterator iuvo;
+
+  auto idu_first = du.begin () + global_offset;
+  std::vector<double>::iterator idu;
+  
+  auto idu_global_first = du_global.begin () + global_offset;
+  auto idu_global_last =  du_global.begin () + global_offset + num_owned_nodes;
+  std::vector<double>::iterator idu_global;
+
+  u_local.assign (num_global_nodes, 0.0);
 
   int flag_while_tsave, flag_tvold, flag_neg, flag_neg_global;
 
   for (auto t_save_p = t_save.begin (); t_save_p != t_save.end (); ++t_save_p)
     {
-      if (rank == 0)
-	flag_while_tsave = (t < (*t_save_p));
-      MPI_Bcast (&flag_while_tsave, 1, MPI_INT, 0, MPI_COMM_WORLD);
-      MPI_Barrier (MPI_COMM_WORLD);
-      
-      while (flag_while_tsave)
+      while (true)
         {
 	  if (rank == 0)
-            {
-	      t += dt;
-              if (t > (*t_save_p)) t = (*t_save_p);
-	      dt = t - told;
-	      dtinv = 1 / dt;
-	      std::cout << "TIME : "<< t << std::endl;
+	    flag_while_tsave = (t >= (*t_save_p));
+	  MPI_Bcast (&flag_while_tsave, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	  if (flag_while_tsave) break; 	  
+
+	  if (rank == 0)
+	    {
+	      if (t + dt > (*t_save_p))
+		dt = (*t_save_p) - t;
 	    }
-	  
-          MPI_Bcast (&t, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  MPI_Bcast (&dtinv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-	  if (rank == 0) flag_tvold = (told != tvold);
-	  MPI_Bcast (&flag_tvold, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	  MPI_Barrier (MPI_COMM_WORLD);
-    	  
-	  if (flag_tvold)
-	    for (int i = first_node; i < last_node; ++i)
-	      u_local[i] = (t - tvold) /
-		(dtold) * uold[i] + 
-		dt / (-dtold) * uvold[i];                              
-	    
-
-	  flag_neg = ! all_non_negative (u_local, first_node, last_node);
-	  flag_neg_global = 0;
-	  MPI_Allreduce (&flag_neg, &flag_neg_global, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-	  MPI_Barrier (MPI_COMM_WORLD);
-          if (flag_neg_global)
+	  while (true)
 	    {
 	      if (rank == 0)
-		std::cout << "Negative guess" <<std::endl;
-	      for (int i = first_node; i < last_node; ++i)
-		u_local[i] = std::max (0.0, u_local[i]);
-	    }
-	  MPI_Allreduce (&u_local[0], &u[0], n_nodes, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+		{
+		  t += dt;
+		  std::cout << "TIME : "<< t << std::endl;
+		}
+	      MPI_Bcast (&t, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	      MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	      dtinv = 1 / dt;
+
+	      if (rank == 0) flag_tvold = (told != tvold);
+	      MPI_Bcast (&flag_tvold, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	      iuo = iuo_first;
+	      iuvo = iuvo_first;
+	      if (flag_tvold)
+		for ( iu_local = iu_local_first; iu_local != iu_local_last; ++iu_local)
+		  (*iu_local) = (t - tvold) /
+		    (dtold) * (*(iuo++)) + 
+		    dt / (-dtold) * (*(iuvo++));                              
+	      else
+		for (iu_local = iu_local_first; iu_local != iu_local_last; ++iu_local)
+		  (*iu_local) = (*(iuo++));
+
+	      flag_neg = some_negative (iu_local_first, iu_local_last);
+	      if (flag_neg)
+		{
+		  if (rank == 0)
+		    std::cout << "Negative guess" <<std::endl;
+		  for (iu_local = iu_local_first; iu_local != iu_local_last; ++iu_local)
+		    (*iu_local) = std::max (0.0, (*iu_local));
+		}
+	      MPI_Allreduce (&u_local[0], &u[0], num_global_nodes, MPI_DOUBLE, MPI_SUM,
+			     MPI_COMM_WORLD);
         	 
-	  while (true) //////////////////////////////////////////////////////////////////
-	    {
 	      for (it_nonlin = 0; it_nonlin < MAX_IT; ++it_nonlin)
 		{
 		  // if (rank == 0) tic ();
-		  f.assign (n_nodes, 0.0);
+		  f.assign (num_global_nodes, 0.0);
 		  A.reset ();
 
 		  // A0
-		  ecoeff.assign (n_elements, eps_u);
-		  ncoeff.assign (n_nodes, 0.1); 
+		  ecoeff.assign (num_local_quadrants, eps_u);
+		  ncoeff.assign (num_global_nodes, 0.1); 
                   bim2a_advection_diffusion (tmsh, ecoeff, ncoeff, A);
 
 		  // f1
@@ -235,7 +250,7 @@ main (int argc, char **argv)
 			f[ia] -= A.col_val (ja) * u[A.col_idx (ja)]; 
 		  
 		  // f0
-		  ecoeff.assign (n_elements, 1.0);
+		  ecoeff.assign (num_local_quadrants, 1.0);
 		  iu = u.begin ();
 		  iuo = uold.begin ();
 		  
@@ -244,67 +259,44 @@ main (int argc, char **argv)
 		  bim2a_rhs (tmsh, ecoeff, ncoeff, f);
 		  
 		  // A1
-		  ecoeff.assign (n_elements, 1.0);
+		  ecoeff.assign (num_local_quadrants, 1.0);
 		  iu = u.begin ();
 		  iuo = uold.begin ();
 	          std::generate (ncoeff.begin (), ncoeff.end (), expudtinv);
 		  bim2a_reaction (tmsh, ecoeff, ncoeff, A);             
-		  MPI_Barrier (MPI_COMM_WORLD);
+		  // MPI_Barrier (MPI_COMM_WORLD);
 		  //if (rank == 0) toc ("assembly");
 
 		  bim2a_dirichlet_bc (tmsh, bcs, A, f);
 
-		  MPI_Reduce (&f[0], &du_global[0], n_nodes, MPI_DOUBLE, MPI_SUM, 0,
+		  MPI_Reduce (&f[0], &du_global[0], num_global_nodes, MPI_DOUBLE, MPI_SUM, 0,
 			      MPI_COMM_WORLD);
 
 		  if (rank == 0)
 		    lin_solver->set_rhs (du_global);
-
-		  /*	// QUI STAMPO SOLO PER VERIFICA	  
-		  MPI_Barrier (MPI_COMM_WORLD);/////////////////////
-		  if (rank == 0)
-		    {
-		      std::cout << "rank 0 :" << std::endl;
-		      for (int i = 0; i < n_nodes; ++i)
-			std::cout<< du[i]<<std::endl;
-		    }
-		  MPI_Barrier (MPI_COMM_WORLD);
-		  if (rank == 1)
-		    {
-		      std::cout << "rank 1 :" << std::endl;
-		      for (int i = 0; i < n_nodes; ++i)
-			std::cout<< du[i]<<std::endl;
-		    }
-		  MPI_Barrier (MPI_COMM_WORLD);
-		  if (rank == 2)
-		    {
-		      std::cout << "rank 2 :" << std::endl;
-		      for (int i = 0; i < n_nodes; ++i)
-			std::cout<< du[i]<<std::endl;
-		    }		
-		  MPI_Barrier (MPI_COMM_WORLD);
-		  */
 
 		  A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
 		  lin_solver->set_distributed_lhs_data (xa);
 
 		  lin_solver->factorize ();
 		  lin_solver->solve ();
-		  MPI_Barrier (MPI_COMM_WORLD);
-        
-		  // if (rank == 0) toc ("solve");
+		  // MPI_Barrier (MPI_COMM_WORLD);
+       		  // if (rank == 0) toc ("solve");
 
 		  residual_norm_loc = 0.0;
-		  MPI_Bcast (&du_global[0], n_nodes, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		  std::for_each (du_global.begin () + first_node, du_global.begin () +
-				 last_node, compute_norm);
-		  MPI_Allreduce (&residual_norm_loc, &residual_norm, 1, MPI_DOUBLE, MPI_SUM,
+		  MPI_Bcast (&du_global[0], num_global_nodes, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		  std::for_each (idu_global_first, idu_global_last, compute_norm);
+		  MPI_Reduce (&residual_norm_loc, &residual_norm, 1, MPI_DOUBLE, MPI_SUM, 0,
 				MPI_COMM_WORLD);
-		  residual_norm = std::sqrt (residual_norm);
-		  for (int i = first_node; i < last_node; ++i)
-		    u_local[i] += du_global[i];
+		  if (rank == 0)
+		    residual_norm = std::sqrt (residual_norm);
+		  MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		  idu_global = idu_global_first;
+		  for (iu_local = iu_local_first; iu_local != iu_local_last; ++iu_local)
+		    (*iu_local) += (*(idu_global++));
 		  
-		  MPI_Allreduce (&u_local[0], &u[0], n_nodes, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+		  MPI_Allreduce (&u_local[0], &u[0], num_global_nodes, MPI_DOUBLE, MPI_SUM,
+				 MPI_COMM_WORLD);
  
 		  // if (rank == 0) toc ("increment");
                  
@@ -315,10 +307,9 @@ main (int argc, char **argv)
 			      << residual_norm
 			      << std::endl;
 		  
-		  flag_neg = ! all_non_negative (u_local, first_node, last_node);
+		  flag_neg = some_negative (iu_local_first, iu_local_last);
 		  MPI_Allreduce (&flag_neg, &flag_neg_global, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-	          MPI_Barrier (MPI_COMM_WORLD);
-	          if (flag_neg_global)   it_nonlin = MAX_IT;
+		  if (flag_neg_global)   it_nonlin = MAX_IT;
 		  
 		  if (residual_norm <= MIN_RESIDUAL)  break;
         	}
@@ -330,69 +321,30 @@ main (int argc, char **argv)
 		  if (rank == 0)
 		    {
 		      dt *= 0.5;
-		      dtinv = 1 / dt;
-		      t = told + dt;
 		      std::cout << "Reducing time step : t = " << t << ", dt = "<< dt << std::endl;
 		    }
-		  MPI_Bcast (&dtinv, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		  MPI_Bcast (&t, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		 
-		  if (rank == 0) flag_tvold = (told != tvold);
-		  MPI_Bcast (&flag_tvold, 1, MPI_INT, 0, MPI_COMM_WORLD);
-		  MPI_Barrier (MPI_COMM_WORLD);
-
-		   if (flag_tvold)
-		    {
-		      for (int i = first_node; i < last_node; ++i)
-			u_local[i] = (t - tvold) /
-			  (dtold) * uold[i] + 
-			  dt / (-dtold) * uvold[i];                              
-	  	    
-		      flag_neg = ! all_non_negative (u_local, first_node, last_node);
-		      MPI_Allreduce (&flag_neg, &flag_neg_global, 1, MPI_INT, MPI_SUM,
-				     MPI_COMM_WORLD);
-		      MPI_Barrier (MPI_COMM_WORLD);
-		      if (flag_neg_global)
-			{
-			  if (rank == 0)
-			    std::cout << "Negative guess" <<std::endl;
-			  for (int i = first_node; i < last_node; ++i)
-			    u_local[i] = std::max (0.0, u_local[i]);
-	        	}
-		    }
-		  else 
-		    {
-		      for (int i = first_node; i < last_node; ++i)
-			u_local[i] = uold[i];
-		    }
-		   MPI_Allreduce (&u_local[0], &u[0], n_nodes, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
- 
 		}
 	    }
-	  
-	  for (int i = first_node; i < last_node; ++i) 
-	    du[i] = u_local[i] - uold[i];
 
-	  MPI_Allreduce (&du[0], &du_global[0], n_nodes, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	  idu = idu_first;
+	  iuo = iuo_first;
+	  for (iu_local = iu_local_first; iu_local != iu_local_last; ++iu_local)
+	    (*(idu++)) = (*(iu_local)) - (*(iuo++));
+
+	  MPI_Allreduce (&du[0], &du_global[0], num_global_nodes, MPI_DOUBLE, MPI_SUM,
+			 MPI_COMM_WORLD);
 	 
 	  std::copy (uold.begin (), uold.end (), uvold.begin ());
           std::copy (u.begin (), u.end (), uold.begin ());
-          // if (rank == 0)
-	  //  {
-	  tvold = told;
+          tvold = told;
 	  told = t;
-	  // }
-	  // MPI_Bcast (&tvold, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  // MPI_Bcast (&told, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
+	 
 	  if (rank == 0)
 	    t_vect.push_back (t);
 	  dtold = dt;
 
 	  residual_norm_loc = 0.0;
-	  std::for_each (du_global.begin () + first_node, du_global.begin () + last_node,
-			 compute_norm);
+	  std::for_each (idu_global_first, idu_global_last, compute_norm);
 	  MPI_Reduce (&residual_norm_loc, &residual_norm, 1, MPI_DOUBLE, MPI_SUM, 0,
 		      MPI_COMM_WORLD);
 	  residual_norm = std::sqrt (residual_norm);
@@ -412,10 +364,6 @@ main (int argc, char **argv)
 	      
 	    }
 	  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  if (rank == 0)
-	    flag_while_tsave = (t < (*t_save_p));
-	  MPI_Bcast (&flag_while_tsave, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	  MPI_Barrier (MPI_COMM_WORLD);
 
 	}
 
