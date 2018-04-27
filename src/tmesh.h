@@ -376,7 +376,9 @@ public:
   /// Mark quadrants for refinement based on metrics.
   void
   set_metrics_marker (std::function<double (quadrant_iterator)>,
-                      double, int max_depth = 5);
+                      double, int max_depth = 5,
+		      int n_refine = 0,
+		      int n_coarsen = 0);
 
   /// Set functor to replace quadrants while being
   /// refined or coarsened.

@@ -692,23 +692,26 @@ tmesh::begin_quadrant_sweep ()
 void
 tmesh::set_metrics_marker
 (std::function<double (tmesh::quadrant_iterator)> estimator,
- double tol, int max_depth)
+ double tol, int max_depth, int n_refine, int n_coarsen)
 {
   this->metrics_max_depth = max_depth;
 
-  double hxhat_hx = 0;
+  int hxhat_hx = 0;
 
   for (auto quadrant = this->begin_quadrant_sweep ();
        quadrant != this->end_quadrant_sweep ();
        ++quadrant)
     {
-      hxhat_hx = std::log2 (estimator (quadrant)
-                            * std::sqrt (this->num_global_quadrants ()) / tol);
+      hxhat_hx = static_cast<int> (std::round (std::log2 (estimator (quadrant)
+							  * std::sqrt (this->num_global_quadrants ()) / tol)));
 
+      if (hxhat_hx >= 0)
+	hxhat_hx = std::max (0, hxhat_hx - n_refine);
+      else
+	hxhat_hx = std::min (0, hxhat_hx + n_coarsen);
+	
       quadrant->the_quadrant->p.user_int =
-        std::min (std::max (-double (max_depth),
-                            std::ceil (hxhat_hx) ),
-                  double (max_depth));
+        std::min (std::max (-max_depth, hxhat_hx), max_depth);
     }
 
   return;
