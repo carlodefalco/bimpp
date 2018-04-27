@@ -162,7 +162,7 @@ main (int argc, char **argv)
       auto estimator = [& u_star, & global_rhs] (tmesh::quadrant_iterator q)
         { return estimator_sol (q, u_star, global_rhs); };
       
-      double tol = 1e-4;
+      double tol = 1e-5;
       tmsh.set_metrics_marker (estimator, tol, 4);
       
       // Compute metrics, h, error and estimator.
