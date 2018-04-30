@@ -220,10 +220,10 @@ void sparse_matrix_template<T>::csr (std::vector<double> &a,
   typename sparse_matrix_template<T>::col_iterator jj;
 
   for (size_t ii = 0; ii < this->size (); ++ii)
+    {
     if ((*this)[ii].size ())
       {
         row_ptr[idr] = idx + base;
-        idr++;
         for (jj  = (*this)[ii].begin (); jj != (*this)[ii].end (); ++jj)
           {
             col_ind[idx] = this->col_idx (jj)+base;
@@ -231,7 +231,9 @@ void sparse_matrix_template<T>::csr (std::vector<double> &a,
             idx++;
           }
       }
-  row_ptr[this->rows ()] = nnz + base;
+   idr++;
+}
+  std::fill (row_ptr.begin () + idr, row_ptr.end (), nnz + base);
 }
 
 template<class T>
