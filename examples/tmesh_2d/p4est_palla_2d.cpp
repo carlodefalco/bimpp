@@ -1,9 +1,11 @@
-#include <bim_timing.h>
-#include <tmesh.h>
-
 #include <array>
 #include <cassert>
 #include <cstdio>
+#include <cmath>
+#include <iostream>
+
+#include <bim_timing.h>
+#include <tmesh.h>
 
 #include <simple_connectivity_2d.h>
 
