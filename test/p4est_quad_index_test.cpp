@@ -1,10 +1,12 @@
+#include <iostream>
+#include <cassert>
+#include <vector>
+
 #include <bim_timing.h>
 #include <tmesh.h>
-
 #include <simple_connectivity_2d.h>
 
-#include <vector>
-#include <cassert>
+
 
 char filename[255];
 

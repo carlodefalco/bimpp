@@ -1,10 +1,11 @@
+#include <cassert>
+#include <iostream>
+#include <vector>
+
 #include <bim_timing.h>
 #include <tmesh.h>
 
 #include <simple_connectivity_2d.h>
-
-#include <vector>
-#include <cassert>
 
 
 static int
