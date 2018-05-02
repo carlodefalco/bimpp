@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <cassert>
+#include <limits>
 
 static int
 doping_driven_refinement (tmesh::quadrant_iterator quadrant)

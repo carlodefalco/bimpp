@@ -1,6 +1,7 @@
 #include <cassert>
 #include <iostream>
 #include <vector>
+#include <limits>
 
 #include <bim_timing.h>
 #include <tmesh.h>

@@ -1,13 +1,11 @@
 #include <cassert>
 #include <iostream>
 #include <vector>
+#include <limits>
 
 #include <bim_timing.h>
 #include <tmesh.h>
 #include <simple_connectivity_2d.h>
-
-
-
 
 static int
 bottom_refinement (tmesh::quadrant_iterator quadrant)

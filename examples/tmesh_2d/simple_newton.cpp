@@ -5,6 +5,7 @@
 */
 
 #include <cmath>
+#include <algorithm>
 
 #include <bim_timing.h>
 #include <mumps_class.h>

@@ -6,6 +6,7 @@
 #include <vector>
 #include <cassert>
 #include <cstdio>
+#include <limits>
 
 constexpr double L = 3.0e-6;
 constexpr double H = 1.0e-5;
