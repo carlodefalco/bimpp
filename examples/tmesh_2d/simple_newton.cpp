@@ -112,7 +112,7 @@ main (int argc, char **argv)
   uvold.assign (num_global_nodes, 1.0);
   
   std::vector<double> u (uold);
-  std::vector<double> u_local (num_global_nodes), f_global (num_global_nodes);
+  std::vector<double> u_local (num_global_nodes);
   std::vector<double> du (num_global_nodes), du_global (num_global_nodes);
  
   du.assign (num_global_nodes, 0.0);
@@ -152,6 +152,7 @@ main (int argc, char **argv)
  
   lin_solver->set_lhs_distributed ();
   lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
+
   lin_solver->analyze ();
   int isave = 0;
   if (rank==0)
@@ -273,6 +274,16 @@ main (int argc, char **argv)
 		  A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
 		  lin_solver->set_distributed_lhs_data (xa);
 
+		  for (int i = 0; i < size; ++i)
+		    {
+		      if (rank == i)
+			{
+			  std::cout <<"RANK "<<rank<< " has : "<<A
+				    <<std::endl;
+	        	}
+		      MPI_Barrier (MPI_COMM_WORLD);
+		    }
+		  
 		  lin_solver->factorize ();
 		  lin_solver->solve ();
 		  // MPI_Barrier (MPI_COMM_WORLD);
@@ -289,7 +300,20 @@ main (int argc, char **argv)
 		  idu_global = idu_global_first;
 		  for (iu_local = iu_local_first; iu_local != iu_local_last; ++iu_local)
 		    (*iu_local) += (*(idu_global++));
-		  
+
+		  /*
+		  for (int i = 0; i < size; ++i)
+		    {
+		      if (rank == i)
+			{
+			  std::cout <<"RANK "<<rank
+				    <<std::endl;
+			  for (int i = 0; i < u_local.size (); ++i)
+			    std::cout << u_local[i]<< std::endl;
+	        	}
+		      MPI_Barrier (MPI_COMM_WORLD);
+		    }
+		 */
 		  MPI_Allreduce (&u_local[0], &u[0], num_global_nodes, MPI_DOUBLE, MPI_SUM,
 				 MPI_COMM_WORLD);
  
