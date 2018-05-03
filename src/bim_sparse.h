@@ -226,7 +226,7 @@ void sparse_matrix_template<T>::csr (std::vector<double> &a,
         {
           for (jj  = (*this)[ii].begin (); jj != (*this)[ii].end (); ++jj)
             {
-              col_ind[idx] = this->col_idx (jj)+base;
+              col_ind[idx] = this->col_idx (jj) + base;
               a[idx] = this->col_val (jj);
               idx++;
             }
@@ -242,18 +242,16 @@ void sparse_matrix_template<T>::csr_update (std::vector<double> &a,
                                             const std::vector<int> &row_ptr,
                                             int base)
 {
-  size_t n = col_ind.size ();
-  int i = base;
-  typename sparse_matrix_template<T>::col_iterator jj;
-  a.resize (n);
+  size_t ni = row_ptr.size ();
+  size_t nj = col_ind.size ();
+  a.clear ();
+  a.reserve (nj);
 
-  for (size_t ii = 0; ii < n; ++ii)
-    if (ii < row_ptr[i - base + 1])
-      a[ii] =
-        this->col_val (((*this)[i - base]).find (col_ind[ii] - base));
-    else
-      a[++ii] =
-        this->col_val (((*this)[i - base]).find (col_ind[ii] - base));
+  std::cout << " ni = " << ni << std::endl;
+  for (size_t in = 0; in < ni; ++in)
+    for (size_t jn = row_ptr[in] - base; jn < row_ptr[in+1] - base; ++jn)
+      a.push_back (col_val (((*this)[in]).find (col_ind[jn] - base)));
+
 }
 
 
