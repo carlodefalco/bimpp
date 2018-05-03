@@ -220,7 +220,7 @@ public :
       assert (factorize_master () == 1);
     else
       assert (factorize_slaves () == 1);
-    
+
     init_lis_objects ();
     assert (assemble_lis_matrix () == 1);
     
