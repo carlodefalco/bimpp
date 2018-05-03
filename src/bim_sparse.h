@@ -248,7 +248,7 @@ void sparse_matrix_template<T>::csr_update (std::vector<double> &a,
   a.reserve (nj);
 
   std::cout << " ni = " << ni << std::endl;
-  for (size_t in = 0; in < ni; ++in)
+  for (size_t in = 0; in < ni - 1; ++in)
     for (size_t jn = row_ptr[in] - base; jn < row_ptr[in+1] - base; ++jn)
       a.push_back (col_val (((*this)[in]).find (col_ind[jn] - base)));
 
