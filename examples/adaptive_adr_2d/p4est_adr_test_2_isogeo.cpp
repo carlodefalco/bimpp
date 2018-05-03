@@ -47,8 +47,8 @@ main (int argc, char **argv)
   std::vector<tmesh::idx_t> nnodes;
   std::vector<double> h_step;
   
-  double delta1 = 0.01;
-  double delta2 = 0.01;
+  double delta1 = 1.5;
+  double delta2 = 0.5;
   
   for (int adapt = 0; adapt < refine_steps; ++adapt)
     {
@@ -182,13 +182,13 @@ main (int argc, char **argv)
       auto refine_fun = [& delta1, & grad, & global_grad, & tmsh] (tmesh::quadrant_iterator q)
         {
           return grad[q->get_forest_quad_idx ()] >=
-                   delta1 * global_grad / tmsh.num_global_quadrants ();
+                   delta1 * 1e-2 * global_grad / tmsh.num_global_quadrants ();
         };
       
       auto coarsen_fun = [& delta2, & grad, & global_grad, & tmsh] (tmesh::quadrant_iterator q)
         {
           return grad[q->get_forest_quad_idx ()] <=
-                   delta2 * global_grad / tmsh.num_global_quadrants ();
+                   delta2 * 1e-2 * global_grad / tmsh.num_global_quadrants ();
         };
       
       if (tmsh.num_global_nodes () >= 1e6)

@@ -221,7 +221,7 @@ main (int argc, char **argv)
         };
       
       double tol = 1e-5;
-      tmsh.set_metrics_marker (estimator, tol, 4);
+      tmsh.set_metrics_marker (estimator, tol, 4, 2, 2);
       
       // Compute metrics, h and error.
       std::vector<double> metrics(tmsh.num_local_quadrants ());

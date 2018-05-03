@@ -1,9 +1,11 @@
+#include <cassert>
+#include <iostream>
+#include <vector>
+
 #include <bim_timing.h>
-#include <simple_connectivity_2d_2trees.h>
 #include <tmesh.h>
 
-#include <vector>
-#include <cassert>
+#include <simple_connectivity_2d_2trees.h>
 
 static int
 fake_refinement (tmesh::quadrant_iterator quadrant)

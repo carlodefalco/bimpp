@@ -1,12 +1,13 @@
+#include <cassert>
+#include <iostream>
+#include <vector>
+#include <limits>
+
 #include <bim_timing.h>
 #include <tmesh.h>
 
 #include <mosfet_connectivity_2d.h>
 #include <mosfet_doping_2d.h>
-
-#include <vector>
-#include <cassert>
-
 
 static int
 doping_driven_refinement (tmesh::quadrant_iterator quadrant)

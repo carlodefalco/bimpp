@@ -6,6 +6,8 @@
 
 #include <bim_timing.h>
 #include <tmesh.h>
+#include <quad_operators.h>
+#include <mumps_class.h>
 
 #include <simple_connectivity_2d.h>
 
@@ -146,29 +148,134 @@ main (int argc, char **argv)
       
       x0 = x; v0 = v;
 
+      // Assemble differential problem.
+      double kG = 1;
+      double kS = 1e6;
+      
+      std::vector<double> alpha(tmsh.num_global_nodes (), kG);
+      std::vector<double> psi(tmsh.num_global_nodes (), 0);
+      
+      std::vector<double> f(tmsh.num_local_quadrants (), 1);
+      std::vector<double> g(tmsh.num_global_nodes (), 1);
+      
+      double xx = 0, yy = 0;
+      
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep ();
+           ++quadrant)
+        {
+          for (int ii = 0; ii < 4; ++ii)
+            {
+              xx = quadrant->p(0, ii);
+              yy = quadrant->p(1, ii);
+                
+              if (! quadrant->is_hanging (ii) &&
+                  std::pow(xx - x[0], 2) +
+                  std::pow(yy - x[1], 2) <=
+		  std::pow(r, 2))
+                alpha[quadrant->gt(ii)] = kS;
+            }
+        }
+
+      sparse_matrix A;
+      A.resize(tmsh.num_global_nodes());
+      
+      // Reduce coefficients.
+      std::vector<double> global_alpha(tmsh.num_global_nodes(), 0);
+      MPI_Allreduce(alpha.data(), global_alpha.data(), alpha.size(),
+                    MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+      
+      bim2a_advection_eafe_diffusion (tmsh, global_alpha, psi, A);
+      
+      std::vector<double> rhs(tmsh.num_global_nodes (), 0);
+      bim2a_rhs (tmsh, f, g, rhs);
+
+      // Set boundary conditions.
+      dirichlet_bcs bcs;
+      bcs.push_back (std::make_tuple(0, 2, [] (double x, double y) {return 0;}));
+      bcs.push_back (std::make_tuple(0, 3, [] (double x, double y) {return 0;}));
+      
+      bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
+      
+      // Solve problem.
+      std::cout << "Solving linear system.";
+      
+      mumps mumps_solver;
+      
+      std::vector<double> vals;
+      std::vector<int> irow, jcol;
+      
+      A.aij(vals, irow, jcol, mumps_solver.get_index_base ());
+      
+      mumps_solver.set_lhs_distributed ();
+      mumps_solver.set_distributed_lhs_structure (A.rows (), irow, jcol);
+      mumps_solver.set_distributed_lhs_data (vals);
+      
+      // Reduce rhs (so that rank 0 has the actual rhs).
+      std::vector<double> global_rhs(tmsh.num_global_nodes(), 0);
+      MPI_Reduce(rhs.data(), global_rhs.data(), rhs.size(),
+                 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
       
       if (rank == 0)
-        std::cout << "t = " << t << ", "
-                  << "x = " << x[0] << ", "
-                  << "y = " << x[1] << std::endl;
+        mumps_solver.set_rhs (global_rhs);
+      
+      // Solve.
+      mumps_solver.analyze ();
+      mumps_solver.factorize ();
+      mumps_solver.solve ();
+      mumps_solver.cleanup ();
+      
+      // Export solution.
+      MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      tmsh.octbin_export ((std::string("p4est_palla_2d_flow_u_")
+                           + std::to_string(t)).c_str(), global_rhs);
+      
+      std::cout << " Done." << std::endl;
+      
+      // Compute reconstructed gradient.
+      std::cout << "Computing reconstructed gradient, solution and estimator.";
+      
+      active_fun regionG = [] (tmesh::quadrant_iterator q)
+        { return (std::pow(q->centroid(0) - x[0], 2) +
+                  std::pow(q->centroid(1) - x[1], 2) >
+                  std::pow(r, 2)); };
+      
+      active_fun regionS = [] (tmesh::quadrant_iterator q)
+        { return (std::pow(q->centroid(0) - x[0], 2) +
+                  std::pow(q->centroid(1) - x[1], 2) <=
+                  std::pow(r, 2)); };
+      
+      gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, regionG);
+      gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, regionS);
+      
+      tmsh.octbin_export ((std::string("p4est_palla_2d_flow_du0_x_")
+                           + std::to_string(t)).c_str(), du0.first);
+      tmsh.octbin_export ((std::string("p4est_palla_2d_flow_du0_y_")
+                           + std::to_string(t)).c_str(), du0.second);
+      
+      tmsh.octbin_export ((std::string("p4est_palla_2d_flow_du1_x_")
+                           + std::to_string(t)).c_str(), du1.first);
+      tmsh.octbin_export ((std::string("p4est_palla_2d_flow_du1_y_")
+                           + std::to_string(t)).c_str(), du1.second);
 
+      // Refine + coarsen.
       MPI_Barrier (MPI_COMM_WORLD); 
       if (rank == 0) { tic (); }
       recursive = 1;  partforcoarsen = 1;  
       tmsh.set_refine_marker (refinement);
-      tmsh.refine (recursive, partforcoarsen, 1);
+      tmsh.refine (recursive, partforcoarsen);
       if (rank == 0) { toc ("refinement"); }
-      MPI_Barrier (MPI_COMM_WORLD);
 
+            
       MPI_Barrier (MPI_COMM_WORLD); 
       if (rank == 0) { tic (); }
       recursive = 1;  partforcoarsen = 1;  
       tmsh.set_coarsen_marker (coarsening);
-      tmsh.coarsen (recursive, partforcoarsen, 1);
+      tmsh.coarsen (recursive, partforcoarsen);
       if (rank == 0) { toc ("coarsening"); }
       MPI_Barrier (MPI_COMM_WORLD);
-      
-      MPI_Barrier (MPI_COMM_WORLD); 
+            
+
       if (rank == 0) { tic (); }
       sprintf (filename, "palla_%5.5d", iframe++);
       tmsh.vtk_export (filename);
@@ -184,4 +291,3 @@ main (int argc, char **argv)
   return 0;
 
 }
-
