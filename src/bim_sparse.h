@@ -221,18 +221,18 @@ void sparse_matrix_template<T>::csr (std::vector<double> &a,
 
   for (size_t ii = 0; ii < this->size (); ++ii)
     {
-    if ((*this)[ii].size ())
-      {
-        row_ptr[idr] = idx + base;
-        for (jj  = (*this)[ii].begin (); jj != (*this)[ii].end (); ++jj)
-          {
-            col_ind[idx] = this->col_idx (jj)+base;
-            a[idx] = this->col_val (jj);
-            idx++;
-          }
-      }
-   idr++;
-}
+      row_ptr[idr] = idx + base;
+      if ((*this)[ii].size ())
+        {
+          for (jj  = (*this)[ii].begin (); jj != (*this)[ii].end (); ++jj)
+            {
+              col_ind[idx] = this->col_idx (jj)+base;
+              a[idx] = this->col_val (jj);
+              idx++;
+            }
+        }
+      idr++;
+    }
   std::fill (row_ptr.begin () + idr, row_ptr.end (), nnz + base);
 }
 
