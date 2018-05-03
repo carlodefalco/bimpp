@@ -1,14 +1,15 @@
-BIMMUMPSLIB = ../../src/libbimmumps.la @MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@
-BIMLISLIB   = ../../src/libbimlis.la @LIS_LIB@ @MUMPS_EXTRA_LIBS@
-BIMP4ESTLIB = ../../src/libbimp4est.la @P4EST_LIB@
-BIMIOLIB    = ../../src/libbimio.la @OCTAVE_LINK_FLAGS@ @OCTAVE_LINK_ADD@
-BIMLIB           = ../../src/libbim.la
+BIMMUMPSLIB   = ../../src/libbimmumps.la @MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@
+BIMLISLIB     = ../../src/libbimlis.la @LIS_LIB@ @MUMPS_EXTRA_LIBS@
+BIMLISDISTLIB = ../../src/libbimlisdist.la @LIS_LIB@ @MUMPS_EXTRA_LIBS@
+BIMP4ESTLIB   = ../../src/libbimp4est.la @P4EST_LIB@
+BIMIOLIB      = ../../src/libbimio.la @OCTAVE_LINK_FLAGS@ @OCTAVE_LINK_ADD@
+BIMLIB        = ../../src/libbim.la
 
 AM_CPPFLAGS      =  -I$(top_srcdir)/src -I$(top_srcdir)/test -I$(top_builddir)/src @MUMPS_CPPFLAGS@ @LIS_CPPFLAGS@ @OCTAVE_COMPILE_FLAGS@ @OCTAVE_LINK_FLAGS@ 
 AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
-bin_PROGRAMS = p4est_refine_segment_test p4est_ref_test p4est_ref_lnodes_test p4est_palla_2d simple_newton simple_newton_system
+bin_PROGRAMS = p4est_refine_segment_test p4est_ref_test p4est_ref_lnodes_test p4est_palla_2d simple_newton simple_newton_system simple_newton_parallel_lis
 CLEANFILES =
 
 p4est_refine_segment_test_SOURCES =  p4est_refine_segment_test.cpp
@@ -44,5 +45,12 @@ CLEANFILES +=
 simple_newton_system_SOURCES =  simple_newton_system.cpp
 simple_newton_system_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
 simple_newton_system_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-simple_newton_system_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+simple_newton_system_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLISLIB)  @P4EST_LIB@
 CLEANFILES += 
+
+simple_newton_parallel_lis_SOURCES =  simple_newton_parallel_lis.cpp
+simple_newton_parallel_lis_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+simple_newton_parallel_lis_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+simple_newton_parallel_lis_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLISDISTLIB) @P4EST_LIB@
+CLEANFILES += 
+
