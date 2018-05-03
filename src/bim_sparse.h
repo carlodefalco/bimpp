@@ -102,6 +102,14 @@ public:
        std::vector<int> &row_ptr,
        int base);
 
+  /// Convert range of row-oriented sparse matrix to CSR format with shift.
+  void
+  csr (std::vector<double> &a,
+       std::vector<int> &col_ind,
+       std::vector<int> &row_ptr,
+       size_t is, size_t ie,
+       int base);
+    
   /// Convert row-oriented sparse matrix to CRS format.
   void
   csr (std::vector<double> &a,
@@ -212,6 +220,16 @@ void sparse_matrix_template<T>::csr (std::vector<double> &a,
                                      std::vector<int> &row_ptr,
                                      int base)
 {
+  sparse_matrix_template<T>::csr (a, col_ind, row_ptr, 0, this->size (), base);
+}
+
+template<class T>
+void sparse_matrix_template<T>::csr (std::vector<double> &a,
+                                     std::vector<int> &col_ind,
+                                     std::vector<int> &row_ptr,
+                                     size_t is, size_t ie,
+                                     int base)
+{
   this->set_properties ();
   a.resize (nnz); col_ind.resize (nnz);
   row_ptr.resize (this->rows () + 1);
@@ -219,7 +237,7 @@ void sparse_matrix_template<T>::csr (std::vector<double> &a,
   int idr = 0;
   typename sparse_matrix_template<T>::col_iterator jj;
 
-  for (size_t ii = 0; ii < this->size (); ++ii)
+  for (size_t ii = is; ii < ie; ++ii)
     {
       row_ptr[idr] = idx + base;
       if ((*this)[ii].size ())
