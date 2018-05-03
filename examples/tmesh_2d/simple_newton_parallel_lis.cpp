@@ -15,6 +15,9 @@
 #include <lis.h>
 #include <string>
 #include <bim_sparse.h>
+#include <algorithm>
+#include <sstream>
+
 
 constexpr int NUM_REFINEMENTS           = 3; //5;
 constexpr double MIN_RESIDUAL           = 1.e-6;
