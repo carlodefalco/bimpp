@@ -101,7 +101,7 @@ public:
        std::vector<int> &col_ind,
        std::vector<int> &row_ptr,
        int base);
-
+    
   /// Convert row-oriented sparse matrix to CRS format.
   void
   csr (std::vector<double> &a,
@@ -220,18 +220,20 @@ void sparse_matrix_template<T>::csr (std::vector<double> &a,
   typename sparse_matrix_template<T>::col_iterator jj;
 
   for (size_t ii = 0; ii < this->size (); ++ii)
-    if ((*this)[ii].size ())
-      {
-        row_ptr[idr] = idx + base;
-        idr++;
-        for (jj  = (*this)[ii].begin (); jj != (*this)[ii].end (); ++jj)
-          {
-            col_ind[idx] = this->col_idx (jj)+base;
-            a[idx] = this->col_val (jj);
-            idx++;
-          }
-      }
-  row_ptr[this->rows ()] = nnz + base;
+    {
+      row_ptr[idr] = idx + base;
+      if ((*this)[ii].size () > 0)
+        {
+          for (jj  = (*this)[ii].begin (); jj != (*this)[ii].end (); ++jj)
+            {
+              col_ind[idx] = this->col_idx (jj)+base;
+              a[idx] = this->col_val (jj);
+              idx++;
+            }
+        }
+      idr++;
+    }
+  std::fill (row_ptr.begin () + idr, row_ptr.end (), nnz + base);
 }
 
 template<class T>

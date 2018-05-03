@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <cassert>
+#include <limits>
 
 static int
 top_refinement (tmesh::quadrant_iterator quadrant)

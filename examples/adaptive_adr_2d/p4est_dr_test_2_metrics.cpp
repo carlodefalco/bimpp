@@ -35,7 +35,7 @@ main (int argc, char **argv)
   tmsh.set_replace_fun (tmesh::user_int_replace);
   
   recursive = 0; partforcoarsen = 1;
-  for (int cycle = 0; cycle < 2; ++cycle)
+  for (int cycle = 0; cycle < 9; ++cycle)
     {
       tmsh.set_refine_marker (uniform_refinement);
       tmsh.refine (recursive, partforcoarsen);
@@ -45,6 +45,7 @@ main (int argc, char **argv)
   
   std::vector<tmesh::idx_t> nnodes;
   std::vector<double> h_step;
+  std::vector<double> estim;
   
   for (int adapt = 0; adapt < refine_steps; ++adapt)
     {
@@ -55,7 +56,7 @@ main (int argc, char **argv)
       A.resize(tmsh.num_global_nodes());
       M.resize(tmsh.num_global_nodes());
       
-      double epsilon = std::pow(2, -10);
+      double epsilon = std::pow(2, -15);
       std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
       std::vector<double> psi(tmsh.num_global_nodes (), 0);
       
@@ -79,8 +80,8 @@ main (int argc, char **argv)
                   x = quadrant->p(0, ii);
                   y = quadrant->p(1, ii);
                   
-                  zeta[quadrant->gt(ii)] = 1 + x * x * y * y;
-                  g   [quadrant->gt(ii)] = 1 + 2 * x * y;
+                  zeta[quadrant->gt(ii)] = 1 + 1e-3 * x * x * y * y;
+                  g   [quadrant->gt(ii)] = 1 + 2e-3 * x * y;
                 }
             }
         }
@@ -104,7 +105,7 @@ main (int argc, char **argv)
       func g1 = [] (double x, double y) { return 1; };
       func g2 = [] (double x, double y) { return 1 - y * y; };
       func g3 = [] (double x, double y) { return 1 - x * x; };
-      
+
       dirichlet_bcs bcs;
       bcs.push_back (std::make_tuple(0, 0, g1));
       bcs.push_back (std::make_tuple(0, 1, g2));
@@ -159,11 +160,11 @@ main (int argc, char **argv)
       tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du_y_")
                            + std::to_string(adapt)).c_str(), du.second);
       
-      auto estimator = [& du, & global_rhs] (tmesh::quadrant_iterator q)
-        { return estimator_grad (q, du, global_rhs); };
+      auto estimator = [& u_star, & global_rhs] (tmesh::quadrant_iterator q)
+        { return estimator_sol (q, u_star, global_rhs); };
       
-      double tol = 1e-3;
-      tmsh.set_metrics_marker (estimator, tol, 4);
+      double tol = 1e-4;
+      tmsh.set_metrics_marker (estimator, tol, 4, 2, 2);
       
       // Compute metrics and h.
       std::vector<double> metrics(tmsh.num_local_quadrants ());
@@ -171,6 +172,7 @@ main (int argc, char **argv)
       double hx = 0, hy = 0,
              h = std::numeric_limits<double>::max (),
              global_h = 0;
+      double est = 0, global_est = 0;
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
@@ -179,20 +181,25 @@ main (int argc, char **argv)
           metrics[quadrant->get_forest_quad_idx ()] =
             estimator (quadrant) * std::sqrt (tmsh.num_global_quadrants ())
             / tol;
-          
-          hx = quadrant->p(0, 1) - quadrant->p(0, 0);
+	  
+	  hx = quadrant->p(0, 1) - quadrant->p(0, 0);
           hy = quadrant->p(1, 2) - quadrant->p(1, 0);
           
           h = std::min(h, std::sqrt(hx*hx + hy*hy));
+
+	  est += std::pow(estimator(quadrant), 2);
         }
-      
+
       tmsh.octbin_export_quadrant ((std::string("p4est_dr_test_2_metrics_hx_")
                                    + std::to_string(adapt)).c_str(), metrics);
       
       MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
+      MPI_Reduce(&est, &global_est, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      global_est = std::sqrt(global_est);
       
       nnodes.push_back (tmsh.num_global_nodes ());
       h_step.push_back (global_h);
+      estim.push_back (global_est);
       
       std::cout << " Done." << std::endl;
       
@@ -210,7 +217,8 @@ main (int argc, char **argv)
     for (unsigned step = 0; step < nnodes.size(); ++step)
       std::cout << "Step " << step << ", #nodes: "
                 << nnodes[step] << ", h: "
-                << h_step[step] << std::endl;
+                << h_step[step] << ", estimator: "
+		<< estim[step] << std::endl;
   
   MPI_Finalize ();
   

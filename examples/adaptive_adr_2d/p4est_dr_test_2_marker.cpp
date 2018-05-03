@@ -35,7 +35,7 @@ main (int argc, char **argv)
   tmsh.set_replace_fun (tmesh::user_int_replace);
   
   recursive = 0; partforcoarsen = 1;
-  for (int cycle = 0; cycle < 2; ++cycle)
+  for (int cycle = 0; cycle < 9; ++cycle)
     {
       tmsh.set_refine_marker (uniform_refinement);
       tmsh.refine (recursive, partforcoarsen);
@@ -47,7 +47,7 @@ main (int argc, char **argv)
   std::vector<double> h_step;
   
   double delta1 = 1.5;
-  double delta2 = 0.5;
+  double delta2 = 0.25;
   
   for (int adapt = 0; adapt < refine_steps; ++adapt)
     {
@@ -58,7 +58,7 @@ main (int argc, char **argv)
       A.resize(tmsh.num_global_nodes());
       M.resize(tmsh.num_global_nodes());
       
-      double epsilon = std::pow(2, -10);
+      double epsilon = std::pow(2, -15);
       std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
       std::vector<double> psi(tmsh.num_global_nodes (), 0);
       
@@ -82,8 +82,8 @@ main (int argc, char **argv)
                   x = quadrant->p(0, ii);
                   y = quadrant->p(1, ii);
                   
-                  zeta[quadrant->gt(ii)] = 1 + x * x * y * y;
-                  g   [quadrant->gt(ii)] = 1 + 2 * x * y;
+                  zeta[quadrant->gt(ii)] = 1 + 1e-3 * x * x * y * y;
+                  g   [quadrant->gt(ii)] = 1 + 2e-3 * x * y;
                 }
             }
         }
@@ -162,13 +162,13 @@ main (int argc, char **argv)
       tmsh.octbin_export ((std::string("p4est_dr_test_2_marker_du_y_")
                            + std::to_string(adapt)).c_str(), du.second);
       
-      auto refine_fun = [& delta1, & du, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
-        { return zz_marker_grad (q, du, global_rhs,
-                                 delta1 * 1e-3 / std::sqrt(tmsh.num_global_nodes())); };
+      auto refine_fun = [& delta1, & u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
+        { return zz_marker_sol (q, u_star, global_rhs,
+                                delta1 * 1e-5 / std::sqrt(tmsh.num_global_nodes())); };
       
-      auto coarsen_fun = [& delta2, & du, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
-        { return !zz_marker_grad (q, du, global_rhs,
-                                  delta2 * 1e-3 / std::sqrt(tmsh.num_global_nodes())); };
+      auto coarsen_fun = [& delta2, & u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
+        { return !zz_marker_sol (q, u_star, global_rhs,
+				 delta2 * 1e-5 / std::sqrt(tmsh.num_global_nodes()));};
       
       // Compute h.
       double hx = 0, hy = 0,

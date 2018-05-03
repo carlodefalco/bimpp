@@ -1,10 +1,12 @@
+#include <cassert>
+#include <vector>
+
 #include <bim_sparse.h>
 #include <mumps_class.h>
+#include <octave_file_io.h>
 #include <quad_operators.h>
 #include <tmesh.h>
 
-#include <vector>
-#include <cassert>
 
 int
 write_example_connectivity (const char* filename)
