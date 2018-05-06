@@ -3,6 +3,7 @@
 
 #ifdef BIM_TIMING
 
+#include <iostream>
 #include <ctime>
 #include <map>
 
