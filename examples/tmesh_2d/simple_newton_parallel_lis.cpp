@@ -19,7 +19,7 @@
 #include <sstream>
 
 
-constexpr int NUM_REFINEMENTS           = 3; //5;
+constexpr int NUM_REFINEMENTS           = 2; //5;
 constexpr double MIN_RESIDUAL           = 1.e-6;
 constexpr double MIN_RESIDUAL_TIME_STEP = 1;
 constexpr int NT                        = 10;
@@ -144,8 +144,8 @@ main (int argc, char **argv)
     bcs.push_back (std::make_tuple (0, i, [](double x, double y){return .0;}));
       
   bim2a_structure (tmsh, A);
-  A.aij (xa, ir, jc, 0);
-
+  A.csr (xa, jc, ir, 0);
+  
   std::vector<double> ecoeff (num_global_nodes);
   std::vector<double> ncoeff (num_local_quadrants);
   std::vector<double> f (num_global_nodes);
@@ -153,62 +153,10 @@ main (int argc, char **argv)
   ecoeff.assign (num_local_quadrants, 1.0);
   ncoeff.assign (num_global_nodes, 1.0);
   f.assign (num_global_nodes, 0.0);
- 
-  //  lin_solver->set_lhs_structure (A.rows (), ir, jc);
-
-  LIS_SOLVER solver;
-  LIS_MATRIX A_lis;
-  LIS_VECTOR b, x_lis;
-  LIS_INT *row,  *col;
-  LIS_SCALAR *value;
-  LIS_INT iter;
-  double time;
-  bool have_initial_guess = false, initialized = false;
-  int n, nnz, n_row;
-  int max_iter = 1000;
-  int restart_iterations = 40;
-  double tolerance = 1.0e-12;
-  std::string  iterative_method = "bicg";
-  std::string  preconditioner = "none";
-  std::string  convergence_condition = "nrm2_r";
-  std::string  options_iterative_method = " ";
-  std::string  option_string = "";
-  bool  option_string_set = false ;
-  bool  verbose = true;
-  static const int index_base = 0;
-  double *rhs, *data;
-  n_row = A.rows ();
-  nnz = ir.size ();
+  //lis_distributed *lin_solver ;
   
-  row = new LIS_INT[nnz];
-  col = new LIS_INT[nnz];
-  value = new LIS_SCALAR[nnz];
-  /*
-  for (int i = 0; i < nnz; i++)
-    {
-       row[i] = ir[i];
-       col[i] = jc[i] - index_base;
-       value[i] = 0.0;
-    }
-  */
- 
-  for (int i = 0; i < size; ++i)
-    {
-      if (rank == i)
-	{
-	   printf ("RANK %d \n" , rank);
-	   printf ("SIZE %d \n" , ir.size ());
-	   // for (int i = 0; i < ir.size (); ++i)
-	   // printf ("%d -  %d  \n" , ir[i], jc[i]);
-	    std::cout << A << std::endl;
-	   std::cout << "num_owned_nodes " <<num_owned_nodes  << std::endl;
-  
-	}
-      MPI_Barrier (MPI_COMM_WORLD);
-    }
-  
-  //-----------------------------------------------------------------------------------
-
+  linear_solver *lin_solver = new lis_distributed ();
+  lin_solver->set_lhs_structure (num_owned_nodes, ir, jc);
   int isave = 0;
   if (rank==0)
     t_vect.push_back (t);
@@ -322,116 +270,17 @@ main (int argc, char **argv)
 
 		  MPI_Reduce (&f[0], &du_global[0], num_global_nodes, MPI_DOUBLE, MPI_SUM, 0,
 			      MPI_COMM_WORLD);
-
-		  if (rank == 0)
-		    rhs = &*du_global.begin ();
-		  
-		  if (initialized)
-		    {
-		        lis_solver_destroy (solver);
-			lis_matrix_destroy (A_lis);  
-			lis_vector_destroy (b);
-			lis_vector_destroy (x_lis);
-
-			initialized = false;
-		    }
-		  lis_matrix_create (MPI_COMM_WORLD, &A_lis);
-		  lis_vector_create (MPI_COMM_WORLD, &b);
-		  lis_vector_create (MPI_COMM_WORLD, &x_lis);
-		  lis_solver_create (&solver);
-		  lis_matrix_set_size (A_lis, num_owned_nodes, 0);
-		  LIS_INT nl, ng;
-		  lis_matrix_get_size (A_lis, &nl, &ng);
-		  std::cout << "nl = "<<nl << " ng = "<<ng <<std::endl;
-		  LIS_INT is, ie;
-		  lis_matrix_get_range (A_lis, &is, & ie);
-		  
-		  for (int i = 0; i < size ; ++i)
-		    {
-		      if (rank == i)
-			{
-			  for (unsigned int ia = is; ia < ie; ++ia)
-			    if (A[ia].size ())
-			      for (ja = A[ia].begin (); ja != A[ia].end (); ++ja)
-				{
-				  //  std::cout << " i = " << ia << " j = " << A.col_idx (ja)
-				  //	    << std::endl;
-				  lis_matrix_set_value (LIS_ADD_VALUE, ia, A.col_idx (ja),
-							A.col_val(ja), A_lis);
-				}
-        		}
-		      MPI_Barrier (MPI_COMM_WORLD);
-		    }
-		  return 0;
-        	  lis_matrix_assemble (A_lis);
-		  lis_vector_set_size (b, num_owned_nodes, 0);
-		  lis_vector_duplicate (b, &x_lis);
-                  initialized = true;   
-	
-		  for (int i = is; i < ie; ++i)
-		    lis_vector_set_value (LIS_INS_VALUE, i, rhs[i], b);
-		  
-		  // lin_solver->solve ();
-		  char* options = 0;
-		  
-		  if (! option_string_set)
-		    {
-		      std::stringstream opt;
-		      opt << "-maxiter " << max_iter
-			  << " -restrart " << restart_iterations
-			  << " -tol " << tolerance
-			  << " -i " << iterative_method
-			  << options_iterative_method
-			  << " -p " << preconditioner
-			  << " -conv_cond " << convergence_condition;
-          
-		      if (have_initial_guess)
-			opt << " -initx_zeros false ";
-		      else
-			opt << " -initx_zeros true ";
-		      
-		      option_string = opt.str ();
-		      option_string_set = true;
-		    }
-		  options = new char[option_string.length () + 1];
-		  std::copy (option_string.begin (),
-			     option_string.end (), options);
-		  //std::cout << options << std::endl;
-		  lis_solver_set_option (options, solver);
-  
-		  lis_solve (A_lis, b, x_lis, solver);
-		  
-		  lis_solver_get_iter (solver, &iter);
-		  lis_solver_get_time (solver, &time);
-		  
-		  delete [] options;
-		  
-		  //gather solution vector
-		  double temp = 0.0;
-		  for (int i = is; i < ie; ++i)
-		    {
-		      lis_vector_get_value (x_lis, i, &temp);
-		      rhs[i] = temp;
-		    }
-		  if (verbose && rank == 0)
-		    std::cout << std::endl
-			      << "Number of iterations = " << iter
-			      << std::endl
-			      << "Elapsed time = " << time << std::endl;
-		  std::cout << "size of du_global " << du_global.size () << std::endl;
-		  std::cout << "nl " << num_owned_nodes << std::endl;
-		  std::vector<int> iev (size), isv (size);
-	          MPI_Gather (&is, 1, MPI_INT, &isv[0], 1, MPI_INT, 0, MPI_COMM_WORLD);
-		  MPI_Gather (&num_owned_nodes, 1, MPI_INT, &iev[0], 1,
-			      MPI_INT, 0, MPI_COMM_WORLD);
-
-		  MPI_Gatherv (&rhs[is], num_owned_nodes, MPI_DOUBLE, &du_global[0],
-			       &iev[0], &isv[0],  MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		
 		  // MPI_Barrier (MPI_COMM_WORLD);
        		  // if (rank == 0) toc ("solve");
-
-		  residual_norm_loc = 0.0;
+		  A.csr_update (xa, jc, ir, 0);
+		
+		  static_cast<lis_distributed*> (lin_solver)->assemble_matrix (ir, jc, xa);
+		  if (rank == 0)
+		    lin_solver->set_rhs (du_global);
+		
+        	  lin_solver->solve ();
+		  MPI_Barrier (MPI_COMM_WORLD);
+		   residual_norm_loc = 0.0;
 		  MPI_Bcast (&du_global[0], num_global_nodes, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		  std::for_each (idu_global_first, idu_global_last, compute_norm);
 		  MPI_Reduce (&residual_norm_loc, &residual_norm, 1, MPI_DOUBLE, MPI_SUM, 0,
@@ -445,7 +294,7 @@ main (int argc, char **argv)
 		  
 		  MPI_Allreduce (&u_local[0], &u[0], num_global_nodes, MPI_DOUBLE, MPI_SUM,
 				 MPI_COMM_WORLD);
- 
+		 
 		  // if (rank == 0) toc ("increment");
                  
 		  if (rank == 0)

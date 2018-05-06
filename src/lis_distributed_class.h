@@ -25,21 +25,14 @@ private :
   LIS_MATRIX A;
   LIS_VECTOR b, x;
   LIS_INT iter;
+  LIS_INT is, ie;
+  
   double time;
   bool initialized;
-  
-  LIS_INT *row,  *col;
+ /*
+  LIS_INT *row,  *col;  
   LIS_SCALAR *value;
-
-  /// Stores rows of matrix in AIJ format.
-  std::vector<int> irow;
-
-  /// Stores columns of matrix in AIJ format
-  std::vector<int> jcol;
-
-  /// Pointer to data of matrix.
-  double *data;
-
+*/
   /// Pointer to values of rhs.
   double *rhs;
 
@@ -84,25 +77,23 @@ private :
   int rank, size;
 
   /// Private helper functions
-  
+
   void
-  set_lhs_structure_aij
-  (int n, std::vector<int> &ir, std::vector<int> &jc);
-
-  int
-  init_lis_objects ();
-
-  int
-  assemble_lis_matrix ();
+  init_lis_objects (int n , int nnz_);
 
   int
   invoke_lis_solver ();
 
   void
-  cleanup_master ();
-
+  cleanup_slaves ()
+  {
+    delete [] rhs;
+ 
+    if (have_initial_guess)
+      delete [] initial_guess;
+  }
   void
-  cleanup_slaves ();
+  cleanup_master () {};
 
   void
   destroy_lis_objects ();
@@ -124,10 +115,6 @@ public :
   lis_distributed (LIS_INT argc = 0, char * argv[] = NULL) :
     linear_solver ("LIS", "iterative"),
     initialized (false),
-    row (0),
-    col (0),
-    value (0),
-    data (0),
     rhs (0),
     initial_guess (0),
     have_initial_guess (false),
@@ -148,26 +135,36 @@ public :
   };
 
   /// Set-up the matrix structure.
-  void
+  void   // DA SISTEMARE
   set_lhs_structure
   (int n,
-   std::vector<int> &ir,
-   std::vector<int> &jc,
+   std::vector<int> &row_ptr,
+   std::vector<int> &jcol,
    matrix_format_t f)
   {
+    int nnz_ = jcol.size ();
     if (f == aij)
-      set_lhs_structure_aij (n, ir, jc);
+      init_lis_objects (n, nnz_);
     else
-       std::cout << "Error: set_lhs_structure works only if the imput matrix has aij structure"
-                <<std::endl;
-     
+     {
+       std::cout<< "The format of the matrix of lhs should be csr" << std::endl;
+      
+     }
   };
 
-  
-  /// Set matrix entries.
+  /// Set-up the matrix data.
   void
-  set_lhs_data (std::vector<double> &xa);
-
+  set_lhs_data
+  (std::vector<double> &data)
+   {};
+  
+  void
+  assemble_matrix
+  (std::vector<int> &ptr_row, std::vector<int> &jcol, std::vector<double> &data)
+   {
+        lis_matrix_set_csr (nnz, &ptr_row[0], &jcol[0], &data[0], A);
+        lis_matrix_assemble (A);
+   };
   /// Set the rhs.
   void
   set_rhs (std::vector<double> &rhs_)
@@ -184,10 +181,7 @@ public :
   /// Prepare the solver.
   int
   factorize ()
-  {
-    init_lis_objects ();
-    assert (assemble_lis_matrix () == 1);
-    
+  {  
     return 1;
   }
 
@@ -197,16 +191,34 @@ public :
   {
 
   MPI_Bcast (&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
-/*
-  {
-    MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
-                  MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    if (have_initial_guess)  // da aggiustare!!!
-      MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
+
+  if (rank == 0)
+   {
+     MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE, // ma gli altri rank non dovrebbero 
+                  MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD); // avere la dim di rhs ?
+
+     if (have_initial_guess)
+        MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
                     MPI_DOUBLE, MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-  }
-*/
+   }
+
+  if (rank != 0) 
+   {
+      MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
+                &rhs[0], n_row, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+      if (have_initial_guess)
+       {
+         initial_guess = new double[n_row];
+      
+         MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
+                     MPI_DOUBLE, &initial_guess[0], n_row, MPI_DOUBLE,
+                     0, MPI_COMM_WORLD);
+       }
+    }
+
+
    int retval = invoke_lis_solver ();
  
    if (verbose && rank == 0)
@@ -214,11 +226,14 @@ public :
               << "Number of iterations = " << iter
               << std::endl
               << "Elapsed time = " << time << std::endl;
-  
-   MPI_Reduce (&rhs[0], MPI_IN_PLACE, n_row, MPI_DOUBLE, MPI_SUM, 0,
-			      MPI_COMM_WORLD);
-
-   return retval;
+  if (rank == 0)
+   MPI_Gatherv (MPI_IN_PLACE, 0, MPI_DOUBLE, &rhs[0],
+                &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  if (rank != 0) 
+  MPI_Gatherv (&rhs[0], n_row, MPI_DOUBLE, &rhs[0],
+               &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    
+  return retval;
 
 
   }
@@ -227,6 +242,8 @@ public :
   void
   cleanup ()
   {
+    destroy_lis_objects ();
+      
     if (rank == 0)
       cleanup_master ();
     else

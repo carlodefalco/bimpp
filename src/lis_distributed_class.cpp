@@ -16,55 +16,32 @@
 
 int num = 0;
 
-int
-lis_distributed::init_lis_objects ()
+void
+lis_distributed::init_lis_objects
+  (int n, int nnz_)
 {
-  // Build lis structures
-  /*
-  row = new LIS_INT[n + 1];
-  col = new LIS_INT[nnz];
-  value = new LIS_SCALAR[nnz];
-
-  for (int i = 0; i < nnz ; ++i)
-    col[i] = jcol[i] - index_base;
-   
-  for (int i = 0; i < n + 1; ++i)
-    row[i] = row_ptr[i] - row_ptr[0];
-  */
-  if (initialized)
-    {
-      destroy_lis_objects ();
-      initialized = false;
-    }
-
+  n_row = n;
+  nnz = nnz_;
+ 
+  map_row_s.resize (size);
+  map_n.resize (size);
   lis_matrix_create (MPI_COMM_WORLD, &A);
+  lis_matrix_set_size (A, n, 0);
+  lis_matrix_get_range (A, &is, &ie);
+  MPI_Alltoall (&is, 1, MPI_INT, &(map_row_s[0]), 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Alltoall (&n_row, 1, MPI_INT, &(map_n[0]), 1, MPI_INT, MPI_COMM_WORLD);
   lis_vector_create (MPI_COMM_WORLD, &b);
   lis_vector_create (MPI_COMM_WORLD, &x);
   lis_solver_create (&solver);
-  n=n_row;    
-  lis_matrix_set_size (A, n, n);
-  lis_matrix_set_coo (nnz, row, col, value, A);
-  lis_vector_set_size (b, n, n);
-  lis_vector_duplicate (b, &x);
-/*
-  LIS_INT * nn= &n_row;
-  std::cout<< "Dimensione matrice A : " << lis_matrix_get_size (A, nn, 0) << std::endl; 
-  std::cout<< "Dimensione matrice b : " << lis_vector_get_size (b, nn, 0) << std::endl; 
-  exit (EXIT_FAILURE); 
-  */
-  initialized = true;
-  return 1;
-}
-
-int
-lis_distributed::assemble_lis_matrix ()
-{
-  for (int i = 0; i < nnz ; ++i)
-    value[i] = data[i];
   
-  lis_matrix_assemble (A);
-  return 1;
-}
+  lis_vector_set_size (b, n_row, 0);
+  lis_vector_duplicate (b, &x);   // Ma x non dovrebbe essere intera ??
+  if (rank != 0)
+     rhs = new double[n];
+  
+ }
+
+
 
 int
 lis_distributed::invoke_lis_solver ()
@@ -104,7 +81,6 @@ lis_distributed::invoke_lis_solver ()
              option_string.end (), options);
   //std::cout << options << std::endl;
   lis_solver_set_option (options, solver);
-  
   lis_solve (A, b, x, solver);
 
   lis_solver_get_iter (solver, &iter);
@@ -126,8 +102,8 @@ lis_distributed::invoke_lis_solver ()
 void
 lis_distributed::destroy_lis_objects ()
 {  
-  lis_solver_destroy (solver);
   lis_matrix_destroy (A);
+  lis_solver_destroy (solver);
   lis_vector_destroy (b);
   lis_vector_destroy (x);
 }

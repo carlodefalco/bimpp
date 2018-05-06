@@ -18,7 +18,7 @@ BIMXXIOSRC = octave_file_io.cpp
 BIMXXMUMPSSRC = mumps_class.cpp mumps_solve.cpp
 BIMXXP4ESTSRC = tmesh.cpp quad_operators.cpp tmesh_3d.cpp quad_operators_3d.cpp
 BIMXXLISSRC = lis_class.cpp lis_class_master.cpp lis_class_slaves.cpp
-BIMXXLISDISTSRC = lis_distributed_class.cpp lis_distributed_class_master.cpp lis_distributed_class_slaves.cpp
+BIMXXLISDISTSRC = lis_distributed_class.cpp 
 include_HEADERS = $(BIMXXHEADERS)
 
 lib_LTLIBRARIES = libbim.la libbimio.la libbimmumps.la libbimlis.la libbimlisdist.la libbimp4est.la  
