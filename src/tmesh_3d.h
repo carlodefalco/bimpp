@@ -335,6 +335,11 @@ public:
   octbin_export (const char * filename,
                  const std::vector<double> & f);
 
+  /// Export quadrant field f to a octbin.gz file for visualization.
+  void
+  octbin_export_quadrant (const char * filename,
+			  const std::vector<double> & f);
+
   /// Get an iterator to the first quadrant of the mesh.
   quadrant_iterator
   begin_quadrant_sweep ();
