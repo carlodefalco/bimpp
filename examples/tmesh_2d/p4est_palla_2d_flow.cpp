@@ -149,51 +149,37 @@ main (int argc, char **argv)
       x0 = x; v0 = v;
 
       // Assemble differential problem.
-      double kG = 1;
-      double kS = 1e6;
+      double kG = 1e6;
+      double kS = 1;
       
-      std::vector<double> alpha(tmsh.num_global_nodes (), kG);
+      std::vector<double> alpha(tmsh.num_local_quadrants (), kG);
       std::vector<double> psi(tmsh.num_global_nodes (), 0);
       
-      std::vector<double> f(tmsh.num_local_quadrants (), 1);
-      std::vector<double> g(tmsh.num_global_nodes (), 1);
-      
-      double xx = 0, yy = 0;
+      std::vector<double> f(tmsh.num_local_quadrants (), 0);
+      std::vector<double> g(tmsh.num_global_nodes (), 0);
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
-          for (int ii = 0; ii < 4; ++ii)
-            {
-              xx = quadrant->p(0, ii);
-              yy = quadrant->p(1, ii);
-                
-              if (! quadrant->is_hanging (ii) &&
-                  std::pow(xx - x[0], 2) +
-                  std::pow(yy - x[1], 2) <=
-		  std::pow(r, 2))
-                alpha[quadrant->gt(ii)] = kS;
-            }
+	  if (std::pow(quadrant->centroid(0) - x[0], 2) +
+	      std::pow(quadrant->centroid(1) - x[1], 2) <=
+	      std::pow(r, 2))
+	    alpha[quadrant->get_forest_quad_idx ()] = kS;
         }
 
       sparse_matrix A;
       A.resize(tmsh.num_global_nodes());
       
-      // Reduce coefficients.
-      std::vector<double> global_alpha(tmsh.num_global_nodes(), 0);
-      MPI_Allreduce(alpha.data(), global_alpha.data(), alpha.size(),
-                    MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-      
-      bim2a_advection_eafe_diffusion (tmsh, global_alpha, psi, A);
+      bim2a_advection_diffusion (tmsh, alpha, psi, A);
       
       std::vector<double> rhs(tmsh.num_global_nodes (), 0);
       bim2a_rhs (tmsh, f, g, rhs);
 
       // Set boundary conditions.
       dirichlet_bcs bcs;
-      bcs.push_back (std::make_tuple(0, 2, [] (double x, double y) {return 0;}));
-      bcs.push_back (std::make_tuple(0, 3, [] (double x, double y) {return 0;}));
+      bcs.push_back (std::make_tuple(0, 0, [] (double x, double y) {return 1;}));
+      bcs.push_back (std::make_tuple(0, 1, [] (double x, double y) {return 0;}));
       
       bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
       
@@ -232,32 +218,19 @@ main (int argc, char **argv)
       
       std::cout << " Done." << std::endl;
       
-      // Compute reconstructed gradient.
-      std::cout << "Computing reconstructed gradient, solution and estimator.";
+      // Export level.
+      std::vector<double> level (tmsh.num_local_quadrants ());
       
-      active_fun regionG = [] (tmesh::quadrant_iterator q)
-        { return (std::pow(q->centroid(0) - x[0], 2) +
-                  std::pow(q->centroid(1) - x[1], 2) >
-                  std::pow(r, 2)); };
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep ();
+           ++quadrant)
+	{
+	  level[quadrant->get_forest_quad_idx ()] = quadrant->the_quadrant->level;
+	}
       
-      active_fun regionS = [] (tmesh::quadrant_iterator q)
-        { return (std::pow(q->centroid(0) - x[0], 2) +
-                  std::pow(q->centroid(1) - x[1], 2) <=
-                  std::pow(r, 2)); };
+      tmsh.octbin_export_quadrant ((std::string("p4est_palla_2d_flow_level_")
+				    + std::to_string(t)).c_str(), level);
       
-      gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, regionG);
-      gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, regionS);
-      
-      tmsh.octbin_export ((std::string("p4est_palla_2d_flow_du0_x_")
-                           + std::to_string(t)).c_str(), du0.first);
-      tmsh.octbin_export ((std::string("p4est_palla_2d_flow_du0_y_")
-                           + std::to_string(t)).c_str(), du0.second);
-      
-      tmsh.octbin_export ((std::string("p4est_palla_2d_flow_du1_x_")
-                           + std::to_string(t)).c_str(), du1.first);
-      tmsh.octbin_export ((std::string("p4est_palla_2d_flow_du1_y_")
-                           + std::to_string(t)).c_str(), du1.second);
-
       // Refine + coarsen.
       MPI_Barrier (MPI_COMM_WORLD); 
       if (rank == 0) { tic (); }
