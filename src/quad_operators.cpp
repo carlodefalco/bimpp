@@ -378,27 +378,6 @@ void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     sparse_matrix& A, std::vector<double>& rhs)
 {
-  std::vector<double> row_sum (A.size ());
-  
-  // Set zero diagonal entries to sum (abs (row)).
-  for (unsigned int row = 0; row < A.size (); ++row)
-    {
-      if (std::abs (A[row][row])
-          < std::numeric_limits<double>::epsilon ())
-        {
-          row_sum[row] = std::accumulate
-            (A[row].begin (),
-             A[row].end (),
-             0.0,
-             [] (double value,
-                 const std::map<int, double>::value_type & p)
-               {
-                 return (value + std::abs (p.second));
-               }
-            );
-        }
-    }
-  
   int boundary_idx, tree_idx;
   unsigned int row, col;
   
@@ -454,7 +433,18 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     
                     if (std::abs (A[row][row])
                         < std::numeric_limits<double>::epsilon ())
-                      A[row][row] = row_sum[row];
+		      {
+			A[row][row] = std::accumulate
+			  (A[row].begin (),
+			   A[row].end (),
+			   0.0,
+			   [] (double value,
+			       const std::map<int, double>::value_type & p)
+			   {
+			     return (value + std::abs (p.second));
+			   }
+			   );
+		      }
                     
                     // Multiply rhs by the diagonal entry.
                     rhs[row] *= A[row][row];
