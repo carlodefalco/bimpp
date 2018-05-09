@@ -1,45 +1,45 @@
+#include <bim_timing.h>
+#include <tmesh_3d.h>
+#include <quad_operators_3d.h>
+#include <mumps_class.h>
+
 #include <array>
 #include <cassert>
 #include <cstdio>
-#include <cmath>
-#include <iostream>
 
-#include <bim_timing.h>
-#include <tmesh.h>
-#include <quad_operators.h>
-#include <mumps_class.h>
+#include "simple_connectivity_3d.h"
 
-#include <simple_connectivity_2d.h>
-
-static std::array<double, 3> x0 = {.5, .5, 0.};
+static std::array<double, 3> x0 = {.5, .5, .5};
 static std::array<double, 3> x = x0;
-static std::array<double, 3> v0 = {0.2, 0.0, 0.0};;
+static std::array<double, 3> v0 = {0.2, 0.0, 0.8};
 static std::array<double, 3> v = v0;
 static std::array<double, 3> L = {1., 1., 1.};
 static std::array<double, 3> g = {0., -9.81, 0.};
-static constexpr double r = .0625;;
+static constexpr double r = .0625;
 static constexpr double dt = .01;
-static const int maxlevel =  9;
-static const int minlevel =  4;
+static const int maxlevel =  8;
+static const int minlevel =  3;
 static char filename[255] = "\0";
 
 static int
-uniform_refinement (tmesh::quadrant_iterator quadrant)
+uniform_refinement (tmesh_3d::quadrant_iterator quadrant)
 { return 1; }
 
 static int
-refinement (tmesh::quadrant_iterator quadrant)
+refinement (tmesh_3d::quadrant_iterator quadrant)
 {
   int currentlevel = static_cast<int> (quadrant->the_quadrant->level);
   double xcoord, ycoord, zcoord, dist = .0;
   int retval = 0;
-  for (int ii = 0; ii < 4; ++ii)
+  for (int ii = 0; ii < 8; ++ii)
     {
       xcoord = quadrant->p(0, ii);
       ycoord = quadrant->p(1, ii);
+      zcoord = quadrant->p(2, ii);
       
       dist = std::sqrt (std::pow (xcoord - x[0], 2) +
-                        std::pow (ycoord - x[1], 2));
+                        std::pow (ycoord - x[1], 2) +
+                        std::pow (zcoord - x[2], 2));
 
 
       if (dist > .9 * r && dist < 1.1 * r)
@@ -56,18 +56,20 @@ refinement (tmesh::quadrant_iterator quadrant)
 }
 
 static int
-coarsening (tmesh::quadrant_iterator quadrant)
+coarsening (tmesh_3d::quadrant_iterator quadrant)
 {
   int currentlevel = static_cast<int> (quadrant->the_quadrant->level);
   double xcoord, ycoord, zcoord, dist = .0;
   int retval = currentlevel - minlevel;
-  for (int ii = 0; ii < 4; ++ii)
+  for (int ii = 0; ii < 8; ++ii)
     {
       xcoord = quadrant->p(0, ii);
       ycoord = quadrant->p(1, ii);
+      zcoord = quadrant->p(2, ii);
       
       dist = std::sqrt (std::pow (xcoord - x[0], 2) +
-                        std::pow (ycoord - x[1], 2));
+                        std::pow (ycoord - x[1], 2) +
+                        std::pow (zcoord - x[2], 2));
 
 
       if (dist > .9 * r && dist < 1.1 * r)
@@ -112,15 +114,19 @@ main (int argc, char **argv)
   int                   recursive, partforcoarsen, balance;
   MPI_Comm              mpicomm = MPI_COMM_WORLD;  
   int                   rank, size;
-  tmesh                 tmsh;
+  tmesh_3d              tmsh;
   
   mpicomm = MPI_COMM_WORLD;
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
 
+  
+  MPI_Barrier (MPI_COMM_WORLD);
+  if (rank == 0) { tic (); }
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
-
+  if (rank == 0) { toc ("read connectivity"); }
+  MPI_Barrier (MPI_COMM_WORLD);
 
   for (auto i = 0; i < minlevel; ++i)
     {
@@ -145,6 +151,7 @@ main (int argc, char **argv)
 
       palla_helper (x0[0], v0[0], L[0], g[0], dt, r, x[0], v[0]);
       palla_helper (x0[1], v0[1], L[1], g[1], dt, r, x[1], v[1]);
+      palla_helper (x0[2], v0[2], L[2], g[2], dt, r, x[2], v[2]);
       
       x0 = x; v0 = v;
 
@@ -158,30 +165,33 @@ main (int argc, char **argv)
       std::vector<double> f(tmsh.num_local_quadrants (), 0);
       std::vector<double> g(tmsh.num_global_nodes (), 0);
       
+      double xx = 0, yy = 0, zz = 0;
+      
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
 	  if (std::pow(quadrant->centroid(0) - x[0], 2) +
-	      std::pow(quadrant->centroid(1) - x[1], 2) <=
+	      std::pow(quadrant->centroid(1) - x[1], 2) +
+	      std::pow(quadrant->centroid(2) - x[2], 2) <=
 	      std::pow(r, 2))
 	    alpha[quadrant->get_forest_quad_idx ()] = kS;
-        }
+	}
 
       sparse_matrix A;
       A.resize(tmsh.num_global_nodes());
       
-      bim2a_advection_diffusion (tmsh, alpha, psi, A);
+      bim3a_advection_diffusion (tmsh, alpha, psi, A);
       
       std::vector<double> rhs(tmsh.num_global_nodes (), 0);
-      bim2a_rhs (tmsh, f, g, rhs);
+      bim3a_rhs (tmsh, f, g, rhs);
 
       // Set boundary conditions.
-      dirichlet_bcs bcs;
-      bcs.push_back (std::make_tuple(0, 0, [] (double x, double y) {return 1;}));
-      bcs.push_back (std::make_tuple(0, 1, [] (double x, double y) {return 0;}));
+      dirichlet_bcs3 bcs;
+      bcs.push_back (std::make_tuple(0, 0, [] (double x, double y, double z) {return 1;}));
+      bcs.push_back (std::make_tuple(0, 1, [] (double x, double y, double z) {return 0;}));
       
-      bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
+      bim3a_dirichlet_bc (tmsh, bcs, A, rhs);
       
       // Solve problem.
       std::cout << "Solving linear system.";
@@ -213,11 +223,11 @@ main (int argc, char **argv)
       
       // Export solution.
       MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      tmsh.octbin_export ((std::string("p4est_palla_2d_flow_u_")
+      tmsh.octbin_export ((std::string("p4est_palla_3d_flow_u_")
                            + std::to_string(t)).c_str(), global_rhs);
       
       std::cout << " Done." << std::endl;
-      
+
       // Export level.
       std::vector<double> level (tmsh.num_local_quadrants ());
       
@@ -228,7 +238,7 @@ main (int argc, char **argv)
 	  level[quadrant->get_forest_quad_idx ()] = quadrant->the_quadrant->level;
 	}
       
-      tmsh.octbin_export_quadrant ((std::string("p4est_palla_2d_flow_level_")
+      tmsh.octbin_export_quadrant ((std::string("p4est_palla_3d_flow_level_")
 				    + std::to_string(t)).c_str(), level);
       
       // Refine + coarsen.

@@ -293,7 +293,7 @@ public :
   void
   reset ();
 
-  /// Sums the addendum matrix onto the base matrix. Generates entries if necessary
+  /// Sparse matrix increment. Automatically allocates additional entries.
   template<class T>
   void 
   operator+= (T &adm);
