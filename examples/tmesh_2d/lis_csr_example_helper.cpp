@@ -43,7 +43,7 @@ void
 non_local_t::csr (sparse_matrix &A, int is, int ie)
 {
   A.set_properties ();
-  a.reserve (A.nnz); col_ind.reserve (A.nnz);
+  a.reserve (A.nnz); col_ind.reserve (A.nnz); // FIXME: ESAGERATO!!! meglio "nnz / mpisize" ??
   row_ptr.resize (A.rows () + 1);
 
   int idx = 0, idr = 0;

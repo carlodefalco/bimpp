@@ -627,6 +627,31 @@ tmesh_3d::octbin_export (const char * basename,
 };
 
 void
+tmesh_3d::octbin_export_quadrant (const char * basename,
+                                  const std::vector<double> & f)
+{
+  assert (f.size () == num_local_quadrants ());
+
+  ColumnVector oct_f (f.size (), 0.0);
+
+  std::copy_n (f.begin (), f.size (), oct_f.fortran_vec ());
+
+  octave_scalar_map the_map;
+  the_map.assign ("f", oct_f);
+  
+  octave_io_mode m = gz_write_mode;
+
+  // Define filename.
+  char filename[255] = "";
+  sprintf (filename, "%s_%4.4d.octbin.gz", basename, rank);
+
+  // Save to filename.
+  assert (octave_io_open (filename, m, &m) == 0);
+  assert (octave_save ("msh", octave_value (the_map)) == 0);
+  assert (octave_io_close () == 0);
+};
+
+void
 tmesh_3d::quadrant_iterator::reset ()
 {
   if (data != nullptr)

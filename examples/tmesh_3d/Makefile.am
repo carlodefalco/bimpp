@@ -8,11 +8,17 @@ AM_CPPFLAGS      =  -I$(top_srcdir)/src -I$(top_srcdir)/test -I$(top_builddir)/s
 AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
-bin_PROGRAMS = p4est_palla_3d
+bin_PROGRAMS = p4est_palla_3d p4est_palla_3d_flow
 CLEANFILES = 
 
 p4est_palla_3d_SOURCES =  p4est_palla_3d.cpp
 p4est_palla_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
 p4est_palla_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 p4est_palla_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+CLEANFILES += palla_initial_mesh*.pvtu palla_initial_mesh*.visit palla_initial_mesh*.vtu
+
+p4est_palla_3d_flow_SOURCES =  p4est_palla_3d_flow.cpp
+p4est_palla_3d_flow_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
+p4est_palla_3d_flow_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+p4est_palla_3d_flow_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
 CLEANFILES += palla_initial_mesh*.pvtu palla_initial_mesh*.visit palla_initial_mesh*.vtu

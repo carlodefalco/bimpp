@@ -9,7 +9,7 @@ AM_CPPFLAGS      =  -I$(top_srcdir)/src -I$(top_srcdir)/test -I$(top_builddir)/s
 AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
-bin_PROGRAMS = p4est_refine_segment_test p4est_ref_test p4est_ref_lnodes_test p4est_palla_2d simple_newton simple_newton_system simple_newton_parallel_lis lis_csr_example simple_newton_parallel_lis_one_file
+bin_PROGRAMS = p4est_refine_segment_test p4est_ref_test p4est_ref_lnodes_test p4est_palla_2d p4est_palla_2d_flow simple_newton simple_newton_system simple_newton_parallel_lis lis_csr_example simple_newton_parallel_lis_one_file
 
 CLEANFILES =
 
@@ -66,7 +66,6 @@ simple_newton_parallel_lis_one_file_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ 
 simple_newton_parallel_lis_one_file_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 simple_newton_parallel_lis_one_file_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLISDISTLIB) @P4EST_LIB@
 CLEANFILES += 
-
 
 lis_csr_example_SOURCES =  lis_csr_example.cpp lis_csr_example_helper.cpp
 lis_csr_example_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
