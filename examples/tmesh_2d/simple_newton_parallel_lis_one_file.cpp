@@ -170,14 +170,15 @@ main (int argc, char **argv)
 
   std::vector<double> uold, uvold;
   uold.assign (num_global_nodes, 1.0);
-  uvold.assign (num_global_nodes, 1.0);
-  
-  std::vector<double> u (uold);
-  std::vector<double> u_local (num_global_nodes), f_global (num_global_nodes);
-  std::vector<double> du (num_global_nodes), du_global (num_global_nodes);
+  uvold.assign (num_owned_nodes, 1.0);
+
+  // uold e u hanno dimensione piena, cioè il numero totale di nodi,
+  // perchè servono intere per il calcolo di A e f con bim2a
+  std::vector<double> u (num_global_nodes, 1.0);
+  std::vector<double> u_local (num_owned_nodes);
+  std::vector<double>  du_local (num_owned_nodes);
  
-  du.assign (num_global_nodes, 0.0);
-  du_global.assign (num_global_nodes, 0.0);
+  du_local.assign (num_owned_nodes, 0.0);
 
   auto iu  = u.begin ();
   auto iuo = uold.begin ();
@@ -353,23 +354,21 @@ main (int argc, char **argv)
   if (rank==0)
     t_vect.push_back (t);
 
-  auto iu_local_first = u_local.begin () + global_offset;
-  auto iu_local_last =  u_local.begin () + global_offset + num_owned_nodes;
+  auto iu_local_first = u_local.begin ();
+  auto iu_local_last =  u_local.begin () + num_owned_nodes;
   std::vector<double>::iterator iu_local;
 
   auto iuo_first = uold.begin () + global_offset;
+  auto iuo_last = uold.begin () + global_offset + num_owned_nodes;
   
-  auto iuvo_first = uvold.begin () + global_offset;
+  auto iuvo_first = uvold.begin ();
   std::vector<double>::iterator iuvo;
-
-  auto idu_first = du.begin () + global_offset;
-  std::vector<double>::iterator idu;
   
-  auto idu_global_first = du_global.begin () + global_offset;
-  auto idu_global_last =  du_global.begin () + global_offset + num_owned_nodes;
-  std::vector<double>::iterator idu_global;
+  auto idu_local_first = du_local.begin ();
+  auto idu_local_last =  du_local.begin () + num_owned_nodes;
+  std::vector<double>::iterator idu_local;
 
-  u_local.assign (num_global_nodes, 0.0);
+  u_local.assign (num_owned_nodes, 0.0);
 
   int flag_while_tsave, flag_tvold, flag_neg, flag_neg_global;
 
@@ -419,8 +418,8 @@ main (int argc, char **argv)
 		  for (iu_local = iu_local_first; iu_local != iu_local_last; ++iu_local)
 		    (*iu_local) = std::max (0.0, (*iu_local));
 		}
-	      MPI_Allreduce (&u_local[0], &u[0], num_global_nodes, MPI_DOUBLE, MPI_SUM,
-			     MPI_COMM_WORLD);
+	      MPI_Allgatherv (&u_local[0], num_owned_nodes, MPI_DOUBLE, &u[0],
+				 &map_n[0], &map_row_s[0], MPI_DOUBLE, MPI_COMM_WORLD);
         	 
 	      for (it_nonlin = 0; it_nonlin < MAX_IT; ++it_nonlin)
 		{
@@ -460,9 +459,9 @@ main (int argc, char **argv)
 		  //if (rank == 0) toc ("assembly");
 
 		  bim2a_dirichlet_bc (tmsh, bcs, A, f);
-
-		  MPI_Reduce (&f[0], &du_global[0], num_global_nodes, MPI_DOUBLE, MPI_SUM, 0,
-			      MPI_COMM_WORLD);
+		  for (int i = 0; i < size; ++i)
+		    MPI_Reduce (&f[map_row_s[i]], &du_local[0], map_n[i], MPI_DOUBLE, MPI_SUM, i,
+				MPI_COMM_WORLD);
 
 		  A.csr_update (xa, jc, ir, 0);
 		  //##############################################################################
@@ -504,7 +503,7 @@ main (int argc, char **argv)
 		        for (int i = 1; i < row_buffers[ii].size (); ++i)
 			  for (int j = 0; j < row_buffers[ii][i] - row_buffers[ii][i-1]; ++j)
 			    {
-			      row = i-1;
+			      row = i-1 + map_row_s[rank];
 			      col = col_buffers[ii][idx];
 			      val = val_buffers[ii][idx];
 			      idx= idx + 1;
@@ -513,55 +512,25 @@ main (int argc, char **argv)
 	        	    }
 		      }
 
-		  for (int i = 0; i < nnz; i++)
-		    value[i] = xa[i + ir[is]];
-		  // TA: alla fine ho usato row, col e value, senza mandare direttamente
-		  // ir, ij e xa, perchè lis_matrix_set_csr vuole che i vettori passati
-		  // vedano SOLO il pezzo di matrice su cui il processore attuale sta lavorando.
-		  // Quindi, oltre a ristringere la dimensione, devo anche modificare i valori
-		  // di ir per poterli passare. Per jc e xa in realtà basta prendere il pezzo che
-		  // riguarda le celle della porzione di matrice in considerazione, quindi potrei
-		  // evitare di usare value e col se è troppo dispendioso. 
-		  lis_matrix_set_csr (xa.size (), row, col, value, A_lis);
+	          // TA: alla fine ho usato row e col , senza mandare direttamente
+		  // ir e  jc. Per limitare la copia di vettori, ho provato a usare
+		  // jc, come ho fatto con xa, però il problema è che la funzione
+		  // lis_matrix_set_csr va a modificare i valori di jc e poi anche A.csr_update
+		  // viene sbagliato. Posso vietare a lis_matrix_set_csr di modificare i valori
+		  // di jc ?
+		  lis_matrix_set_csr (nnz , row, col, &xa[ir[is]], A_lis);
 		  lis_matrix_assemble (A_lis);
 		  
-		  if (rank == 0)
-		    rhs = &*du_global.begin ();
-		 
-		    MPI_Bcast (&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		  MPI_Bcast (&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-		  if (rank == 0)
-		    {
-		      MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE, 
-				    MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD); 
-
-		      if (have_initial_guess)
-			MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
-				      MPI_DOUBLE, MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		    }
-
-		  if (rank != 0) 
-		    {
-		      MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
-				    &rhs[0], n_row, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-		      if (have_initial_guess)
-			{
-			  initial_guess = new double[n_row];
-      
-			  MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
-					MPI_DOUBLE, &initial_guess[0], n_row, MPI_DOUBLE,
-					0, MPI_COMM_WORLD);
-			}
-		    }
-
+		  
 	          // lis_output_matrix (A_lis, LIS_FMT_MM, "lis_matrix.mm");
-		  for (int i = is; i < is + n_row; ++i)
+		  for (int i = 0; i < num_owned_nodes; ++i)
 		    {
-		      lis_vector_set_value (LIS_INS_VALUE, i, rhs[i - is], b);
+		      lis_vector_set_value (LIS_INS_VALUE, i + is, du_local[i], b);
 		      if (have_initial_guess)
-			lis_vector_set_value (LIS_INS_VALUE, i,
-					      initial_guess[i - is], x_lis);
+			lis_vector_set_value (LIS_INS_VALUE, i + is,
+					      initial_guess[i], x_lis);
 		    }
 		  /*
 		  if (rank == 0)
@@ -569,18 +538,17 @@ main (int argc, char **argv)
 	
 		  if (rank == 1)
 		  lis_output_vector (b, LIS_FMT_MM, "bbb_rank1.mm");
-
-		  lis_output_vector (b, LIS_FMT_MM, "bbb.mm");
-
+		  */
+		  lis_output_vector (b, LIS_FMT_MM, "bbb2.mm");
+		  /*
 		  if (rank == 0)
 		  lis_output_matrix (A_lis, LIS_FMT_MM, "AAA_rank0.mm");
 	
 		  if (rank == 1)
 		  lis_output_matrix (A_lis, LIS_FMT_MM, "AAA_rank1.mm");
-
-		  lis_output_matrix (A_lis, LIS_FMT_MM, "AAA.mm");
 		  */
-		  
+		  lis_output_matrix (A_lis, LIS_FMT_MM, "AAA2.mm");
+        	  
 		  // SOLVE !
 		  char* options = 0;
 		  if (! option_string_set)
@@ -617,10 +585,10 @@ main (int argc, char **argv)
 		  
 		  //gather solution vector
 		  double temp = 0.0;
-		  for (int i = is; i < ie; ++i)
+		  for (int i = 0 ; i < num_owned_nodes; ++i)
 		    {
-		      lis_vector_get_value (x_lis, i, &temp);
-		      rhs[i-is] = temp;
+		      lis_vector_get_value (x_lis, i + is, &temp);
+		      du_local[i] = temp;
 		    }
 		  /*
 		  if (rank == 0)
@@ -628,42 +596,34 @@ main (int argc, char **argv)
 	
 		  if (rank == 1)
 		  lis_output_vector (x_lis, LIS_FMT_MM, "xxx_rank1.mm");
-
-		  lis_output_vector (x_lis, LIS_FMT_MM, "xxx.mm");
 		  */
+		  lis_output_vector (x_lis, LIS_FMT_MM, "xxx2.mm");
+		  		  
 		  if (verbose && rank == 0)
 		    std::cout << std::endl
 			      << "Number of iterations = " << iter
 			      << std::endl
 			      << "Elapsed time = " << time << std::endl;
-        
-		  if (rank == 0)
-		    MPI_Gatherv (MPI_IN_PLACE, 0, MPI_DOUBLE, &rhs[0],
-				 &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		  if (rank != 0) 
-		    MPI_Gatherv (&rhs[0], n_row, MPI_DOUBLE, &rhs[0],
-				 &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
 		  //##############################################################################
 
 		  // MPI_Barrier (MPI_COMM_WORLD);
        		  // if (rank == 0) toc ("solve");
 		  
 		  residual_norm_loc = 0.0;
-		  MPI_Bcast (&du_global[0], num_global_nodes, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		  std::for_each (idu_global_first, idu_global_last, compute_norm);
+		  std::for_each (idu_local_first, idu_local_last, compute_norm);
 		  MPI_Reduce (&residual_norm_loc, &residual_norm, 1, MPI_DOUBLE, MPI_SUM, 0,
 			      MPI_COMM_WORLD);
 		  if (rank == 0)
 		    residual_norm = std::sqrt (residual_norm);
 		  MPI_Bcast (&residual_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		  idu_global = idu_global_first;
+		  idu_local = idu_local_first;
 		  for (iu_local = iu_local_first; iu_local != iu_local_last; ++iu_local)
-		    (*iu_local) += (*(idu_global++));
+		    (*iu_local) += (*(idu_local++));
 		  
-		  MPI_Allreduce (&u_local[0], &u[0], num_global_nodes, MPI_DOUBLE, MPI_SUM,
-				 MPI_COMM_WORLD);
-		  /*
+
+		  MPI_Allgatherv (&u_local[0], num_owned_nodes, MPI_DOUBLE, &u[0],
+				  &map_n[0], &map_row_s[0], MPI_DOUBLE, MPI_COMM_WORLD);
+        	  /*
 		  if (rank == 0)
 		    for (int i = 0; i< du_global.size (); ++i)
 		      std::cout << u[i]<<std::endl;
@@ -698,15 +658,12 @@ main (int argc, char **argv)
 		}
 	    }
 
-	  idu = idu_first;
+	  idu_local = idu_local_first;
 	  iuo = iuo_first;
 	  for (iu_local = iu_local_first; iu_local != iu_local_last; ++iu_local)
-	    (*(idu++)) = (*(iu_local)) - (*(iuo++));
-
-	  MPI_Allreduce (&du[0], &du_global[0], num_global_nodes, MPI_DOUBLE, MPI_SUM,
-			 MPI_COMM_WORLD);
+	    (*(idu_local++)) = (*(iu_local)) - (*(iuo++));
 	 
-	  std::copy (uold.begin (), uold.end (), uvold.begin ());
+	  std::copy (iuo_first , iuo_last, uvold.begin ());
           std::copy (u.begin (), u.end (), uold.begin ());
           tvold = told;
 	  told = t;
@@ -716,7 +673,7 @@ main (int argc, char **argv)
 	  dtold = dt;
 
 	  residual_norm_loc = 0.0;
-	  std::for_each (idu_global_first, idu_global_last, compute_norm);
+	  std::for_each (idu_local_first, idu_local_last, compute_norm);
 	  MPI_Reduce (&residual_norm_loc, &residual_norm, 1, MPI_DOUBLE, MPI_SUM, 0,
 		      MPI_COMM_WORLD);
 	  residual_norm = std::sqrt (residual_norm);
@@ -733,7 +690,6 @@ main (int argc, char **argv)
 	      dt = std::min (dt , dt_tsave);
 	      std::cout <<"----dt = "<< dt << std::endl;    
 	      std::cout <<"----final step error = "<< residual_norm << std::endl;
-	      
 	    }
 	  MPI_Bcast (&dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
@@ -741,7 +697,7 @@ main (int argc, char **argv)
 
       //      if (rank == 0) tic ();
 
-      
+      /*
         tmsh.octbin_export ((std::string ("tumor_growth_u_")
                              + std::to_string (isave)).c_str (), u);
 
@@ -749,8 +705,8 @@ main (int argc, char **argv)
                              + std::to_string (isave)).c_str (), f);
         
         tmsh.octbin_export ((std::string ("tumor_growth_du_")
-                             + std::to_string (isave++)).c_str (), du);
-      
+                             + std::to_string (isave++)).c_str (), du_local);
+      */
          MPI_Barrier (MPI_COMM_WORLD);  
       //      if (rank == 0) toc ("export");
 
