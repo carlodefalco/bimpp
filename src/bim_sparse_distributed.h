@@ -24,8 +24,6 @@ private :
   size_t is, ie;
   MPI_Comm comm;
   int mpirank, mpisize;
-    
-public :
 
   struct
   non_local_t
@@ -40,14 +38,23 @@ public :
 
   std::vector<int> ranges;
   std::vector<int> rank_nnz;
+  
+public :
 
   void
-  set_ranges (size_t is_, size_t ie_, MPI_Comm comm_)
+  set_ranges (size_t is_, size_t ie_, MPI_Comm comm_ = MPI_COMM_WORLD)
   {
     is = is_; ie = ie_; comm = comm_;
     MPI_Comm_rank (comm, &mpirank);
     MPI_Comm_size (comm, &mpisize);
   }
+
+  distributed_sparse_matrix (size_t is_, size_t ie_, MPI_Comm comm_ = MPI_COMM_WORLD)
+    { set_ranges (is_, ie_, comm_); }
+
+  distributed_sparse_matrix (MPI_Comm comm_ = MPI_COMM_WORLD)
+    : comm (comm_)
+    { }
 
   void
   assemble ();
