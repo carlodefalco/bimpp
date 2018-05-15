@@ -81,7 +81,7 @@ AS_IF([test "x$with_p4estlibrary" != xno],
         save_LDFLAGS=$LDFLAGS
         LDFLAGS="$P4EST_LDFLAGS $LDFLAGS"
         LIBS="$P4EST_LIB $LIBS"
-        AC_CHECK_LIB([p4est],[p4est_refine],
+        AC_CHECK_LIB([p4est],[p4est_connectivity_bcast],
         [AC_SUBST(P4EST_CPPFLAGS, "$P4EST_CPPFLAGS")
         AC_SUBST(P4EST_LDFLAGS, "$P4EST_LDFLAGS")
         AC_SUBST(P4EST_LIB,"$P4EST_LIB")
