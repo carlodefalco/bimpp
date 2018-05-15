@@ -38,27 +38,28 @@ private :
 
   std::vector<int> ranges;
   std::vector<int> rank_nnz;
+
+  bool mapped;
   
 public :
 
   void
-  set_ranges (size_t is_, size_t ie_, MPI_Comm comm_ = MPI_COMM_WORLD)
-  {
-    is = is_; ie = ie_; comm = comm_;
-    MPI_Comm_rank (comm, &mpirank);
-    MPI_Comm_size (comm, &mpisize);
-  }
+  set_ranges (size_t is_, size_t ie_, MPI_Comm comm_ = MPI_COMM_WORLD);
 
   distributed_sparse_matrix (size_t is_, size_t ie_, MPI_Comm comm_ = MPI_COMM_WORLD)
+    : mapped (false)
     { set_ranges (is_, ie_, comm_); }
 
   distributed_sparse_matrix (MPI_Comm comm_ = MPI_COMM_WORLD)
-    : comm (comm_)
+    : comm (comm_), mapped (false)
     { }
 
   void
   assemble ();
 
+  void
+  remap ();
+  
 };
 
 #endif
