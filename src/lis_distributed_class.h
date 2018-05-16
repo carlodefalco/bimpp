@@ -29,18 +29,11 @@ private :
   
   double time;
   bool initialized;
- /*
-  LIS_INT *row,  *col;  
-  LIS_SCALAR *value;
-*/
-  /// Pointer to values of rhs.
   double *rhs;
-
-  /// Stores values of ordering map.
-  std::vector<int> ordering_map;
-
-  /// Pointer to values of initial guess.
+  double *data;
   double *initial_guess;
+  LIS_INT *row;
+  LIS_INT *col; // DA TRASFORMARE IN int * col, così da essere puntatore a jc 
 
   /// It's true if solver have initial guess passed by user.
   bool have_initial_guess;
@@ -65,11 +58,8 @@ private :
   /// \details [default = norm 2 of residual]
   std::string convergence_condition;
 
-  std::vector<int> map_i_s, map_row_s;
-  std::vector<int> map_n, map_nnz;
-
   int i_s, row_s;
-  int n, nnz, n_row;
+  int n, nnz, n_row, size_jc;
 
   /// Index base used by specific linear solver.
   static const int index_base = 0;
@@ -84,17 +74,7 @@ private :
   int
   invoke_lis_solver ();
 
-  void
-  cleanup_slaves ()
-  {
-    delete [] rhs;
- 
-    if (have_initial_guess)
-      delete [] initial_guess;
-  }
-  void
-  cleanup_master () {};
-
+  
   void
   destroy_lis_objects ();
   
@@ -135,89 +115,41 @@ public :
   };
 
   /// Set-up the matrix structure.
-  void   // DA SISTEMARE
+  void
   set_lhs_structure
   (int n,
-   std::vector<int> &row_ptr,
-   std::vector<int> &jcol,
-   matrix_format_t f)
-  {
-    int nnz_ = jcol.size ();
-    if (f == aij)
-      init_lis_objects (n, nnz_);
-    else
-     {
-       std::cout<< "The format of the matrix of lhs should be csr" << std::endl;
-      
-     }
-  };
+   std::vector<int> &ir,
+   std::vector<int> &jc,
+   matrix_format_t f);
 
   /// Set-up the matrix data.
   void
   set_lhs_data
-  (std::vector<double> &data)
-   {};
+  (std::vector<double> &data_);
   
   void
   assemble_matrix
   (std::vector<int> &ptr_row, std::vector<int> &jcol, std::vector<double> &data)
-   {
-        lis_matrix_set_csr (nnz, &ptr_row[0], &jcol[0], &data[0], A);
-        lis_matrix_assemble (A);
-   };
+   {};
   /// Set the rhs.
   void
-  set_rhs (std::vector<double> &rhs_)
-  { rhs = &*rhs_.begin (); }
+  set_rhs (std::vector<double> &rhs_);
 
   /// Set the initial guess.
   void
-  set_initial_guess (std::vector<double> &initial_guess_)
-  {
-    have_initial_guess = true;
-    initial_guess = &*initial_guess_.begin ();
-  }
+  set_initial_guess (std::vector<double> &initial_guess_);
 
-  /// Prepare the solver.
+ 
+ int
+  analyze ();
+ /// Prepare the solver.
   int
-  factorize ()
-  {  
-    return 1;
-  }
+  factorize ();
 
   /// Solve the system.
   int
   solve ()
   {
-
-  MPI_Bcast (&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-
-  if (rank == 0)
-   {
-     MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE, // ma gli altri rank non dovrebbero 
-                  MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD); // avere la dim di rhs ?
-
-     if (have_initial_guess)
-        MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
-                    MPI_DOUBLE, MPI_IN_PLACE, 0, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-   }
-
-  if (rank != 0) 
-   {
-      MPI_Scatterv (&rhs[0], &map_n[0], &map_row_s[0], MPI_DOUBLE,
-                &rhs[0], n_row, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-      if (have_initial_guess)
-       {
-         initial_guess = new double[n_row];
-      
-         MPI_Scatterv (&initial_guess[0], &map_n[0], &map_row_s[0],
-                     MPI_DOUBLE, &initial_guess[0], n_row, MPI_DOUBLE,
-                     0, MPI_COMM_WORLD);
-       }
-    }
-
 
    int retval = invoke_lis_solver ();
  
@@ -226,12 +158,6 @@ public :
               << "Number of iterations = " << iter
               << std::endl
               << "Elapsed time = " << time << std::endl;
-  if (rank == 0)
-   MPI_Gatherv (MPI_IN_PLACE, 0, MPI_DOUBLE, &rhs[0],
-                &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
-  if (rank != 0) 
-  MPI_Gatherv (&rhs[0], n_row, MPI_DOUBLE, &rhs[0],
-               &map_n[0], &map_row_s[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
     
   return retval;
 
@@ -242,13 +168,6 @@ public :
   void
   cleanup ()
   {
-    destroy_lis_objects ();
-      
-    if (rank == 0)
-      cleanup_master ();
-    else
-      cleanup_slaves ();
-
     destroy_lis_objects ();
     //lis_finalize ();
   }

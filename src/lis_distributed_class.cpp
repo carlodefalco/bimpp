@@ -17,42 +17,78 @@
 int num = 0;
 
 void
-lis_distributed::init_lis_objects
-  (int n, int nnz_)
+lis_distributed::set_lhs_structure
+  (int n,
+   std::vector<int> &ir,
+   std::vector<int> &jc,
+   matrix_format_t f)
 {
   n_row = n;
-  nnz = nnz_;
  
-  map_row_s.resize (size);
-  map_n.resize (size);
   lis_matrix_create (MPI_COMM_WORLD, &A);
-  lis_matrix_set_size (A, n, 0);
-  lis_matrix_get_range (A, &is, &ie);
-  MPI_Alltoall (&is, 1, MPI_INT, &(map_row_s[0]), 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Alltoall (&n_row, 1, MPI_INT, &(map_n[0]), 1, MPI_INT, MPI_COMM_WORLD);
+  lis_matrix_set_size (A, n_row, 0);
+  LIS_INT is, ie;
+  lis_matrix_get_range (A, &is, & ie);
+   nnz = jc.size() - ir[is];
+ size_jc = jc.size ();
+  row = new LIS_INT[n_row + 1];
+  col = new LIS_INT[nnz];
+  for (int i = 0; i < nnz; i++)
+    col[i] = jc[i + is];
+  for (int i = 0; i < n_row + 1; i++)
+    row[i] = ir[i + is] - ir[is];
+   
+ 
+}
+
+int
+lis_distributed::analyze ()
+{
   lis_vector_create (MPI_COMM_WORLD, &b);
   lis_vector_create (MPI_COMM_WORLD, &x);
   lis_solver_create (&solver);
-  
-  lis_vector_set_size (b, n_row, 0);
-  lis_vector_duplicate (b, &x);   // Ma x non dovrebbe essere intera ??
-  if (rank != 0)
-     rhs = new double[n];
-  
- }
+  lis_vector_set_size (b,  n_row, 0);
+  lis_vector_duplicate (b, &x); 
+  return 1;  
+ 
+}
+void
+lis_distributed::set_lhs_data
+(std::vector<double> &data_)
+ { data= &*data_.begin (); }  
 
+void
+lis_distributed::set_rhs (std::vector<double> &rhs_)
+  { rhs = &*rhs_.begin (); }
 
+ void
+lis_distributed::set_initial_guess (std::vector<double> &initial_guess_)
+ { have_initial_guess = true; 
+  initial_guess = &*initial_guess_.begin (); }
 
+int 
+lis_distributed::factorize ()
+{
+ 
+ lis_matrix_set_csr (nnz , row, col, &data[size_jc - nnz], A);
+ lis_matrix_assemble (A);
+ lis_output_matrix (A, LIS_FMT_MM, "A2.mm");
+		
+ MPI_Bcast (&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
+ for (int i = 0; i < n_row; ++i)
+   {
+     lis_vector_set_value (LIS_INS_VALUE, i + is, rhs[i], b);
+     if (have_initial_guess)
+		lis_vector_set_value (LIS_INS_VALUE, i + is, 					        initial_guess[i], x);
+  }
+ lis_output_vector (b, LIS_FMT_MM, "b2.mm");
+ 
+return 1;
+
+}
 int
 lis_distributed::invoke_lis_solver ()
 {
-  for (int i = 0; i < n_row; ++i)
-    {
-      lis_vector_set_value (LIS_INS_VALUE, i, rhs[i], b);
-      if (have_initial_guess)
-        lis_vector_set_value (LIS_INS_VALUE, i,
-                              initial_guess[i], x);
-    }
 
   char* options = 0;
 
