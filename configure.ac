@@ -81,7 +81,7 @@ AS_IF([test "x$with_p4estlibrary" != xno],
         save_LDFLAGS=$LDFLAGS
         LDFLAGS="$P4EST_LDFLAGS $LDFLAGS"
         LIBS="$P4EST_LIB $LIBS"
-        AC_CHECK_LIB([p4est],[p4est_refine],
+        AC_CHECK_LIB([p4est],[p4est_connectivity_bcast],
         [AC_SUBST(P4EST_CPPFLAGS, "$P4EST_CPPFLAGS")
         AC_SUBST(P4EST_LDFLAGS, "$P4EST_LDFLAGS")
         AC_SUBST(P4EST_LIB,"$P4EST_LIB")
@@ -233,10 +233,11 @@ AC_CONFIG_FILES([src/bim_config_pre.h
                  src/Makefile
                  data/Makefile
                  test/Makefile
-                 examples/tmesh_2d/Makefile
-                 examples/tmesh_3d/Makefile
                  examples/adaptive_adr_2d/Makefile
                  examples/bgs/Makefile
-                 examples/bim3/Makefile])
+                 examples/bim3/Makefile
+                 examples/distributed_matrix/Makefile
+                 examples/tmesh_2d/Makefile
+                 examples/tmesh_3d/Makefile])
 AC_OUTPUT
 

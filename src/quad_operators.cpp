@@ -433,18 +433,97 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     
                     if (std::abs (A[row][row])
                         < std::numeric_limits<double>::epsilon ())
-		      {
-			A[row][row] = std::accumulate
-			  (A[row].begin (),
-			   A[row].end (),
-			   0.0,
-			   [] (double value,
-			       const std::map<int, double>::value_type & p)
-			   {
-			     return (value + std::abs (p.second));
-			   }
-			   );
-		      }
+                      {
+                        A[row][row] = std::accumulate
+                          (A[row].begin (),
+                           A[row].end (),
+                           0.0,
+                           [] (double value,
+                               const std::map<int, double>::value_type & p)
+                           {
+                             return (value + std::abs (p.second));
+                           }
+                           );
+                      }
+                    
+                    // Multiply rhs by the diagonal entry.
+                    rhs[row] *= A[row][row];
+                  }
+            }
+        }
+    }
+}
+
+void
+bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
+                    sparse_matrix& A, std::vector<double>& rhs)
+{
+  int boundary_idx, tree_idx;
+  unsigned int row, col;
+  
+  std::set<unsigned int> marked;
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      tree_idx = quadrant->get_tree_idx ();
+      
+      for (int i = 0; i < 4; ++i)
+        {
+          boundary_idx = quadrant->e (i);
+          row = quadrant->gt (i);
+          
+          // If current node is on boundary and has not
+          // been handled before.
+          if (boundary_idx != tmesh::quadrant_t::NOT_ON_BOUNDARY
+              && marked.count(row) == 0)
+            {
+              // Mark current node so to avoid duplicate operations.
+              marked.insert (row); 
+              
+              // Loop over all the boundary conditions.
+              for (size_t bc = 0; bc < bcs.size (); ++bc)
+                // If this boundary condition matches with
+                // the current node.
+                if (std::get<0> (bcs[bc]) == tree_idx
+                    && std::get<1> (bcs[bc]) == boundary_idx)
+                  {
+                    // Impose boundary condition at rhs by
+                    // evaluating it at the current node.
+                    rhs[row] =
+                      (std::get<2> (bcs[bc])) (quadrant, i);
+                    
+                    // Move non-diagonal entries
+                    // from column "row" to rhs.
+                    if (A[row].size ())
+                      for (auto j = A[row].begin ();
+                           j != A[row].end (); ++j)
+                        {
+                          col = A.col_idx (j);
+                          
+                          if (row != col)
+                            {
+                              A[row][col] = 0.0;
+                              rhs[col] -= A[col][row] * rhs[row];
+                              A[col][row] = 0.0;
+                            }
+                        }
+                    
+                    if (std::abs (A[row][row])
+                        < std::numeric_limits<double>::epsilon ())
+                      {
+                        A[row][row] = std::accumulate
+                          (A[row].begin (),
+                           A[row].end (),
+                           0.0,
+                           [] (double value,
+                               const std::map<int, double>::value_type & p)
+                           {
+                             return (value + std::abs (p.second));
+                           }
+                           );
+                      }
                     
                     // Multiply rhs by the diagonal entry.
                     rhs[row] *= A[row][row];
