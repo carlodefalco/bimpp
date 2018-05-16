@@ -2,14 +2,15 @@ AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src
 AUTOMAKE_OPTIONS = nostdinc
 
 BIMXXHEADERS = octave_file_io.h bim_timing.h mesh.h operators.h \
-bim_sparse.h linear_solver.h mumps_class.h mumps_solve.h \
+bim_sparse.h bim_sparse_distributed.h linear_solver.h mumps_class.h mumps_solve.h \
 lis_class.h lis_distributed_class.h nonlinear_solver.h adaptive_inexact_newton_class.h \
 backtracking_inexact_newton_class.h backtracking_inexact_newton_example8_class.h \
 projected_Newton_method_and_gradient_direction_class.h abstract_nonlinear_problem.h \
 abstract_forcing_term.h forcing_class.h bgs_class.h schur_class.h rre.h \
 tmesh.h quad_operators.h tmesh_3d.h quad_operators_3d.h
 
-BIMXXSRC = mesh.cpp operators.cpp bim_sparse.cpp adaptive_inexact_newton_class.cpp \
+BIMXXSRC = mesh.cpp operators.cpp bim_sparse.cpp bim_sparse_distributed.cpp \
+adaptive_inexact_newton_class.cpp \
 backtracking_inexact_newton_class.cpp backtracking_inexact_newton_example8_class.cpp \
 projected_Newton_method_and_gradient_direction_class.cpp forcing_class.cpp bgs_class.cpp rre.cpp \
  #schur_class.cpp

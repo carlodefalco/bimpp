@@ -10,9 +10,14 @@
 #include <vector>
 
 /// f(x, y).
-using func = std::function<double (double, double)>; 
+using func = std::function<double (double, double)>;
 
+/// f(quadrant, node index).
+using func_quad = std::function<double (tmesh::quadrant_iterator, tmesh::idx_t)>;
+
+/// Tree index, boundary index, function.
 using dirichlet_bcs = std::vector<std::tuple<int, int, func>>;
+using dirichlet_bcs_quad = std::vector<std::tuple<int, int, func_quad>>;
 
 using q1_vec = std::vector<double>;
 
@@ -55,6 +60,10 @@ bim2a_rhs (tmesh& mesh,
 
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
+                    sparse_matrix& A, std::vector<double>& rhs);
+
+void
+bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                     sparse_matrix& A, std::vector<double>& rhs);
 
 double
