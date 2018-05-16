@@ -9,7 +9,7 @@ AM_CPPFLAGS      =  -I$(top_srcdir)/src -I$(top_srcdir)/test -I$(top_builddir)/s
 AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
-bin_PROGRAMS = p4est_refine_segment_test p4est_ref_test p4est_ref_lnodes_test p4est_palla_2d p4est_palla_2d_flow simple_newton simple_newton_system simple_newton_parallel_lis lis_csr_example simple_newton_parallel_lis_one_file
+bin_PROGRAMS = p4est_refine_segment_test p4est_ref_test p4est_ref_lnodes_test p4est_palla_2d p4est_palla_2d_flow simple_newton simple_newton_system simple_newton_parallel_lis lis_csr_example simple_newton_parallel_lis_one_file prova
 
 CLEANFILES =
 
@@ -73,4 +73,9 @@ lis_csr_example_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 lis_csr_example_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLISLIB)  @P4EST_LIB@
 CLEANFILES += 
 
+prova_SOURCES =  prova.cpp 
+prova_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+prova_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+prova_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLISLIB)  @P4EST_LIB@
+CLEANFILES += 
 
