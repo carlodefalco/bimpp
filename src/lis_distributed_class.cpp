@@ -84,7 +84,6 @@ lis_distributed::factorize ()
  lis_output_vector (b, LIS_FMT_MM, "b2.mm");
  
 return 1;
-
 }
 int
 lis_distributed::invoke_lis_solver ()
@@ -222,4 +221,3 @@ lis_distributed::set_convergence_condition (const std::string &s)
     }
   option_string_set = false;
 }
-
