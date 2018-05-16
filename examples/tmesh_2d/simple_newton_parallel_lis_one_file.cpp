@@ -521,18 +521,7 @@ main (int argc, char **argv)
 		  // di jc ?
 		  lis_matrix_set_csr (nnz , row, &jc[ir[is]], &xa[ir[is]], A_lis);
 		  lis_matrix_assemble (A_lis);
-		 	  if (rank == 0)
-		    {
-		      for (int i = is; i <ie; ++i)
-			for (int j = ir[i]; j < ir[i+1]; ++j)
-			  std::cout << i << " "<<jc[j]<< std::endl;		      
-		      std::cout << "--------------------"<<std::endl;
-		      for (int i = 0; i <num_owned_nodes; ++i)
-			for (int j = row[i]; j < row[i+1]; ++j)
-			  std::cout << i + is << " " <<col[j]<< std::endl;
 
-			    }
-	 
 		  MPI_Bcast (&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
 		  
@@ -745,7 +734,3 @@ main (int argc, char **argv)
 
   return 0;
 }
-
-
-
-
