@@ -248,7 +248,7 @@ main (int argc, char **argv)
   /// Gather ranges
   std::vector<int> ranges (size + 1, 0);
   MPI_Allgather (&ie, 1, MPI_INT, &(ranges[1]), 1, MPI_INT, MPI_COMM_WORLD);
-  
+  // ------------------------------------------------------------------------------
   non_local.csr (A, is, ie);
 
   /// Distribute buffer sizes
@@ -333,7 +333,7 @@ main (int argc, char **argv)
              kk < row_buffers[ii][jj+1]   - row_buffers[ii][0];
              ++kk) // loop over columns of row
 	  A[jj + is][col_buffers[ii][kk]] += 0.0;
-
+  //--------------------------------------------------------------------------------
   A.csr (xa, jc, ir, 0);
 
   int nnz = ir[ie] - ir[is];
@@ -344,11 +344,11 @@ main (int argc, char **argv)
     col[i] = jc[i + ir[is]];
   for (int i = 0; i < num_owned_nodes + 1; i++)
     row[i] = ir[i + is] - ir[is];
-    
+  lis_matrix_set_csr (nnz , row, col, &xa[ir[is]], A_lis);
+  	
   lis_vector_set_size (b,  num_owned_nodes, 0);
   lis_vector_duplicate (b, &x_lis);  
-  if (rank != 0)
-    rhs = new double[n_row];
+
   // ##########################################################################################
   int isave = 0;
   if (rank==0)
@@ -503,6 +503,7 @@ main (int argc, char **argv)
 		        for (int i = 1; i < row_buffers[ii].size (); ++i)
 			  for (int j = 0; j < row_buffers[ii][i] - row_buffers[ii][i-1]; ++j)
 			    {
+			      
 			      row = i-1 + map_row_s[rank];
 			      col = col_buffers[ii][idx];
 			      val = val_buffers[ii][idx];
@@ -518,9 +519,20 @@ main (int argc, char **argv)
 		  // lis_matrix_set_csr va a modificare i valori di jc e poi anche A.csr_update
 		  // viene sbagliato. Posso vietare a lis_matrix_set_csr di modificare i valori
 		  // di jc ?
-		  lis_matrix_set_csr (nnz , row, col, &xa[ir[is]], A_lis);
+		  lis_matrix_set_csr (nnz , row, &jc[ir[is]], &xa[ir[is]], A_lis);
 		  lis_matrix_assemble (A_lis);
-		  
+		 	  if (rank == 0)
+		    {
+		      for (int i = is; i <ie; ++i)
+			for (int j = ir[i]; j < ir[i+1]; ++j)
+			  std::cout << i << " "<<jc[j]<< std::endl;		      
+		      std::cout << "--------------------"<<std::endl;
+		      for (int i = 0; i <num_owned_nodes; ++i)
+			for (int j = row[i]; j < row[i+1]; ++j)
+			  std::cout << i + is << " " <<col[j]<< std::endl;
+
+			    }
+	 
 		  MPI_Bcast (&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
 		  
@@ -637,8 +649,12 @@ main (int argc, char **argv)
 			      << " incr norm = "
 			      << residual_norm
 			      << std::endl;
-		  
-		  
+		  if (it_nonlin > 3)
+		    {
+		    MPI_Finalize();
+		  return 0;
+		    }
+		
 		  flag_neg = any_of (iu_local_first, iu_local_last, [] (double ii){return ii < 0;});
 		  MPI_Allreduce (&flag_neg, &flag_neg_global, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 		  if (flag_neg_global)   it_nonlin = MAX_IT;
@@ -697,16 +713,16 @@ main (int argc, char **argv)
 
       //      if (rank == 0) tic ();
 
-      /*
+      
         tmsh.octbin_export ((std::string ("tumor_growth_u_")
-                             + std::to_string (isave)).c_str (), u);
-
+                             + std::to_string (isave++)).c_str (), u);
+	/*
         tmsh.octbin_export ((std::string ("tumor_growth_f_")
                              + std::to_string (isave)).c_str (), f);
         
         tmsh.octbin_export ((std::string ("tumor_growth_du_")
                              + std::to_string (isave++)).c_str (), du_local);
-      */
+	*/
          MPI_Barrier (MPI_COMM_WORLD);  
       //      if (rank == 0) toc ("export");
 
