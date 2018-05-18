@@ -469,9 +469,13 @@ octbingz2connectivity
   // load data from file
   octave_value tmp;
   octave_io_mode m = gz_read_mode;
-  assert (octave_io_open (filename, m, &m) == 0);
-  assert (octave_load ("msh", tmp) == 0);
 
+  int flag_open = octave_io_open (filename, m, &m);
+  assert (flag_open == 0);
+
+  int flag_load = octave_load ("msh", tmp);
+  assert (flag_load == 0);
+  
   Matrix p_matrix =
     tmp.scalar_map_value ().contents ("p").matrix_value ();
 
@@ -534,7 +538,9 @@ tmesh::vtk_export (const char *filename)
   context = p4est_vtk_write_header (context);
   context =
     p4est_vtk_write_cell_dataf (context, 1, 1, 1, 0, 0, 0, context);
-  assert (p4est_vtk_write_footer (context) == 0);
+
+  int flag = p4est_vtk_write_footer (context);
+  assert (flag == 0);
 };
 
 void
@@ -610,10 +616,14 @@ tmesh::octbin_export (const char * basename,
   sprintf (filename, "%s_%4.4d.octbin.gz", basename, rank);
 
   // Save to filename.
-  assert (octave_io_open (filename, m, &m) == 0);
-  assert (octave_save ("msh", octave_value (the_map)) == 0);
-  assert (octave_io_close () == 0);
+  int flag_open = octave_io_open (filename, m, &m);
+  assert (flag_open == 0);
+  
+  int flag_save = octave_save ("msh", octave_value (the_map));
+  assert (flag_save == 0);
 
+  int flag_close = octave_io_close ();
+  assert (flag_close == 0);
 };
 
 void
@@ -636,9 +646,14 @@ tmesh::octbin_export_quadrant (const char * basename,
   sprintf (filename, "%s_%4.4d.octbin.gz", basename, rank);
 
   // Save to filename.
-  assert (octave_io_open (filename, m, &m) == 0);
-  assert (octave_save ("msh", octave_value (the_map)) == 0);
-  assert (octave_io_close () == 0);
+  int flag_open = octave_io_open (filename, m, &m);
+  assert (flag_open == 0);
+  
+  int flag_save = octave_save ("msh", octave_value (the_map));
+  assert (flag_save == 0);
+
+  int flag_close = octave_io_close ();
+  assert (flag_close == 0);
 };
 
 void
