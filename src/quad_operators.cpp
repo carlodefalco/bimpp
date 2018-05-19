@@ -426,8 +426,13 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                           if (row != col)
                             {
                               A[row][col] = 0.0;
-                              rhs[col] -= A[col][row] * rhs[row];
-                              A[col][row] = 0.0;
+                              
+                              // If row "col" is owned by current process.
+                              if (A[col].size ())
+                                {
+                                  rhs[col] -= A[col][row] * rhs[row];
+                                  A[col][row] = 0.0;
+                                }
                             }
                         }
                     
@@ -505,8 +510,13 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                           if (row != col)
                             {
                               A[row][col] = 0.0;
-                              rhs[col] -= A[col][row] * rhs[row];
-                              A[col][row] = 0.0;
+                              
+                              // If row "col" is owned by current process.
+                              if (A[col].size ())
+                                {
+                                  rhs[col] -= A[col][row] * rhs[row];
+                                  A[col][row] = 0.0;
+                                }
                             }
                         }
                     

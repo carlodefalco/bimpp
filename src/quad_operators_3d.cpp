@@ -335,8 +335,13 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                           if (row != col)
                             {
                               A[row][col] = 0.0;
-                              rhs[col] -= A[col][row] * rhs[row];
-                              A[col][row] = 0.0;
+                              
+                              // If row "col" is owned by current process.
+                              if (A[col].size ())
+                                {
+                                  rhs[col] -= A[col][row] * rhs[row];
+                                  A[col][row] = 0.0;
+                                }
                             }
                         }
                     
@@ -414,8 +419,13 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
                           if (row != col)
                             {
                               A[row][col] = 0.0;
-                              rhs[col] -= A[col][row] * rhs[row];
-                              A[col][row] = 0.0;
+                              
+                              // If row "col" is owned by current process.
+                              if (A[col].size ())
+                                {
+                                  rhs[col] -= A[col][row] * rhs[row];
+                                  A[col][row] = 0.0;
+                                }
                             }
                         }
                     
