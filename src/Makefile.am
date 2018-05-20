@@ -12,8 +12,9 @@ tmesh.h quad_operators.h tmesh_3d.h quad_operators_3d.h
 BIMXXSRC = mesh.cpp operators.cpp bim_sparse.cpp bim_sparse_distributed.cpp \
 adaptive_inexact_newton_class.cpp \
 backtracking_inexact_newton_class.cpp backtracking_inexact_newton_example8_class.cpp \
-projected_Newton_method_and_gradient_direction_class.cpp forcing_class.cpp bgs_class.cpp rre.cpp \
- #schur_class.cpp
+projected_Newton_method_and_gradient_direction_class.cpp forcing_class.cpp bgs_class.cpp rre.cpp 
+
+#schur_class.cpp
 
 BIMXXIOSRC = octave_file_io.cpp
 BIMXXMUMPSSRC = mumps_class.cpp mumps_solve.cpp
