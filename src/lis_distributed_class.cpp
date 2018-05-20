@@ -18,32 +18,25 @@ int num = 0;
 
 void
 lis_distributed::set_lhs_structure
-  (int n,
-   std::vector<int> &ir,
-   std::vector<int> &jc,
-   matrix_format_t f)
+(int n,
+ std::vector<int> &ir,
+ std::vector<int> &jc,
+ matrix_format_t f)
 {
   n_row = n;
- 
   lis_matrix_create (MPI_COMM_WORLD, &A);
   lis_matrix_set_size (A, n_row, 0);
-  LIS_INT is, ie;
-  lis_matrix_get_range (A, &is, & ie);
-   nnz = jc.size() - ir[is];
- size_jc = jc.size ();
-  row = new LIS_INT[n_row + 1];
-  col = new LIS_INT[nnz];
-  for (int i = 0; i < nnz; i++)
-    col[i] = jc[i + is];
-  for (int i = 0; i < n_row + 1; i++)
-    row[i] = ir[i + is] - ir[is];
-   
- 
+  lis_matrix_get_range (A, &is, &ie);
+  row = &*ir.begin();
+  col = &*jc.begin();
+  nnz = jc.size();
+  
 }
 
 int
 lis_distributed::analyze ()
 {
+
   lis_vector_create (MPI_COMM_WORLD, &b);
   lis_vector_create (MPI_COMM_WORLD, &x);
   lis_solver_create (&solver);
@@ -55,35 +48,27 @@ lis_distributed::analyze ()
 void
 lis_distributed::set_lhs_data
 (std::vector<double> &data_)
- { data= &*data_.begin (); }  
+{ data= &*data_.begin (); }  
 
 void
 lis_distributed::set_rhs (std::vector<double> &rhs_)
-  { rhs = &*rhs_.begin (); }
+{ rhs = &*rhs_.begin (); }
 
- void
+void
 lis_distributed::set_initial_guess (std::vector<double> &initial_guess_)
- { have_initial_guess = true; 
+{ have_initial_guess = true; 
   initial_guess = &*initial_guess_.begin (); }
 
 int 
 lis_distributed::factorize ()
 {
- 
- lis_matrix_set_csr (nnz , row, col, &data[size_jc - nnz], A);
- lis_matrix_assemble (A);
- lis_output_matrix (A, LIS_FMT_MM, "A2.mm");
-		
- MPI_Bcast (&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
- for (int i = 0; i < n_row; ++i)
-   {
-     lis_vector_set_value (LIS_INS_VALUE, i + is, rhs[i], b);
-     if (have_initial_guess)
-		lis_vector_set_value (LIS_INS_VALUE, i + is, 					        initial_guess[i], x);
-  }
- lis_output_vector (b, LIS_FMT_MM, "b2.mm");
- 
-return 1;
+  lis_matrix_create (MPI_COMM_WORLD, &A);
+  lis_matrix_set_size (A, n_row, 0);
+  lis_matrix_set_csr (nnz , &row[0], &col[0], &data[0], A);
+  lis_matrix_assemble (A);
+  return 1;
+
+>>>>>>> implemented the structure
 }
 int
 lis_distributed::invoke_lis_solver ()
@@ -127,7 +112,7 @@ lis_distributed::invoke_lis_solver ()
   double temp = 0.0;
   for (int i = 0; i < n_row; ++i)
     {
-      lis_vector_get_value (x, i, &temp);
+      lis_vector_get_value (x, i + is, &temp);
       rhs[i] = temp;
     }
   
@@ -137,8 +122,9 @@ lis_distributed::invoke_lis_solver ()
 void
 lis_distributed::destroy_lis_objects ()
 {  
-  lis_matrix_destroy (A);
+
   lis_solver_destroy (solver);
+  lis_matrix_destroy (A);
   lis_vector_destroy (b);
   lis_vector_destroy (x);
 }

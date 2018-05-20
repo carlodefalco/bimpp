@@ -19,7 +19,7 @@
 /// Interface for linear solver built with lis library.
 class lis_distributed: public linear_solver
 {
-private :
+ private :
 
   LIS_SOLVER solver;
   LIS_MATRIX A;
@@ -32,8 +32,7 @@ private :
   double *rhs;
   double *data;
   double *initial_guess;
-  LIS_INT *row;
-  LIS_INT *col; // DA TRASFORMARE IN int * col, così da essere puntatore a jc 
+  int *row, *col;
 
   /// It's true if solver have initial guess passed by user.
   bool have_initial_guess;
@@ -58,8 +57,7 @@ private :
   /// \details [default = norm 2 of residual]
   std::string convergence_condition;
 
-  int i_s, row_s;
-  int n, nnz, n_row, size_jc;
+  int  nnz, n_row;
 
   /// Index base used by specific linear solver.
   static const int index_base = 0;
@@ -68,17 +66,14 @@ private :
 
   /// Private helper functions
 
-  void
-  init_lis_objects (int n , int nnz_);
-
   int
-  invoke_lis_solver ();
+    invoke_lis_solver ();
 
   
   void
-  destroy_lis_objects ();
+    destroy_lis_objects ();
   
-public :
+ public :
 
   /// \brief Name of iterative method.
   /// \details [default = bicg].
@@ -93,7 +88,7 @@ public :
   
   /// Default costructor.
   lis_distributed (LIS_INT argc = 0, char * argv[] = NULL) :
-    linear_solver ("LIS", "iterative"),
+  linear_solver ("LIS", "iterative"),
     initialized (false),
     rhs (0),
     initial_guess (0),
@@ -108,65 +103,75 @@ public :
     option_string (""),
     option_string_set (false),
     verbose (true)
-  {
-    lis_initialize (&argc, &argv);
-    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-    MPI_Comm_size (MPI_COMM_WORLD, &size);
-  };
+      {
+	lis_initialize (&argc, &argv);
+	MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+	MPI_Comm_size (MPI_COMM_WORLD, &size);
+      };
 
   /// Set-up the matrix structure.
   void
-  set_lhs_structure
-  (int n,
-   std::vector<int> &ir,
-   std::vector<int> &jc,
-   matrix_format_t f);
+    set_lhs_structure
+    (int n,
+     std::vector<int> &ir,
+     std::vector<int> &jc,
+     matrix_format_t f);
 
   /// Set-up the matrix data.
   void
-  set_lhs_data
-  (std::vector<double> &data_);
+    set_lhs_data
+    (std::vector<double> &data_);
   
-  void
-  assemble_matrix
-  (std::vector<int> &ptr_row, std::vector<int> &jcol, std::vector<double> &data)
-   {};
   /// Set the rhs.
   void
-  set_rhs (std::vector<double> &rhs_);
+    set_rhs (std::vector<double> &rhs_);
 
   /// Set the initial guess.
   void
-  set_initial_guess (std::vector<double> &initial_guess_);
+    set_initial_guess (std::vector<double> &initial_guess_);
 
  
- int
-  analyze ();
- /// Prepare the solver.
   int
-  factorize ();
+    analyze ();
+  /// Prepare the solver.
+  int
+    factorize ();
 
   /// Solve the system.
   int
-  solve ()
+    solve ()
   {
-
-   int retval = invoke_lis_solver ();
+    MPI_Bcast (&have_initial_guess, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    for (int i = 0; i < n_row; ++i)
+      {
+	lis_vector_set_value (LIS_INS_VALUE, i + is, rhs[i], b);
+	if (have_initial_guess)
+	  lis_vector_set_value (LIS_INS_VALUE, i + is, 					      initial_guess[i], x);
+      }
  
-   if (verbose && rank == 0)
-     std::cout << std::endl
-              << "Number of iterations = " << iter
-              << std::endl
-              << "Elapsed time = " << time << std::endl;
+
+    int retval = invoke_lis_solver ();
+ 
+    if (verbose && rank == 0)
+      std::cout << std::endl
+
+		<< "Number of iterations = " << iter
+		<< std::endl
+		<< "Elapsed time = " << time << std::endl;
     
-  return retval;
+    return retval;
 
 
+  }
+  void 
+    get_is_ie (int &is_, int &ie_)
+  {
+    is_ = is ; ie_ = ie;
   }
 
   /// Cleanup memory.
   void
-  cleanup ()
+    cleanup ()
   {
     destroy_lis_objects ();
     //lis_finalize ();
@@ -174,7 +179,7 @@ public :
 
   /// Set maximum number of iterations (default = 1000).
   void
-  set_max_iterations (int max_iter_)
+    set_max_iterations (int max_iter_)
   {
     max_iter = max_iter_;
     option_string_set = false;
@@ -182,7 +187,7 @@ public :
   
   /// Set number of restart iterations (default = 40).
   void
-  set_restart_iterations (int restart_iterations_)
+    set_restart_iterations (int restart_iterations_)
   {
     restart_iterations = restart_iterations_;
     option_string_set = false;
@@ -190,7 +195,7 @@ public :
 
   /// Get maximum number of iterations.
   void
-  get_max_iterations (int &max_iter_)
+    get_max_iterations (int &max_iter_)
   {
     max_iter_ = max_iter;
     option_string_set = false;
@@ -198,7 +203,7 @@ public :
 
   /// Set tolerance of iterative method (default = 1.0e-12).
   void
-  set_tolerance (double tol)
+    set_tolerance (double tol)
   {
     tolerance = tol;
     option_string_set = false;
@@ -206,32 +211,32 @@ public :
 
   /// Get tolerance of linear solver.
   void
-  get_tolerance (double &tol)
+    get_tolerance (double &tol)
   { tol = tolerance; }
 
   /// Get type of iterative method.
   void
-  get_iterative_method (std::string &s)
+    get_iterative_method (std::string &s)
   { s = iterative_method; }
 
   /// Get type of preconditioner.
   void
-  get_preconditioner (std::string &s)
+    get_preconditioner (std::string &s)
   { s = preconditioner; }
 
   /// get convergence condition of iterative method
   void
-  get_convergence_condition (std::string &s)
+    get_convergence_condition (std::string &s)
   { s = convergence_condition; }
 
   /// Set type of iterative method (default = cg).
   void
-  set_iterative_method (const std::string &s);
+    set_iterative_method (const std::string &s);
 
   /// Set options of iterative method .
   void
-  set_options_iterative_method
-  (const std::string &options_iterative_method_)
+    set_options_iterative_method
+    (const std::string &options_iterative_method_)
   {
     options_iterative_method = options_iterative_method_;
     option_string_set = false;
@@ -239,16 +244,16 @@ public :
 
   /// Set type of preconditioner (default = none).
   void
-  set_preconditioner (const std::string &s);
+    set_preconditioner (const std::string &s);
 
   /// Set convergence condition of iterative method
   /// (default = nrm2_r)
   void
-  set_convergence_condition (const std::string &s);
+    set_convergence_condition (const std::string &s);
 
   /// LIS uses 0-based indexing
   inline int
-  get_index_base ()
+    get_index_base ()
   { return index_base; }
 
 };
