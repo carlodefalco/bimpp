@@ -15,6 +15,8 @@
 #include <lis.h>
 #include <string>
 #include <bim_sparse.h>
+
+#include <bim_sparse_distributed.h>
 #include <algorithm>
 #include <sstream>
 
@@ -40,60 +42,6 @@ const p4est_topidx_t simple_conn_t[simple_conn_num_trees*5] =
 static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return NUM_REFINEMENTS; }
-
-struct
-non_local_t
-{
-  std::vector<int> row_ptr, col_ind;
-  std::vector<double> a;
-  
-  void
-  csr (sparse_matrix &A, int is, int ie);
-  // TA : ho aggiunto questo metodo che aggiorna i valori di a,
-  // dato che row_ptr e col_ind rimangono costanti
-  void
-  csr_update (sparse_matrix &A, int is, int ie);
-};
-
-void
-non_local_t::csr (sparse_matrix &A, int is, int ie)
-{
-  A.set_properties ();
-  a.reserve (A.nnz); col_ind.reserve (A.nnz);
-  row_ptr.resize (A.rows () + 1);
-
-  int idx = 0, idr = 0;
-
-  sparse_matrix::col_iterator jj;
-  
-  for (size_t ii = 0; ii < A.size (); ++ii)
-    {
-      row_ptr[idr++] = idx;
-      if ((A[ii].size () > 0) && ((ii < is) || (ii >= ie)))
-        {
-          for (jj  = A[ii].begin (); jj != A[ii].end (); ++jj)
-            {
-              col_ind.push_back (A.col_idx (jj));
-              a.push_back (A.col_val (jj));
-              idx++;
-            }
-        }
-    }
-  std::fill (row_ptr.begin () + idr, row_ptr.end (), col_ind.size ());
-};  
-void
-non_local_t::csr_update (sparse_matrix &A, int is, int ie)
-{
-  int idx = 0;
-  for (int i = 1; i < row_ptr.size (); ++i)
-    for (int j = 0; j < row_ptr[i] - row_ptr[i-1]; ++j)
-      {
-	a[idx] = A[i-1][col_ind[idx]];
-	idx ++;
-      }
-};  
-
-non_local_t non_local;
 
 int
 main (int argc, char **argv)
@@ -191,7 +139,7 @@ main (int argc, char **argv)
 
   std::vector<double> xa;
   std::vector<int> ir, jc;
-  sparse_matrix A;
+  distributed_sparse_matrix A;
   A.resize (num_global_nodes);
   dirichlet_bcs bcs;
   for (int i = 0; i < 4; ++i)
@@ -206,111 +154,23 @@ main (int argc, char **argv)
   ecoeff.assign (num_local_quadrants, 1.0);
   ncoeff.assign (num_global_nodes, 1.0);
   f.assign (num_global_nodes, 0.0);
+
+  linear_solver *lin_solver = new lis_distributed;
   
-  /// #################################################################################
-  int is = global_offset;
-  int ie = is +  num_owned_nodes;
-  std::vector<int> map_row_s (size), map_n(size);
+  int is , ie; 
+  lin_solver->set_lhs_structure (num_owned_nodes, ir, jc);
+  static_cast<lis_distributed*> (lin_solver)->get_is_ie (is, ie);
+  std::vector<int> map_n (size), map_row_s (size);
   MPI_Allgather(&is, 1, MPI_INT, &(map_row_s[0]), 1, MPI_INT, MPI_COMM_WORLD);
   MPI_Allgather (&num_owned_nodes, 1, MPI_INT, &(map_n[0]), 1, MPI_INT, MPI_COMM_WORLD);
 
-  /// Gather ranges
-  std::vector<int> ranges (size + 1, 0);
-  MPI_Allgather (&ie, 1, MPI_INT, &(ranges[1]), 1, MPI_INT, MPI_COMM_WORLD);
-  
-  // ------------------------------------------------------------------------------
-  non_local.csr (A, is, ie);
+  A.set_ranges (is, ie);
 
-  /// Distribute buffer sizes
-  std::vector<int> rank_nnz (size, 0);
-  for (int ii = 0; ii < size; ++ii)
-    rank_nnz[ii] = non_local.row_ptr[ranges[ii+1]] - non_local.row_ptr[ranges[ii]];
-  MPI_Alltoall (MPI_IN_PLACE, 1, MPI_INT, &(rank_nnz[0]), 1, MPI_INT, MPI_COMM_WORLD);
-
-  /// Allocate buffers
-  std::map<int, std::vector<int>> row_buffers;
-  std::map<int, std::vector<int>> col_buffers;
-  std::map<int, std::vector<double>> val_buffers;
-  for (int ii = 0; ii < size; ++ii)
-    if ((rank_nnz[ii] > 0) && (ii != rank))
-      {
-        row_buffers[ii].resize (ranges[rank+1] - ranges[rank] + 1); // TA: nel file di
-	// lis_csr_example.cpp qui, al posto dei rank, c'era ii, ma ogni processore deve
-	// ricevere un row_ptr delle dimensioni del pezzo di matrice su cui il processore
-	// sta lavorando.
-	col_buffers[ii].resize (rank_nnz[ii]);
-        val_buffers[ii].resize (rank_nnz[ii]);
-      }
-  /// Communicate overlap regions
-  
-  /// 1) communicate row_ptr
-  std::vector<MPI_Request> reqs;
-  for (int ii = 0; ii < size; ++ii)
-    {
-      if (ii == rank) continue; // No communication to self!
-      if (rank_nnz[ii] > 0) // we must receive something from rank ii
-        {
-          int recv_tag = ii   + size * rank;
-          reqs.resize (reqs.size () + 1);
-          MPI_Irecv (&(row_buffers[ii][0]), row_buffers[ii].size (), MPI_INT, ii, recv_tag,
-		     MPI_COMM_WORLD, &(reqs.back ()));
-        }
-      if (non_local.row_ptr[ranges[ii+1]] > non_local.row_ptr[ranges[ii]]) // we must send
-	//something to rank ii
-        {
-          int send_tag = rank + size * ii;
-          reqs.resize (reqs.size () + 1);
-          MPI_Isend (&(non_local.row_ptr[ranges[ii]]), ranges[ii+1] - ranges[ii] + 1,
-                     MPI_INT, ii, send_tag, MPI_COMM_WORLD, &(reqs.back ()));
-        }     
-      }
-  MPI_Waitall (reqs.size (), &(reqs[0]), MPI_STATUSES_IGNORE);
-  reqs.clear ();
-    
-  /// 2) communicate col_ind
-  for (int ii = 0; ii < size; ++ii)
-    {
-      if (ii == rank) continue; // No communication to self!
-      if (rank_nnz[ii] > 0) // we must receive something from rank ii
-        {
-          int recv_tag = ii   + size * rank;
-          reqs.resize (reqs.size () + 1);
-          MPI_Irecv (&(col_buffers[ii][0]), col_buffers[ii].size (), MPI_INT, ii, recv_tag,
-		     MPI_COMM_WORLD, &(reqs.back ()));
-        }
-      if (non_local.row_ptr[ranges[ii+1]] > non_local.row_ptr[ranges[ii]]) // we must send
-	//something to rank ii
-        {
-          int send_tag = rank + size * ii;
-          reqs.resize (reqs.size () + 1);
-          MPI_Isend (&(non_local.col_ind[non_local.row_ptr[ranges[ii]]]),
-                     non_local.row_ptr[ranges[ii+1]] - non_local.row_ptr[ranges[ii]], MPI_INT,
-		     ii, send_tag, MPI_COMM_WORLD, &(reqs.back ()));
-        }     
-      }
-   MPI_Waitall (reqs.size (), &(reqs[0]), MPI_STATUSES_IGNORE);
-   reqs.clear ();
-
-  // TA: qui alloco le celle nella matrice sparsa A che corrispondono a quelle di row_buffers
-  // e col_buffers in maniera tale che l'xa, che otterrò da A.csr e A.csr_update, terrà conto
-  // anche delle celle che si trovano nel pezzo di matrice del processore corrente, ma che sono
-  // calcolate da un altro processore.
-  /// 4) insert 0 in to sparse_matrix
-  for (int ii = 0; ii < size; ++ii) // loop over ranks
-    if ((rank_nnz[ii] > 0) && (ii != rank))
-      for (int jj = 0; jj < ranges[rank+1] - ranges[rank]; ++jj) // loop over rows of rank
-        for (int kk = row_buffers[ii][jj] - row_buffers[ii][0];
-             kk < row_buffers[ii][jj+1]   - row_buffers[ii][0];
-             ++kk) // loop over columns of row
-	  A[jj + is][col_buffers[ii][kk]] += 0.0;
-  //------------------------------------------------------------------------------------
-  A.csr (xa, jc, ir, 0);
-
-  linear_solver *lin_solver = new lis_distributed ();
+  A.remap ();
+  A.assemble ();
+  A.csr (xa, jc, ir , 0);
   lin_solver->set_lhs_structure (num_owned_nodes, ir, jc);
   lin_solver->analyze ();
-  
-  // ##########################################################################################
   int isave = 0;
   if (rank==0)
     t_vect.push_back (t);
@@ -332,7 +192,7 @@ main (int argc, char **argv)
   u_local.assign (num_owned_nodes, 0.0);
 
   int flag_while_tsave, flag_tvold, flag_neg, flag_neg_global;
-
+  int count = 0;
   for (auto t_save_p = t_save.begin (); t_save_p != t_save.end (); ++t_save_p)
     {
       while (true)
@@ -384,7 +244,8 @@ main (int argc, char **argv)
         	 
 	      for (it_nonlin = 0; it_nonlin < MAX_IT; ++it_nonlin)
 		{
-		 
+
+		  count ++;
 		  // if (rank == 0) tic ();
 		  f.assign (num_global_nodes, 0.0);
 		  A.reset ();
@@ -393,14 +254,15 @@ main (int argc, char **argv)
 		  ecoeff.assign (num_local_quadrants, eps_u);
 		  ncoeff.assign (num_global_nodes, 0.1); 
                   bim2a_advection_diffusion (tmsh, ecoeff, ncoeff, A);
-
+	 
 		  // f1
-		  sparse_matrix::col_iterator ja;
+		  distributed_sparse_matrix::col_iterator ja;
 		  for (unsigned int ia = 0; ia < A.size (); ++ia)
 		    if (A[ia].size ())
 		      for (ja = A[ia].begin (); ja != A[ia].end (); ++ja)
 			f[ia] -= A.col_val (ja) * u[A.col_idx (ja)]; 
-		  
+
+	        
 		  // f0
 		  ecoeff.assign (num_local_quadrants, 1.0);
 		  iu = u.begin ();
@@ -418,68 +280,23 @@ main (int argc, char **argv)
 		  bim2a_reaction (tmsh, ecoeff, ncoeff, A);             
 		  // MPI_Barrier (MPI_COMM_WORLD);
 		  //if (rank == 0) toc ("assembly");
-
+	      
 		  bim2a_dirichlet_bc (tmsh, bcs, A, f);
+
+		  
 		  for (int i = 0; i < size; ++i)
 		    MPI_Reduce (&f[map_row_s[i]], &du_local[0], map_n[i], MPI_DOUBLE, MPI_SUM, i,
 				MPI_COMM_WORLD);
 
-		  A.csr_update (xa, jc, ir, 0);
-		  //##############################################################################
-		  // TA: qui aggiorno solo non_local.a
-		  non_local.csr_update (A, is, ie);
-
-		  /// 3) communicate values
-		  for (int ii = 0; ii < size; ++ii)
-		    {
-		      if (ii == rank) continue; // No communication to self!
-		      
-		      if (rank_nnz[ii] > 0) // we must receive something from rank ii
-			{
-			  int recv_tag = ii   + size * rank;
-			  reqs.resize (reqs.size () + 1);
-			  MPI_Irecv (&(val_buffers[ii][0]), val_buffers[ii].size (), MPI_DOUBLE,
-				     ii, recv_tag, MPI_COMM_WORLD, &(reqs.back ()));
-			}
-		      if (non_local.row_ptr[ranges[ii+1]] > non_local.row_ptr[ranges[ii]])
-			
-			// we must send something to rank ii
-			{
-			  int send_tag = rank + size * ii;
-			  reqs.resize (reqs.size () + 1);
-			  MPI_Isend (&(non_local.a[non_local.row_ptr[ranges[ii]]]),
-				     non_local.row_ptr[ranges[ii+1]] -
-				     non_local.row_ptr[ranges[ii]],
-				     MPI_DOUBLE, ii, send_tag, MPI_COMM_WORLD, &(reqs.back ()));
-			}     
-		    }
-		  MPI_Waitall (reqs.size (), &(reqs[0]), MPI_STATUSES_IGNORE);
-		  reqs.clear ();
-		  /// 4) insert communicated values into xa
-		  for (int ii = 0; ii < size; ++ii) // loop over ranks
-		    if ((rank_nnz[ii] > 0) && (ii != rank))
-		      {
-			int idx = 0, row, col, idx_xa;
-			double val;
-		        for (int i = 1; i < row_buffers[ii].size (); ++i)
-			  for (int j = 0; j < row_buffers[ii][i] - row_buffers[ii][i-1]; ++j)
-			    {
-			      
-			      row = i-1 + map_row_s[rank];
-			      col = col_buffers[ii][idx];
-			      val = val_buffers[ii][idx];
-			      idx= idx + 1;
-			      for (idx_xa = ir[row]; jc[idx_xa] < col; ++idx_xa);
-			      xa[idx_xa] += val;
-	        	    }
-		      }
+		  A.update_assemble ();
+		  A.csr (xa, jc, ir, 0);
 
 		  lin_solver->set_lhs_data (xa);
+		  lin_solver->factorize (); 
 		  lin_solver->set_rhs (du_local);
-		  lin_solver->factorize ();
+		  
 		  lin_solver->solve ();
-		  //##############################################################################
-
+		 
 		  // MPI_Barrier (MPI_COMM_WORLD);
        		  // if (rank == 0) toc ("solve");
 		  
@@ -497,12 +314,7 @@ main (int argc, char **argv)
 
 		  MPI_Allgatherv (&u_local[0], num_owned_nodes, MPI_DOUBLE, &u[0],
 				  &map_n[0], &map_row_s[0], MPI_DOUBLE, MPI_COMM_WORLD);
-        	  /*
-		  if (rank == 0)
-		    for (int i = 0; i< du_global.size (); ++i)
-		      std::cout << u[i]<<std::endl;
-		  	  return 0;
-		  */
+        
 		  // if (rank == 0) toc ("increment");
                  
 		  if (rank == 0)
@@ -512,7 +324,7 @@ main (int argc, char **argv)
 			      << residual_norm
 			      << std::endl;
 		  
-		  return 0;
+		
 		  flag_neg = any_of (iu_local_first, iu_local_last, [] (double ii){return ii < 0;});
 		  MPI_Allreduce (&flag_neg, &flag_neg_global, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 		  if (flag_neg_global)   it_nonlin = MAX_IT;
@@ -573,13 +385,15 @@ main (int argc, char **argv)
 
       /*
         tmsh.octbin_export ((std::string ("tumor_growth_u_")
-                             + std::to_string (isave)).c_str (), u);
+                             + std::to_string (isave++)).c_str (), u);
+      */
+			     /*
         tmsh.octbin_export ((std::string ("tumor_growth_f_")
                              + std::to_string (isave)).c_str (), f);
         
         tmsh.octbin_export ((std::string ("tumor_growth_du_")
                              + std::to_string (isave++)).c_str (), du_local);
-      */
+	*/
          MPI_Barrier (MPI_COMM_WORLD);  
       //      if (rank == 0) toc ("export");
 
@@ -592,15 +406,9 @@ main (int argc, char **argv)
 	std::cout<<t_vect[i]<<std::endl;
     }
   // print_timing_report ();
-   lin_solver->cleanup ();
+  //lin_solver->cleanup ();
   
-  //lis_matrix_destroy (A_lis);
-  //x_lis_solver_destroy (solver);
-  //lis_vector_destroy (b);
-  //  lis_vector_destroy (x_lis);
   MPI_Finalize ();
 
   return 0;
 }
-
-
