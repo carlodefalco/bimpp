@@ -57,7 +57,8 @@ main (int argc, char *argv[])
   distributed_sparse_matrix A;
   
   A.resize (55);
-  
+
+
   if (rank == 0 || size == 1)
     {
       is_elems = 0;
@@ -65,17 +66,23 @@ main (int argc, char *argv[])
       is = 0;
       ie = 28;
     }
-
-   if (rank == 1 || size == 1)
-     {
+  else if (rank == 1 || size == 1)
+    {
       is_elems = 20;
       ie_elems = 40;
       is = 28;
       ie = 55;
-     }
+    }
+  else
+    {
+      is_elems = 40;
+      ie_elems = 40;
+      is = 55;
+      ie = 55;
+    }
 
    A.set_ranges (is, ie, MPI_COMM_WORLD);
-   std::cout << "is " << is << " ie " << ie << " is_elems " << is_elems << "  ie_elems " << ie_elems << std::endl;  
+   std::cout << "rank " << rank << " is " << is << " ie " << ie << " is_elems " << is_elems << "  ie_elems " << ie_elems << std::endl;  
      
    if (size == 1)
      { std::cout << "runing serially\n" ; is_elems = 0; ie_elems = 40; is = 0; ie = 55; }
@@ -96,17 +103,17 @@ main (int argc, char *argv[])
 
    A.assemble ();
   
-  for (int ii = 0; ii < size; ++ii)
-    {
-      if (ii == rank)
-        {
-          std::cout << "## rank " << rank << std::endl;
-          std::cout << A << std::endl;
-          std::cout << "\n\n";
-        }
-      MPI_Barrier (MPI_COMM_WORLD);
-    }
-  
-  MPI_Finalize ();
-  return 0;
+   for (int ii = 0; ii < size; ++ii)
+     {
+       if (ii == rank)
+         {
+           std::cout << "## rank " << rank << std::endl;
+           std::cout << A << std::endl;
+           std::cout << "\n\n";
+         }
+       MPI_Barrier (MPI_COMM_WORLD);
+     }
+   
+   MPI_Finalize ();
+   return 0;
 }
