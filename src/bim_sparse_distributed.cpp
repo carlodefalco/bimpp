@@ -197,7 +197,7 @@ distributed_sparse_matrix::assemble ()
       {
         for (int ii = non_local.prc_ptr[iprc];
              ii < non_local.prc_ptr[iprc+1]; ++ii)
-          // the foolowing will throw if we try to access
+          // the following will throw if we try to access
           // an element which does not exist yet!
           (*this)[non_local.row_ind[ii]].at (non_local.col_ind[ii]) = 0.0;
       }
