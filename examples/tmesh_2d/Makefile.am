@@ -9,7 +9,7 @@ AM_CPPFLAGS      =  -I$(top_srcdir)/src -I$(top_srcdir)/test -I$(top_builddir)/s
 AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
-bin_PROGRAMS = p4est_refine_segment_test p4est_ref_test p4est_ref_lnodes_test p4est_palla_2d p4est_palla_2d_flow simple_newton simple_newton_system simple_newton_parallel_lis lis_csr_example simple_newton_parallel_lis_one_file prova
+bin_PROGRAMS = p4est_refine_segment_test p4est_ref_test p4est_ref_lnodes_test p4est_palla_2d p4est_palla_2d_flow simple_newton simple_newton_system simple_newton_parallel_lis lis_csr_example simple_newton_parallel_lis_one_file simple_newton_parallel_lis_inexact simple_newton_parallel_lis_inexact_linesearch
 
 CLEANFILES =
 
@@ -65,6 +65,18 @@ simple_newton_parallel_lis_one_file_SOURCES =  simple_newton_parallel_lis_one_fi
 simple_newton_parallel_lis_one_file_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
 simple_newton_parallel_lis_one_file_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 simple_newton_parallel_lis_one_file_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLISDISTLIB) @P4EST_LIB@
+CLEANFILES += 
+
+simple_newton_parallel_lis_inexact_SOURCES =  simple_newton_parallel_lis_inexact.cpp
+simple_newton_parallel_lis_inexact_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+simple_newton_parallel_lis_inexact_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+simple_newton_parallel_lis_inexact_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLISDISTLIB) @P4EST_LIB@
+CLEANFILES += 
+
+simple_newton_parallel_lis_inexact_linesearch_SOURCES =  simple_newton_parallel_lis_inexact_linesearch.cpp
+simple_newton_parallel_lis_inexact_linesearch_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+simple_newton_parallel_lis_inexact_linesearch_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+simple_newton_parallel_lis_inexact_linesearch_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLISDISTLIB) @P4EST_LIB@
 CLEANFILES += 
 
 lis_csr_example_SOURCES =  lis_csr_example.cpp lis_csr_example_helper.cpp
