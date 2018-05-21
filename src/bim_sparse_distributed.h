@@ -28,7 +28,7 @@ private :
   struct
   non_local_t
   {
-    std::vector<int> row_ptr, col_ind;
+    std::vector<int> prc_ptr, row_ind, col_ind;
     std::vector<double> a;
   } non_local;
 
