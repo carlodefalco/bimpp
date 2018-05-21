@@ -68,7 +68,6 @@ lis_distributed::factorize ()
   lis_matrix_assemble (A);
   return 1;
 
->>>>>>> implemented the structure
 }
 int
 lis_distributed::invoke_lis_solver ()
