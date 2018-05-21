@@ -58,28 +58,6 @@ distributed_sparse_matrix::remap ()
 {
   non_local_csr ();
 
-  if (mpirank == 0) {
-  std::cout << "rank " << mpirank << " non_local.prc_ptr : " << std::endl;
-  for (auto ii : non_local.prc_ptr)
-    std::cout << ii << " ";
-  std::cout << std::endl;
-
-  std::cout << "non_local.row_ind : " << std::endl;
-  for (auto ii : non_local.row_ind)
-    std::cout << ii << " ";
-  std::cout << std::endl;
-
-  std::cout << "non_local.col_ind : " << std::endl;
-  for (auto ii : non_local.col_ind)
-    std::cout << ii << " ";
-  std::cout << std::endl;
-
-  std::cout << "non_local.a : " << std::endl;
-  for (auto ii : non_local.a)
-    std::cout << ii << " ";
-  std::cout << std::endl;
-  }
-
   /// Distribute buffer sizes
   rank_nnz.assign (mpisize, 0);
   for (int ii = 0; ii < mpisize; ++ii)
