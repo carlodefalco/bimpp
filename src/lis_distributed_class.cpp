@@ -66,6 +66,8 @@ lis_distributed::factorize ()
   lis_matrix_set_size (A, n_row, 0);
   lis_matrix_set_csr (nnz , &row[0], &col[0], &data[0], A);
   lis_matrix_assemble (A);
+
+
   return 1;
 
 }

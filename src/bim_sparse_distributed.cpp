@@ -16,7 +16,6 @@ distributed_sparse_matrix::set_ranges (size_t is_,
   MPI_Comm_rank (comm, &mpirank);
   MPI_Comm_size (comm, &mpisize);
 
-
   /// Gather ranges
   ranges.assign (mpisize + 1, 0);
   MPI_Allgather (&ie, 1, MPI_INT, &(ranges[1]), 1, MPI_INT, comm);
@@ -28,11 +27,14 @@ void
 distributed_sparse_matrix::non_local_csr ()
 {
 
+
   std::vector<int> temp1;
   std::vector<double> temp2;
+  std::vector<int> temp3;
 
   non_local.col_ind.swap (temp1);
   non_local.a.swap (temp2);
+  non_local.row_ind.swap (temp3);
   
   this->set_properties ();
 
@@ -66,40 +68,13 @@ void
 distributed_sparse_matrix::non_local_csr_update ()
 {
 
-  int idx = 0;
-  for (int i = 1; i < non_local.row_ptr.size (); ++i)
-    for (int j = 0; j < non_local.row_ptr[i] - non_local.row_ptr[i-1]; ++j)
-      {
-	non_local.a[idx] = (*this)[i-1][non_local.col_ind[idx]];
-	idx ++;
-      }
+    for (int j = 0; j < non_local.col_ind.size (); ++j)
+	non_local.a[j] = (*this)[non_local.row_ind[j]][non_local.col_ind[j]];
 }
 void
 distributed_sparse_matrix::remap ()
 {
   non_local_csr ();
-
-  if (mpirank == 0) {
-  std::cout << "rank " << mpirank << " non_local.prc_ptr : " << std::endl;
-  for (auto ii : non_local.prc_ptr)
-    std::cout << ii << " ";
-  std::cout << std::endl;
-
-  std::cout << "non_local.row_ind : " << std::endl;
-  for (auto ii : non_local.row_ind)
-    std::cout << ii << " ";
-  std::cout << std::endl;
-
-  std::cout << "non_local.col_ind : " << std::endl;
-  for (auto ii : non_local.col_ind)
-    std::cout << ii << " ";
-  std::cout << std::endl;
-
-  std::cout << "non_local.a : " << std::endl;
-  for (auto ii : non_local.a)
-    std::cout << ii << " ";
-  std::cout << std::endl;
-  }
 
   /// Distribute buffer sizes
   rank_nnz.assign (mpisize, 0);
@@ -176,10 +151,11 @@ void
 distributed_sparse_matrix::assemble ()
 {
 
-  non_local_csr_update ()
   if (! mapped)
     remap ();
+  non_local_csr_update ();
 
+  
   /// 3) communicate values
   std::vector<MPI_Request> reqs;
   for (int ii = 0; ii < mpisize; ++ii)
@@ -192,7 +168,7 @@ distributed_sparse_matrix::assemble ()
           MPI_Irecv (&(val_buffers[ii][0]), val_buffers[ii].size (),
                      MPI_DOUBLE, ii, recv_tag, comm, &(reqs.back ()));
         }
-      int rank_nnz_snd_ii = non_local.prc_ptr[ii+1] > non_local.prc_ptr[ii];      
+      int rank_nnz_snd_ii = non_local.prc_ptr[ii+1] - non_local.prc_ptr[ii];      
       if (rank_nnz_snd_ii > 0) // we must send something to rank ii
         {
           int send_tag = mpirank + mpisize * ii;
@@ -205,11 +181,12 @@ distributed_sparse_matrix::assemble ()
   MPI_Waitall (reqs.size (), &(reqs[0]), MPI_STATUSES_IGNORE);
   reqs.clear ();
 
+
   /// 4) insert communicated values into sparse_matrix
   for (int ii = 0; ii < mpisize; ++ii) // loop over ranks
     if (ii != mpirank)
-      for (int kk = 0; kk < rank_nnz[ii]; ++kk)      
-          (*this)[row_buffers[ii][kk]][col_buffers[ii][kk]]
+      for (int kk = 0; kk < rank_nnz[ii]; ++kk)  
+         (*this)[row_buffers[ii][kk]][col_buffers[ii][kk]]
             += val_buffers[ii][kk];
 
 
@@ -223,4 +200,11 @@ distributed_sparse_matrix::assemble ()
           // an element which does not exist yet!
           (*this)[non_local.row_ind[ii]].at (non_local.col_ind[ii]) = 0.0;
       }
+
+  nnz_local = 0;
+  for (int irow = is; irow < ie; ++irow)
+    nnz_local += (*this)[irow].size ();
+
 }
+
+  

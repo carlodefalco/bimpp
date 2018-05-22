@@ -12,23 +12,24 @@
 
 class
 distributed_sparse_matrix
-: public sparse_matrix
+  : public sparse_matrix
 {
 
- private :
+private :
 
   void
-    non_local_csr ( );
+  non_local_csr ( );
   
   void
-    non_local_csr_update ();
+  non_local_csr_update ();
 
   size_t is, ie;
   MPI_Comm comm;
   int mpirank, mpisize;
 
+  int nnz_local;
   struct
-    non_local_t
+  non_local_t
   {
     std::vector<int> prc_ptr, row_ind, col_ind;
     std::vector<double> a;
@@ -42,11 +43,11 @@ distributed_sparse_matrix
   std::vector<int> rank_nnz;
 
   bool mapped;
-  int nnz_local;
- public :
+  
+public :
 
   void
-    set_ranges (size_t is_, size_t ie_, MPI_Comm comm_ = MPI_COMM_WORLD);
+  set_ranges (size_t is_, size_t ie_, MPI_Comm comm_ = MPI_COMM_WORLD);
 
   distributed_sparse_matrix (size_t is_, size_t ie_, MPI_Comm comm_ = MPI_COMM_WORLD)
     : mapped (false)
@@ -57,36 +58,35 @@ distributed_sparse_matrix
     { }
 
   void
-    assemble ();
+  assemble ();
 
   void
-    update_assemble ();
-  
-  void
-    remap ();
+  remap ();
 
 
-  void csr (std::vector<double> &a, std::vector<int> &col_ind,
-	    std::vector<int> &row_ptr,
-	    int base)
+  void 
+  csr (std::vector<double> &a,
+		   std::vector<int> &col,
+		   std::vector<int> &row,
+		   int base) 
   {
-    //this->set_properties ();
-
-    a.resize (nnz_local); col_ind.resize (nnz_local);
-    row_ptr.resize (ie - is + 1);
+   a.resize (nnz_local);
+   
+    col.resize (nnz_local);
+    row.resize (ie - is + 1);
+   
     int idx = 0;
     int idr = 0;
-
     typename sparse_matrix_template<double>::col_iterator jj;
     for (size_t ii = is; ii < ie; ++ii)
       {
-	row_ptr[idr] = idx + base;
-
+	row[idr] = idx + base;
+      
 	if ((*this)[ii].size () > 0)
 	  {
 	    for (jj  = (*this)[ii].begin (); jj != (*this)[ii].end (); ++jj)
 	      {
-		col_ind[idx] = this->col_idx (jj) + base;
+                col[idx] = this->col_idx (jj) + base;
 		a[idx] = this->col_val (jj);
 		idx++;
 	      }
@@ -95,10 +95,9 @@ distributed_sparse_matrix
 
       }
 
-    std::fill (row_ptr.begin () + idr, row_ptr.end (), idx + base);
+   std::fill (row.begin () + idr, row.end (), idx + base);
  
   }
-
 
 
   void csr_update (std::vector<double> &a,
@@ -106,18 +105,22 @@ distributed_sparse_matrix
 		   const std::vector<int> &row_ptr,
 		   int base)
   {
+ // std::vector<double> temp;
+  // non_local.a.swap (temp);
+
     size_t ni = row_ptr.size ();
     size_t nj = col_ind.size ();
-    a.clear ();
-    a.reserve (nj);
-
+    a.resize (nj);
+    int idx = 0;
+    
     //std::cout << " ni = " << ni << std::endl;
     for (size_t in = 0; in < ni - 1; ++in)
       for (size_t jn = row_ptr[in] - base; jn < row_ptr[in+1] - base; ++jn)
-	a.push_back (col_val (((*this)[in + is]).find (col_ind[jn] - base)));
-
+       {	
+        a[idx] = (*this)[in + is][col_ind[jn] - base];
+        idx++;
+      }
   }
-
   
 };
 

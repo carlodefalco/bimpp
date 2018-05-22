@@ -378,7 +378,7 @@ main (int argc, char **argv)
 		    }
 		  else
 		    {
-                      A.update_assemble ();
+                      A.assemble ();
 		      A.csr (xa, jc, ir, 0);
 		      
 		    }

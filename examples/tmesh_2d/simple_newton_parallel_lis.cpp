@@ -165,10 +165,12 @@ main (int argc, char **argv)
   MPI_Allgather (&num_owned_nodes, 1, MPI_INT, &(map_n[0]), 1, MPI_INT, MPI_COMM_WORLD);
 
   A.set_ranges (is, ie);
-
   A.remap ();
   A.assemble ();
+  
   A.csr (xa, jc, ir , 0);
+  
+
   lin_solver->set_lhs_structure (num_owned_nodes, ir, jc);
   lin_solver->analyze ();
   int isave = 0;
@@ -288,10 +290,9 @@ main (int argc, char **argv)
 		    MPI_Reduce (&f[map_row_s[i]], &du_local[0], map_n[i], MPI_DOUBLE, MPI_SUM, i,
 				MPI_COMM_WORLD);
 
-		  A.update_assemble ();
-		  A.csr (xa, jc, ir, 0);
-
-		  lin_solver->set_lhs_data (xa);
+		  A.assemble ();
+                  A.csr (xa, jc, ir, 0);
+                  lin_solver->set_lhs_data (xa);
 		  lin_solver->factorize (); 
 		  lin_solver->set_rhs (du_local);
 		  
