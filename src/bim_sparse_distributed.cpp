@@ -148,7 +148,7 @@ distributed_sparse_matrix::assemble ()
           MPI_Irecv (&(val_buffers[ii][0]), val_buffers[ii].size (),
                      MPI_DOUBLE, ii, recv_tag, comm, &(reqs.back ()));
         }
-      int rank_nnz_snd_ii = non_local.prc_ptr[ii+1] > non_local.prc_ptr[ii];      
+      int rank_nnz_snd_ii = non_local.prc_ptr[ii+1] - non_local.prc_ptr[ii];      
       if (rank_nnz_snd_ii > 0) // we must send something to rank ii
         {
           int send_tag = mpirank + mpisize * ii;
