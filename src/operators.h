@@ -152,7 +152,7 @@ bimu_bernoulli (double x,
                 double &bm);
 
 /// Robustly compute B'(x), B(x) = x / (exp(x) - 1).
-/// Stores B'(x) and B'(-x)
+/// Store B'(x) and B'(-x)
 void
 bimu_bernoulli_derivative (double x,
                            double &bpp,
