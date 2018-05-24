@@ -8,11 +8,15 @@ AM_CPPFLAGS      =  -I$(top_srcdir)/src -I$(top_builddir)/src @MUMPS_CPPFLAGS@ @
 AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
-bin_PROGRAMS = distributed_matrix_example
+bin_PROGRAMS = distributed_matrix_example distributed_vector_example
 
 distributed_matrix_example_SOURCES =  distributed_matrix_example.cpp
 distributed_matrix_example_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
 distributed_matrix_example_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 distributed_matrix_example_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
 
+distributed_vector_example_SOURCES =  distributed_vector_example.cpp
+distributed_vector_example_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
+distributed_vector_example_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+distributed_vector_example_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
 
