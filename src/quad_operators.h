@@ -58,6 +58,12 @@ bim2a_rhs (tmesh& mesh,
            const std::vector<double>& g,
            std::vector<double>& rhs);
 
+std::vector<double>
+bim2a_boundary_mass (tmesh& mesh,
+		     const int & tree_idx,
+		     const int & boundary_idx,
+		     std::vector<double> & M);
+
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     sparse_matrix& A, std::vector<double>& rhs);

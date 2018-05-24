@@ -374,6 +374,43 @@ bim2a_rhs (tmesh& mesh,
      }
 }
 
+std::vector<double>
+bim2a_boundary_mass (tmesh& mesh,
+		     const int & tree_idx,
+		     const int & boundary_idx,
+		     std::vector<double> & M)
+{
+  double h = 0;
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      if (quadrant->get_tree_idx () == tree_idx)
+	{
+	  for (int i = 0; i < 4; ++i)
+	    {
+	      if (quadrant->e (i) == boundary_idx)
+		{
+		  if (boundary_idx == 0 ||
+		      boundary_idx == 1)
+                    h = quadrant->p(1, 2) - quadrant->p(1, 0);
+		  else
+		    h = quadrant->p(0, 1) - quadrant->p(0, 0);
+		  
+                  M[quadrant->gt(i)] += 0.5 * h;
+		}
+	    }
+	}
+    }
+
+  MPI_Allreduce(MPI_IN_PLACE, M.data (),
+                M.size (), MPI_DOUBLE,
+                MPI_SUM, MPI_COMM_WORLD);
+  
+  return M;
+}
+
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     sparse_matrix& A, std::vector<double>& rhs)
