@@ -59,10 +59,14 @@ bim2a_rhs (tmesh& mesh,
            std::vector<double>& rhs);
 
 std::vector<double>
-bim2a_boundary_mass (tmesh& mesh,
+bim2a_boundary_mass (tmesh & mesh,
 		     const int & tree_idx,
 		     const int & boundary_idx,
-		     std::vector<double> & M);
+		     std::vector<double> & M,
+		     const func_quad & fun =
+		     [] (tmesh::quadrant_iterator, tmesh::idx_t)
+		       {return 1;}
+		     );
 
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
@@ -80,7 +84,7 @@ gradient
 bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                                        const q1_vec& u,
                                        active_fun is_active =
-                                        [] (tmesh::quadrant_iterator) {return true;});
+				       [] (tmesh::quadrant_iterator) {return true;});
 
 q2_vec
 bim2c_quadtree_pde_recovered_solution (tmesh& mesh,

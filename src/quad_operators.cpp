@@ -378,7 +378,8 @@ std::vector<double>
 bim2a_boundary_mass (tmesh& mesh,
 		     const int & tree_idx,
 		     const int & boundary_idx,
-		     std::vector<double> & M)
+		     std::vector<double> & M,
+		     const func_quad & fun)
 {
   double h = 0;
 
@@ -398,12 +399,12 @@ bim2a_boundary_mass (tmesh& mesh,
 		  else
 		    h = quadrant->p(0, 1) - quadrant->p(0, 0);
 		  
-                  M[quadrant->gt(i)] += 0.5 * h;
+                  M[quadrant->gt(i)] += 0.5 * h * fun (quadrant, i);
 		}
 	    }
 	}
     }
-
+  
   MPI_Allreduce(MPI_IN_PLACE, M.data (),
                 M.size (), MPI_DOUBLE,
                 MPI_SUM, MPI_COMM_WORLD);
