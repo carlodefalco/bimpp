@@ -281,6 +281,53 @@ bim3a_rhs (tmesh_3d& mesh,
      }
 }
 
+std::vector<double>
+bim3a_boundary_mass (tmesh_3d & mesh,
+		     const int & tree_idx,
+		     const int & boundary_idx,
+		     std::vector<double> & M,
+		     const func3_quad & fun)
+{
+  double area = 0;
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      if (quadrant->get_tree_idx () == tree_idx)
+	{
+	  for (int i = 0; i < 8; ++i)
+	    {
+	      if (quadrant->e (i) == boundary_idx)
+		{
+		  if (boundary_idx == 0 ||
+		      boundary_idx == 1)
+		    area =
+		      (quadrant->p(1, 2) - quadrant->p(1, 0)) *
+		      (quadrant->p(2, 4) - quadrant->p(2, 0));
+		  else if (boundary_idx == 2 ||
+			   boundary_idx == 3)
+		    area =
+		      (quadrant->p(0, 1) - quadrant->p(0, 0)) *
+		      (quadrant->p(2, 4) - quadrant->p(2, 0));
+		  else
+		    area =
+		      (quadrant->p(0, 1) - quadrant->p(0, 0)) *
+		      (quadrant->p(1, 2) - quadrant->p(1, 0));
+		  
+                  M[quadrant->gt(i)] += 0.25 * area * fun (quadrant, i);
+		}
+	    }
+	}
+    }
+  
+  MPI_Allreduce(MPI_IN_PLACE, M.data (),
+                M.size (), MPI_DOUBLE,
+                MPI_SUM, MPI_COMM_WORLD);
+  
+  return M;
+}
+
 void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                     sparse_matrix& A, std::vector<double>& rhs)

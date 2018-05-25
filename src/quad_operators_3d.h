@@ -58,6 +58,16 @@ bim3a_rhs (tmesh_3d& mesh,
            const std::vector<double>& g,
            std::vector<double>& rhs);
 
+std::vector<double>
+bim3a_boundary_mass (tmesh_3d & mesh,
+		     const int & tree_idx,
+		     const int & boundary_idx,
+		     std::vector<double> & M,
+		     const func3_quad & fun =
+		     [] (tmesh_3d::quadrant_iterator, tmesh_3d::idx_t)
+		       {return 1;}
+		     );
+
 void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                     sparse_matrix& A, std::vector<double>& rhs);
