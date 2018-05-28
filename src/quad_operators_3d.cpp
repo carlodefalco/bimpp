@@ -321,10 +321,6 @@ bim3a_boundary_mass (tmesh_3d & mesh,
 	}
     }
   
-  MPI_Allreduce(MPI_IN_PLACE, M.data (),
-                M.size (), MPI_DOUBLE,
-                MPI_SUM, MPI_COMM_WORLD);
-  
   return M;
 }
 
