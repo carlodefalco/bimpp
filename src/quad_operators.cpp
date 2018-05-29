@@ -319,9 +319,9 @@ bim2a_reaction (tmesh& mesh,
             }
           
           for (int r = 0; r < rows.size (); ++r)
-            A[rows[r]][rows[r]] +=
-              (delta[iel] * zeta_loc * hx * hy / 4) /
-              rows.size ();
+	    A[rows[r]][rows[r]] +=
+	      (delta[iel] * zeta_loc * hx * hy / 4) /
+	      rows.size ();
         }
     }
 }
@@ -332,46 +332,46 @@ bim2a_rhs (tmesh& mesh,
            const std::vector<double>& g,
            std::vector<double>& rhs)
 {
-   double hx = 0, hy = 0;
+  double hx = 0, hy = 0;
    
-   unsigned int iel = 0;
-   std::vector<unsigned int> rows;
-   rows.reserve (2);
+  unsigned int iel = 0;
+  std::vector<unsigned int> rows;
+  rows.reserve (2);
    
-   double g_loc = 0;
+  double g_loc = 0;
    
-   for (auto quadrant = mesh.begin_quadrant_sweep ();
-        quadrant != mesh.end_quadrant_sweep ();
-        ++quadrant)
-     {
-        hx = quadrant->p (0, 1) - quadrant->p (0, 0);
-        hy = quadrant->p (1, 2) - quadrant->p (1, 0);
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      hx = quadrant->p (0, 1) - quadrant->p (0, 0);
+      hy = quadrant->p (1, 2) - quadrant->p (1, 0);
         
-        iel = quadrant->get_forest_quad_idx ();
+      iel = quadrant->get_forest_quad_idx ();
         
-        for(int i = 0; i < 4; ++i)
-          {
-            rows.clear ();
+      for(int i = 0; i < 4; ++i)
+	{
+	  rows.clear ();
             
-            if (! quadrant->is_hanging (i))
-              {
-                rows.push_back (quadrant->gt (i));
-                g_loc = g[quadrant->gt (i)];
-              }
-            else
-              {
-                rows.push_back (quadrant->gparent (0, i));
-                rows.push_back (quadrant->gparent (1, i));
-                g_loc = 0.5 * (g[quadrant->gparent (0, i)] +
-                               g[quadrant->gparent (1, i)]);
-              }
+	  if (! quadrant->is_hanging (i))
+	    {
+	      rows.push_back (quadrant->gt (i));
+	      g_loc = g[quadrant->gt (i)];
+	    }
+	  else
+	    {
+	      rows.push_back (quadrant->gparent (0, i));
+	      rows.push_back (quadrant->gparent (1, i));
+	      g_loc = 0.5 * (g[quadrant->gparent (0, i)] +
+			     g[quadrant->gparent (1, i)]);
+	    }
             
-            for (int r = 0; r < rows.size(); ++r)
-              rhs[rows[r]] +=
-                (f[iel] * g_loc * hx * hy / 4) /
-                rows.size ();
-          }
-     }
+	  for (int r = 0; r < rows.size(); ++r)
+	    rhs[rows[r]] +=
+	      (f[iel] * g_loc * hx * hy / 4) /
+	      rows.size ();
+	}
+    }
 }
 
 std::vector<double>
@@ -433,17 +433,17 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
           if (boundary_idx != tmesh::quadrant_t::NOT_ON_BOUNDARY
               && marked.count(row) == 0)
             {
-              // Mark current node so to avoid duplicate operations.
-              marked.insert (row); 
-              
-              // Loop over all the boundary conditions.
+	      // Loop over all the boundary conditions.
               for (size_t bc = 0; bc < bcs.size (); ++bc)
                 // If this boundary condition matches with
                 // the current node.
                 if (std::get<0> (bcs[bc]) == tree_idx
                     && std::get<1> (bcs[bc]) == boundary_idx)
                   {
-                    // Impose boundary condition at rhs by
+		    // Mark current node so to avoid duplicate operations.
+		    marked.insert (row);
+		    
+		    // Impose boundary condition at rhs by
                     // evaluating it at the current node.
                     rhs[row] =
                       (std::get<2> (bcs[bc]))
@@ -512,23 +512,23 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
         {
           boundary_idx = quadrant->e (i);
           row = quadrant->gt (i);
-          
+	  
           // If current node is on boundary and has not
           // been handled before.
           if (boundary_idx != tmesh::quadrant_t::NOT_ON_BOUNDARY
               && marked.count(row) == 0)
             {
-              // Mark current node so to avoid duplicate operations.
-              marked.insert (row); 
-              
-              // Loop over all the boundary conditions.
+	      // Loop over all the boundary conditions.
               for (size_t bc = 0; bc < bcs.size (); ++bc)
                 // If this boundary condition matches with
                 // the current node.
                 if (std::get<0> (bcs[bc]) == tree_idx
                     && std::get<1> (bcs[bc]) == boundary_idx)
                   {
-                    // Impose boundary condition at rhs by
+		    // Mark current node so to avoid duplicate operations.
+		    marked.insert (row); 
+		    
+		    // Impose boundary condition at rhs by
                     // evaluating it at the current node.
                     rhs[row] =
                       (std::get<2> (bcs[bc])) (quadrant, i);
@@ -553,7 +553,7 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                                 }
                             }
                         }
-                    
+		    
                     if (std::abs (A[row][row])
                         < std::numeric_limits<double>::epsilon ())
                       {
@@ -608,18 +608,18 @@ nedelec_gradient (tmesh::quadrant_iterator & q,
   
   switch (i)
     {
-      case 0:
-        du = (u_aux[2] - u_aux[0]) / hy;
-        break;
-      case 1:
-        du = (u_aux[3] - u_aux[1]) / hy;
-        break;
-      case 2:
-        du = (u_aux[1] - u_aux[0]) / hx;
-        break;
-      case 3:
-        du = (u_aux[3] - u_aux[2]) / hx;
-        break;
+    case 0:
+      du = (u_aux[2] - u_aux[0]) / hy;
+      break;
+    case 1:
+      du = (u_aux[3] - u_aux[1]) / hy;
+      break;
+    case 2:
+      du = (u_aux[1] - u_aux[0]) / hx;
+      break;
+    case 3:
+      du = (u_aux[3] - u_aux[2]) / hx;
+      break;
     }
   
   return du;
@@ -670,22 +670,22 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
           // Compute Nédélec gradient on current element.
           switch (node)
             {
-              case 0:
-                du_x.push_back (nedelec_gradient(quadrant, u, 2));
-                du_y.push_back (nedelec_gradient(quadrant, u, 0));
-                break;
-              case 1:
-                du_x.push_back (nedelec_gradient(quadrant, u, 2));
-                du_y.push_back (nedelec_gradient(quadrant, u, 1));
-                break;
-              case 2:
-                du_x.push_back (nedelec_gradient(quadrant, u, 3));
-                du_y.push_back (nedelec_gradient(quadrant, u, 0));
-                break;
-              case 3:
-                du_x.push_back (nedelec_gradient(quadrant, u, 3));
-                du_y.push_back (nedelec_gradient(quadrant, u, 1));
-                break;
+	    case 0:
+	      du_x.push_back (nedelec_gradient(quadrant, u, 2));
+	      du_y.push_back (nedelec_gradient(quadrant, u, 0));
+	      break;
+	    case 1:
+	      du_x.push_back (nedelec_gradient(quadrant, u, 2));
+	      du_y.push_back (nedelec_gradient(quadrant, u, 1));
+	      break;
+	    case 2:
+	      du_x.push_back (nedelec_gradient(quadrant, u, 3));
+	      du_y.push_back (nedelec_gradient(quadrant, u, 0));
+	      break;
+	    case 3:
+	      du_x.push_back (nedelec_gradient(quadrant, u, 3));
+	      du_y.push_back (nedelec_gradient(quadrant, u, 1));
+	      break;
             }
           
           weights_x.push_back (1 / hx);
@@ -720,30 +720,30 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
               
               switch (node_n)
                 {
-                  case 0:
-                    if (node == 1)
-                      du_x.push_back (nedelec_gradient(neighbor, u, 2));
-                    if (node == 2)
-                      du_y.push_back (nedelec_gradient(neighbor, u, 0));
-                    break;
-                  case 1:
-                    if (node == 0)
-                      du_x.push_back (nedelec_gradient(neighbor, u, 2));
-                    if (node == 3)
-                      du_y.push_back (nedelec_gradient(neighbor, u, 1));
-                    break;
-                  case 2:
-                    if (node == 3)
-                      du_x.push_back (nedelec_gradient(neighbor, u, 3));
-                    if (node == 0)
-                      du_y.push_back (nedelec_gradient(neighbor, u, 0));
-                    break;
-                  case 3:
-                    if (node == 2)
-                      du_x.push_back (nedelec_gradient(neighbor, u, 3));
-                    if (node == 1)
-                      du_y.push_back (nedelec_gradient(neighbor, u, 1));
-                    break;
+		case 0:
+		  if (node == 1)
+		    du_x.push_back (nedelec_gradient(neighbor, u, 2));
+		  if (node == 2)
+		    du_y.push_back (nedelec_gradient(neighbor, u, 0));
+		  break;
+		case 1:
+		  if (node == 0)
+		    du_x.push_back (nedelec_gradient(neighbor, u, 2));
+		  if (node == 3)
+		    du_y.push_back (nedelec_gradient(neighbor, u, 1));
+		  break;
+		case 2:
+		  if (node == 3)
+		    du_x.push_back (nedelec_gradient(neighbor, u, 3));
+		  if (node == 0)
+		    du_y.push_back (nedelec_gradient(neighbor, u, 0));
+		  break;
+		case 3:
+		  if (node == 2)
+		    du_x.push_back (nedelec_gradient(neighbor, u, 3));
+		  if (node == 1)
+		    du_y.push_back (nedelec_gradient(neighbor, u, 1));
+		  break;
                 }
               
               if (weights_x.size () < du_x.size ())
@@ -773,18 +773,18 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                   // of the horizontal side containing "node".
                   switch (node)
                     {
-                      case 0:
-                        node_side = 1;
-                        break;
-                      case 1:
-                        node_side = 0;
-                        break;
-                      case 2:
-                        node_side = 3;
-                        break;
-                      case 3:
-                        node_side = 2;
-                        break;
+		    case 0:
+		      node_side = 1;
+		      break;
+		    case 1:
+		      node_side = 0;
+		      break;
+		    case 2:
+		      node_side = 3;
+		      break;
+		    case 3:
+		      node_side = 2;
+		      break;
                     }
                   
                   for (node_n = 0; node_n < 4; ++node_n)
@@ -801,22 +801,22 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                   
                   switch (node_n)
                     {
-                      case 0:
-                        if (node_side == 1)
-                          du_x.push_back (nedelec_gradient(neighbor, u, 2));
-                        break;
-                      case 1:
-                        if (node_side == 0)
-                          du_x.push_back (nedelec_gradient(neighbor, u, 2));
-                        break;
-                      case 2:
-                        if (node_side == 3)
-                          du_x.push_back (nedelec_gradient(neighbor, u, 3));
-                        break;
-                      case 3:
-                        if (node_side == 2)
-                          du_x.push_back (nedelec_gradient(neighbor, u, 3));
-                        break;
+		    case 0:
+		      if (node_side == 1)
+			du_x.push_back (nedelec_gradient(neighbor, u, 2));
+		      break;
+		    case 1:
+		      if (node_side == 0)
+			du_x.push_back (nedelec_gradient(neighbor, u, 2));
+		      break;
+		    case 2:
+		      if (node_side == 3)
+			du_x.push_back (nedelec_gradient(neighbor, u, 3));
+		      break;
+		    case 3:
+		      if (node_side == 2)
+			du_x.push_back (nedelec_gradient(neighbor, u, 3));
+		      break;
                     }
                   
                   if (weights_x.size () < du_x.size ())
@@ -847,18 +847,18 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                   // of the vertical side containing "node".
                   switch (node)
                     {
-                      case 0:
-                        node_side = 2;
-                        break;
-                      case 1:
-                        node_side = 3;
-                        break;
-                      case 2:
-                        node_side = 0;
-                        break;
-                      case 3:
-                        node_side = 1;
-                        break;
+		    case 0:
+		      node_side = 2;
+		      break;
+		    case 1:
+		      node_side = 3;
+		      break;
+		    case 2:
+		      node_side = 0;
+		      break;
+		    case 3:
+		      node_side = 1;
+		      break;
                     }
                   
                   for (node_n = 0; node_n < 4; ++node_n)
@@ -875,22 +875,22 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                   
                   switch (node_n)
                     {
-                      case 0:
-                        if (node_side == 2)
-                          du_y.push_back (nedelec_gradient(neighbor, u, 0));
-                        break;
-                      case 1:
-                        if (node_side == 3)
-                          du_y.push_back (nedelec_gradient(neighbor, u, 1));
-                        break;
-                      case 2:
-                        if (node_side == 0)
-                          du_y.push_back (nedelec_gradient(neighbor, u, 0));
-                        break;
-                      case 3:
-                        if (node_side == 1)
-                          du_y.push_back (nedelec_gradient(neighbor, u, 1));
-                        break;
+		    case 0:
+		      if (node_side == 2)
+			du_y.push_back (nedelec_gradient(neighbor, u, 0));
+		      break;
+		    case 1:
+		      if (node_side == 3)
+			du_y.push_back (nedelec_gradient(neighbor, u, 1));
+		      break;
+		    case 2:
+		      if (node_side == 0)
+			du_y.push_back (nedelec_gradient(neighbor, u, 0));
+		      break;
+		    case 3:
+		      if (node_side == 1)
+			du_y.push_back (nedelec_gradient(neighbor, u, 1));
+		      break;
                     }
                   
                   if (weights_y.size () < du_y.size ())
@@ -965,8 +965,8 @@ bim2c_quadtree_pde_recovered_solution (tmesh& mesh,
   double hx = 0, hy = 0;
   
   std::array<double, 4> u_star_loc,
-                        du_x_star_loc,
-                        du_y_star_loc;
+    du_x_star_loc,
+    du_y_star_loc;
   
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
@@ -1209,7 +1209,7 @@ q2 (double X, double Y, const double *x,
           u[6] * -8 * (X - x[0]) * (X - x[1]) * (Y - yc) * (Y - y[1]) +
           u[7] * -8 * (X - x[0]) * (X - x[1]) * (Y - y[0]) * (Y - yc) +
           u[8] * 16 * (X - x[0]) * (X - x[1]) * (Y - y[0]) * (Y - y[1])) /
-         (hx * hx * hy * hy);
+    (hx * hx * hy * hy);
 }
 
 // Compute ||grad^* u - grad u||_L^2(q).
@@ -1393,23 +1393,23 @@ l2_star_error (tmesh::quadrant_iterator q,
                const q2_vec & ustar)
 {
   double
-  x[2] = {q->p(0,0), q->p(0,1)},
-  y[2] = {q->p(1,0), q->p(1,3)};
+    x[2] = {q->p(0,0), q->p(0,1)},
+    y[2] = {q->p(1,0), q->p(1,3)};
   
   double ustar_loc[9] = {0,0,0,0,0,0,0,0,0};
   
   for (int ii = 0; ii < 9; ++ii)
-  {
-    ustar_loc[ii] = (ustar[q->get_forest_quad_idx()])[ii];
-  }
+    {
+      ustar_loc[ii] = (ustar[q->get_forest_quad_idx()])[ii];
+    }
   
   auto fun =
-  [x, y, ustar_loc, u_ex]
-  (double X, double Y) -> double
-  {
-    return
-    std::pow (q2 (X, Y, x, y, ustar_loc) - u_ex(X, Y), 2);
-  };
+    [x, y, ustar_loc, u_ex]
+    (double X, double Y) -> double
+    {
+      return
+      std::pow (q2 (X, Y, x, y, ustar_loc) - u_ex(X, Y), 2);
+    };
   
   return std::sqrt(quad_integral (x, y, fun));
 }
