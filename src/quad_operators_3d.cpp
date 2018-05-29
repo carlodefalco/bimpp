@@ -402,6 +402,8 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
 			   }
 			   );
 		      }
+		    
+		    A[row][row] *= 1e16;
                     
                     // Multiply rhs by the diagonal entry.
                     rhs[row] *= A[row][row];
@@ -486,6 +488,8 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
 			   }
 			   );
 		      }
+		    
+		    A[row][row] *= 1e16;
                     
                     // Multiply rhs by the diagonal entry.
                     rhs[row] *= A[row][row];

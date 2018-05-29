@@ -484,6 +484,8 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                            }
                            );
                       }
+
+		    A[row][row] *= 1e16;
                     
                     // Multiply rhs by the diagonal entry.
                     rhs[row] *= A[row][row];
@@ -568,7 +570,9 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                            }
                            );
                       }
-                    
+
+		    A[row][row] *= 1e16;
+		    
                     // Multiply rhs by the diagonal entry.
                     rhs[row] *= A[row][row];
                   }
