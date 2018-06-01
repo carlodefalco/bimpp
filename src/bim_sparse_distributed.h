@@ -44,11 +44,11 @@ private :
 public :
 
   void
-  set_ranges (size_t is_, size_t ie_, MPI_Comm comm_ = MPI_COMM_WORLD);
+  set_ranges (size_t is_, size_t ie_);
 
   distributed_sparse_matrix (size_t is_, size_t ie_, MPI_Comm comm_ = MPI_COMM_WORLD)
     : mapped (false)
-    { set_ranges (is_, ie_, comm_); }
+    { set_ranges (is_, ie_); }
 
   distributed_sparse_matrix (MPI_Comm comm_ = MPI_COMM_WORLD)
     : comm (comm_), mapped (false)
@@ -59,7 +59,10 @@ public :
 
   void
   remap ();
-  
+
+  int
+  owned_nnz ();
+ 
 };
 
 #endif

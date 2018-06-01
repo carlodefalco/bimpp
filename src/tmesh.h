@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2017 Carlo de Falco
+  Copyright (C) 2017,2018 Carlo de Falco
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
@@ -10,9 +10,6 @@
 
 #ifndef TMESH_H
 #define TMESH_H
-
-
-
 
 #include <mpi.h>
 
@@ -28,6 +25,7 @@
 #include <array>
 #include <vector>
 
+#include <bim_distributed_vector.h>
 
 /// C++ interface class for p4est 2d quadrant meshes.
 class
@@ -322,9 +320,12 @@ public:
 
   /// Export nodal field f to a octbin.gz file for visualization.
   void
-  octbin_export (const char * filename,
-                 const std::vector<double> & f);
-  
+  octbin_export (const char* basename, const std::vector<double>& f);  
+
+  /// Export nodal field f to a octbin.gz file for visualization.
+  void
+  octbin_export (const char* basename, const distributed_vector& f);  
+
   /// Export quadrant field f to a octbin.gz file for visualization.
   void
   octbin_export_quadrant (const char * filename,

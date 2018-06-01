@@ -9,17 +9,17 @@
 
 void
 distributed_sparse_matrix::set_ranges (size_t is_,
-                                       size_t ie_,
-                                       MPI_Comm comm_)
+                                       size_t ie_)
 {
-  is = is_; ie = ie_; comm = comm_;
+  is = is_; ie = ie_; 
   MPI_Comm_rank (comm, &mpirank);
   MPI_Comm_size (comm, &mpisize);
 
   /// Gather ranges
   ranges.assign (mpisize + 1, 0);
   MPI_Allgather (&ie, 1, MPI_INT, &(ranges[1]), 1, MPI_INT, comm);
-
+  this->resize (ranges.back ());
+  
 }
 
 
@@ -52,6 +52,16 @@ distributed_sparse_matrix::non_local_csr ()
           }
     }
 }
+
+int
+distributed_sparse_matrix::owned_nnz ()
+{
+  int retval = 0;
+  for (int ii = is; ii < ie; ++ii)
+    retval += (*this)[ii].size ();
+  return retval;
+}
+
 
 void
 distributed_sparse_matrix::remap ()

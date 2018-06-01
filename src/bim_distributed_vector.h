@@ -109,11 +109,26 @@ public:
   distributed_vector (int is_, int ie_,
                       MPI_Comm comm_ = MPI_COMM_WORLD);
 
+  int
+  get_range_start ()
+  { return is; };
+
+  int
+  get_range_end ()
+  { return ie; };
+
   double&
   operator() (int idx);
 
+  double
+  operator() (int idx) const;
+
   double&
   operator[] (int idx)
+  { return (*this)(idx); };
+
+  double
+  operator[] (int idx) const
   { return (*this)(idx); };
 
   void
@@ -122,6 +137,10 @@ public:
   void
   assemble ();
 
+  int
+  size ()
+  { return ranges.back (); }
+  
   friend std::ostream&
   operator<< (std::ostream &, distributed_vector&);
   

@@ -81,7 +81,7 @@ main (int argc, char *argv[])
       ie = 55;
     }
 
-   A.set_ranges (is, ie, MPI_COMM_WORLD);
+   A.set_ranges (is, ie);
    std::cout << "rank " << rank << " is " << is << " ie " << ie << " is_elems " << is_elems << "  ie_elems " << ie_elems << std::endl;  
      
    if (size == 1)
