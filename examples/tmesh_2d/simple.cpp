@@ -53,7 +53,7 @@ main (int argc, char **argv)
   mumps *lin_solver = new mumps ();
 
   std::vector<double> u;
-  u.assign (n_nodes, 1.0);
+  u.assign (n_nodes, 0.0);
 
   std::vector<double> xa;
   std::vector<int> ir, jc;
@@ -69,11 +69,9 @@ main (int argc, char **argv)
 
   std::vector<double> ecoeff (n_nodes);
   std::vector<double> ncoeff (n_elements);
-  std::vector<double> f (n_nodes);
 
   ecoeff.assign (n_elements, 1.0);
   ncoeff.assign (n_nodes, 1.0);
-  f.assign (n_nodes, 1.0);
 
   lin_solver->set_lhs_distributed ();
   lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
@@ -84,7 +82,7 @@ main (int argc, char **argv)
     A.reset ();
              
     bim2a_advection_diffusion (tmsh, ecoeff, ncoeff, A);
-    bim2a_rhs (tmsh, ecoeff, ncoeff, f);
+    bim2a_rhs (tmsh, ecoeff, ncoeff, u);
     //bim2a_reaction (tmsh, ecoeff, ncoeff, A);
     bim2a_dirichlet_bc (tmsh, bcs, A, u);
     
@@ -98,7 +96,8 @@ main (int argc, char **argv)
     if (rank == 0) tic ();
     A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
     lin_solver->set_distributed_lhs_data (xa);
-
+    lin_solver->set_rhs (u);
+    
     lin_solver->factorize ();
     lin_solver->solve ();
     MPI_Barrier (MPI_COMM_WORLD);
@@ -106,7 +105,6 @@ main (int argc, char **argv)
   }
   
   tmsh.octbin_export (std::string ("simple_u").c_str (), u);
-  tmsh.octbin_export (std::string ("simple_f").c_str (), f);
 
   print_timing_report ();
   lin_solver->cleanup ();
