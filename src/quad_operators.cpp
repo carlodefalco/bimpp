@@ -34,32 +34,28 @@ std::array<std::array<double, 4>, 4> Aloc;
 ///  and their structurally symmetric contributions
 ///  are filled.
 
+ 
 static void
 assemble (tmesh::quadrant_iterator& quadrant,
           const std::array<std::array<double, 4>, 4>& locmat,
-          sparse_matrix& A)
+          sparse_matrix& A,
+          const ordering& ord = default_ord)
 {
 
   std::vector<unsigned int> rows, cols;
   rows.reserve (2);
   cols.reserve (2);
   int i, j, r, c;
-
-  /* for (i = 0; i < 4; ++i)
-    if (! quadrant->is_hanging (i))
-      std::cout << "gt(" << i << ")="<<quadrant->gt (i)<<std::endl;
-    else
-    std::cout << "gt(" << i << ")="<<"!!"<<std::endl;*/
         
   for (i = 0; i < 4; ++i)
     {
       rows.clear ();
       if (! quadrant->is_hanging (i))
-        rows.push_back (quadrant->gt (i));
+        rows.push_back (ord (quadrant->gt (i)));
       else
         {
-          rows.push_back (quadrant->gparent (0, i));
-          rows.push_back (quadrant->gparent (1, i));
+          rows.push_back (ord (quadrant->gparent (0, i)));
+          rows.push_back (ord (quadrant->gparent (1, i)));
         }
 
 
@@ -68,20 +64,17 @@ assemble (tmesh::quadrant_iterator& quadrant,
           if (j == 3 - i) continue;
           cols.clear ();
           if (! quadrant->is_hanging (j))
-            cols.push_back (quadrant->gt (j));
+            cols.push_back (ord (quadrant->gt (j)));
           else
             {
-              cols.push_back (quadrant->gparent (0, j));
-              cols.push_back (quadrant->gparent (1, j));
+              cols.push_back (ord (quadrant->gparent (0, j)));
+              cols.push_back (ord (quadrant->gparent (1, j)));
             }
               
           for (r = 0; r < rows.size (); ++r)
             for (c = 0; c < cols.size (); ++c)
-              {
-                //std::cout<<"A[" << rows[r] << "][" << cols[c] << "]=" << locmat[i][j] << std::endl;
-                A[rows[r]][cols[c]] += locmat[i][j]
-                  / (rows.size () * cols.size ());
-              }
+              A[rows[r]][cols[c]] += locmat[i][j]
+                / (rows.size () * cols.size ());
         }
     }
 
@@ -94,7 +87,8 @@ assemble (tmesh::quadrant_iterator& quadrant,
 static void
 assemble_diag (tmesh::quadrant_iterator& quadrant,
                const std::array<std::array<double, 4>, 4>& locmat,
-               sparse_matrix& A)
+               sparse_matrix& A,
+               const ordering& ord = default_ord)
 {
 
   std::vector<unsigned int> rows;
@@ -106,11 +100,11 @@ assemble_diag (tmesh::quadrant_iterator& quadrant,
      rows.clear ();
           
      if (! quadrant->is_hanging (i))
-       rows.push_back (quadrant->gt (i));
+       rows.push_back (ord (quadrant->gt (i)));
      else
        {
-         rows.push_back (quadrant->gparent (0, i));
-         rows.push_back (quadrant->gparent (1, i));
+         rows.push_back (ord (quadrant->gparent (0, i)));
+         rows.push_back (ord (quadrant->gparent (1, i)));
        }
           
      for (int r = 0; r < rows.size (); ++r)
@@ -120,7 +114,8 @@ assemble_diag (tmesh::quadrant_iterator& quadrant,
 
 void
 bim2a_structure (tmesh &tmsh,
-                 sparse_matrix& A)
+                 sparse_matrix& A,
+                 const ordering& ord)
 {
   
   for (auto ii : Aloc)
@@ -128,7 +123,7 @@ bim2a_structure (tmesh &tmsh,
                
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    assemble (quadrant, Aloc, A);
+    assemble (quadrant, Aloc, A, ord);
   
   A.set_properties ();
 }
@@ -203,14 +198,15 @@ void
 bim2a_advection_diffusion (tmesh& mesh,
                            const std::vector<double>& alpha,
                            const std::vector<double>& psi,
-                           sparse_matrix& A)
+                           sparse_matrix& A,
+                           const ordering& ord)
 {
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
     {
       bim2a_advection_diffusion_loc (quadrant, alpha, psi, Aloc);
-      assemble (quadrant, Aloc, A);
+      assemble (quadrant, Aloc, A, ord);
     }
 }
 
@@ -292,14 +288,15 @@ void
 bim2a_advection_eafe_diffusion (tmesh& mesh,
                                 const std::vector<double>& alpha,
                                 const std::vector<double>& psi,
-                                sparse_matrix& A)
+                                sparse_matrix& A,
+                                const ordering& ord)
 {
 
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep (); ++quadrant)
     {
       bim2a_advection_eafe_diffusion_loc (quadrant, alpha, psi, Aloc);
-      assemble (quadrant, Aloc, A);      
+      assemble (quadrant, Aloc, A, ord);      
     }
 }
 
@@ -335,7 +332,8 @@ void
 bim2a_reaction (tmesh& mesh,
                 const std::vector<double>& delta,
                 const std::vector<double>& zeta,
-                sparse_matrix& A)
+                sparse_matrix& A,
+                const ordering& ord)
 {  
   for (auto ii : Aloc)
     ii.fill (0.0);  
@@ -343,7 +341,7 @@ bim2a_reaction (tmesh& mesh,
        quadrant != mesh.end_quadrant_sweep (); ++quadrant)
     {            
       bim2a_reaction_loc (quadrant, delta, zeta, Aloc);        
-      assemble_diag (quadrant, Aloc, A);
+      assemble_diag (quadrant, Aloc, A, ord);
     }
 }
 
@@ -352,7 +350,8 @@ void
 bim2a_rhs (tmesh& mesh,
            const std::vector<double>& f,
            const std::vector<double>& g,
-           std::vector<double>& rhs)
+           std::vector<double>& rhs,
+           const ordering& ord)
 {
   double hx = 0, hy = 0;
    
@@ -376,13 +375,13 @@ bim2a_rhs (tmesh& mesh,
             
 	  if (! quadrant->is_hanging (i))
 	    {
-	      rows.push_back (quadrant->gt (i));
+	      rows.push_back (ord (quadrant->gt (i)));
 	      g_loc = g[quadrant->gt (i)];
 	    }
 	  else
 	    {
-	      rows.push_back (quadrant->gparent (0, i));
-	      rows.push_back (quadrant->gparent (1, i));
+	      rows.push_back (ord (quadrant->gparent (0, i)));
+	      rows.push_back (ord (quadrant->gparent (1, i)));
 	      g_loc = 0.5 * (g[quadrant->gparent (0, i)] +
 			     g[quadrant->gparent (1, i)]);
 	    }
@@ -430,7 +429,8 @@ bim2a_boundary_mass (tmesh& mesh,
 
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
-                    sparse_matrix& A, std::vector<double>& rhs)
+                    sparse_matrix& A, std::vector<double>& rhs,
+                    const ordering& ord)
 {
   int boundary_idx, tree_idx;
   unsigned int row, col;
@@ -445,7 +445,7 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
       for (int i = 0; i < 4; ++i)
         {
           boundary_idx = quadrant->e (i);
-          row = quadrant->gt (i);
+          row = ord (quadrant->gt (i));
           
           // If current node is on boundary and has not
           // been handled before.
@@ -467,28 +467,7 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     rhs[row] =
                       (std::get<2> (bcs[bc]))
                       (quadrant->p (0, i), quadrant->p (1, i));
-                    
-                    // Move non-diagonal entries
-                    // from column "row" to rhs.
-                    if (A[row].size ())
-                      for (auto j = A[row].begin ();
-                           j != A[row].end (); ++j)
-                        {
-                          col = A.col_idx (j);
-                          
-                          if (row != col)
-                            {
-                              A[row][col] = 0.0;
-                              
-                              // If row "col" is owned by current process.
-                              if (A[col].size ())
-                                {
-                                  rhs[col] -= A[col][row] * rhs[row];
-                                  A[col][row] = 0.0;
-                                }
-                            }
-                        }
-                    
+                                       
                     if (std::abs (A[row][row])
                         < std::numeric_limits<double>::epsilon ())
                       {
@@ -516,7 +495,8 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
 
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
-                    sparse_matrix& A, std::vector<double>& rhs)
+                    sparse_matrix& A, std::vector<double>& rhs,
+                    const ordering& ord)
 {
   int boundary_idx, tree_idx;
   unsigned int row, col;
@@ -531,7 +511,7 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
       for (int i = 0; i < 4; ++i)
         {
           boundary_idx = quadrant->e (i);
-          row = quadrant->gt (i);
+          row = ord (quadrant->gt (i));
 	  
           // If current node is on boundary and has not
           // been handled before.
@@ -552,28 +532,7 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                     // evaluating it at the current node.
                     rhs[row] =
                       (std::get<2> (bcs[bc])) (quadrant, i);
-                    
-                    // Move non-diagonal entries
-                    // from column "row" to rhs.
-                    if (A[row].size ())
-                      for (auto j = A[row].begin ();
-                           j != A[row].end (); ++j)
-                        {
-                          col = A.col_idx (j);
-                          
-                          if (row != col)
-                            {
-                              A[row][col] = 0.0;
-                              
-                              // If row "col" is owned by current process.
-                              if (A[col].size ())
-                                {
-                                  rhs[col] -= A[col][row] * rhs[row];
-                                  A[col][row] = 0.0;
-                                }
-                            }
-                        }
-		    
+                      
                     if (std::abs (A[row][row])
                         < std::numeric_limits<double>::epsilon ())
                       {
@@ -620,8 +579,8 @@ static void replace(double *invec, double *inoutvec,
 ///   0----------------->1
 
 static constexpr
-std::array<std::array<int, 2>, 4> edge =
-  {0,2, 1,3, 0,1, 2,3};
+std::array<std::array<int, 3>, 4> edge =
+  {0,2,1, 1,3,1, 0,1,0, 2,3,0};
   
 double
 nedelec_gradient (tmesh::quadrant_iterator & q,
@@ -638,10 +597,10 @@ nedelec_gradient (tmesh::quadrant_iterator & q,
                           u[q->gparent (1, n)]);
     }
 
-  double hx = q->p (0, edge[i][1]) - q->p (0, edge[i][0]);
-  double hy = q->p (1, edge[i][1]) - q->p (1, edge[i][0]);
+  double h = q->p (edge[i][2], edge[i][1]) -
+    q->p (edge[i][2], edge[i][0]);
   
-  return ((u_aux[edge[i][1]] - u_aux[edge[i][0]]) / (hx+hy));
+  return ((u_aux[edge[i][1]] - u_aux[edge[i][0]]) / h);
 }
 
 gradient

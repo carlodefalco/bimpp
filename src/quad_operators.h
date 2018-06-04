@@ -12,6 +12,17 @@
 /// f(x, y).
 using func = std::function<double (double, double)>;
 
+/// ordering
+using ordering = std::function<size_t (tmesh::idx_t)>;
+
+template<size_t ntot = 1, size_t n = 0>
+size_t
+dof_ordering (tmesh::idx_t gt)
+{ return ntot*gt+n; };
+
+ordering
+default_ord = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<> (gt); };
+
 /// f(quadrant, node index).
 using func_quad = std::function<double (tmesh::quadrant_iterator, tmesh::idx_t)>;
 
@@ -32,31 +43,36 @@ using active_fun = std::function<bool (tmesh::quadrant_iterator)>;
 
 void
 bim2a_structure (tmesh &tmsh,
-                 sparse_matrix& A);
+                 sparse_matrix& A,
+                 const ordering& ord = default_ord);
 
 void
 bim2a_advection_diffusion (tmesh & mesh,
                            const std::vector<double>& alpha,
                            const std::vector<double>& psi,
-                           sparse_matrix& A);
+                           sparse_matrix& A,
+                           const ordering& ord = default_ord);
 
 void
 bim2a_advection_eafe_diffusion (tmesh & mesh,
                                 const std::vector<double>& alpha,
                                 const std::vector<double>& psi,
-                                sparse_matrix& A);
+                                sparse_matrix& A,
+                                const ordering& ord = default_ord);
 
 void
 bim2a_reaction (tmesh& mesh,
                 const std::vector<double>& delta,
                 const std::vector<double>& zeta,
-                sparse_matrix& A);
+                sparse_matrix& A,
+                const ordering& ord = default_ord);
 
 void
 bim2a_rhs (tmesh& mesh,
            const std::vector<double>& f,
            const std::vector<double>& g,
-           std::vector<double>& rhs);
+           std::vector<double>& rhs,
+           const ordering& ord = default_ord);
 
 std::vector<double>
 bim2a_boundary_mass (tmesh & mesh,
@@ -70,11 +86,13 @@ bim2a_boundary_mass (tmesh & mesh,
 
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
-                    sparse_matrix& A, std::vector<double>& rhs);
+                    sparse_matrix& A, std::vector<double>& rhs,
+                    const ordering& ord = default_ord);
 
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
-                    sparse_matrix& A, std::vector<double>& rhs);
+                    sparse_matrix& A, std::vector<double>& rhs,
+                    const ordering& ord = default_ord);
 
 double
 nedelec_gradient (tmesh::quadrant_iterator & q,
