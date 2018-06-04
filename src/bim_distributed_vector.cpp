@@ -98,6 +98,17 @@ distributed_vector::operator() (int idx)
     
 }
   
+const double&
+distributed_vector::operator() (int idx) const
+{    
+
+  assert ((idx >= 0) && (idx < this->ranges.back ()));
+    
+  return is_owned (idx)
+    ? owned_data[idx-is]
+    : non_local_data.at (idx);
+}
+  
 void
 distributed_vector::remap ()
 {

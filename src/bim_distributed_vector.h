@@ -83,13 +83,13 @@ private:
   /// check whether the idx-th global
   /// entry is owned by the current rank
   inline bool
-  is_owned (int idx)
+  is_owned (int idx) const
   { return idx >= is && idx < ie; }
 
   /// check whether the idx-th global
   /// entry is owned by the given rank
   inline bool
-  is_owned (int idx, int irank)
+  is_owned (int idx, int irank) const
   { return idx >= ranges[irank] && idx < ranges[irank+1]; }
 
   /// return the rank that owns the idx-th entry
@@ -120,7 +120,7 @@ public:
   double&
   operator() (int idx);
 
-  double
+  const double&
   operator() (int idx) const;
 
   double&
