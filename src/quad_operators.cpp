@@ -44,7 +44,13 @@ assemble (tmesh::quadrant_iterator& quadrant,
   rows.reserve (2);
   cols.reserve (2);
   int i, j, r, c;
-  
+
+  /* for (i = 0; i < 4; ++i)
+    if (! quadrant->is_hanging (i))
+      std::cout << "gt(" << i << ")="<<quadrant->gt (i)<<std::endl;
+    else
+    std::cout << "gt(" << i << ")="<<"!!"<<std::endl;*/
+        
   for (i = 0; i < 4; ++i)
     {
       rows.clear ();
@@ -59,6 +65,7 @@ assemble (tmesh::quadrant_iterator& quadrant,
 
       for (j = 0; j < 4; ++j)
         {
+          if (j == 3 - i) continue;
           cols.clear ();
           if (! quadrant->is_hanging (j))
             cols.push_back (quadrant->gt (j));
@@ -71,8 +78,8 @@ assemble (tmesh::quadrant_iterator& quadrant,
           for (r = 0; r < rows.size (); ++r)
             for (c = 0; c < cols.size (); ++c)
               {
-                if (c == 4 - r) continue;
-                A[rows[r]][cols[c]] += locmat[r][c]
+                //std::cout<<"A[" << rows[r] << "][" << cols[c] << "]=" << locmat[i][j] << std::endl;
+                A[rows[r]][cols[c]] += locmat[i][j]
                   / (rows.size () * cols.size ());
               }
         }
@@ -107,7 +114,7 @@ assemble_diag (tmesh::quadrant_iterator& quadrant,
        }
           
      for (int r = 0; r < rows.size (); ++r)
-       A[rows[r]][rows[r]] += locmat[r][r] / rows.size ();
+       A[rows[r]][rows[r]] += locmat[i][i] / rows.size ();
    }
 }
 
@@ -198,8 +205,6 @@ bim2a_advection_diffusion (tmesh& mesh,
                            const std::vector<double>& psi,
                            sparse_matrix& A)
 {
-
-  
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
@@ -306,8 +311,8 @@ bim2a_reaction_loc (tmesh::quadrant_iterator& quadrant,
                     std::array<std::array<double,4>,4>& locmat)
 {
 
-  auto hxhyby4 = .25 * quadrant->p(0, 1) - quadrant->p (0, 0) *
-    quadrant->p(1, 2) - quadrant->p (1, 0);
+  auto hxhyby4 = .25 * (quadrant->p(0, 1) - quadrant->p (0, 0)) *
+    (quadrant->p(1, 2) - quadrant->p (1, 0));
       
   auto iel = quadrant->get_forest_quad_idx ();
 
@@ -603,14 +608,26 @@ static void replace(double *invec, double *inoutvec,
       inoutvec[i] = invec[i];
 }
 
+
+/// Edge ordering derived from vertex ordering
+///
+///   2----------------->3
+///   ^        3         ^
+///   |                  |
+///   |0                1|
+///   |                  |
+///   |        2         |
+///   0----------------->1
+
+static constexpr
+std::array<std::array<int, 2>, 4> edge =
+  {0,2, 1,3, 0,1, 2,3};
+  
 double
 nedelec_gradient (tmesh::quadrant_iterator & q,
                   const q1_vec& u, size_t i)
 {
   std::array<double, 4> u_aux;
-  
-  double hx = q->p (0, 1) - q->p (0, 0);
-  double hy = q->p (1, 2) - q->p (1, 0);
   
   for (int n = 0; n < 4; ++n)
     {
@@ -620,26 +637,11 @@ nedelec_gradient (tmesh::quadrant_iterator & q,
         u_aux[n] = 0.5 * (u[q->gparent (0, n)] +
                           u[q->gparent (1, n)]);
     }
+
+  double hx = q->p (0, edge[i][1]) - q->p (0, edge[i][0]);
+  double hy = q->p (1, edge[i][1]) - q->p (1, edge[i][0]);
   
-  double du = 0;
-  
-  switch (i)
-    {
-    case 0:
-      du = (u_aux[2] - u_aux[0]) / hy;
-      break;
-    case 1:
-      du = (u_aux[3] - u_aux[1]) / hy;
-      break;
-    case 2:
-      du = (u_aux[1] - u_aux[0]) / hx;
-      break;
-    case 3:
-      du = (u_aux[3] - u_aux[2]) / hx;
-      break;
-    }
-  
-  return du;
+  return ((u_aux[edge[i][1]] - u_aux[edge[i][0]]) / (hx+hy));
 }
 
 gradient
@@ -950,22 +952,24 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u,
             }
         }
     }
-  
+
+  // FIXME : REMOVE MPI COMMUNICATIONS FROM WITHIN FUNCTION
+  //         AND ALLOW USE OF DISTRIBUTED VECTOR
   // Send data to all processes so that non-assigned values
   // on current rank get assigned by other ranks.
   std::vector<double> du_x_star_global (mesh.num_global_nodes (), 0);
   std::vector<double> du_y_star_global (mesh.num_global_nodes (), 0);
   
   MPI_Op op;
-  MPI_Op_create((MPI_User_function *) replace, 1, &op);
+  MPI_Op_create ((MPI_User_function *) replace, 1, &op);
   
-  MPI_Allreduce(du_x_star.data(), du_x_star_global.data(),
-                du_x_star.size(), MPI_DOUBLE,
-                op, MPI_COMM_WORLD);
+  MPI_Allreduce (du_x_star.data (), du_x_star_global.data (),
+                 du_x_star.size (), MPI_DOUBLE,
+                 op, MPI_COMM_WORLD);
   
-  MPI_Allreduce(du_y_star.data(), du_y_star_global.data(),
-                du_y_star.size(), MPI_DOUBLE,
-                op, MPI_COMM_WORLD);
+  MPI_Allreduce (du_y_star.data (), du_y_star_global.data (),
+                 du_y_star.size (), MPI_DOUBLE,
+                 op, MPI_COMM_WORLD);
   
   return std::make_pair (du_x_star_global, du_y_star_global);
 }
@@ -976,7 +980,7 @@ bim2c_quadtree_pde_recovered_solution (tmesh& mesh,
                                        const gradient& du)
 {
   q2_vec u_star (mesh.num_local_quadrants (),
-                 std::array<double, 9>({0,0,0,0,0,0,0,0,0}));
+                 std::array<double, 9> ({0,0,0,0,0,0,0,0,0}));
   
   double hx = 0, hy = 0;
   
