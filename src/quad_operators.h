@@ -21,7 +21,7 @@ dof_ordering (tmesh::idx_t gt)
 { return ntot*gt+n; };
 
 ordering
-default_ord = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<> (gt); };
+default_ord = [] (tmesh::idx_t gt) -> size_t { return gt; };
 
 /// f(quadrant, node index).
 using func_quad = std::function<double (tmesh::quadrant_iterator, tmesh::idx_t)>;
@@ -44,28 +44,31 @@ using active_fun = std::function<bool (tmesh::quadrant_iterator)>;
 void
 bim2a_structure (tmesh &tmsh,
                  sparse_matrix& A,
-                 const ordering& ord = default_ord);
+                 const ordering& ordr = default_ord,
+                 const ordering& ordc = default_ord);
 
 void
 bim2a_advection_diffusion (tmesh & mesh,
                            const std::vector<double>& alpha,
                            const std::vector<double>& psi,
                            sparse_matrix& A,
-                           const ordering& ord = default_ord);
+                           const ordering& ordr = default_ord,
+                           const ordering& ordc = default_ord);
 
 void
 bim2a_advection_eafe_diffusion (tmesh & mesh,
                                 const std::vector<double>& alpha,
                                 const std::vector<double>& psi,
                                 sparse_matrix& A,
-                                const ordering& ord = default_ord);
+                                const ordering& ordr = default_ord,
+                                const ordering& ordc = default_ord);
 
 void
 bim2a_reaction (tmesh& mesh,
                 const std::vector<double>& delta,
                 const std::vector<double>& zeta,
                 sparse_matrix& A,
-                const ordering& ord = default_ord);
+                const ordering& ordr = default_ord);
 
 void
 bim2a_rhs (tmesh& mesh,

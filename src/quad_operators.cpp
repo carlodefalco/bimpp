@@ -39,7 +39,8 @@ static void
 assemble (tmesh::quadrant_iterator& quadrant,
           const std::array<std::array<double, 4>, 4>& locmat,
           sparse_matrix& A,
-          const ordering& ord = default_ord)
+          const ordering& ordr = default_ord,
+          const ordering& ordc = default_ord)
 {
 
   std::vector<unsigned int> rows, cols;
@@ -51,11 +52,11 @@ assemble (tmesh::quadrant_iterator& quadrant,
     {
       rows.clear ();
       if (! quadrant->is_hanging (i))
-        rows.push_back (ord (quadrant->gt (i)));
+        rows.push_back (ordr (quadrant->gt (i)));
       else
         {
-          rows.push_back (ord (quadrant->gparent (0, i)));
-          rows.push_back (ord (quadrant->gparent (1, i)));
+          rows.push_back (ordr (quadrant->gparent (0, i)));
+          rows.push_back (ordr (quadrant->gparent (1, i)));
         }
 
 
@@ -64,11 +65,11 @@ assemble (tmesh::quadrant_iterator& quadrant,
           if (j == 3 - i) continue;
           cols.clear ();
           if (! quadrant->is_hanging (j))
-            cols.push_back (ord (quadrant->gt (j)));
+            cols.push_back (ordc (quadrant->gt (j)));
           else
             {
-              cols.push_back (ord (quadrant->gparent (0, j)));
-              cols.push_back (ord (quadrant->gparent (1, j)));
+              cols.push_back (ordc (quadrant->gparent (0, j)));
+              cols.push_back (ordc (quadrant->gparent (1, j)));
             }
               
           for (r = 0; r < rows.size (); ++r)
@@ -115,7 +116,8 @@ assemble_diag (tmesh::quadrant_iterator& quadrant,
 void
 bim2a_structure (tmesh &tmsh,
                  sparse_matrix& A,
-                 const ordering& ord)
+                 const ordering& ordr,
+                 const ordering& ordc)
 {
   
   for (auto ii : Aloc)
@@ -123,7 +125,7 @@ bim2a_structure (tmesh &tmsh,
                
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    assemble (quadrant, Aloc, A, ord);
+    assemble (quadrant, Aloc, A, ordr, ordc);
   
   A.set_properties ();
 }
@@ -198,15 +200,16 @@ void
 bim2a_advection_diffusion (tmesh& mesh,
                            const std::vector<double>& alpha,
                            const std::vector<double>& psi,
-                           sparse_matrix& A,
-                           const ordering& ord)
+                           sparse_matrix& A,                           
+                           const ordering& ordr,
+                           const ordering& ordc)
 {
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
     {
       bim2a_advection_diffusion_loc (quadrant, alpha, psi, Aloc);
-      assemble (quadrant, Aloc, A, ord);
+      assemble (quadrant, Aloc, A, ordr, ordc);
     }
 }
 
@@ -289,14 +292,15 @@ bim2a_advection_eafe_diffusion (tmesh& mesh,
                                 const std::vector<double>& alpha,
                                 const std::vector<double>& psi,
                                 sparse_matrix& A,
-                                const ordering& ord)
+                                const ordering& ordr,
+                                const ordering& ordc)
 {
 
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep (); ++quadrant)
     {
       bim2a_advection_eafe_diffusion_loc (quadrant, alpha, psi, Aloc);
-      assemble (quadrant, Aloc, A, ord);      
+      assemble (quadrant, Aloc, A, ordr, ordc);      
     }
 }
 
