@@ -143,6 +143,10 @@ public:
   
   friend std::ostream&
   operator<< (std::ostream &, distributed_vector&);
+
+  double*
+  get_owned_data ()
+  { return &(*owned_data.begin ()); };
   
 };
 
