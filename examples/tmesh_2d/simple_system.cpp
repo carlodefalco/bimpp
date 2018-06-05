@@ -90,8 +90,8 @@ main (int argc, char **argv)
              
     bim2a_advection_diffusion (tmsh, ecoeff, ncoeff, A, ord0, ord0);
     bim2a_advection_diffusion (tmsh, ecoeff, ncoeff, A, ord1, ord1);
-    bim2a_rhs (tmsh, ecoeff, ncoeff, u, ord0, ord0);
-    bim2a_rhs (tmsh, ecoeff, ncoeff, u, ord1, ord0);
+    bim2a_rhs (tmsh, ecoeff, ncoeff, u, ord0);
+    bim2a_rhs (tmsh, ecoeff, ncoeff, u, ord1);
 
     
     bim2a_dirichlet_bc (tmsh, bcs, A, u, ord0);
