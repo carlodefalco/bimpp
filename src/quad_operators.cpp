@@ -8,6 +8,9 @@
 #include <limits>
 #include <iomanip>
 
+/// default ordering is identity
+ordering default_ord = [] (tmesh::idx_t gt) -> size_t { return gt; };
+
 // Compute harmonic mean of a and b.
 static inline double
 hm (const double& a, const double& b)

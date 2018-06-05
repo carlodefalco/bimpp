@@ -20,8 +20,7 @@ size_t
 dof_ordering (tmesh::idx_t gt)
 { return ntot*gt+n; };
 
-ordering
-default_ord = [] (tmesh::idx_t gt) -> size_t { return gt; };
+estern ordering default_ord;
 
 /// f(quadrant, node index).
 using func_quad = std::function<double (tmesh::quadrant_iterator, tmesh::idx_t)>;
