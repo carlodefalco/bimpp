@@ -69,8 +69,8 @@ main (int argc, char **argv)
   for (int i = 0; i < 4; ++i)
     bcs.push_back (std::make_tuple (0, i, [](double x, double y){return .0;}));
       
-  bim2a_structure (tmsh, A, ord0);
-  bim2a_structure (tmsh, A, ord1);
+  bim2a_structure (tmsh, A, ord0, ord0);
+  bim2a_structure (tmsh, A, ord1, ord1);
   
   A.aij (xa, ir, jc, lin_solver->get_index_base ());
 
@@ -114,17 +114,12 @@ main (int argc, char **argv)
     if (rank == 0) toc ("solve");
   }
 
-  tmsh.octbin_export (std::string ("simple_u").c_str (), u, ord0);
-  tmsh.octbin_export (std::string ("simple_v").c_str (), u, ord1);
-  for (int i = 0; i < u.size (); ++i)
-    std::cout << i << ", " << u[i] << std::endl;
-
+  tmsh.octbin_export (std::string ("simple_system_u").c_str (), u, ord0);
+  tmsh.octbin_export (std::string ("simple_system_v").c_str (), u, ord1);
+  
   print_timing_report ();
   lin_solver->cleanup ();
   MPI_Finalize ();
 
   return 0;
 }
-
-
-
