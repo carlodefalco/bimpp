@@ -68,7 +68,8 @@ bim2a_reaction (tmesh& mesh,
                 const std::vector<double>& delta,
                 const std::vector<double>& zeta,
                 sparse_matrix& A,
-                const ordering& ordr = default_ord);
+                const ordering& ordr = default_ord,
+                const ordering& ordc = default_ord);
 
 void
 bim2a_rhs (tmesh& mesh,

@@ -89,7 +89,8 @@ static void
 assemble_diag (tmesh::quadrant_iterator& quadrant,
                const std::array<std::array<double, 4>, 4>& locmat,
                sparse_matrix& A,
-               const ordering& ord = default_ord)
+               const ordering& ordr = default_ord,
+               const ordering& ordc = default_ord)
 {
 
   std::vector<unsigned int> rows;
@@ -101,15 +102,16 @@ assemble_diag (tmesh::quadrant_iterator& quadrant,
      rows.clear ();
           
      if (! quadrant->is_hanging (i))
-       rows.push_back (ord (quadrant->gt (i)));
+       rows.push_back (quadrant->gt (i));
      else
        {
-         rows.push_back (ord (quadrant->gparent (0, i)));
-         rows.push_back (ord (quadrant->gparent (1, i)));
+         rows.push_back (quadrant->gparent (0, i));
+         rows.push_back (quadrant->gparent (1, i));
        }
           
      for (int r = 0; r < rows.size (); ++r)
-       A[rows[r]][rows[r]] += locmat[i][i] / rows.size ();
+       A[ordr (rows[r])][ordc (rows[r])] +=
+         locmat[i][i] / rows.size ();
    }
 }
 
@@ -337,7 +339,8 @@ bim2a_reaction (tmesh& mesh,
                 const std::vector<double>& delta,
                 const std::vector<double>& zeta,
                 sparse_matrix& A,
-                const ordering& ord)
+                const ordering& ordr,
+                const ordering& ordc)
 {  
   for (auto ii : Aloc)
     ii.fill (0.0);  
@@ -345,7 +348,7 @@ bim2a_reaction (tmesh& mesh,
        quadrant != mesh.end_quadrant_sweep (); ++quadrant)
     {            
       bim2a_reaction_loc (quadrant, delta, zeta, Aloc);        
-      assemble_diag (quadrant, Aloc, A, ord);
+      assemble_diag (quadrant, Aloc, A, ordr, ordc);
     }
 }
 
