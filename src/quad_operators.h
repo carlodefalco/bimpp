@@ -12,16 +12,6 @@
 /// f(x, y).
 using func = std::function<double (double, double)>;
 
-/// ordering
-using ordering = std::function<size_t (tmesh::idx_t)>;
-
-template<size_t ntot = 1, size_t n = 0>
-size_t
-dof_ordering (tmesh::idx_t gt)
-{ return ntot*gt+n; };
-
-extern ordering default_ord;
-
 /// f(quadrant, node index).
 using func_quad = std::function<double (tmesh::quadrant_iterator, tmesh::idx_t)>;
 

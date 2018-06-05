@@ -13,7 +13,8 @@
 #include <bim_distributed_vector.h>
 #include <tmesh.h>
 
-
+/// Default ordering is identity.
+ordering default_ord = [] (tmesh::idx_t gt) -> size_t { return gt; };
 
 double
 tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj)
@@ -546,7 +547,8 @@ tmesh::vtk_export (const char *filename)
 
 template<class T>
 void
-octbin_export_tmpl (tmesh *THIS, const char* basename, const T& f)
+octbin_export_tmpl (tmesh *THIS, const char* basename, const T& f,
+		    ordering ord)
 {
   //  assert (f.size () == num_global_nodes ());
 
@@ -573,7 +575,7 @@ octbin_export_tmpl (tmesh *THIS, const char* basename, const T& f)
             {
               p[2 * quadrant->t (ii) + 0] = quadrant->p (0, ii);
               p[2 * quadrant->t (ii) + 1] = quadrant->p (1, ii);
-              f_loc[quadrant->t (ii)] = f[quadrant->gt (ii)];
+              f_loc[quadrant->t (ii)] = f[ord (quadrant->gt (ii))];
               t[4 * quadrant->get_forest_quad_idx () + (ij++)] =
                 quadrant->t (ii);
             }
@@ -581,7 +583,7 @@ octbin_export_tmpl (tmesh *THIS, const char* basename, const T& f)
             {
               p.push_back (quadrant->p (0, ii));
               p.push_back (quadrant->p (1, ii));
-              f_loc.push_back (f[quadrant->gt (ii)]);
+              f_loc.push_back (f[ord (quadrant->gt (ii))]);
               t[4 * quadrant->get_forest_quad_idx () + (ij++)] =
                 f_loc.size () - 1;
             }
@@ -591,7 +593,8 @@ octbin_export_tmpl (tmesh *THIS, const char* basename, const T& f)
               p.push_back (quadrant->p (1, ii));
               parents[0] = quadrant->gparent (0, ii);
               parents[1] = quadrant->gparent (1, ii);
-              f_loc.push_back ((f[parents[0]] + f[parents[1]]) / 2.0);
+              f_loc.push_back (0.5 * (f[ord (parents[0])] +
+				      f[ord (parents[1])]));
               t[4 * quadrant->get_forest_quad_idx () + (ij++)] =
                 f_loc.size () - 1;
             }
@@ -628,12 +631,14 @@ octbin_export_tmpl (tmesh *THIS, const char* basename, const T& f)
 };
 
 void
-tmesh::octbin_export (const char* filename, const std::vector<double>& f)
-{ octbin_export_tmpl (this, filename, f); };
+tmesh::octbin_export (const char* filename, const std::vector<double>& f,
+		      ordering ord)
+{ octbin_export_tmpl (this, filename, f, ord); };
 
 void
-tmesh::octbin_export (const char* filename, const distributed_vector& f)
-{ octbin_export_tmpl (this, filename, f); };
+tmesh::octbin_export (const char* filename, const distributed_vector& f,
+		      ordering ord)
+{ octbin_export_tmpl (this, filename, f, ord); };
 
 void
 tmesh::octbin_export_quadrant (const char * basename,

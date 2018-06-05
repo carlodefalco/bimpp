@@ -27,6 +27,16 @@
 
 #include <bim_distributed_vector.h>
 
+/// Ordering.
+using ordering = std::function<size_t (p4est_gloidx_t)>;
+
+template<size_t ntot = 1, size_t n = 0>
+size_t
+dof_ordering (p4est_gloidx_t gt)
+{ return ntot*gt+n; };
+
+extern ordering default_ord;
+
 /// C++ interface class for p4est 2d quadrant meshes.
 class
 tmesh
@@ -316,16 +326,18 @@ public:
 
   /// Export exploded mesh to a vtk file for visualization.
   void
-  vtk_export (const char *filename);
+    vtk_export (const char *filename);
 
   /// Export nodal field f to a octbin.gz file for visualization.
   void
-  octbin_export (const char* basename, const std::vector<double>& f);  
+  octbin_export (const char* basename, const std::vector<double>& f,
+		 ordering ord = default_ord);
 
   /// Export nodal field f to a octbin.gz file for visualization.
   void
-  octbin_export (const char* basename, const distributed_vector& f);  
-
+  octbin_export (const char* basename, const distributed_vector& f,
+		 ordering ord = default_ord);
+  
   /// Export quadrant field f to a octbin.gz file for visualization.
   void
   octbin_export_quadrant (const char * filename,
