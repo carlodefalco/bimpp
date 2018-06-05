@@ -87,12 +87,11 @@ main (int argc, char **argv)
   {
     if (rank == 0) tic ();
     A.reset ();
-             
+    
     bim2a_advection_diffusion (tmsh, ecoeff, ncoeff, A, ord0, ord0);
     bim2a_advection_diffusion (tmsh, ecoeff, ncoeff, A, ord1, ord1);
     bim2a_rhs (tmsh, ecoeff, ncoeff, u, ord0);
     bim2a_rhs (tmsh, ecoeff, ncoeff, u, ord1);
-
     
     bim2a_dirichlet_bc (tmsh, bcs, A, u, ord0);
     bim2a_dirichlet_bc (tmsh, bcs, A, u, ord1);
@@ -114,8 +113,11 @@ main (int argc, char **argv)
     MPI_Barrier (MPI_COMM_WORLD);
     if (rank == 0) toc ("solve");
   }
-  
-  tmsh.octbin_export (std::string ("simple_u").c_str (), u);
+
+  tmsh.octbin_export (std::string ("simple_u").c_str (), u, ord0);
+  tmsh.octbin_export (std::string ("simple_v").c_str (), u, ord1);
+  for (int i = 0; i < u.size (); ++i)
+    std::cout << i << ", " << u[i] << std::endl;
 
   print_timing_report ();
   lin_solver->cleanup ();
