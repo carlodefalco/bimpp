@@ -106,10 +106,22 @@ main (int argc, char **argv)
     if (rank == 0) tic ();
     A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
     lin_solver->set_distributed_lhs_data (xa);
-    lin_solver->set_rhs (u);
+
+    if (rank == 0)
+      MPI_Reduce (MPI_IN_PLACE, u.data (), u.size (),
+		  MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    else
+      MPI_Reduce (u.data (), u.data (), u.size (),
+		  MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    
+    if (rank == 0)
+      lin_solver->set_rhs (u);
     
     lin_solver->factorize ();
     lin_solver->solve ();
+
+    MPI_Bcast (u.data (), u.size (), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    
     MPI_Barrier (MPI_COMM_WORLD);
     if (rank == 0) toc ("solve");
   }
