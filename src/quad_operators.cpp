@@ -462,6 +462,35 @@ bim2a_boundary_mass (tmesh& mesh,
   return M;
 }
 
+static void
+bim2a_dirichlet_bc_loc (sparse_matrix& A,
+			std::vector<double>& rhs,
+			const unsigned int& row,
+			const double& value)
+{
+  rhs[row] = value;
+  
+  if (std::abs (A[row][row])
+      < std::numeric_limits<double>::epsilon ())
+    {
+      A[row][row] = std::accumulate
+	(A[row].begin (),
+	 A[row].end (),
+	 0.0,
+	 [] (double sum,
+	     const std::map<int, double>::value_type & p)
+	 {
+	   return (sum + std::abs (p.second));
+	 }
+	 );
+    }
+
+  A[row][row] *= 1e16;
+                    
+  // Multiply rhs by the diagonal entry.
+  rhs[row] *= A[row][row];
+}
+
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
 		    sparse_matrix& A, std::vector<double>& rhs,
@@ -471,6 +500,8 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
   unsigned int row, col;
   
   std::set<unsigned int> marked;
+  
+  double value;
   
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep (); ++quadrant)
@@ -497,31 +528,11 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
 		    // Mark current node so to avoid duplicate operations.
 		    marked.insert (row);
 		    
-		    // Impose boundary condition at rhs by
-		    // evaluating it at the current node.
-		    rhs[row] =
-		      (std::get<2> (bcs[bc]))
+		    // Evaluate bc at current node.
+		    value = (std::get<2> (bcs[bc]))
 		      (quadrant->p (0, i), quadrant->p (1, i));
-                                       
-		    if (std::abs (A[row][row])
-			< std::numeric_limits<double>::epsilon ())
-		      {
-			A[row][row] = std::accumulate
-			  (A[row].begin (),
-			   A[row].end (),
-			   0.0,
-			   [] (double value,
-			       const std::map<int, double>::value_type & p)
-			   {
-			     return (value + std::abs (p.second));
-			   }
-			   );
-		      }
-
-		    A[row][row] *= 1e16;
-                    
-		    // Multiply rhs by the diagonal entry.
-		    rhs[row] *= A[row][row];
+		    
+		    bim2a_dirichlet_bc_loc (A, rhs, row, value);
 		  }
 	    }
 	}
@@ -537,6 +548,8 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
   unsigned int row, col;
   
   std::set<unsigned int> marked;
+
+  double value;
   
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep (); ++quadrant)
@@ -561,32 +574,13 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
 		    && std::get<1> (bcs[bc]) == boundary_idx)
 		  {
 		    // Mark current node so to avoid duplicate operations.
-		    marked.insert (row); 
+		    marked.insert (row);
 		    
-		    // Impose boundary condition at rhs by
-		    // evaluating it at the current node.
-		    rhs[row] =
-		      (std::get<2> (bcs[bc])) (quadrant, i);
-                      
-		    if (std::abs (A[row][row])
-			< std::numeric_limits<double>::epsilon ())
-		      {
-			A[row][row] = std::accumulate
-			  (A[row].begin (),
-			   A[row].end (),
-			   0.0,
-			   [] (double value,
-			       const std::map<int, double>::value_type & p)
-			   {
-			     return (value + std::abs (p.second));
-			   }
-			   );
-		      }
-
-		    A[row][row] *= 1e16;
+		    // Evaluate bc at current node.
+		    value = (std::get<2> (bcs[bc]))
+		      (quadrant, i);
 		    
-		    // Multiply rhs by the diagonal entry.
-		    rhs[row] *= A[row][row];
+		    bim2a_dirichlet_bc_loc (A, rhs, row, value);
 		  }
 	    }
 	}
