@@ -36,55 +36,62 @@ bim2a_structure (tmesh &tmsh,
                  const ordering& ordr = default_ord,
                  const ordering& ordc = default_ord);
 
+template <class T>
 void
 bim2a_advection_diffusion (tmesh & mesh,
                            const std::vector<double>& alpha,
-                           const std::vector<double>& psi,
+                           const T& psi,
                            sparse_matrix& A,
                            const ordering& ordr = default_ord,
                            const ordering& ordc = default_ord);
 
+template <class T>
 void
 bim2a_advection_eafe_diffusion (tmesh & mesh,
-                                const std::vector<double>& alpha,
-                                const std::vector<double>& psi,
+                                const T& alpha,
+                                const T& psi,
                                 sparse_matrix& A,
                                 const ordering& ordr = default_ord,
                                 const ordering& ordc = default_ord);
 
+template <class T>
 void
 bim2a_reaction (tmesh& mesh,
                 const std::vector<double>& delta,
-                const std::vector<double>& zeta,
+                const T& zeta,
                 sparse_matrix& A,
                 const ordering& ordr = default_ord,
                 const ordering& ordc = default_ord);
 
+template <class T>
 void
 bim2a_rhs (tmesh& mesh,
            const std::vector<double>& f,
-           const std::vector<double>& g,
-           std::vector<double>& rhs,
+           const T& g,
+           T& rhs,
            const ordering& ord = default_ord);
 
-std::vector<double>
+template <class T>
+void
 bim2a_boundary_mass (tmesh & mesh,
 		     const int & tree_idx,
 		     const int & boundary_idx,
-		     std::vector<double> & M,
+		     T & M,
 		     const func_quad & fun =
 		     [] (tmesh::quadrant_iterator, tmesh::idx_t)
 		       {return 1;}
 		     );
 
+template <class T>
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
-                    sparse_matrix& A, std::vector<double>& rhs,
+                    sparse_matrix& A, T& rhs,
                     const ordering& ord = default_ord);
 
+template <class T>
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
-                    sparse_matrix& A, std::vector<double>& rhs,
+                    sparse_matrix& A, T& rhs,
                     const ordering& ord = default_ord);
 
 double

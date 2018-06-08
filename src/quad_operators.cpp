@@ -1,4 +1,5 @@
 #include "quad_operators.h"
+#include "bim_distributed_vector.h"
 
 #include <cmath>
 #include <functional>
@@ -118,10 +119,12 @@ assemble_diag (tmesh::quadrant_iterator& quadrant,
 }
 
 /// Assemble rhs.
-static void
+template <class T>
+static
+void
 assemble_rhs (tmesh::quadrant_iterator& quadrant,
 	      const std::array<double, 4>& locrhs,
-	      std::vector<double>& rhs,
+	      T& rhs,
 	      const ordering& ord = default_ord)
 {
 
@@ -147,15 +150,31 @@ assemble_rhs (tmesh::quadrant_iterator& quadrant,
     }
 }
 
+// Explicit instantiation.
+template
+static
+void
+assemble_rhs (tmesh::quadrant_iterator&,
+	      const std::array<double, 4>&,
+	      std::vector<double>&,
+	      const ordering& ord);
+
+template
+static
+void
+assemble_rhs (tmesh::quadrant_iterator&,
+	      const std::array<double, 4>&,
+	      distributed_vector&,
+	      const ordering& ord);
+
 void
 bim2a_structure (tmesh &tmsh,
                  sparse_matrix& A,
                  const ordering& ordr,
                  const ordering& ordc)
-{
-  
-  for (auto ii : Aloc)
-    ii.fill (0.0);
+{ 
+  for (auto row : Aloc)
+    row.fill (0.0);
                
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -220,14 +239,18 @@ bim2a_advection_diffusion_loc
 
 }
 
-void 
+template <class T>
+void
 bim2a_advection_diffusion (tmesh& mesh,
                            const std::vector<double>& alpha,
-                           const std::vector<double>& psi,
+                           const T& psi,
                            sparse_matrix& A,                           
                            const ordering& ordr,
                            const ordering& ordc)
 {
+  for (auto row : Aloc)
+    row.fill (0.0);
+  
   double alpha_loc = 0;
   std::array<double, 4> psi_loc;
   
@@ -250,6 +273,26 @@ bim2a_advection_diffusion (tmesh& mesh,
       assemble (quadrant, Aloc, A, ordr, ordc);
     }
 }
+
+// Explicit instantiation.
+template
+void
+bim2a_advection_diffusion (tmesh&,
+                           const std::vector<double>&,
+                           const std::vector<double>&,
+                           sparse_matrix&,
+                           const ordering&,
+                           const ordering&);
+
+template
+void
+bim2a_advection_diffusion (tmesh&,
+                           const std::vector<double>&,
+                           const distributed_vector&,
+                           sparse_matrix&,
+                           const ordering&,
+                           const ordering&);
+
 
 static void 
 bim2a_advection_eafe_diffusion_loc
@@ -303,15 +346,18 @@ bim2a_advection_eafe_diffusion_loc
 }
 
 
-
+template <class T>
 void 
 bim2a_advection_eafe_diffusion (tmesh& mesh,
-                                const std::vector<double>& alpha,
-                                const std::vector<double>& psi,
+                                const T& alpha,
+                                const T& psi,
                                 sparse_matrix& A,
                                 const ordering& ordr,
                                 const ordering& ordc)
 {
+  for (auto row : Aloc)
+    row.fill (0.0);
+  
   std::array<double, 4> alpha_loc;
   std::array<double, 4> psi_loc;
       
@@ -339,6 +385,25 @@ bim2a_advection_eafe_diffusion (tmesh& mesh,
     }
 }
 
+// Explicit instantiation.
+template
+void
+bim2a_advection_eafe_diffusion (tmesh&,
+                                const std::vector<double>&,
+                                const std::vector<double>&,
+                                sparse_matrix&,
+                                const ordering&,
+                                const ordering&);
+
+template
+void
+bim2a_advection_eafe_diffusion (tmesh&,
+                                const distributed_vector&,
+                                const distributed_vector&,
+                                sparse_matrix&,
+                                const ordering&,
+                                const ordering&);
+
 
 static void
 bim2a_reaction_loc (tmesh::quadrant_iterator& quadrant,
@@ -353,10 +418,11 @@ bim2a_reaction_loc (tmesh::quadrant_iterator& quadrant,
     locmat[i][i] = (delta * zeta[i] * hxhyby4);
 }
 
+template <class T>
 void
 bim2a_reaction (tmesh& mesh,
                 const std::vector<double>& delta,
-                const std::vector<double>& zeta,
+                const T& zeta,
                 sparse_matrix& A,
                 const ordering& ordr,
                 const ordering& ordc)
@@ -364,8 +430,8 @@ bim2a_reaction (tmesh& mesh,
   double delta_loc = 0;
   std::array<double, 4> zeta_loc;
   
-  for (auto ii : Aloc)
-    ii.fill (0.0);
+  for (auto row : Aloc)
+    row.fill (0.0);
   
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep (); ++quadrant)
@@ -386,6 +452,7 @@ bim2a_reaction (tmesh& mesh,
     }
 }
 
+
 static void
 bim2a_rhs_loc (tmesh::quadrant_iterator& quadrant,
 	       const double & f,
@@ -399,14 +466,36 @@ bim2a_rhs_loc (tmesh::quadrant_iterator& quadrant,
     locrhs[i] = (f * g[i] * hxhyby4);
 }
 
+// Explicit instantiation.
+template
+void
+bim2a_reaction (tmesh&,
+                const std::vector<double>&,
+                const std::vector<double>&,
+                sparse_matrix&,
+                const ordering&,
+                const ordering&);
 
+template
+void
+bim2a_reaction (tmesh&,
+                const std::vector<double>&,
+                const distributed_vector&,
+                sparse_matrix&,
+                const ordering&,
+                const ordering&);
+
+
+template <class T>
 void
 bim2a_rhs (tmesh& mesh,
 	   const std::vector<double>& f,
-	   const std::vector<double>& g,
-	   std::vector<double>& rhs,
+	   const T& g,
+	   T& rhs,
 	   const ordering& ord)
-{  
+{
+  rhsloc.fill (0.0);
+  
   double f_loc = 0;
   std::array<double, 4> g_loc;
   
@@ -429,11 +518,30 @@ bim2a_rhs (tmesh& mesh,
     }
 }
 
-std::vector<double>
+// Explicit instantiation.
+template
+void
+bim2a_rhs (tmesh&,
+           const std::vector<double>&,
+           const std::vector<double>&,
+           std::vector<double>&,
+           const ordering&);
+
+template
+void
+bim2a_rhs (tmesh&,
+           const std::vector<double>&,
+           const distributed_vector&,
+           distributed_vector&,
+           const ordering&);
+
+
+template <class T>
+void
 bim2a_boundary_mass (tmesh& mesh,
 		     const int & tree_idx,
 		     const int & boundary_idx,
-		     std::vector<double> & M,
+		     T & M,
 		     const func_quad & fun)
 {
   double h = 0;
@@ -458,13 +566,30 @@ bim2a_boundary_mass (tmesh& mesh,
 	    }
 	}
     }
-  
-  return M;
 }
 
+// Explicit instantiation.
+template
+void
+bim2a_boundary_mass (tmesh&,
+		     const int &,
+		     const int &,
+		     std::vector<double> &,
+		     const func_quad &);
+
+template
+void
+bim2a_boundary_mass (tmesh&,
+		     const int &,
+		     const int &,
+		     distributed_vector &,
+		     const func_quad &);
+
+
+template <class T>
 static void
 bim2a_dirichlet_bc_loc (sparse_matrix& A,
-			std::vector<double>& rhs,
+			T& rhs,
 			const unsigned int& row,
 			const double& value)
 {
@@ -491,9 +616,26 @@ bim2a_dirichlet_bc_loc (sparse_matrix& A,
   rhs[row] *= A[row][row];
 }
 
+// Explicit instantiation.
+template
+static void
+bim2a_dirichlet_bc_loc (sparse_matrix&,
+			std::vector<double>&,
+			const unsigned int&,
+			const double&);
+
+template
+static void
+bim2a_dirichlet_bc_loc (sparse_matrix&,
+			distributed_vector&,
+			const unsigned int&,
+			const double&);
+
+
+template <class T>
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
-		    sparse_matrix& A, std::vector<double>& rhs,
+		    sparse_matrix& A, T& rhs,
 		    const ordering& ord)
 {
   int boundary_idx, tree_idx;
@@ -539,9 +681,24 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
     }
 }
 
+// Explicit instantiation.
+template
+void
+bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs&,
+		    sparse_matrix&, std::vector<double>&,
+		    const ordering&);
+
+template
+void
+bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs&,
+		    sparse_matrix&, distributed_vector&,
+		    const ordering&);
+
+
+template <class T>
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
-		    sparse_matrix& A, std::vector<double>& rhs,
+		    sparse_matrix& A, T& rhs,
 		    const ordering& ord)
 {
   int boundary_idx, tree_idx;
@@ -586,6 +743,20 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
 	}
     }
 }
+
+// Explicit instantiation.
+template
+void
+bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs_quad&,
+		    sparse_matrix&, std::vector<double>&,
+		    const ordering&);
+
+template
+void
+bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs_quad&,
+		    sparse_matrix&, distributed_vector&,
+		    const ordering&);
+
 
 // MPI_User_function.
 static void replace(double *invec, double *inoutvec,
