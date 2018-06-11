@@ -503,7 +503,7 @@ tmesh::read_connectivity (const char *filename,
     octbingz2connectivity (filename, &conn);
 
   conn = p4est_connectivity_bcast (conn, source, comm);
-  p4est = p4est_new (comm, conn, 0, NULL, this);
+  p4est = p4est_new (comm, conn, sizeof (tmesh::data_t), init_callback, this);
 };
 
 void
@@ -518,7 +518,7 @@ tmesh::read_connectivity (const double *p,
                          t, num_trees, &conn);
 
   conn = p4est_connectivity_bcast (conn, source, comm);
-  p4est = p4est_new (comm, conn, 0, NULL, this);
+  p4est = p4est_new (comm, conn, sizeof (tmesh::data_t), init_callback, this);
 };
 
 void
@@ -741,8 +741,11 @@ tmesh::set_metrics_marker
 	hxhat_hx = std::max (0, hxhat_hx - n_refine);
       else
 	hxhat_hx = std::min (0, hxhat_hx + n_coarsen);
-	
-      quadrant->the_quadrant->p.user_int =
+      
+      tmesh::data_t * data =
+        static_cast<tmesh::data_t *> (quadrant->the_quadrant->p.user_data);
+      
+      data->refine_count =
         std::min (std::max (-max_depth, hxhat_hx), max_depth);
     }
 
@@ -755,12 +758,9 @@ tmesh::refine (int recursive, int partforcoarsen, int balance)
   quadrant_iterator qi (&current_quadrant);
   qi.reset ();
 
-  if (replace_fun == nullptr)
-    p4est_refine (p4est, recursive, refine_callback, nullptr);
-  else
-    p4est_refine_ext (p4est, recursive, -1, refine_callback,
-                      nullptr, replace_callback);
-
+  p4est_refine_ext (p4est, recursive, -1, refine_callback,
+                    nullptr, replace_callback);
+  
   if (balance)
     p4est_balance (p4est, P4EST_CONNECT_FACE, nullptr);
 
@@ -799,12 +799,9 @@ tmesh::metrics_refine (idx_t max_elems)
 void
 tmesh::coarsen (int recursive, int partforcoarsen, int balance)
 {
-  if (replace_fun == nullptr)
-    p4est_coarsen (p4est, recursive, coarsen_callback, nullptr);
-  else
-    p4est_coarsen_ext (p4est, recursive, 0, coarsen_callback,
-                       nullptr, replace_callback);
-
+  p4est_coarsen_ext (p4est, recursive, 0, coarsen_callback,
+                     nullptr, replace_callback);
+  
   if (balance)
     p4est_balance (p4est, P4EST_CONNECT_FACE, nullptr);
 
@@ -958,46 +955,69 @@ tmesh::update_ghosts ()
   MPI_Waitall (req_s.size (), &(req_s[0]), &(stats[0]));
 };
 
-std::vector<int>
-tmesh::user_int_replace (std::vector<int> old_user_int)
+std::vector<tmesh::data_t>
+tmesh::user_data_replace (std::vector<tmesh::data_t *> old_user_data)
 {
-  std::vector<int> new_user_int;
+  std::vector<tmesh::data_t> new_user_data;
 
   // Refinement.
-  if (old_user_int.size () == 1)
+  if (old_user_data.size () == 1)
     {
-      new_user_int.resize (4);
+      new_user_data.resize (4);
 
-      for (size_t i = 0; i < new_user_int.size (); ++i)
-        new_user_int[i] = old_user_int[0] - 1;
+      for (size_t i = 0; i < new_user_data.size (); ++i)
+        new_user_data[i].refine_count =
+          old_user_data[0]->refine_count - 1;
     }
   // Coarsening.
-  else if (old_user_int.size () == 4)
+  else if (old_user_data.size () == 4)
     {
-      new_user_int.resize (1);
+      new_user_data.resize (1);
 
-      new_user_int[0] = *std::max_element (old_user_int.begin (),
-					   old_user_int.end ()) + 1;
+      std::array<int, 4> ref_counts =
+        {
+          old_user_data[0]->refine_count,
+          old_user_data[1]->refine_count,
+          old_user_data[2]->refine_count,
+          old_user_data[3]->refine_count
+        };
+      
+      new_user_data[0].refine_count =
+        *std::max_element (ref_counts.begin (),
+                           ref_counts.end ()) + 1;
     }
 
-  return new_user_int;
+  return new_user_data;
 }
+
+void
+tmesh::init_callback (p4est_t* p4, p4est_topidx_t tt,
+                      p4est_quadrant_t* qq)
+{
+  tmesh::data_t * data =
+    static_cast<tmesh::data_t *> (qq->p.user_data);
+  
+  data->refine_count = 0;
+};
 
 int
 tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt,
                         p4est_quadrant_t* qq)
 {
-  return (qq->p.user_int > 0);
+  tmesh::data_t * data =
+    static_cast<tmesh::data_t *> (qq->p.user_data);
+  
+  return (data->refine_count > 0);
 };
 
 int
 tmesh::coarsen_callback (p4est_t* p4, p4est_topidx_t tt,
                          p4est_quadrant_t* qq [])
 {
-  return (qq[0]->p.user_int < 0
-          && qq[1]->p.user_int < 0
-          && qq[2]->p.user_int < 0
-          && qq[3]->p.user_int < 0);
+  return (static_cast<tmesh::data_t *> (qq[0]->p.user_data)->refine_count < 0
+          && static_cast<tmesh::data_t *> (qq[1]->p.user_data)->refine_count < 0
+          && static_cast<tmesh::data_t *> (qq[2]->p.user_data)->refine_count < 0
+          && static_cast<tmesh::data_t *> (qq[3]->p.user_data)->refine_count < 0);
 };
 
 void
@@ -1010,15 +1030,18 @@ tmesh::replace_callback (p4est_t * p4,
 {
   tmesh *tm = reinterpret_cast<tmesh*> (p4->user_pointer);
 
-  std::vector<int> old_user_int (num_outgoing);
+  std::vector<tmesh::data_t *> old_user_data (num_outgoing);
 
   for (size_t i = 0; i < num_outgoing; ++i)
-    old_user_int[i] = outgoing[i]->p.user_int;
+    old_user_data[i] =
+      static_cast<tmesh::data_t *> (outgoing[i]->p.user_data);
 
-  std::vector<int> new_user_int = tm->replace_fun (old_user_int);
+  std::vector<tmesh::data_t> new_user_data =
+    tm->replace_fun (old_user_data);
 
   for (size_t i = 0; i < num_incoming; ++i)
-    incoming[i]->p.user_int = new_user_int[i];
+    *(static_cast<tmesh::data_t *> (incoming[i]->p.user_data)) =
+      new_user_data[i];
 
   return;
 };

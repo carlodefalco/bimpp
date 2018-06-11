@@ -58,8 +58,6 @@ main (int argc, char **argv)
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
   
-  tmsh.set_replace_fun (tmesh::user_int_replace);
-  
   recursive = 0; partforcoarsen = 1;
   for (int cycle = 0; cycle < 2; ++cycle)
     {

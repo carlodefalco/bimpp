@@ -1,6 +1,7 @@
 #include <tmesh.h>
 #include <mumps_class.h>
 #include <quad_operators.h>
+#include <bim_sparse_distributed.h>
 #include <simple_connectivity_2d.h>
 #include <bim_timing.h>
 #include <vector>
@@ -154,9 +155,9 @@ int main(int argc, char ** argv)
   // Assemble matrix.
   MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
   
-  sparse_matrix A;
+  distributed_sparse_matrix A;
   A.resize(tmsh.num_global_nodes());
-  
+
   std::vector<double> alpha(tmsh.num_local_quadrants (), 1e-2);
   std::vector<double> psi(tmsh.num_global_nodes (), 0);
   
@@ -165,9 +166,9 @@ int main(int argc, char ** argv)
        ++quadrant)
     {
       if (segment_refinement(quadrant))
-        {
-          alpha[quadrant->get_forest_quad_idx()] = 100;
-        }
+	{
+	  alpha[quadrant->get_forest_quad_idx()] = 100;
+	}
     }
     
   bim2a_advection_diffusion (tmsh, alpha, psi, A);
@@ -196,6 +197,15 @@ int main(int argc, char ** argv)
   bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
   
   if (rank == 0) { toc ("*** Boundary conditions ***"); }
+
+  // Partition matrix.
+  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+
+  A.set_ranges (tmsh.lnodes->global_offset,
+		tmsh.lnodes->global_offset + tmsh.num_owned_nodes ());
+  A.assemble ();
+
+  if (rank == 0) { toc ("*** Matrix partitioning ***"); }
   
   // Solve problem.
   MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }

@@ -273,6 +273,13 @@ public:
     int                   pbuff[8] = {-1,-1, -1,-1, -1,-1, -1,-1};
   };
 
+  /// Struct for p4est user_data.
+  struct data_t
+  {
+    int refine_count;
+    std::array<std::array<double, 4>, 4> interp;
+  };
+  
   /// Default constructor, set all pointers to nullptr.
   tmesh (MPI_Comm _comm = MPI_COMM_WORLD)
     : p4est (nullptr), conn (nullptr),
@@ -280,7 +287,7 @@ public:
       lnodes (nullptr), mesh (nullptr), ghost (nullptr),
       mirror_data (nullptr), ghost_data (nullptr),
       comm (_comm), rank (0), size (1),
-      replace_fun (user_int_replace)
+      replace_fun (user_data_replace)
   {
     MPI_Comm_rank (comm, &rank);
     MPI_Comm_size (comm, &size);
@@ -326,7 +333,7 @@ public:
 
   /// Export exploded mesh to a vtk file for visualization.
   void
-    vtk_export (const char *filename);
+  vtk_export (const char *filename);
 
   /// Export nodal field f to a octbin.gz file for visualization.
   void
@@ -357,6 +364,7 @@ public:
   set_refine_marker
   (std::function<int (quadrant_iterator)> fun)
   {
+    tmesh::data_t * data;
     int val = 0;
 
     for (auto q = this->begin_quadrant_sweep ();
@@ -365,7 +373,10 @@ public:
       {
         val = fun (q);
         if (val)
-          q->the_quadrant->p.user_int = std::abs (val);
+          {
+            data = static_cast<tmesh::data_t *> (q->the_quadrant->p.user_data);
+            data->refine_count = std::abs (val);
+          }
       }
   };
 
@@ -374,6 +385,7 @@ public:
   set_coarsen_marker
   (std::function<int (quadrant_iterator)> fun)
   {
+    tmesh::data_t * data;
     int val = 0;
 
     for (auto q = this->begin_quadrant_sweep ();
@@ -382,7 +394,10 @@ public:
       {
         val = fun (q);
         if (val)
-          q->the_quadrant->p.user_int = -std::abs (val);
+          {
+            data = static_cast<tmesh::data_t *> (q->the_quadrant->p.user_data);
+            data->refine_count = -std::abs (val);
+          }
       }
   };
 
@@ -397,7 +412,7 @@ public:
   /// refined or coarsened.
   void
   set_replace_fun
-  (std::function<std::vector<int> (std::vector<int>)> fun)
+  (std::function<std::vector<tmesh::data_t> (std::vector<tmesh::data_t *>)> fun)
   {
     replace_fun = fun;
   };
@@ -464,9 +479,9 @@ public:
   num_global_quadrants ()
   { return p4est->global_num_quadrants; };
 
-  /// Replace fun based on quadrant user_int.
-  static std::vector<int>
-  user_int_replace (std::vector<int>);
+  /// Replace fun based on quadrant user_data.
+  static std::vector<tmesh::data_t>
+  user_data_replace (std::vector<tmesh::data_t *>);
 
   /// P4EST pointers describing the tmesh,
   /// temporarily public until the API is stable.
@@ -486,7 +501,10 @@ public:
 
 private:
 
-  std::function<std::vector<int> (std::vector<int>)> replace_fun;
+  std::function<std::vector<tmesh::data_t> (std::vector<tmesh::data_t *>)> replace_fun;
+
+  static void
+  init_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t*);
 
   static int
   refine_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t*);
@@ -502,6 +520,4 @@ private:
   int metrics_max_depth;
 };
 
-
 #endif /* TMESH_H */
-

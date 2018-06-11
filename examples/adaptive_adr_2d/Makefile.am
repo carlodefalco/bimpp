@@ -22,7 +22,7 @@ bin_PROGRAMS = p4est_operator_segment_test \
                p4est_dr_test_3_marker p4est_dr_test_3_metrics p4est_dr_test_3_uniform \
                p4est_dr_test_4_marker p4est_dr_test_4_metrics p4est_dr_test_4_uniform \
                p4est_dr_test_5_marker p4est_dr_test_5_metrics p4est_dr_test_5_uniform \
-               p4est_test_discontinuous
+               p4est_test_discontinuous p4est_interpolation_test
 
 p4est_operator_test_SOURCES =  p4est_operator_test.cpp
 p4est_operator_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
@@ -191,3 +191,9 @@ p4est_test_discontinuous_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
 p4est_test_discontinuous_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 p4est_test_discontinuous_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
 CLEANFILES += p4est_test_discontinuous*.octbin.gz p4est_test_discontinuous*.pvtu p4est_test_discontinuous*.visit p4est_test_discontinuous*.vtu
+
+p4est_interpolation_test_SOURCES =  p4est_interpolation_test.cpp
+p4est_interpolation_test_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
+p4est_interpolation_test_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+p4est_interpolation_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+CLEANFILES += p4est_interpolation_test*.octbin.gz p4est_interpolation_test*.pvtu p4est_interpolation_test*.visit p4est_interpolation_test*.vtu
