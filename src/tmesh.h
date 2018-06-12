@@ -276,8 +276,16 @@ public:
   /// Struct for p4est user_data.
   struct data_t
   {
+    /// Number of refinement steps to be performed.
+    /// A negative number is used to mark for coarsening.
     int refine_count;
-    std::array<std::array<double, 4>, 4> interp;
+
+    /// Interpolation indices, i.e. the indices
+    /// associated to interp_coeff entries.
+    std::array<std::array<tmesh::idx_t, 4>, 4> interp_idx;
+
+    /// Interpolation coefficients at the four vertices.
+    std::array<std::array<double, 4>, 4> interp_coeff;
   };
   
   /// Default constructor, set all pointers to nullptr.
@@ -338,12 +346,12 @@ public:
   /// Export nodal field f to a octbin.gz file for visualization.
   void
   octbin_export (const char* basename, const std::vector<double>& f,
-		 ordering ord = default_ord);
+		 const ordering& ord = default_ord);
 
   /// Export nodal field f to a octbin.gz file for visualization.
   void
   octbin_export (const char* basename, const distributed_vector& f,
-		 ordering ord = default_ord);
+		 const ordering& ord = default_ord);
   
   /// Export quadrant field f to a octbin.gz file for visualization.
   void
@@ -371,6 +379,8 @@ public:
          q != this->end_quadrant_sweep ();
          ++q)
       {
+        set_interpolation_matrix (q);
+        
         val = fun (q);
         if (val)
           {
@@ -392,6 +402,8 @@ public:
          q != this->end_quadrant_sweep ();
          ++q)
       {
+        set_interpolation_matrix (q);
+        
         val = fun (q);
         if (val)
           {
@@ -500,12 +512,8 @@ public:
   int      size;
 
 private:
-
   std::function<std::vector<tmesh::data_t> (std::vector<tmesh::data_t *>)> replace_fun;
-
-  static void
-  init_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t*);
-
+  
   static int
   refine_callback (p4est_t*, p4est_topidx_t, p4est_quadrant_t*);
 
@@ -516,6 +524,9 @@ private:
   replace_callback (p4est_t*, p4est_topidx_t,
                     int, p4est_quadrant_t* [],
                     int, p4est_quadrant_t* []);
+
+  void
+  set_interpolation_matrix (tmesh::quadrant_iterator &);
 
   int metrics_max_depth;
 };

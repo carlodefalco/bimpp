@@ -13,6 +13,10 @@ static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return 1; }
 
+static int
+bottom_coarsening (tmesh::quadrant_iterator q)
+{ return 2*(q->centroid (1) <= 0.5); }
+
 int
 main (int argc, char **argv)
 {
@@ -30,15 +34,8 @@ main (int argc, char **argv)
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
   
-  for (auto quadrant = tmsh.begin_quadrant_sweep ();
-       quadrant != tmsh.end_quadrant_sweep ();
-       ++quadrant)
-    {
-      std::cout << quadrant->get_global_quad_idx () << ", " << static_cast<tmesh::data_t *> (quadrant->the_quadrant->p.user_data)->interp[15] << std::endl;
-    }
-  
   recursive = 0; partforcoarsen = 1;
-  for (int cycle = 0; cycle < 2; ++cycle)
+  for (int cycle = 0; cycle < 4; ++cycle)
     {
       tmsh.set_refine_marker (uniform_refinement);
       tmsh.refine (recursive, partforcoarsen);
@@ -141,38 +138,18 @@ main (int argc, char **argv)
   // Export solution.
   MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
   tmsh.octbin_export ("p4est_interpolation_test_u", global_rhs);
-      
+  
   std::cout << " Done." << std::endl;
-      
-  // Compute reconstructed gradient.
-  std::cout << "Computing reconstructed gradient, solution and estimator.";
-      
-  gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
-  q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du);
-      
-  auto refine_fun = [& delta1, & u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
-    { return zz_marker_sol (q, u_star, global_rhs,
-                            delta1 * 1e-5 / std::sqrt(tmsh.num_global_nodes())); };
-      
-  auto coarsen_fun = [& delta2, & u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
-    { return !zz_marker_sol (q, u_star, global_rhs,
-                             delta2 * 1e-5 / std::sqrt(tmsh.num_global_nodes())); };
-      
-  auto estimator = [& u_star, & global_rhs] (tmesh::quadrant_iterator q)
-    { return estimator_sol (q, u_star, global_rhs); };
-      
-  std::cout << " Done." << std::endl;
-      
+  
   // Coarsen and refine.
-  tmsh.set_coarsen_marker (coarsen_fun);
-  tmsh.set_refine_marker (refine_fun);
-      
-  tmsh.coarsen (recursive, partforcoarsen, 0);
-  tmsh.refine (recursive, partforcoarsen);
-
+  tmsh.set_coarsen_marker (bottom_coarsening);
+  tmsh.coarsen (recursive, partforcoarsen);
+  
   // Interpolate solution at new mesh.
-      
-      
+  std::vector<double> new_sol = interpolate_vector (tmsh, global_rhs);
+  
+  tmsh.octbin_export ("p4est_interpolation_test_u_new", new_sol);
+  
   MPI_Finalize ();
   
   return 0;

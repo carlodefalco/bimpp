@@ -10,7 +10,8 @@
 
 #include <array>
 #include <octave_file_io.h>
-#include <bim_distributed_vector.h>
+#include <map>
+#include <utility>
 #include <tmesh.h>
 
 /// Default ordering is identity.
@@ -503,7 +504,7 @@ tmesh::read_connectivity (const char *filename,
     octbingz2connectivity (filename, &conn);
 
   conn = p4est_connectivity_bcast (conn, source, comm);
-  p4est = p4est_new (comm, conn, sizeof (tmesh::data_t), init_callback, this);
+  p4est = p4est_new (comm, conn, sizeof (tmesh::data_t), nullptr, this);
 };
 
 void
@@ -518,7 +519,7 @@ tmesh::read_connectivity (const double *p,
                          t, num_trees, &conn);
 
   conn = p4est_connectivity_bcast (conn, source, comm);
-  p4est = p4est_new (comm, conn, sizeof (tmesh::data_t), init_callback, this);
+  p4est = p4est_new (comm, conn, sizeof (tmesh::data_t), nullptr, this);
 };
 
 void
@@ -548,7 +549,7 @@ tmesh::vtk_export (const char *filename)
 template<class T>
 void
 octbin_export_tmpl (tmesh *THIS, const char* basename, const T& f,
-		    ordering ord)
+		    const ordering& ord)
 {
   //  assert (f.size () == num_global_nodes ());
 
@@ -632,12 +633,12 @@ octbin_export_tmpl (tmesh *THIS, const char* basename, const T& f,
 
 void
 tmesh::octbin_export (const char* filename, const std::vector<double>& f,
-		      ordering ord)
+		      const ordering& ord)
 { octbin_export_tmpl (this, filename, f, ord); };
 
 void
 tmesh::octbin_export (const char* filename, const distributed_vector& f,
-		      ordering ord)
+		      const ordering& ord)
 { octbin_export_tmpl (this, filename, f, ord); };
 
 void
@@ -734,6 +735,8 @@ tmesh::set_metrics_marker
        quadrant != this->end_quadrant_sweep ();
        ++quadrant)
     {
+      set_interpolation_matrix (quadrant);
+        
       hxhat_hx = static_cast<int> (std::round (std::log2 (estimator (quadrant)
 							  * std::sqrt (this->num_global_quadrants ()) / tol)));
 
@@ -762,7 +765,8 @@ tmesh::refine (int recursive, int partforcoarsen, int balance)
                     nullptr, replace_callback);
   
   if (balance)
-    p4est_balance (p4est, P4EST_CONNECT_FACE, nullptr);
+    p4est_balance_ext (p4est, P4EST_CONNECT_FACE,
+                       nullptr, replace_callback);
 
   p4est_partition (p4est, partforcoarsen, nullptr);
 
@@ -803,7 +807,8 @@ tmesh::coarsen (int recursive, int partforcoarsen, int balance)
                      nullptr, replace_callback);
   
   if (balance)
-    p4est_balance (p4est, P4EST_CONNECT_FACE, nullptr);
+    p4est_balance_ext (p4est, P4EST_CONNECT_FACE,
+                       nullptr, replace_callback);
 
   p4est_partition (p4est, partforcoarsen, nullptr);
 
@@ -966,14 +971,66 @@ tmesh::user_data_replace (std::vector<tmesh::data_t *> old_user_data)
       new_user_data.resize (4);
 
       for (size_t i = 0; i < new_user_data.size (); ++i)
-        new_user_data[i].refine_count =
-          old_user_data[0]->refine_count - 1;
+        {
+          // Decrease refine_count.
+          new_user_data[i].refine_count =
+            old_user_data[0]->refine_count - 1;
+          
+          // Compute local interpolation matrix.
+          std::array<std::array<double, 4>, 4> loc_interp;
+          
+          if (i == 0)
+            loc_interp =
+              {
+                1,     0,     0,     0, 
+                0.5,   0.5,   0,     0, 
+                0.5,   0,     0.5,   0, 
+                0.25,  0.25,  0.25,  0.25
+              };
+          else if (i == 1)
+            loc_interp =
+              {
+                0.5,   0.5,   0,     0,    
+                0,     1,     0,     0,    
+                0.25,  0.25,  0.25,  0.25, 
+                0,     0.5,   0,     0.5
+              };
+          else if (i == 2)
+            loc_interp =
+              {
+                0.5,   0,     0.5,   0,    
+                0.25,  0.25,  0.25,  0.25, 
+                0,     0,     1,     0,    
+                0,     0,     0.5,   0.5
+              };
+          else if (i == 3)
+            loc_interp =
+              {
+                0.25,  0.25,  0.25,  0.25, 
+                0,     0.5,   0,     0.5,  
+                0,     0,     0.5,   0.5,  
+                0,     0,     0,     1
+              };
+          
+          // Multiply by parent interpolation matrix.
+          new_user_data[i].interp_coeff = {0};
+          
+          new_user_data[i].interp_idx =
+            old_user_data[0]->interp_idx;
+          
+          for (int row = 0; row < 4; ++row)
+            for (int col = 0; col < 4; ++col)
+              for (int k = 0; k < 4; ++k)
+                new_user_data[i].interp_coeff[row][col] +=
+                  loc_interp[row][k] * old_user_data[0]->interp_coeff[k][col];
+        }
     }
   // Coarsening.
   else if (old_user_data.size () == 4)
     {
       new_user_data.resize (1);
 
+      // Increase refine_count.
       std::array<int, 4> ref_counts =
         {
           old_user_data[0]->refine_count,
@@ -985,20 +1042,27 @@ tmesh::user_data_replace (std::vector<tmesh::data_t *> old_user_data)
       new_user_data[0].refine_count =
         *std::max_element (ref_counts.begin (),
                            ref_counts.end ()) + 1;
-    }
 
+      // Replace interpolation matrix.
+      new_user_data[0].interp_idx =
+        {
+          old_user_data[0]->interp_idx[0],
+          old_user_data[1]->interp_idx[1],
+          old_user_data[2]->interp_idx[2],
+          old_user_data[3]->interp_idx[3]
+        };
+      
+      new_user_data[0].interp_coeff =
+        {
+          old_user_data[0]->interp_coeff[0],
+          old_user_data[1]->interp_coeff[1],
+          old_user_data[2]->interp_coeff[2],
+          old_user_data[3]->interp_coeff[3]
+        };
+    }
+  
   return new_user_data;
 }
-
-void
-tmesh::init_callback (p4est_t* p4, p4est_topidx_t tt,
-                      p4est_quadrant_t* qq)
-{
-  tmesh::data_t * data =
-    static_cast<tmesh::data_t *> (qq->p.user_data);
-  
-  data->refine_count = 0;
-};
 
 int
 tmesh::refine_callback (p4est_t* p4, p4est_topidx_t tt,
@@ -1044,4 +1108,51 @@ tmesh::replace_callback (p4est_t * p4,
       new_user_data[i];
 
   return;
+};
+
+void
+tmesh::set_interpolation_matrix (tmesh::quadrant_iterator & q)
+{
+  // Create interpolation map.
+  std::map<idx_t,
+           std::vector<std::pair<int, double>>> interp_map;
+  
+  for (int node = 0; node < 4; ++node)
+    {
+      if (! q->is_hanging (node))
+        interp_map[q->gt (node)].push_back
+          (std::make_pair(node, 1));
+      else
+        {
+          interp_map[q->parent (0, node)].push_back
+            (std::make_pair(node, 0.5));
+
+          interp_map[q->parent (1, node)].push_back
+            (std::make_pair(node, 0.5));
+        }
+    }
+
+  // Copy interp_map into user_data.
+  tmesh::data_t * data =
+    static_cast<tmesh::data_t *> (q->the_quadrant->p.user_data);
+  
+  data->interp_idx = {0};
+  data->interp_coeff = {0};
+  
+  int col = 0;
+  for (auto map_el = interp_map.begin ();
+       map_el != interp_map.end ();
+       ++col, ++map_el)
+    {
+      // Indices are the same for every row.
+      for (size_t row = 0; row < interp_map.size (); ++row)
+        data->interp_idx[row][col] =
+          map_el->first;
+      
+      for (size_t row = 0; row < map_el->second.size (); ++row)
+        {
+          data->interp_coeff[map_el->second[row].first][col] =
+            map_el->second[row].second;
+        }
+    }
 };

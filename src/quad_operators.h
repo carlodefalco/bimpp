@@ -94,6 +94,11 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                     sparse_matrix& A, T& rhs,
                     const ordering& ord = default_ord);
 
+std::vector<double>
+interpolate_vector (tmesh& mesh,
+                    const std::vector<double>& vec_in,
+                    const ordering& ord = default_ord);
+
 double
 nedelec_gradient (tmesh::quadrant_iterator & q,
                   const q1_vec& u, size_t i);
