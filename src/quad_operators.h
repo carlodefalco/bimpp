@@ -97,7 +97,7 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
 std::vector<double>
 interpolate_vector (tmesh& mesh,
                     const std::vector<double>& vec_in,
-                    const ordering& ord = default_ord);
+                    const size_t& ntot = 1);
 
 double
 nedelec_gradient (tmesh::quadrant_iterator & q,

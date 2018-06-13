@@ -760,9 +760,9 @@ bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs_quad&,
 std::vector<double>
 interpolate_vector (tmesh& mesh,
                     const std::vector<double>& vec_in,
-                    const ordering& ord)
+                    const size_t& ntot)
 {
-  std::vector<double> vec_out (mesh.num_global_nodes (), 0);
+  std::vector<double> vec_out (ntot * mesh.num_global_nodes (), 0);
 
   tmesh::data_t * data;
 
@@ -774,14 +774,15 @@ interpolate_vector (tmesh& mesh,
       
       for (int node = 0; node < 4; ++node)
         {
-          if (! quadrant->is_hanging (node))
+          if (! quadrant->is_hanging (node) &&
+              vec_out[quadrant->gt (node)] == 0)
             {
-              vec_out[quadrant->gt (node)] = 0;
-              
-              for (int i = 0; i < 4; ++i)
-                vec_out[quadrant->gt (node)] +=
-                  data->interp_coeff[node][i] *
-                  vec_in[ord (data->interp_idx[node][i])];
+              // Loop over all the equations.
+              for (size_t eq = 0; eq < ntot; ++eq)
+                for (int i = 0; i < 4; ++i)
+                  vec_out[ntot * quadrant->gt (node) + eq] +=
+                    data->interp_coeff[node][i] *
+                    vec_in[ntot * data->interp_idx[node][i] + eq];
             }
         }
     }
