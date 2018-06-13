@@ -35,7 +35,7 @@ main (int argc, char **argv)
                           simple_conn_t, simple_conn_num_trees);
   
   recursive = 0; partforcoarsen = 1;
-  for (int cycle = 0; cycle < 4; ++cycle)
+  for (int cycle = 0; cycle < 5; ++cycle)
     {
       tmsh.set_refine_marker (uniform_refinement);
       tmsh.refine (recursive, partforcoarsen);
@@ -143,7 +143,7 @@ main (int argc, char **argv)
   
   // Coarsen and refine.
   tmsh.set_coarsen_marker (bottom_coarsening);
-  tmsh.coarsen (recursive, partforcoarsen);
+  tmsh.coarsen (1, partforcoarsen);
   
   // Interpolate solution at new mesh.
   std::vector<double> new_sol = interpolate_vector (tmsh, global_rhs);
