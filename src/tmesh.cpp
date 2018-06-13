@@ -975,6 +975,39 @@ tmesh::user_data_replace (std::vector<tmesh::data_t *> old_user_data)
           // Decrease refine_count.
           new_user_data[i].refine_count =
             old_user_data[0]->refine_count - 1;
+
+          // Determine interpolation indices.
+          new_user_data[i].interp_idx =
+            old_user_data[0]->interp_idx;
+
+          // Balancing.
+          // In this case the indices for the 4 vertices are different,
+          // so only the really needed ones (i.e. the ones with interp_coeff = 1)
+          // are extracted.
+          if (! (new_user_data[i].interp_idx[0] == new_user_data[i].interp_idx[1] &&
+                 new_user_data[i].interp_idx[0] == new_user_data[i].interp_idx[2] &&
+                 new_user_data[i].interp_idx[0] == new_user_data[i].interp_idx[3])
+              && (i == 0))
+            {
+              std::array<tmesh::idx_t, 4> new_interp_idx;
+              std::array<std::array<double, 4>, 4> new_interp_coeff ({0.0});
+              
+              for (int row = 0; row < 4; ++row)
+                {
+                  for (int col = 0; col < 4; ++col)
+                    {
+                      if (old_user_data[0]->interp_coeff[row][col] == 1)
+                        {
+                          new_interp_idx[row] = old_user_data[0]->interp_idx[row][col];
+                          new_interp_coeff[row][row] = old_user_data[0]->interp_coeff[row][col];
+                          break;
+                        }
+                    }
+                }
+              
+              old_user_data[0]->interp_idx.fill (new_interp_idx);
+              old_user_data[0]->interp_coeff = new_interp_coeff;
+            }
           
           // Compute local interpolation matrix.
           std::array<std::array<double, 4>, 4> loc_interp;
@@ -1014,9 +1047,6 @@ tmesh::user_data_replace (std::vector<tmesh::data_t *> old_user_data)
           
           // Multiply by parent interpolation matrix.
           new_user_data[i].interp_coeff = {0};
-          
-          new_user_data[i].interp_idx =
-            old_user_data[0]->interp_idx;
           
           for (int row = 0; row < 4; ++row)
             for (int col = 0; col < 4; ++col)
