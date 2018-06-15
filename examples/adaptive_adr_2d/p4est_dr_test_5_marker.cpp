@@ -201,10 +201,10 @@ main (int argc, char **argv)
               std::pow(q->centroid(1) - 0.5, 2) >
               std::pow(R, 2))
             return zz_marker_grad (q, du0, global_rhs,
-                                   delta1 * 1e-3 / std::sqrt(tmsh.num_global_nodes()));
+                                   delta1 * 1e-4 / std::sqrt(tmsh.num_global_nodes()));
           else
             return zz_marker_grad (q, du1, global_rhs,
-                                   delta1 * 1e-3 / std::sqrt(tmsh.num_global_nodes()));
+                                   delta1 * 1e-4 / std::sqrt(tmsh.num_global_nodes()));
         };
       
       auto coarsen_fun = [& delta2, & du0, & du1, & global_rhs, & tmsh, R] (tmesh::quadrant_iterator q)
@@ -213,10 +213,10 @@ main (int argc, char **argv)
               std::pow(q->centroid(1) - 0.5, 2) >
               std::pow(R, 2))
             return !zz_marker_grad (q, du0, global_rhs,
-                                    delta2 * 1e-3 / std::sqrt(tmsh.num_global_nodes()));
+                                    delta2 * 1e-4 / std::sqrt(tmsh.num_global_nodes()));
           else
             return !zz_marker_grad (q, du1, global_rhs,
-                                    delta2 * 1e-3 / std::sqrt(tmsh.num_global_nodes()));
+                                    delta2 * 1e-4 / std::sqrt(tmsh.num_global_nodes()));
         };
       
       // Compute h and error.
