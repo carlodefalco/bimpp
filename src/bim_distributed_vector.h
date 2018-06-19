@@ -116,11 +116,11 @@ public:
                       MPI_Comm comm_ = MPI_COMM_WORLD);
 
   int
-  get_range_start ()
+  get_range_start () const
   { return is; };
 
   int
-  get_range_end ()
+  get_range_end () const
   { return ie; };
 
   double&
@@ -150,9 +150,9 @@ public:
   friend std::ostream&
   operator<< (std::ostream &, distributed_vector&);
 
-  double*
+  std::vector<double> &
   get_owned_data ()
-  { return &(*owned_data.begin ()); };
+  { return owned_data; };
   
 };
 
