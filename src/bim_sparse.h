@@ -15,6 +15,8 @@
 #include <iomanip>
 #include <cassert>
 
+#include "bim_distributed_vector.h"
+
 //namespace bim
 //{
 
@@ -301,7 +303,10 @@ public :
   /// Compute matrix-vector product.
   friend std::vector<double>
   operator * (sparse_matrix& M, const std::vector<double>& x);
-
+  
+  /// Compute matrix-vector product.
+  friend distributed_vector
+  operator * (sparse_matrix& M, const distributed_vector& x);
 };
 
 template<class T>
