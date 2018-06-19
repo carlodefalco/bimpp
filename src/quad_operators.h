@@ -74,25 +74,27 @@ bim2a_rhs (tmesh& mesh,
 template <class T>
 void
 bim2a_boundary_mass (tmesh & mesh,
-		     const int & tree_idx,
-		     const int & boundary_idx,
-		     T & M,
-		     const func_quad & fun =
-		     [] (tmesh::quadrant_iterator, tmesh::idx_t)
-		       {return 1;}
-		     );
+                     const int & tree_idx,
+                     const int & boundary_idx,
+                     T & M,
+                     const func_quad & fun =
+                     [] (tmesh::quadrant_iterator, tmesh::idx_t)
+                       {return 1;}
+                     );
 
 template <class T>
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     sparse_matrix& A, T& rhs,
-                    const ordering& ord = default_ord);
+                    const ordering& ord = default_ord,
+                    const bool& only_rhs = false);
 
 template <class T>
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                     sparse_matrix& A, T& rhs,
-                    const ordering& ord = default_ord);
+                    const ordering& ord = default_ord,
+                    const bool& only_rhs = false);
 
 std::vector<double>
 interpolate_vector (tmesh& mesh,
@@ -107,7 +109,7 @@ gradient
 bim2c_quadtree_pde_recovered_gradient (tmesh& mesh,
                                        const q1_vec& u,
                                        active_fun is_active =
-				       [] (tmesh::quadrant_iterator) {return true;});
+                                       [] (tmesh::quadrant_iterator) {return true;});
 
 q2_vec
 bim2c_quadtree_pde_recovered_solution (tmesh& mesh,
