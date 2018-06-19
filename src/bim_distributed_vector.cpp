@@ -8,7 +8,12 @@
 #include <bim_distributed_vector.h>
 #include <cassert>
 
-
+binary_operator replace_op =
+  [] (const double & x, const double & y)
+{
+  return x;
+};
+  
 void
 distributed_vector::ghost_csr ()
 {
@@ -167,7 +172,7 @@ distributed_vector::remap ()
 }
 
 void
-distributed_vector::assemble ()
+distributed_vector::assemble (const binary_operator & binary_op)
 {
     
   if (! mapped)
@@ -205,7 +210,9 @@ distributed_vector::assemble ()
 
   /// Step 3 : Add mirrors into owned_data
   for (int ii = 0; ii < mirrors.prc_ptr.back (); ++ii)
-    (*this)(mirrors.row_ind[ii]) += mirrors.a[ii];
+    (*this)(mirrors.row_ind[ii]) =
+      binary_op (this->mirrors.row_ind[ii],
+                 mirrors.a[ii]);
 
   /// Step 4 : Copy owned_data into mirrors 
   for (int ii = 0; ii < mirrors.prc_ptr.back (); ++ii)
@@ -272,48 +279,4 @@ operator<< (std::ostream &stream,
     stream << "idx = " << ii->first << " val = "
            << ii->second << std::endl;
   return stream;
-}
-  
-int
-main (int argc, char **argv)
-{
-
-  MPI_Init (&argc, &argv);
-  
-  int rank = 0;
-  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-
-  int size = 0;
-  MPI_Comm_size (MPI_COMM_WORLD, &size);
-
-  distributed_vector dv (10);
-
-  if (rank == 0)
-    {
-      for (int ii = 0; ii < 13; ++ii)
-        dv(ii) = 1;
-    }
-
-  if (rank == 1)
-    {
-      for (int ii = 8; ii < 20; ++ii)
-        dv(ii) = -2;
-    }
-
-  dv.assemble ();
-  MPI_Barrier (MPI_COMM_WORLD);
-
-  for (int irank = 0; irank < size; ++irank)
-    {
-      if (rank == irank)
-        {
-          std::cout << "rank : " << rank << std::endl;
-          std::cout << dv;
-        }
-      MPI_Barrier (MPI_COMM_WORLD);
-    }
-
-  
-  MPI_Finalize ();
-  return 0;
 }

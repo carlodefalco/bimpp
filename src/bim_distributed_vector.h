@@ -11,6 +11,12 @@
 #include <map>
 #include <mpi.h>
 #include <vector>
+#include <functional>
+
+using binary_operator =
+  std::function<double (const double&, const double&)>;
+
+extern binary_operator replace_op;
 
 //!    Class for distributed memory vector.
 //|
@@ -135,7 +141,7 @@ public:
   remap ();
 
   void
-  assemble ();
+  assemble (const binary_operator & = std::plus<double> ());
 
   int
   size ()
