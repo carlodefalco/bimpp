@@ -211,9 +211,9 @@ distributed_vector::assemble (const binary_operator & binary_op)
   /// Step 3 : Add mirrors into owned_data
   for (int ii = 0; ii < mirrors.prc_ptr.back (); ++ii)
     (*this)(mirrors.row_ind[ii]) =
-      binary_op (this->mirrors.row_ind[ii],
+      binary_op ((*this)(mirrors.row_ind[ii]),
                  mirrors.a[ii]);
-
+  
   /// Step 4 : Copy owned_data into mirrors 
   for (int ii = 0; ii < mirrors.prc_ptr.back (); ++ii)
     mirrors.a[ii] = (*this)(mirrors.row_ind[ii]);
