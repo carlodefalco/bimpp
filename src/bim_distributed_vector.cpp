@@ -11,9 +11,9 @@
 binary_operator replace_op =
   [] (const double & x, const double & y)
 {
-  return x;
+  return (x != 0) ? x : y;
 };
-  
+
 void
 distributed_vector::ghost_csr ()
 {
