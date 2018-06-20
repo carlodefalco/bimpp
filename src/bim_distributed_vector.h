@@ -13,9 +13,13 @@
 #include <vector>
 #include <functional>
 
+/// Binary operator: function of (mirror value, local value).
 using binary_operator =
   std::function<double (const double&, const double&)>;
 
+/// Instance of binary_operator that replaces local
+/// with the mirror value - i.e. the one coming from
+/// the owning process of its node.
 extern binary_operator replace_op;
 
 //!    Class for distributed memory vector.

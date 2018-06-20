@@ -11,7 +11,7 @@
 binary_operator replace_op =
   [] (const double & x, const double & y)
 {
-  return (x != 0) ? x : y;
+  return x;
 };
 
 void
