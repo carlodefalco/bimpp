@@ -18,8 +18,11 @@
 #define JOB_END  -2
 
 #include "bim_sparse.h"
+#include "bim_distributed_vector.h"
 #include <dmumps_c.h>
 #include "linear_solver.h"
+
+#include <memory>
 
 //using namespace bim;
 
@@ -32,6 +35,8 @@ private :
   int  icntl23;
   int working_host;
   static const int index_base = 1;
+  
+  std::shared_ptr<distributed_vector> glob_rhs;
   
 public :
   
@@ -85,6 +90,10 @@ public :
   void
   set_rhs (std::vector<double> &rhs);
   
+  /// Set the rhs from a distributed_vector.
+  void
+  set_rhs_distributed (distributed_vector &rhs);
+  
   /// Perform the factorization.
   int
   factorize ();
@@ -92,6 +101,18 @@ public :
   /// Perform the back-substitution.
   int
   solve ();
+
+  /// Returns the distributed_vector solution.
+  distributed_vector &
+  get_distributed_solution ()
+  {
+    assert (glob_rhs != nullptr);
+    
+    // Communicate non-local values to their owners first.
+    glob_rhs->assemble (replace_op);
+    
+    return *glob_rhs;
+  }
   
   /// Cleanup memory.
   void

@@ -133,9 +133,27 @@ mumps::set_rhs (std::vector<double> &rhs)
   id.lrhs =  rhs.size ();
 }
 
+void
+mumps::set_rhs_distributed (distributed_vector &rhs)
+{
+  int rank;
+  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+  
+  // glob_rhs is a distributed_vector.
+  // Rank 0 contains all the data - i.e. the complete rhs
+  // (later the solution computed by MUMPS) - stored as "owned".
+  // Other ranks only have the really owned data stored as "non-local".
+  glob_rhs =
+    std::make_shared<distributed_vector> (rank == 0 ? rhs.size () : 0);
+  
+  for (int row = 0; row < rhs.get_owned_data ().size (); ++row)
+    (*glob_rhs)[rhs.get_range_start () + row] = rhs.get_owned_data ()[row];
+}
+
 int
 mumps::factorize ()
 {
+  id.icntl[12] = 0;
   id.job = JOB_FACTORIZE;
   dmumps_c (&id);
   return id.info[0];
