@@ -46,8 +46,15 @@ distributed_vector::ghost_csr ()
     
 }
 
-  
-
+void
+distributed_vector::ghost_csr_update ()
+{
+  int ind = 0;
+  for (auto ii = non_local_data.begin ();
+       ii != non_local_data.end ();
+       ++ii)
+    ghosts.a[ind++] = (ii->second);
+}
 
 distributed_vector::distributed_vector (int owned_count_,
                                         MPI_Comm comm_)    
@@ -117,7 +124,6 @@ distributed_vector::operator() (int idx) const
 void
 distributed_vector::remap ()
 {
-
   /// Step 1 : Copy non_local_data into ghosts
   ghost_csr ();
     
@@ -174,9 +180,10 @@ distributed_vector::remap ()
 void
 distributed_vector::assemble (const binary_operator & binary_op)
 {
-    
   if (! mapped)
     remap ();
+  else
+    ghost_csr_update ();
 
   /// 2.3 : Send ghosts data and receive into mirrors
   std::vector<MPI_Request> reqs;

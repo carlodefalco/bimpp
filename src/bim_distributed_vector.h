@@ -76,6 +76,10 @@ private:
   void
   ghost_csr ();
 
+  /// Update ghosts.
+  void
+  ghost_csr_update ();
+  
   /// Structure to hold data of ghost entries
   /// in a format amenable for send/receive
   struct
