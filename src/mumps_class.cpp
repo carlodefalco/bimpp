@@ -149,7 +149,7 @@ mumps::set_rhs_distributed (distributed_vector &rhs)
   for (int row = 0; row < rhs.get_owned_data ().size (); ++row)
     (*glob_rhs)[rhs.get_range_start () + row] = rhs.get_owned_data ()[row];
   
-  glob_rhs->assemble (replace_op);
+  glob_rhs->assemble ();
   
   // Set actual rhs.
   if (rank == 0)
