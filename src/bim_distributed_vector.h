@@ -156,7 +156,7 @@ public:
   { return ranges.back (); }
   
   friend std::ostream&
-  operator<< (std::ostream &, distributed_vector&);
+  operator<< (std::ostream &, const distributed_vector&);
 
   std::vector<double> &
   get_owned_data ()

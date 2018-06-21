@@ -261,7 +261,7 @@ distributed_vector::assemble (const binary_operator & binary_op)
 
 std::ostream&
 operator<< (std::ostream &stream,
-            distributed_vector& dv)
+            const distributed_vector& dv)
 {
 
   auto ii = dv.non_local_data.begin ();
