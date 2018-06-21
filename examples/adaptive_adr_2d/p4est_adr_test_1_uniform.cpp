@@ -67,7 +67,7 @@ main (int argc, char **argv)
         {
           for (int ii = 0; ii < 4; ++ii)
             {
-               if (! quadrant->is_hanging (ii))
+              if (! quadrant->is_hanging (ii))
                 {
                   psi[quadrant->gt(ii)] =
                     lambda * (quadrant->p(0, ii) + quadrant->p(1, ii));
@@ -94,7 +94,7 @@ main (int argc, char **argv)
       func u_ex =
         [lambda] (double x, double y)
         { return (exp(lambda * x) - 1) / (exp(lambda) - 1) *
-                 (exp(lambda * y) - 1) / (exp(lambda) - 1); };
+          (exp(lambda * y) - 1) / (exp(lambda) - 1); };
                  
       dirichlet_bcs bcs;
       for (int i = 0; i < 4; ++i)
@@ -151,7 +151,7 @@ main (int argc, char **argv)
       // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient and solution.";
       
-      gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
+      gradient<std::vector<double>> du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
       q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du);
       
       tmsh.octbin_export ((std::string("p4est_adr_test_1_uniform_du_x_")
@@ -161,18 +161,18 @@ main (int argc, char **argv)
       
       // Compute h and error.
       double hx = 0, hy = 0,
-             h = std::numeric_limits<double>::max (),
-             global_h = 0;
+        h = std::numeric_limits<double>::max (),
+        global_h = 0;
       
       func du_x_ex =
         [lambda] (double x, double y)
         { return (lambda * std::exp(lambda * x)) / (std::exp(lambda) - 1) *
-                 (std::exp(lambda * y) - 1) / (std::exp(lambda) - 1); };
+          (std::exp(lambda * y) - 1) / (std::exp(lambda) - 1); };
       
       func du_y_ex =
         [lambda] (double x, double y)
         { return (std::exp(lambda * x) - 1) / (std::exp(lambda) - 1) *
-                 (lambda * std::exp(lambda * y)) / (std::exp(lambda) - 1); };
+          (lambda * std::exp(lambda * y)) / (std::exp(lambda) - 1); };
                  
       double err    = 0, global_err    = 0;
       double err_du = 0, global_err_du = 0;

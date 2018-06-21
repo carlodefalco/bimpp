@@ -150,7 +150,7 @@ main (int argc, char **argv)
       // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient and estimator.";
       
-      gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
+      gradient<std::vector<double>> du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
       q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du);
       
       tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du_x_")
@@ -168,8 +168,8 @@ main (int argc, char **argv)
       std::vector<double> metrics(tmsh.num_local_quadrants ());
       
       double hx = 0, hy = 0,
-             h = std::numeric_limits<double>::max (),
-             global_h = 0;
+        h = std::numeric_limits<double>::max (),
+        global_h = 0;
       double est = 0, global_est = 0;
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -189,7 +189,7 @@ main (int argc, char **argv)
         }
 
       tmsh.octbin_export_quadrant ((std::string("p4est_dr_test_2_metrics_hx_")
-                                   + std::to_string(adapt)).c_str(), metrics);
+                                    + std::to_string(adapt)).c_str(), metrics);
       
       MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       MPI_Reduce(&est, &global_est, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);

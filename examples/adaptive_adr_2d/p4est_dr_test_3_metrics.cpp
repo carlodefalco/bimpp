@@ -101,12 +101,12 @@ main (int argc, char **argv)
       // Set boundary conditions.
       func u_ex =
         [eps1, eps2, c, d] (double x, double y)
-          {
-            if (y <= 0.5)
-              return (1 + 2 * c * std::sinh(y / std::sqrt(eps1)));
-            else
-              return (-0.5 * (y - 1) * (y + 2 * d));
-          };
+        {
+          if (y <= 0.5)
+            return (1 + 2 * c * std::sinh(y / std::sqrt(eps1)));
+          else
+            return (-0.5 * (y - 1) * (y + 2 * d));
+        };
       
       dirichlet_bcs bcs;
       bcs.push_back (std::make_tuple(0, 2, u_ex));
@@ -169,8 +169,8 @@ main (int argc, char **argv)
       active_fun tree1 = [] (tmesh::quadrant_iterator q)
         { return (q->get_tree_idx () == 1); };
       
-      gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree0);
-      gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree1);
+      gradient<std::vector<double>> du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree0);
+      gradient<std::vector<double>> du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree1);
       
       q2_vec u_star0 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du0);
       q2_vec u_star1 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du1);
@@ -200,8 +200,8 @@ main (int argc, char **argv)
       std::vector<double> metrics(tmsh.num_local_quadrants ());
       
       double hx = 0, hy = 0,
-             h = std::numeric_limits<double>::max (),
-             global_h = 0;
+        h = std::numeric_limits<double>::max (),
+        global_h = 0;
       double err = 0, global_err = 0;
       double est = 0, global_est = 0;
       
@@ -223,7 +223,7 @@ main (int argc, char **argv)
         }
       
       tmsh.octbin_export_quadrant ((std::string("p4est_dr_test_3_metrics_hx_")
-                                   + std::to_string(adapt)).c_str(), metrics);
+                                    + std::to_string(adapt)).c_str(), metrics);
       
       MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);

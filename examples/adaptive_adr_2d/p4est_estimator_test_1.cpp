@@ -15,10 +15,10 @@ top_refinement (tmesh::quadrant_iterator quadrant)
   double ycoord;
   double bottom = std::numeric_limits<double>::max ();
   for (int ii = 0; ii < 4; ++ii)
-  {
-    ycoord = quadrant->p(1, ii);
-    bottom = bottom > ycoord ? ycoord : bottom;
-  }
+    {
+      ycoord = quadrant->p(1, ii);
+      bottom = bottom > ycoord ? ycoord : bottom;
+    }
   return ((bottom >= 0.9) ? 1 : 0);
 }
 
@@ -28,10 +28,10 @@ right_refinement (tmesh::quadrant_iterator quadrant)
   double xcoord;
   double left = std::numeric_limits<double>::max ();
   for (int ii = 0; ii < 4; ++ii)
-  {
-    xcoord = quadrant->p(0, ii);
-    left = left > xcoord ? xcoord : left;
-  }
+    {
+      xcoord = quadrant->p(0, ii);
+      left = left > xcoord ? xcoord : left;
+    }
   return ((left >= 0.9) ? 1 : 0);
 }
 
@@ -112,9 +112,9 @@ main (int argc, char **argv)
                   y = quadrant->p(1, ii);
                   
                   g[quadrant->gt(ii)] = 1 - std::sinh(x / std::sqrt(epsilon)) *
-                                            std::sinh(y / std::sqrt(epsilon)) /
-                                            std::sinh(1 / std::sqrt(epsilon)) /
-                                            std::sinh(1 / std::sqrt(epsilon));
+                    std::sinh(y / std::sqrt(epsilon)) /
+                    std::sinh(1 / std::sqrt(epsilon)) /
+                    std::sinh(1 / std::sqrt(epsilon));
                 }
             }
         }
@@ -130,7 +130,7 @@ main (int argc, char **argv)
       func u_ex =
         [epsilon] (double x, double y)
         { return (1 - std::sinh(x / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))) *
-                 (1 - std::sinh(y / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))); };
+          (1 - std::sinh(y / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))); };
                  
       dirichlet_bcs bcs;
       for (int i = 0; i < 4; ++i)
@@ -176,7 +176,7 @@ main (int argc, char **argv)
       // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient and estimator.";
       
-      gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
+      gradient<std::vector<double>> du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
       q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du);
       
       tmsh.octbin_export ((std::string("p4est_estimator_test_1_du_x_")
@@ -190,7 +190,7 @@ main (int argc, char **argv)
       
       /*auto refine_fun_sol = [& u_star, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         { return zz_marker_sol (q, u_star, global_rhs,
-                                 1e-4 / std::sqrt(tmsh.num_global_nodes())); };*/
+        1e-4 / std::sqrt(tmsh.num_global_nodes())); };*/
       
       auto coarsen_fun = [& delta2, & du, & global_rhs, &tmsh] (tmesh::quadrant_iterator q)
         { return !zz_marker_grad (q, du, global_rhs,
@@ -202,7 +202,7 @@ main (int argc, char **argv)
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
-          err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
+        err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
       
       MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
       global_err = std::sqrt(global_err);

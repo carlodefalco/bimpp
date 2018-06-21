@@ -97,19 +97,19 @@ main (int argc, char **argv)
       // Set boundary conditions.
       func u_ex =
         [kG, kS, R] (double x, double y)
-          {
-            if (std::pow(x - 0.5, 2) +
-                std::pow(y - 0.5, 2) >
-                std::pow(R, 2))
-              return
-                (1.0 / 8 - 1 / (4 * kG) *
-                 (std::pow(x - 0.5, 2) + std::pow(y - 0.5, 2)));
-            else
-              return
-                (1.0 / 8 - 1 / (4 * kS) *
-                 (std::pow(x - 0.5, 2) + std::pow(y - 0.5, 2)) -
-                 std::pow(R, 2) / 4 * (1 - 1 / kS));
-          };
+        {
+          if (std::pow(x - 0.5, 2) +
+              std::pow(y - 0.5, 2) >
+              std::pow(R, 2))
+            return
+              (1.0 / 8 - 1 / (4 * kG) *
+               (std::pow(x - 0.5, 2) + std::pow(y - 0.5, 2)));
+          else
+            return
+              (1.0 / 8 - 1 / (4 * kS) *
+               (std::pow(x - 0.5, 2) + std::pow(y - 0.5, 2)) -
+               std::pow(R, 2) / 4 * (1 - 1 / kS));
+        };
       
       dirichlet_bcs bcs;
       for (int i = 0; i < 4; ++i)
@@ -176,8 +176,8 @@ main (int argc, char **argv)
                   std::pow(q->centroid(1) - 0.5, 2) <=
                   std::pow(R, 2)); };
       
-      gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, regionG);
-      gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, regionS);
+      gradient<std::vector<double>> du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, regionG);
+      gradient<std::vector<double>> du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, regionS);
       
       q2_vec u_star0 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du0);
       q2_vec u_star1 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du1);
@@ -194,30 +194,30 @@ main (int argc, char **argv)
       
       // Compute h and error.
       double hx = 0, hy = 0,
-             h = std::numeric_limits<double>::max (),
-             global_h = 0;
+        h = std::numeric_limits<double>::max (),
+        global_h = 0;
       
       func du_x_ex =
         [kG, kS, R] (double x, double y)
-          {
-            if (std::pow(x - 0.5, 2) +
-                std::pow(y - 0.5, 2) >
-                std::pow(R, 2))
-              return (-(x - 0.5) / (2 * kG));
-            else
-              return (-(x - 0.5) / (2 * kS));
-          };
+        {
+          if (std::pow(x - 0.5, 2) +
+              std::pow(y - 0.5, 2) >
+              std::pow(R, 2))
+            return (-(x - 0.5) / (2 * kG));
+          else
+            return (-(x - 0.5) / (2 * kS));
+        };
       
       func du_y_ex =
         [kG, kS, R] (double x, double y)
-          {
-            if (std::pow(x - 0.5, 2) +
-                std::pow(y - 0.5, 2) >
-                std::pow(R, 2))
-              return (-(y - 0.5) / (2 * kG));
-            else
-              return (-(y - 0.5) / (2 * kS));
-          };
+        {
+          if (std::pow(x - 0.5, 2) +
+              std::pow(y - 0.5, 2) >
+              std::pow(R, 2))
+            return (-(y - 0.5) / (2 * kG));
+          else
+            return (-(y - 0.5) / (2 * kS));
+        };
           
       double err = 0, global_err = 0;
       double err_du = 0, global_err_du = 0;

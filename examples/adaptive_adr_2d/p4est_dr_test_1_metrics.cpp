@@ -85,9 +85,9 @@ main (int argc, char **argv)
                   y = quadrant->p(1, ii);
                   
                   g[quadrant->gt(ii)] = 1 - std::sinh(x / std::sqrt(epsilon)) *
-                                            std::sinh(y / std::sqrt(epsilon)) /
-                                            std::sinh(1 / std::sqrt(epsilon)) /
-                                            std::sinh(1 / std::sqrt(epsilon));
+                    std::sinh(y / std::sqrt(epsilon)) /
+                    std::sinh(1 / std::sqrt(epsilon)) /
+                    std::sinh(1 / std::sqrt(epsilon));
                 }
             }
         }
@@ -103,7 +103,7 @@ main (int argc, char **argv)
       func u_ex =
         [epsilon] (double x, double y)
         { return (1 - std::sinh(x / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))) *
-                 (1 - std::sinh(y / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))); };
+          (1 - std::sinh(y / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))); };
                  
       dirichlet_bcs bcs;
       for (int i = 0; i < 4; ++i)
@@ -149,7 +149,7 @@ main (int argc, char **argv)
       // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient and estimator.";
       
-      gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
+      gradient<std::vector<double>> du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
       q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du);
       
       tmsh.octbin_export ((std::string("p4est_dr_test_1_metrics_du_x_")
@@ -167,8 +167,8 @@ main (int argc, char **argv)
       std::vector<double> metrics(tmsh.num_local_quadrants ());
       
       double hx = 0, hy = 0,
-             h = std::numeric_limits<double>::max (),
-             global_h = 0;
+        h = std::numeric_limits<double>::max (),
+        global_h = 0;
       double err = 0, global_err = 0;
       double est = 0, global_est = 0;
       
@@ -190,7 +190,7 @@ main (int argc, char **argv)
         }
       
       tmsh.octbin_export_quadrant ((std::string("p4est_dr_test_1_metrics_hx_")
-                                   + std::to_string(adapt)).c_str(), metrics);
+                                    + std::to_string(adapt)).c_str(), metrics);
       
       MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);

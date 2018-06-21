@@ -121,14 +121,14 @@ main (int argc, char **argv)
       // Set boundary conditions.
       func u_ex =
         [eps1, eps2, c, d, theta] (double x, double y)
-          {
-            double new_y = std::sin(theta) * x + std::cos(theta) * y;
+        {
+          double new_y = std::sin(theta) * x + std::cos(theta) * y;
             
-            if (new_y <= 0.5)
-              return (1 + 2 * c * std::sinh(new_y / std::sqrt(eps1)));
-            else
-              return (-0.5 * (new_y - 1) * (new_y + 2 * d));
-          };
+          if (new_y <= 0.5)
+            return (1 + 2 * c * std::sinh(new_y / std::sqrt(eps1)));
+          else
+            return (-0.5 * (new_y - 1) * (new_y + 2 * d));
+        };
       
       dirichlet_bcs bcs;
       for (int i = 0; i < 4; ++i)
@@ -193,8 +193,8 @@ main (int argc, char **argv)
         { return (std::sin(theta) * q->centroid(0) +
                   std::cos(theta) * q->centroid(1) > 0.5); };
       
-      gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree0);
-      gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree1);
+      gradient<std::vector<double>> du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree0);
+      gradient<std::vector<double>> du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree1);
       
       q2_vec u_star0 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du0);
       q2_vec u_star1 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du1);
@@ -213,24 +213,24 @@ main (int argc, char **argv)
       
       // Compute h and error.
       double hx = 0, hy = 0,
-             h = std::numeric_limits<double>::max (),
-             global_h = 0;
+        h = std::numeric_limits<double>::max (),
+        global_h = 0;
       
       func du_x_ex =
         [eps1, eps2, c, d, theta] (double x, double y)
-          {
-            double new_y = std::sin(theta) * x + std::cos(theta) * y;
+        {
+          double new_y = std::sin(theta) * x + std::cos(theta) * y;
             
-            if (std::sin(theta) * x +
-                std::cos(theta) * y <= 0.5)
-              return (2 * c * std::cosh(new_y / std::sqrt(eps1)) / std::sqrt(eps1)) * std::sin(theta);
-            else
-              return (-new_y - d + 0.5) * std::sin(theta);
-          };
+          if (std::sin(theta) * x +
+              std::cos(theta) * y <= 0.5)
+            return (2 * c * std::cosh(new_y / std::sqrt(eps1)) / std::sqrt(eps1)) * std::sin(theta);
+          else
+            return (-new_y - d + 0.5) * std::sin(theta);
+        };
       
       func du_y_ex =
         [eps1, eps2, c, d, theta] (double x, double y)
-          {
+{
             double new_y = std::sin(theta) * x + std::cos(theta) * y;
             
             if (std::sin(theta) * x +

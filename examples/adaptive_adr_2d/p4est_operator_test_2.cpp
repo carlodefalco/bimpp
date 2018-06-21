@@ -15,10 +15,10 @@ top_refinement (tmesh::quadrant_iterator quadrant)
   double ycoord;
   double bottom = std::numeric_limits<double>::max ();
   for (int ii = 0; ii < 4; ++ii)
-  {
-    ycoord = quadrant->p(1, ii);
-    bottom = bottom > ycoord ? ycoord : bottom;
-  }
+    {
+      ycoord = quadrant->p(1, ii);
+      bottom = bottom > ycoord ? ycoord : bottom;
+    }
   return ((bottom >= 0.9) ? 1 : 0);
 }
 
@@ -28,10 +28,10 @@ right_refinement (tmesh::quadrant_iterator quadrant)
   double xcoord;
   double left = std::numeric_limits<double>::max ();
   for (int ii = 0; ii < 4; ++ii)
-  {
-    xcoord = quadrant->p(0, ii);
-    left = left > xcoord ? xcoord : left;
-  }
+    {
+      xcoord = quadrant->p(0, ii);
+      left = left > xcoord ? xcoord : left;
+    }
   return ((left >= 0.9) ? 1 : 0);
 }
 
@@ -89,7 +89,7 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
         {
-           if (! quadrant->is_hanging (ii))
+          if (! quadrant->is_hanging (ii))
             {
               psi[quadrant->gt(ii)] =
                 lambda * (quadrant->p(0, ii) + quadrant->p(1, ii));
@@ -116,7 +116,7 @@ main (int argc, char **argv)
   func u_ex =
     [lambda] (double x, double y)
     { return (exp(lambda * x) - 1) / (exp(lambda) - 1) *
-             (exp(lambda * y) - 1) / (exp(lambda) - 1); };
+      (exp(lambda * y) - 1) / (exp(lambda) - 1); };
              
   dirichlet_bcs bcs;
   for (int i = 0; i < 4; ++i)

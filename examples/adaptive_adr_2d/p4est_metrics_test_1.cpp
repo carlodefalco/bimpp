@@ -82,9 +82,9 @@ main (int argc, char **argv)
                   y = quadrant->p(1, ii);
                   
                   g[quadrant->gt(ii)] = 1 - std::sinh(x / std::sqrt(epsilon)) *
-                                            std::sinh(y / std::sqrt(epsilon)) /
-                                            std::sinh(1 / std::sqrt(epsilon)) /
-                                            std::sinh(1 / std::sqrt(epsilon));
+                    std::sinh(y / std::sqrt(epsilon)) /
+                    std::sinh(1 / std::sqrt(epsilon)) /
+                    std::sinh(1 / std::sqrt(epsilon));
                 }
             }
         }
@@ -100,7 +100,7 @@ main (int argc, char **argv)
       func u_ex =
         [epsilon] (double x, double y)
         { return (1 - std::sinh(x / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))) *
-                 (1 - std::sinh(y / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))); };
+          (1 - std::sinh(y / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))); };
                  
       dirichlet_bcs bcs;
       for (int i = 0; i < 4; ++i)
@@ -146,7 +146,7 @@ main (int argc, char **argv)
       // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient and estimator.";
       
-      gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
+      gradient<std::vector<double>> du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
       
       tmsh.octbin_export ((std::string("p4est_metrics_test_1_du_x_")
                            + std::to_string(adapt)).c_str(), du.first);

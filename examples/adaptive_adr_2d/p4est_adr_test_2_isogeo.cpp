@@ -147,8 +147,8 @@ main (int argc, char **argv)
       
       // Compute h.
       double hx = 0, hy = 0,
-             h = std::numeric_limits<double>::max (),
-             global_h = 0;
+        h = std::numeric_limits<double>::max (),
+        global_h = 0;
       
       double grad_sum = 0, global_grad = 0;
       
@@ -180,13 +180,13 @@ main (int argc, char **argv)
       auto refine_fun = [& delta1, & grad, & global_grad, & tmsh] (tmesh::quadrant_iterator q)
         {
           return grad[q->get_forest_quad_idx ()] >=
-                   delta1 * 1e-2 * global_grad / tmsh.num_global_quadrants ();
+          delta1 * 1e-2 * global_grad / tmsh.num_global_quadrants ();
         };
       
       auto coarsen_fun = [& delta2, & grad, & global_grad, & tmsh] (tmesh::quadrant_iterator q)
         {
           return grad[q->get_forest_quad_idx ()] <=
-                   delta2 * 1e-2 * global_grad / tmsh.num_global_quadrants ();
+          delta2 * 1e-2 * global_grad / tmsh.num_global_quadrants ();
         };
       
       if (tmsh.num_global_nodes () >= 1e6)

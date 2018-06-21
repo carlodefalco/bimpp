@@ -120,15 +120,15 @@ main (int argc, char **argv)
       // Set boundary conditions.
       func u_ex =
         [eps1, eps2, c, d, theta] (double x, double y)
-          {
-            double new_x = std::cos(theta) * x - std::sin(theta) * y;
-            double new_y = std::sin(theta) * x + std::cos(theta) * y;
+        {
+          double new_x = std::cos(theta) * x - std::sin(theta) * y;
+          double new_y = std::sin(theta) * x + std::cos(theta) * y;
             
-            if (new_y <= 0.5)
-              return (1 + 2 * c * std::sinh(new_y / std::sqrt(eps1)));
-            else
-              return (-0.5 * (new_y - 1) * (new_y + 2 * d));
-          };
+          if (new_y <= 0.5)
+            return (1 + 2 * c * std::sinh(new_y / std::sqrt(eps1)));
+          else
+            return (-0.5 * (new_y - 1) * (new_y + 2 * d));
+        };
       
       dirichlet_bcs bcs;
       for (int i = 0; i < 4; ++i)
@@ -193,8 +193,8 @@ main (int argc, char **argv)
         { return (std::sin(theta) * q->centroid(0) +
                   std::cos(theta) * q->centroid(1) > 0.5); };
       
-      gradient du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree0);
-      gradient du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree1);
+      gradient<std::vector<double>> du0 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree0);
+      gradient<std::vector<double>> du1 = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs, tree1);
       
       q2_vec u_star0 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du0);
       q2_vec u_star1 = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du1);
@@ -225,8 +225,8 @@ main (int argc, char **argv)
       std::vector<double> metrics(tmsh.num_local_quadrants ());
       
       double hx = 0, hy = 0,
-             h = std::numeric_limits<double>::max (),
-             global_h = 0;
+        h = std::numeric_limits<double>::max (),
+        global_h = 0;
       double err = 0, global_err = 0;
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -246,7 +246,7 @@ main (int argc, char **argv)
         }
       
       tmsh.octbin_export_quadrant ((std::string("p4est_dr_test_4_metrics_hx_")
-                                   + std::to_string(adapt)).c_str(), metrics);
+                                    + std::to_string(adapt)).c_str(), metrics);
       
       MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);

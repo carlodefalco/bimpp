@@ -88,9 +88,9 @@ main (int argc, char **argv)
                   y = quadrant->p(1, ii);
                   
                   g[quadrant->gt(ii)] = 1 - std::sinh(x / std::sqrt(epsilon)) *
-                                            std::sinh(y / std::sqrt(epsilon)) /
-                                            std::sinh(1 / std::sqrt(epsilon)) /
-                                            std::sinh(1 / std::sqrt(epsilon));
+                    std::sinh(y / std::sqrt(epsilon)) /
+                    std::sinh(1 / std::sqrt(epsilon)) /
+                    std::sinh(1 / std::sqrt(epsilon));
                 }
             }
         }
@@ -106,7 +106,7 @@ main (int argc, char **argv)
       func u_ex =
         [epsilon] (double x, double y)
         { return (1 - std::sinh(x / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))) *
-                 (1 - std::sinh(y / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))); };
+          (1 - std::sinh(y / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))); };
                  
       dirichlet_bcs bcs;
       for (int i = 0; i < 4; ++i)
@@ -163,7 +163,7 @@ main (int argc, char **argv)
       // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient and solution.";
       
-      gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
+      gradient<std::vector<double>> du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
       q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, global_rhs, du);
       
       tmsh.octbin_export ((std::string("p4est_dr_test_1_uniform_du_x_")
@@ -173,18 +173,18 @@ main (int argc, char **argv)
       
       // Compute h and error.
       double hx = 0, hy = 0,
-             h = std::numeric_limits<double>::max (),
-             global_h = 0;
+        h = std::numeric_limits<double>::max (),
+        global_h = 0;
       
       func du_x_ex =
         [epsilon] (double x, double y)
         { return (- std::cosh(x / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))) *
-                 (1 - std::sinh(y / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))) / std::sqrt(epsilon); };
+          (1 - std::sinh(y / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))) / std::sqrt(epsilon); };
       
       func du_y_ex =
         [epsilon] (double x, double y)
         { return (1 - std::sinh(x / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))) *
-                 (- std::cosh(y / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))) / std::sqrt(epsilon); };
+          (- std::cosh(y / std::sqrt(epsilon)) / std::sinh(1 / std::sqrt(epsilon))) / std::sqrt(epsilon); };
       
       double err    = 0, global_err    = 0;
       double err_du = 0, global_err_du = 0;
