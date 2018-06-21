@@ -8,6 +8,7 @@
 #include <set>
 #include <limits>
 #include <iomanip>
+#include <tuple>
 
 // Compute harmonic mean of a and b.
 static inline double
@@ -150,23 +151,6 @@ assemble_rhs (tmesh::quadrant_iterator& quadrant,
     }
 }
 
-// Explicit instantiation.
-template
-static
-void
-assemble_rhs (tmesh::quadrant_iterator&,
-              const std::array<double, 4>&,
-              std::vector<double>&,
-              const ordering& ord);
-
-template
-static
-void
-assemble_rhs (tmesh::quadrant_iterator&,
-              const std::array<double, 4>&,
-              distributed_vector&,
-              const ordering& ord);
-
 void
 bim2a_structure (tmesh &tmsh,
                  sparse_matrix& A,
@@ -274,26 +258,6 @@ bim2a_advection_diffusion (tmesh& mesh,
     }
 }
 
-// Explicit instantiation.
-template
-void
-bim2a_advection_diffusion (tmesh&,
-                           const std::vector<double>&,
-                           const std::vector<double>&,
-                           sparse_matrix&,
-                           const ordering&,
-                           const ordering&);
-
-template
-void
-bim2a_advection_diffusion (tmesh&,
-                           const std::vector<double>&,
-                           const distributed_vector&,
-                           sparse_matrix&,
-                           const ordering&,
-                           const ordering&);
-
-
 static void 
 bim2a_advection_eafe_diffusion_loc
 (tmesh::quadrant_iterator& quadrant,
@@ -385,26 +349,6 @@ bim2a_advection_eafe_diffusion (tmesh& mesh,
     }
 }
 
-// Explicit instantiation.
-template
-void
-bim2a_advection_eafe_diffusion (tmesh&,
-                                const std::vector<double>&,
-                                const std::vector<double>&,
-                                sparse_matrix&,
-                                const ordering&,
-                                const ordering&);
-
-template
-void
-bim2a_advection_eafe_diffusion (tmesh&,
-                                const distributed_vector&,
-                                const distributed_vector&,
-                                sparse_matrix&,
-                                const ordering&,
-                                const ordering&);
-
-
 static void
 bim2a_reaction_loc (tmesh::quadrant_iterator& quadrant,
                     const double& delta,
@@ -466,26 +410,6 @@ bim2a_rhs_loc (tmesh::quadrant_iterator& quadrant,
     locrhs[i] = (f * g[i] * hxhyby4);
 }
 
-// Explicit instantiation.
-template
-void
-bim2a_reaction (tmesh&,
-                const std::vector<double>&,
-                const std::vector<double>&,
-                sparse_matrix&,
-                const ordering&,
-                const ordering&);
-
-template
-void
-bim2a_reaction (tmesh&,
-                const std::vector<double>&,
-                const distributed_vector&,
-                sparse_matrix&,
-                const ordering&,
-                const ordering&);
-
-
 template <class T>
 void
 bim2a_rhs (tmesh& mesh,
@@ -517,24 +441,6 @@ bim2a_rhs (tmesh& mesh,
       assemble_rhs (quadrant, rhsloc, rhs, ord);
     }
 }
-
-// Explicit instantiation.
-template
-void
-bim2a_rhs (tmesh&,
-           const std::vector<double>&,
-           const std::vector<double>&,
-           std::vector<double>&,
-           const ordering&);
-
-template
-void
-bim2a_rhs (tmesh&,
-           const std::vector<double>&,
-           const distributed_vector&,
-           distributed_vector&,
-           const ordering&);
-
 
 template <class T>
 void
@@ -568,23 +474,6 @@ bim2a_boundary_mass (tmesh& mesh,
     }
 }
 
-// Explicit instantiation.
-template
-void
-bim2a_boundary_mass (tmesh&,
-                     const int &,
-                     const int &,
-                     std::vector<double> &,
-                     const func_quad &);
-
-template
-void
-bim2a_boundary_mass (tmesh&,
-                     const int &,
-                     const int &,
-                     distributed_vector &,
-                     const func_quad &);
-
 
 template <class T>
 static void
@@ -617,23 +506,6 @@ bim2a_dirichlet_bc_loc (sparse_matrix& A,
   // Multiply rhs by the diagonal entry.
   rhs[row] *= A[row][row];
 }
-
-// Explicit instantiation.
-template
-static void
-bim2a_dirichlet_bc_loc (sparse_matrix&,
-                        std::vector<double>&,
-                        const unsigned int&,
-                        const double&,
-                        const bool&);
-
-template
-static void
-bim2a_dirichlet_bc_loc (sparse_matrix&,
-                        distributed_vector&,
-                        const unsigned int&,
-                        const double&,
-                        const bool&);
 
 
 template <class T>
@@ -686,22 +558,6 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
     }
 }
 
-// Explicit instantiation.
-template
-void
-bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs&,
-                    sparse_matrix&, std::vector<double>&,
-                    const ordering&,
-                    const bool&);
-
-template
-void
-bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs&,
-                    sparse_matrix&, distributed_vector&,
-                    const ordering&,
-                    const bool&);
-
-
 template <class T>
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
@@ -752,21 +608,6 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
     }
 }
 
-// Explicit instantiation.
-template
-void
-bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs_quad&,
-                    sparse_matrix&, std::vector<double>&,
-                    const ordering&,
-                    const bool&);
-
-template
-void
-bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs_quad&,
-                    sparse_matrix&, distributed_vector&,
-                    const ordering&,
-                    const bool&);
-
 std::vector<double>
 interpolate_vector (tmesh& mesh,
                     const std::vector<double>& vec_in,
@@ -800,17 +641,6 @@ interpolate_vector (tmesh& mesh,
   return vec_out;
 }
 
-
-// MPI_User_function.
-static void replace(double *invec, double *inoutvec,
-                    int *len, MPI_Datatype *dtype)
-{
-  for (int i = 0; i < *len; ++i)
-    if (invec[i] != 0 && inoutvec[i] == 0)
-      inoutvec[i] = invec[i];
-}
-
-
 /// Edge ordering derived from vertex ordering
 ///
 ///   2----------------->3
@@ -824,10 +654,11 @@ static void replace(double *invec, double *inoutvec,
 static constexpr
 std::array<std::array<int, 3>, 4> edge =
   {0,2,1, 1,3,1, 0,1,0, 2,3,0};
-  
-double
+
+template <class T>
+static double
 nedelec_gradient (tmesh::quadrant_iterator & q,
-                  const q1_vec& u, size_t i)
+                  const T & u, size_t i)
 {
   std::array<double, 4> u_aux;
   
@@ -846,20 +677,307 @@ nedelec_gradient (tmesh::quadrant_iterator & q,
   return ((u_aux[edge[i][1]] - u_aux[edge[i][0]]) / h);
 }
 
-gradient
-bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u,
-                                       active_fun is_active)
+template <class T>
+static std::tuple<double, double>
+bim2c_recovered_gradient_loc (tmesh::quadrant_iterator quadrant,
+                              int node,
+                              const T & u,
+                              active_fun is_active)
 {
-  std::vector<double> du_x_star (mesh.num_global_nodes (), 0);
-  std::vector<double> du_y_star (mesh.num_global_nodes (), 0);  
-  std::vector<bool> assigned_x (mesh.num_global_nodes (), false);
-  std::vector<bool> assigned_y (mesh.num_global_nodes (), false);
-  
-  double hx = 0, hy = 0;
+  double hx = quadrant->p (0, 1) - quadrant->p (0, 0);
+  double hy = quadrant->p (1, 2) - quadrant->p (1, 0);
   
   int node_n = 0, node_side = 0;
   std::vector<double> du_x, weights_x;
   std::vector<double> du_y, weights_y;
+  
+  du_x.clear (); weights_x.clear ();
+  du_y.clear (); weights_y.clear ();
+
+  double du_x_star = 0;
+  double du_y_star = 0;
+  
+  // Compute Nedelec gradient on current element.
+  switch (node)
+    {
+    case 0:
+      du_x.push_back (nedelec_gradient (quadrant, u, 2));
+      du_y.push_back (nedelec_gradient (quadrant, u, 0));
+      break;
+    case 1:
+      du_x.push_back (nedelec_gradient (quadrant, u, 2));
+      du_y.push_back (nedelec_gradient (quadrant, u, 1));
+      break;
+    case 2:
+      du_x.push_back (nedelec_gradient (quadrant, u, 3));
+      du_y.push_back (nedelec_gradient (quadrant, u, 0));
+      break;
+    case 3:
+      du_x.push_back (nedelec_gradient (quadrant, u, 3));
+      du_y.push_back (nedelec_gradient (quadrant, u, 1));
+      break;
+    }
+          
+  weights_x.push_back (1 / hx);
+  weights_y.push_back (1 / hy);
+          
+  // Loop over face neighbors of current quadrant.
+  for (auto neighbor = quadrant->begin_neighbor_sweep ();
+       neighbor != quadrant->end_neighbor_sweep ();
+       ++neighbor)
+    {
+      // Skip missing neighbors.
+      if (neighbor->get_global_quad_idx () ==
+          quadrant->get_global_quad_idx ())
+        continue;
+              
+      // Skip inactive neighbors.
+      if (! is_active(neighbor))
+        continue;
+              
+      // Check if neighbor contains current vertex ("node").
+      for (node_n = 0; node_n < 4; ++node_n)
+        if (neighbor->gt (node_n) == quadrant->gt (node))
+          break;
+              
+      // If not, or if node_n is hanging,
+      // switch to the next neighbor.
+      if (node_n == 4 || neighbor->is_hanging (node_n))
+        continue;
+              
+      hx = neighbor->p (0, 1) - neighbor->p (0, 0);
+      hy = neighbor->p (1, 2) - neighbor->p (1, 0);
+              
+      switch (node_n)
+        {
+        case 0:
+          if (node == 1)
+            du_x.push_back (nedelec_gradient(neighbor, u, 2));
+          if (node == 2)
+            du_y.push_back (nedelec_gradient(neighbor, u, 0));
+          break;
+        case 1:
+          if (node == 0)
+            du_x.push_back (nedelec_gradient(neighbor, u, 2));
+          if (node == 3)
+            du_y.push_back (nedelec_gradient(neighbor, u, 1));
+          break;
+        case 2:
+          if (node == 3)
+            du_x.push_back (nedelec_gradient(neighbor, u, 3));
+          if (node == 0)
+            du_y.push_back (nedelec_gradient(neighbor, u, 0));
+          break;
+        case 3:
+          if (node == 2)
+            du_x.push_back (nedelec_gradient(neighbor, u, 3));
+          if (node == 1)
+            du_y.push_back (nedelec_gradient(neighbor, u, 1));
+          break;
+        }
+              
+      if (weights_x.size () < du_x.size ())
+        weights_x.push_back (1 / hx);
+              
+      if (weights_y.size () < du_y.size ())
+        weights_y.push_back (1 / hy);
+    }
+          
+  // If on any vertical boundary/interface.
+  if (du_x.size () < 2)
+    {
+      for (auto neighbor = quadrant->begin_neighbor_sweep  ();
+           neighbor != quadrant->end_neighbor_sweep ();
+           ++neighbor)
+        {
+          // Skip missing neighbors.
+          if (neighbor->get_global_quad_idx () ==
+              quadrant->get_global_quad_idx ())
+            continue;
+                  
+          // Skip inactive neighbors.
+          if (! is_active (neighbor))
+            continue;
+                  
+          // Check if neighbor contains the opposite vertex
+          // of the horizontal side containing "node".
+          switch (node)
+            {
+            case 0:
+              node_side = 1;
+              break;
+            case 1:
+              node_side = 0;
+              break;
+            case 2:
+              node_side = 3;
+              break;
+            case 3:
+              node_side = 2;
+              break;
+            }
+                  
+          for (node_n = 0; node_n < 4; ++node_n)
+            if (neighbor->gt (node_n) ==
+                quadrant->gt (node_side))
+              break;
+                  
+          // If not, or if node_n is hanging,
+          // switch to the next neighbor.
+          if (node_n == 4 || neighbor->is_hanging (node_n))
+            continue;
+                  
+          hx = neighbor->p (0, 1) - neighbor->p (0, 0);
+                  
+          switch (node_n)
+            {
+            case 0:
+              if (node_side == 1)
+                du_x.push_back (nedelec_gradient (neighbor, u, 2));
+              break;
+            case 1:
+              if (node_side == 0)
+                du_x.push_back (nedelec_gradient (neighbor, u, 2));
+              break;
+            case 2:
+              if (node_side == 3)
+                du_x.push_back (nedelec_gradient (neighbor, u, 3));
+              break;
+            case 3:
+              if (node_side == 2)
+                du_x.push_back (nedelec_gradient (neighbor, u, 3));
+              break;
+            }
+                  
+          if (weights_x.size () < du_x.size ())
+            {
+              weights_x[0] += 2 / hx;
+              weights_x.push_back (-1 / hx);
+            }
+        }
+    }
+          
+  // If on any horizontal boundary/interface.
+  if (du_y.size () < 2)
+    {
+      for (auto neighbor = quadrant->begin_neighbor_sweep ();
+           neighbor != quadrant->end_neighbor_sweep ();
+           ++neighbor)
+        {
+          // Skip missing neighbors.
+          if (neighbor->get_global_quad_idx () ==
+              quadrant->get_global_quad_idx ())
+            continue;
+                  
+          // Skip inactive neighbors.
+          if (! is_active (neighbor))
+            continue;
+                  
+          // Check if neighbor contains the opposite vertex
+          // of the vertical side containing "node".
+          switch (node)
+            {
+            case 0:
+              node_side = 2;
+              break;
+            case 1:
+              node_side = 3;
+              break;
+            case 2:
+              node_side = 0;
+              break;
+            case 3:
+              node_side = 1;
+              break;
+            }
+                  
+          for (node_n = 0; node_n < 4; ++node_n)
+            if (neighbor->gt (node_n) ==
+                quadrant->gt (node_side))
+              break;
+                  
+          // If not, or if node_n is hanging,
+          // switch to the next neighbor.
+          if (node_n == 4 || neighbor->is_hanging (node_n))
+            continue;
+                  
+          hy = neighbor->p (1, 2) - neighbor->p (1, 0);
+                  
+          switch (node_n)
+            {
+            case 0:
+              if (node_side == 2)
+                du_y.push_back (nedelec_gradient (neighbor, u, 0));
+              break;
+            case 1:
+              if (node_side == 3)
+                du_y.push_back (nedelec_gradient (neighbor, u, 1));
+              break;
+            case 2:
+              if (node_side == 0)
+                du_y.push_back (nedelec_gradient (neighbor, u, 0));
+              break;
+            case 3:
+              if (node_side == 1)
+                du_y.push_back (nedelec_gradient (neighbor, u, 1));
+              break;
+            }
+                  
+          if (weights_y.size () < du_y.size ())
+            {
+              weights_y[0] += 2 / hy;
+              weights_y.push_back (-1 / hy);
+            }
+        }
+    }
+          
+  assert (du_x.size () <= 2 && du_y.size () <= 2);
+          
+  if (du_x.size () == 2)
+    {
+      for (unsigned int ix = 0; ix < du_x.size (); ++ix)
+        du_x_star +=
+          du_x[ix] * weights_x[ix];
+              
+      du_x_star /=
+        std::accumulate (weights_x.begin (),
+                         weights_x.end (), 0.0);
+    }
+          
+  if (du_y.size () == 2)
+    {
+      for (unsigned int iy = 0; iy < du_y.size (); ++iy)
+        du_y_star +=
+          du_y[iy] * weights_y[iy];
+      
+      du_y_star /=
+        std::accumulate (weights_y.begin (),
+                         weights_y.end (), 0.0);
+    }
+  
+  return std::make_tuple (du_x_star, du_y_star);
+}
+
+// MPI_User_function.
+static void replace(double *invec, double *inoutvec,
+                    int *len, MPI_Datatype *dtype)
+{
+  for (int i = 0; i < *len; ++i)
+    if (invec[i] != 0 && inoutvec[i] == 0)
+      inoutvec[i] = invec[i];
+}
+
+// Specialitazion.
+template <>
+gradient<std::vector<double>>
+bim2c_quadtree_pde_recovered_gradient (tmesh & mesh,
+                                       const std::vector<double> & u,
+                                       active_fun is_active)
+{
+  std::vector<double> du_x_star (mesh.num_global_nodes (), 0);
+  std::vector<double> du_y_star (mesh.num_global_nodes (), 0);  
+  
+  std::tuple<double, double> du_star_loc;
   
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
@@ -869,289 +987,19 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u,
       // are non-hanging and have not been processed yet.
       for (int node = 0; node < 4; ++node)
         {
-          hx = quadrant->p (0, 1) - quadrant->p (0, 0);
-          hy = quadrant->p (1, 2) - quadrant->p (1, 0);
-      
-          if (quadrant->is_hanging (node) ||
-              (assigned_x[quadrant->gt (node)] &&
-               assigned_y[quadrant->gt (node)]))
+          if (quadrant->is_hanging (node))
             continue;
-          
+  
           // Skip inactive quadrants.
           if (! is_active(quadrant))
             continue;
           
-          du_x.clear (); weights_x.clear ();
-          du_y.clear (); weights_y.clear ();
+          du_star_loc =
+            bim2c_recovered_gradient_loc (quadrant, node,
+                                          u, is_active);
           
-          du_x_star[quadrant->gt (node)] = 0;
-          du_y_star[quadrant->gt (node)] = 0;
-          
-          // Compute Nedelec gradient on current element.
-          switch (node)
-            {
-            case 0:
-              du_x.push_back (nedelec_gradient (quadrant, u, 2));
-              du_y.push_back (nedelec_gradient (quadrant, u, 0));
-              break;
-            case 1:
-              du_x.push_back (nedelec_gradient (quadrant, u, 2));
-              du_y.push_back (nedelec_gradient (quadrant, u, 1));
-              break;
-            case 2:
-              du_x.push_back (nedelec_gradient (quadrant, u, 3));
-              du_y.push_back (nedelec_gradient (quadrant, u, 0));
-              break;
-            case 3:
-              du_x.push_back (nedelec_gradient (quadrant, u, 3));
-              du_y.push_back (nedelec_gradient (quadrant, u, 1));
-              break;
-            }
-          
-          weights_x.push_back (1 / hx);
-          weights_y.push_back (1 / hy);
-          
-          // Loop over face neighbors of current quadrant.
-          for (auto neighbor = quadrant->begin_neighbor_sweep ();
-               neighbor != quadrant->end_neighbor_sweep ();
-               ++neighbor)
-            {
-              // Skip missing neighbors.
-              if (neighbor->get_global_quad_idx () ==
-                  quadrant->get_global_quad_idx ())
-                continue;
-              
-              // Skip inactive neighbors.
-              if (! is_active(neighbor))
-                continue;
-              
-              // Check if neighbor contains current vertex ("node").
-              for (node_n = 0; node_n < 4; ++node_n)
-                if (neighbor->gt (node_n) == quadrant->gt (node))
-                  break;
-              
-              // If not, or if node_n is hanging,
-              // switch to the next neighbor.
-              if (node_n == 4 || neighbor->is_hanging (node_n))
-                continue;
-              
-              hx = neighbor->p (0, 1) - neighbor->p (0, 0);
-              hy = neighbor->p (1, 2) - neighbor->p (1, 0);
-              
-              switch (node_n)
-                {
-                case 0:
-                  if (node == 1)
-                    du_x.push_back (nedelec_gradient(neighbor, u, 2));
-                  if (node == 2)
-                    du_y.push_back (nedelec_gradient(neighbor, u, 0));
-                  break;
-                case 1:
-                  if (node == 0)
-                    du_x.push_back (nedelec_gradient(neighbor, u, 2));
-                  if (node == 3)
-                    du_y.push_back (nedelec_gradient(neighbor, u, 1));
-                  break;
-                case 2:
-                  if (node == 3)
-                    du_x.push_back (nedelec_gradient(neighbor, u, 3));
-                  if (node == 0)
-                    du_y.push_back (nedelec_gradient(neighbor, u, 0));
-                  break;
-                case 3:
-                  if (node == 2)
-                    du_x.push_back (nedelec_gradient(neighbor, u, 3));
-                  if (node == 1)
-                    du_y.push_back (nedelec_gradient(neighbor, u, 1));
-                  break;
-                }
-              
-              if (weights_x.size () < du_x.size ())
-                weights_x.push_back (1 / hx);
-              
-              if (weights_y.size () < du_y.size ())
-                weights_y.push_back (1 / hy);
-            }
-          
-          // If on any vertical boundary/interface.
-          if (du_x.size () < 2)
-            {
-              for (auto neighbor = quadrant->begin_neighbor_sweep  ();
-                   neighbor != quadrant->end_neighbor_sweep ();
-                   ++neighbor)
-                {
-                  // Skip missing neighbors.
-                  if (neighbor->get_global_quad_idx () ==
-                      quadrant->get_global_quad_idx ())
-                    continue;
-                  
-                  // Skip inactive neighbors.
-                  if (! is_active (neighbor))
-                    continue;
-                  
-                  // Check if neighbor contains the opposite vertex
-                  // of the horizontal side containing "node".
-                  switch (node)
-                    {
-                    case 0:
-                      node_side = 1;
-                      break;
-                    case 1:
-                      node_side = 0;
-                      break;
-                    case 2:
-                      node_side = 3;
-                      break;
-                    case 3:
-                      node_side = 2;
-                      break;
-                    }
-                  
-                  for (node_n = 0; node_n < 4; ++node_n)
-                    if (neighbor->gt (node_n) ==
-                        quadrant->gt (node_side))
-                      break;
-                  
-                  // If not, or if node_n is hanging,
-                  // switch to the next neighbor.
-                  if (node_n == 4 || neighbor->is_hanging (node_n))
-                    continue;
-                  
-                  hx = neighbor->p (0, 1) - neighbor->p (0, 0);
-                  
-                  switch (node_n)
-                    {
-                    case 0:
-                      if (node_side == 1)
-                        du_x.push_back (nedelec_gradient (neighbor, u, 2));
-                      break;
-                    case 1:
-                      if (node_side == 0)
-                        du_x.push_back (nedelec_gradient (neighbor, u, 2));
-                      break;
-                    case 2:
-                      if (node_side == 3)
-                        du_x.push_back (nedelec_gradient (neighbor, u, 3));
-                      break;
-                    case 3:
-                      if (node_side == 2)
-                        du_x.push_back (nedelec_gradient (neighbor, u, 3));
-                      break;
-                    }
-                  
-                  if (weights_x.size () < du_x.size ())
-                    {
-                      weights_x[0] += 2 / hx;
-                      weights_x.push_back (-1 / hx);
-                    }
-                }
-            }
-          
-          // If on any horizontal boundary/interface.
-          if (du_y.size () < 2)
-            {
-              for (auto neighbor = quadrant->begin_neighbor_sweep ();
-                   neighbor != quadrant->end_neighbor_sweep ();
-                   ++neighbor)
-                {
-                  // Skip missing neighbors.
-                  if (neighbor->get_global_quad_idx () ==
-                      quadrant->get_global_quad_idx ())
-                    continue;
-                  
-                  // Skip inactive neighbors.
-                  if (! is_active (neighbor))
-                    continue;
-                  
-                  // Check if neighbor contains the opposite vertex
-                  // of the vertical side containing "node".
-                  switch (node)
-                    {
-                    case 0:
-                      node_side = 2;
-                      break;
-                    case 1:
-                      node_side = 3;
-                      break;
-                    case 2:
-                      node_side = 0;
-                      break;
-                    case 3:
-                      node_side = 1;
-                      break;
-                    }
-                  
-                  for (node_n = 0; node_n < 4; ++node_n)
-                    if (neighbor->gt (node_n) ==
-                        quadrant->gt (node_side))
-                      break;
-                  
-                  // If not, or if node_n is hanging,
-                  // switch to the next neighbor.
-                  if (node_n == 4 || neighbor->is_hanging (node_n))
-                    continue;
-                  
-                  hy = neighbor->p (1, 2) - neighbor->p (1, 0);
-                  
-                  switch (node_n)
-                    {
-                    case 0:
-                      if (node_side == 2)
-                        du_y.push_back (nedelec_gradient (neighbor, u, 0));
-                      break;
-                    case 1:
-                      if (node_side == 3)
-                        du_y.push_back (nedelec_gradient (neighbor, u, 1));
-                      break;
-                    case 2:
-                      if (node_side == 0)
-                        du_y.push_back (nedelec_gradient (neighbor, u, 0));
-                      break;
-                    case 3:
-                      if (node_side == 1)
-                        du_y.push_back (nedelec_gradient (neighbor, u, 1));
-                      break;
-                    }
-                  
-                  if (weights_y.size () < du_y.size ())
-                    {
-                      weights_y[0] += 2 / hy;
-                      weights_y.push_back (-1 / hy);
-                    }
-                }
-            }
-          
-          assert (du_x.size () <= 2 && du_y.size () <= 2);
-          
-          if (du_x.size () == 2)
-            {
-              assigned_x[quadrant->gt (node)] = true;
-              
-              for (unsigned int ix = 0; ix < du_x.size (); ++ix)
-                {
-                  du_x_star[quadrant->gt (node)] +=
-                    du_x[ix] * weights_x[ix];
-                }
-              
-              du_x_star[quadrant->gt (node)] /=
-                std::accumulate (weights_x.begin (),
-                                 weights_x.end (), 0.0);
-            }
-          
-          if (du_y.size () == 2)
-            {
-              assigned_y[quadrant->gt (node)] = true;
-              
-              for (unsigned int iy = 0; iy < du_y.size (); ++iy)
-                {
-                  du_y_star[quadrant->gt (node)] +=
-                    du_y[iy] * weights_y[iy];
-                }
-              
-              du_y_star[quadrant->gt (node)] /=
-                std::accumulate (weights_y.begin (),
-                                 weights_y.end (), 0.0);
-            }
+          du_x_star[quadrant->gt (node)] = std::get<0> (du_star_loc);
+          du_y_star[quadrant->gt (node)] = std::get<1> (du_star_loc);
         }
     }
 
@@ -1159,27 +1007,66 @@ bim2c_quadtree_pde_recovered_gradient (tmesh& mesh, const q1_vec& u,
   //         AND ALLOW USE OF DISTRIBUTED VECTOR
   // Send data to all processes so that non-assigned values
   // on current rank get assigned by other ranks.
-  std::vector<double> du_x_star_global (mesh.num_global_nodes (), 0);
-  std::vector<double> du_y_star_global (mesh.num_global_nodes (), 0);
-  
   MPI_Op op;
   MPI_Op_create ((MPI_User_function *) replace, 1, &op);
   
-  MPI_Allreduce (du_x_star.data (), du_x_star_global.data (),
+  MPI_Allreduce (MPI_IN_PLACE, du_x_star.data (),
                  du_x_star.size (), MPI_DOUBLE,
                  op, MPI_COMM_WORLD);
   
-  MPI_Allreduce (du_y_star.data (), du_y_star_global.data (),
+  MPI_Allreduce (MPI_IN_PLACE, du_y_star.data (),
                  du_y_star.size (), MPI_DOUBLE,
                  op, MPI_COMM_WORLD);
   
-  return std::make_pair (du_x_star_global, du_y_star_global);
+  return std::make_pair (du_x_star, du_y_star);
 }
 
+template <>
+gradient<distributed_vector>
+bim2c_quadtree_pde_recovered_gradient (tmesh & mesh,
+                                       const distributed_vector & u,
+                                       active_fun is_active)
+{
+  distributed_vector du_x_star (mesh.num_owned_nodes (), 0);
+  distributed_vector du_y_star (mesh.num_owned_nodes (), 0);  
+  
+  std::tuple<double, double> du_star_loc;
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      // Loop over vertices of current quadrant that
+      // are non-hanging and have not been processed yet.
+      for (int node = 0; node < 4; ++node)
+        {
+          if (quadrant->is_hanging (node))
+            continue;
+  
+          // Skip inactive quadrants.
+          if (! is_active(quadrant))
+            continue;
+          
+          du_star_loc =
+            bim2c_recovered_gradient_loc (quadrant, node,
+                                          u, is_active);
+          
+          du_x_star[quadrant->gt (node)] = std::get<0> (du_star_loc);
+          du_y_star[quadrant->gt (node)] = std::get<1> (du_star_loc);
+        }
+    }
+  
+  du_x_star.assemble (replace_op);
+  du_y_star.assemble (replace_op);
+  
+  return std::make_pair (du_x_star, du_y_star);
+}
+
+template <class T>
 q2_vec
-bim2c_quadtree_pde_recovered_solution (tmesh& mesh,
-                                       const q1_vec& u,
-                                       const gradient& du)
+bim2c_quadtree_pde_recovered_solution (tmesh & mesh,
+                                       const T & u,
+                                       const gradient<T> & du)
 {
   q2_vec u_star (mesh.num_local_quadrants (),
                  std::array<double, 9> ({0,0,0,0,0,0,0,0,0}));
@@ -1434,10 +1321,11 @@ q2 (double X, double Y, const double *x,
 }
 
 // Compute ||grad^* u - grad u||_L^2(q).
+template <class T>
 double
 estimator_grad (tmesh::quadrant_iterator q,
-                const gradient& du_star,
-                const q1_vec& u)
+                const gradient<T> & du_star,
+                const T & u)
 {
   double
     x[2] = {q->p(0,0), q->p(0,1)},
@@ -1486,16 +1374,19 @@ estimator_grad (tmesh::quadrant_iterator q,
 
 // Refinement marker function based on ZZ estimator
 // for the recovered gradient du*.
-int 
-zz_marker_grad (tmesh::quadrant_iterator q, const gradient & du_star,
-                const q1_vec & u, double limit)
+template <class T>
+int
+zz_marker_grad (tmesh::quadrant_iterator q,
+                const gradient<T> & du_star,
+                const T & u, double limit)
 { return estimator_grad (q, du_star, u) > limit ? 1 : 0; }
 
 // Compute ||u^* - u||_L^2(q).
+template <class T>
 double
 estimator_sol (tmesh::quadrant_iterator q,
                const q2_vec & ustar,
-               const q1_vec & u)
+               const T & u)
 {
   double
     x[2] = {q->p(0,0), q->p (0,1)},
@@ -1529,19 +1420,22 @@ estimator_sol (tmesh::quadrant_iterator q,
 
 // Refinement marker function based on ZZ estimator
 // for the recovered solution u*.
-int 
+template <class T>
+int
 zz_marker_sol (tmesh::quadrant_iterator q,
                const q2_vec & ustar,
-               const q1_vec & u,
+               const T & u,
                double limit)
 {
   return estimator_sol (q, ustar, u) > limit ? 1 : 0;
 }
 
 // Compute ||u - u_ex||_L^2(q).
+template <class T>
 double
-l2_error (tmesh::quadrant_iterator q, const func& u_ex,
-          const q1_vec& u)
+l2_error (tmesh::quadrant_iterator q,
+          const func & u_ex,
+          const T & u)
 {
   double
     x[2] = {q->p (0,0), q->p (0,1)},
@@ -1565,9 +1459,12 @@ l2_error (tmesh::quadrant_iterator q, const func& u_ex,
 }
 
 // Compute |u - u_ex|_H^1(q).
+template <class T>
 double
-semih1_error (tmesh::quadrant_iterator q, const func& dudx_ex,
-              const func& dudy_ex, const q1_vec& u)
+semih1_error (tmesh::quadrant_iterator q,
+              const func & dudx_ex,
+              const func & dudy_ex,
+              const T & u)
 {
   double
     x[2] = {q->p (0,0), q->p (0,1)},
@@ -1626,11 +1523,12 @@ l2_star_error (tmesh::quadrant_iterator q,
 
 
 // Compute ||du_star - grad(u_ex)||_L^2(q).
+template <class T>
 double
 semih1_star_error (tmesh::quadrant_iterator q,
                    const func & dudx_ex,
                    const func & dudy_ex,
-                   const gradient & du_star)
+                   const gradient<T> & du_star)
 {
   double
     x[2] = {q->p (0,0), q->p (0,1)},
@@ -1670,3 +1568,320 @@ semih1_star_error (tmesh::quadrant_iterator q,
   
     return std::sqrt (quad_integral (x, y, fun));
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Explicit instantiation.
+template
+static
+void
+assemble_rhs (tmesh::quadrant_iterator&,
+              const std::array<double, 4>&,
+              std::vector<double>&,
+              const ordering& ord);
+
+template
+static
+void
+assemble_rhs (tmesh::quadrant_iterator&,
+              const std::array<double, 4>&,
+              distributed_vector&,
+              const ordering& ord);
+
+/* ---- */
+template
+void
+bim2a_advection_diffusion (tmesh&,
+                           const std::vector<double>&,
+                           const std::vector<double>&,
+                           sparse_matrix&,
+                           const ordering&,
+                           const ordering&);
+
+template
+void
+bim2a_advection_diffusion (tmesh&,
+                           const std::vector<double>&,
+                           const distributed_vector&,
+                           sparse_matrix&,
+                           const ordering&,
+                           const ordering&);
+
+/* ---- */
+template
+void
+bim2a_advection_eafe_diffusion (tmesh&,
+                                const std::vector<double>&,
+                                const std::vector<double>&,
+                                sparse_matrix&,
+                                const ordering&,
+                                const ordering&);
+
+template
+void
+bim2a_advection_eafe_diffusion (tmesh&,
+                                const distributed_vector&,
+                                const distributed_vector&,
+                                sparse_matrix&,
+                                const ordering&,
+                                const ordering&);
+
+/* ---- */
+template
+void
+bim2a_reaction (tmesh&,
+                const std::vector<double>&,
+                const std::vector<double>&,
+                sparse_matrix&,
+                const ordering&,
+                const ordering&);
+
+template
+void
+bim2a_reaction (tmesh&,
+                const std::vector<double>&,
+                const distributed_vector&,
+                sparse_matrix&,
+                const ordering&,
+                const ordering&);
+
+/* ---- */
+template
+void
+bim2a_rhs (tmesh&,
+           const std::vector<double>&,
+           const std::vector<double>&,
+           std::vector<double>&,
+           const ordering&);
+
+template
+void
+bim2a_rhs (tmesh&,
+           const std::vector<double>&,
+           const distributed_vector&,
+           distributed_vector&,
+           const ordering&);
+
+/* ---- */
+template
+void
+bim2a_boundary_mass (tmesh&,
+                     const int &,
+                     const int &,
+                     std::vector<double> &,
+                     const func_quad &);
+
+template
+void
+bim2a_boundary_mass (tmesh&,
+                     const int &,
+                     const int &,
+                     distributed_vector &,
+                     const func_quad &);
+
+/* ---- */
+template
+static void
+bim2a_dirichlet_bc_loc (sparse_matrix&,
+                        std::vector<double>&,
+                        const unsigned int&,
+                        const double&,
+                        const bool&);
+
+template
+static void
+bim2a_dirichlet_bc_loc (sparse_matrix&,
+                        distributed_vector&,
+                        const unsigned int&,
+                        const double&,
+                        const bool&);
+
+/* ---- */
+template
+void
+bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs&,
+                    sparse_matrix&, std::vector<double>&,
+                    const ordering&,
+                    const bool&);
+
+template
+void
+bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs&,
+                    sparse_matrix&, distributed_vector&,
+                    const ordering&,
+                    const bool&);
+
+/* ---- */
+template
+void
+bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs_quad&,
+                    sparse_matrix&, std::vector<double>&,
+                    const ordering&,
+                    const bool&);
+
+template
+void
+bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs_quad&,
+                    sparse_matrix&, distributed_vector&,
+                    const ordering&,
+                    const bool&);
+
+/* ---- */
+template
+double
+nedelec_gradient (tmesh::quadrant_iterator &,
+                  const std::vector<double> &, size_t);
+
+template
+double
+nedelec_gradient (tmesh::quadrant_iterator &,
+                  const distributed_vector &, size_t);
+
+/* ---- */
+template
+std::tuple<double, double>
+bim2c_recovered_gradient_loc (tmesh::quadrant_iterator,
+                              int,
+                              const std::vector<double> & u,
+                              active_fun);
+
+template
+std::tuple<double, double>
+bim2c_recovered_gradient_loc (tmesh::quadrant_iterator,
+                              int,
+                              const distributed_vector & u,
+                              active_fun);
+
+/* ---- */
+template
+gradient<std::vector<double>>
+bim2c_quadtree_pde_recovered_gradient (tmesh &,
+                                       const std::vector<double> &,
+                                       active_fun);
+
+template
+gradient<distributed_vector>
+bim2c_quadtree_pde_recovered_gradient (tmesh &,
+                                       const distributed_vector &,
+                                       active_fun);
+
+/* ---- */
+template
+q2_vec
+bim2c_quadtree_pde_recovered_solution (tmesh &,
+                                       const std::vector<double> &,
+                                       const gradient<std::vector<double>> &);
+template
+q2_vec
+bim2c_quadtree_pde_recovered_solution (tmesh &,
+                                       const distributed_vector &,
+                                       const gradient<distributed_vector> &);
+/* ---- */
+template
+double
+estimator_grad (tmesh::quadrant_iterator q,
+                const gradient<std::vector<double>> & du_star,
+                const std::vector<double> & u);
+
+template
+double
+estimator_grad (tmesh::quadrant_iterator q,
+                const gradient<distributed_vector> & du_star,
+                const distributed_vector & u);
+
+/* ---- */
+template
+int
+zz_marker_grad (tmesh::quadrant_iterator q,
+                const gradient<std::vector<double>> & du_star,
+                const std::vector<double> & u,
+                double limit);
+
+template
+int
+zz_marker_grad (tmesh::quadrant_iterator q,
+                const gradient<distributed_vector> & du_star,
+                const distributed_vector & u,
+                double limit);
+
+/* ---- */
+template
+double
+estimator_sol (tmesh::quadrant_iterator q,
+               const q2_vec & ustar,
+               const std::vector<double> & u);
+
+template
+double
+estimator_sol (tmesh::quadrant_iterator q,
+               const q2_vec & ustar,
+               const distributed_vector & u);
+
+/* ---- */
+template
+int 
+zz_marker_sol (tmesh::quadrant_iterator q,
+               const q2_vec & ustar,
+               const std::vector<double> & u,
+               double limit);
+
+template
+int 
+zz_marker_sol (tmesh::quadrant_iterator q,
+               const q2_vec & ustar,
+               const distributed_vector & u,
+               double limit);
+
+/* ---- */
+template
+double
+l2_error (tmesh::quadrant_iterator q,
+          const func & u_ex,
+          const std::vector<double> & u);
+
+template
+double
+l2_error (tmesh::quadrant_iterator q,
+          const func & u_ex,
+          const distributed_vector & u);
+
+/* ---- */
+template
+double
+semih1_error (tmesh::quadrant_iterator q,
+              const func & dudx_ex,
+              const func & dudy_ex,
+              const std::vector<double> & u);
+
+template
+double
+semih1_error (tmesh::quadrant_iterator q,
+              const func & dudx_ex,
+              const func & dudy_ex,
+              const distributed_vector & u);
+
+/* ---- */
+template
+double
+semih1_star_error (tmesh::quadrant_iterator q,
+                   const func & dudx_ex,
+                   const func & dudy_ex,
+                   const gradient<std::vector<double>> & du_star);
+template
+double
+semih1_star_error (tmesh::quadrant_iterator q,
+                   const func & dudx_ex,
+                   const func & dudy_ex,
+                   const gradient<distributed_vector> & du_star);
