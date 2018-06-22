@@ -154,7 +154,11 @@ public:
   int
   size ()
   { return ranges.back (); }
-  
+
+  /// Resets all the non-local maps.
+  void
+  clear_non_local ();
+    
   friend std::ostream&
   operator<< (std::ostream &, const distributed_vector&);
 

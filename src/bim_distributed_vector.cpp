@@ -101,7 +101,6 @@ distributed_vector::distributed_vector (int is_, int ie_,
 double&
 distributed_vector::operator() (int idx)
 {
-
   assert ((idx >= 0) && (idx < this->ranges.back ()));
     
   return is_owned (idx)
@@ -112,8 +111,7 @@ distributed_vector::operator() (int idx)
   
 const double&
 distributed_vector::operator() (int idx) const
-{    
-
+{
   assert ((idx >= 0) && (idx < this->ranges.back ()));
     
   return is_owned (idx)
@@ -257,6 +255,19 @@ distributed_vector::assemble (const binary_operator & binary_op)
   /// Step 6 : Copy ghosts data into non_local_data
   for (int ii = 0; ii < ghosts.prc_ptr.back (); ++ii)
     (*this)(ghosts.row_ind[ii]) = ghosts.a[ii];
+}
+
+void
+distributed_vector::clear_non_local ()
+{
+  non_local_data.clear ();
+  
+  ghosts.prc_ptr.clear ();
+  ghosts.row_ind.clear ();
+  ghosts.rank_nnz.clear ();
+  ghosts.a.clear ();
+  
+  mapped = false;
 }
 
 std::ostream&

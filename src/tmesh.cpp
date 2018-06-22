@@ -979,7 +979,7 @@ tmesh::user_data_replace (std::vector<tmesh::data_t *> old_user_data)
           // Determine interpolation indices.
           new_user_data[i].interp_idx =
             old_user_data[0]->interp_idx;
-
+          
           // Balancing.
           // In this case the indices for the 4 vertices are different,
           // so only the really needed ones (i.e. the ones with interp_coeff = 1)
@@ -989,7 +989,7 @@ tmesh::user_data_replace (std::vector<tmesh::data_t *> old_user_data)
                  new_user_data[i].interp_idx[0] == new_user_data[i].interp_idx[3])
               && (i == 0))
             {
-              std::array<tmesh::idx_t, 4> new_interp_idx;
+              std::array<tmesh::idx_t, 4> new_interp_idx ({0});
               std::array<std::array<double, 4>, 4> new_interp_coeff ({0.0});
               
               for (int row = 0; row < 4; ++row)

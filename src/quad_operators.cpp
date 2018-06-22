@@ -608,13 +608,15 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
     }
 }
 
-template <class T>
-void
+// Specialization.
+template <>
+std::vector<double>
 interpolate_vector (tmesh & mesh,
-                    const T & vec_in,
-                    T & vec_out,
+                    std::vector<double> & vec_in,
                     const size_t & ntot)
 {
+  std::vector<double> vec_out (ntot * mesh.num_global_nodes (), 0);
+  
   tmesh::data_t * data;
 
   for (auto quadrant = mesh.begin_quadrant_sweep ();
@@ -637,6 +639,80 @@ interpolate_vector (tmesh & mesh,
             }
         }
     }
+
+  return vec_out;
+}
+
+// Specialization.
+template <>
+distributed_vector
+interpolate_vector (tmesh & mesh,
+                    distributed_vector & vec_in,
+                    const size_t & ntot)
+{
+  distributed_vector vec_out (ntot * mesh.num_owned_nodes ());
+  
+  tmesh::data_t * data;
+  
+  // Assemble indices related to interpolation matrices.
+  vec_in.clear_non_local ();
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      data = static_cast<tmesh::data_t *> (quadrant->the_quadrant->p.user_data);
+      
+      for (int node = 0; node < 4; ++node)
+        {
+          if (! quadrant->is_hanging (node))
+            {
+              // Loop over all the equations.
+              for (size_t eq = 0; eq < ntot; ++eq)
+                for (int i = 0; i < 4; ++i)
+                  vec_in[ntot * data->interp_idx[node][i] + eq] += 0;
+            }
+        }
+    }
+
+  vec_in.assemble (replace_op);
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      data = static_cast<tmesh::data_t *> (quadrant->the_quadrant->p.user_data);
+      
+      for (int node = 0; node < 4; ++node)
+        {
+          if (! quadrant->is_hanging (node))
+            {
+              if (vec_out[quadrant->gt (node)] == 0)
+                {
+                  // Loop over all the equations.
+                  for (size_t eq = 0; eq < ntot; ++eq)
+                    for (int i = 0; i < 4; ++i)
+                      vec_out[ntot * quadrant->gt (node) + eq] +=
+                        data->interp_coeff[node][i] *
+                        vec_in[ntot * data->interp_idx[node][i] + eq];
+                }
+            }
+          // Assemble parents.
+          else
+            {
+              // Loop over all the equations.
+              for (size_t eq = 0; eq < ntot; ++eq)
+                {
+                  vec_out[ntot * quadrant->gparent (0, node) + eq] += 0;
+                  vec_out[ntot * quadrant->gparent (1, node) + eq] += 0;
+                }
+            }
+        }
+    }
+  
+  vec_out.assemble (replace_op);
+  
+  return vec_out;
 }
 
 /// Edge ordering derived from vertex ordering
@@ -1772,16 +1848,14 @@ bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs_quad&,
 
 /* ---- */
 template
-void
+std::vector<double>
 interpolate_vector (tmesh &,
-                    const std::vector<double> &,
                     std::vector<double> &,
                     const size_t &);
 
 template
-void
+distributed_vector
 interpolate_vector (tmesh &,
-                    const distributed_vector &,
                     distributed_vector &,
                     const size_t &);
 

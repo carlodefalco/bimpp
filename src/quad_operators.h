@@ -100,10 +100,9 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                     const bool& only_rhs = false);
 
 template <class T>
-void
+T
 interpolate_vector (tmesh & mesh,
-                    const T & vec_in,
-                    T & vec_out,
+                    T & vec_in,
                     const size_t & ntot = 1);
 
 template <class T>
