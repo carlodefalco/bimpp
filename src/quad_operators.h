@@ -99,10 +99,12 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                     const ordering& ord = default_ord,
                     const bool& only_rhs = false);
 
-std::vector<double>
-interpolate_vector (tmesh& mesh,
-                    const std::vector<double>& vec_in,
-                    const size_t& ntot = 1);
+template <class T>
+void
+interpolate_vector (tmesh & mesh,
+                    const T & vec_in,
+                    T & vec_out,
+                    const size_t & ntot = 1);
 
 template <class T>
 gradient<T>

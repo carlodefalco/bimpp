@@ -146,7 +146,8 @@ main (int argc, char **argv)
   tmsh.coarsen (1, partforcoarsen);
   
   // Interpolate solution at new mesh.
-  std::vector<double> new_sol = interpolate_vector (tmsh, global_rhs);
+  std::vector<double> new_sol (tmsh.num_global_nodes (), 0);
+  interpolate_vector (tmsh, global_rhs, new_sol);
   
   tmsh.octbin_export ("p4est_interpolation_test_u_new", new_sol);
   

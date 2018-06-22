@@ -608,13 +608,13 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
     }
 }
 
-std::vector<double>
-interpolate_vector (tmesh& mesh,
-                    const std::vector<double>& vec_in,
-                    const size_t& ntot)
+template <class T>
+void
+interpolate_vector (tmesh & mesh,
+                    const T & vec_in,
+                    T & vec_out,
+                    const size_t & ntot)
 {
-  std::vector<double> vec_out (ntot * mesh.num_global_nodes (), 0);
-
   tmesh::data_t * data;
 
   for (auto quadrant = mesh.begin_quadrant_sweep ();
@@ -637,8 +637,6 @@ interpolate_vector (tmesh& mesh,
             }
         }
     }
-
-  return vec_out;
 }
 
 /// Edge ordering derived from vertex ordering
@@ -1771,6 +1769,21 @@ bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs_quad&,
                     sparse_matrix&, distributed_vector&,
                     const ordering&,
                     const bool&);
+
+/* ---- */
+template
+void
+interpolate_vector (tmesh &,
+                    const std::vector<double> &,
+                    std::vector<double> &,
+                    const size_t &);
+
+template
+void
+interpolate_vector (tmesh &,
+                    const distributed_vector &,
+                    distributed_vector &,
+                    const size_t &);
 
 /* ---- */
 template
