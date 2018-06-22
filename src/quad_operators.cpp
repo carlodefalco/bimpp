@@ -15,6 +15,15 @@ static inline double
 hm (const double& a, const double& b)
 { return 2 / (1 / a + 1 / b); }
 
+// MPI_User_function.
+static void replace(double *invec, double *inoutvec,
+                    int *len, MPI_Datatype *dtype)
+{
+  for (int i = 0; i < *len; ++i)
+    if (invec[i] != 0 && inoutvec[i] == 0)
+      inoutvec[i] = invec[i];
+}
+
 static
 std::array<std::array<double, 4>, 4> Aloc;
 
@@ -618,7 +627,10 @@ interpolate_vector (tmesh & mesh,
   std::vector<double> vec_out (ntot * mesh.num_global_nodes (), 0);
   
   tmesh::data_t * data;
-
+  
+  size_t start = mesh.lnodes->global_offset;
+  size_t end = start + mesh.num_owned_nodes ();
+  
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
@@ -627,19 +639,25 @@ interpolate_vector (tmesh & mesh,
       
       for (int node = 0; node < 4; ++node)
         {
+          // If current node is owned.
           if (! quadrant->is_hanging (node) &&
-              vec_out[quadrant->gt (node)] == 0)
+              vec_out[quadrant->gt (node)] == 0 &&
+              quadrant->gt (node) >= start && quadrant->gt (node) < end)
             {
               // Loop over all the equations.
               for (size_t eq = 0; eq < ntot; ++eq)
                 for (int i = 0; i < 4; ++i)
                   vec_out[ntot * quadrant->gt (node) + eq] +=
                     data->interp_coeff[node][i] *
-                    vec_in[ntot * data->interp_idx[node][i] + eq];
+                    vec_in[ntot * data->interp_idx[i] + eq];
             }
         }
     }
-
+  
+  MPI_Allreduce (MPI_IN_PLACE, vec_out.data (),
+                 vec_out.size (), MPI_DOUBLE,
+                 MPI_SUM, MPI_COMM_WORLD);
+  
   return vec_out;
 }
 
@@ -670,7 +688,7 @@ interpolate_vector (tmesh & mesh,
               // Loop over all the equations.
               for (size_t eq = 0; eq < ntot; ++eq)
                 for (int i = 0; i < 4; ++i)
-                  vec_in[ntot * data->interp_idx[node][i] + eq] += 0;
+                  vec_in[ntot * data->interp_idx[i] + eq] += 0;
             }
         }
     }
@@ -694,7 +712,7 @@ interpolate_vector (tmesh & mesh,
                     for (int i = 0; i < 4; ++i)
                       vec_out[ntot * quadrant->gt (node) + eq] +=
                         data->interp_coeff[node][i] *
-                        vec_in[ntot * data->interp_idx[node][i] + eq];
+                        vec_in[ntot * data->interp_idx[i] + eq];
                 }
             }
           // Assemble parents.
@@ -1038,15 +1056,6 @@ bim2c_recovered_gradient_loc (tmesh::quadrant_iterator quadrant,
   
   return std::make_tuple (du_x_star, du_y_star,
                           assigned_x, assigned_y);
-}
-
-// MPI_User_function.
-static void replace(double *invec, double *inoutvec,
-                    int *len, MPI_Datatype *dtype)
-{
-  for (int i = 0; i < *len; ++i)
-    if (invec[i] != 0 && inoutvec[i] == 0)
-      inoutvec[i] = invec[i];
 }
 
 // Specialization.

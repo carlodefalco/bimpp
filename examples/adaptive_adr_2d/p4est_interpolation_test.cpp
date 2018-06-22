@@ -143,6 +143,37 @@ main (int argc, char **argv)
   
   // Coarsen and refine.
   tmsh.set_coarsen_marker (bottom_coarsening);
+  
+  /*
+  for (auto quadrant = tmsh.begin_quadrant_sweep ();
+       quadrant != tmsh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      tmesh::data_t * data =
+	static_cast<tmesh::data_t *> (quadrant->the_quadrant->p.user_data);
+         
+      for (int i = 0; i < 4; ++i)
+	{
+	  if (i == 0)
+	    {
+	      std::cout << quadrant->get_global_quad_idx () << std::endl;
+              for (int j = 0; j < 4; ++j)
+		{
+		  std::cout << data->interp_idx[j] << ", ";
+		}
+              std::cout << std::endl;
+	    }
+           
+	  for (int j = 0; j < 4; ++j)
+	    {
+	      std::cout << data->interp_coeff[i][j] << ", ";
+	    }
+	  std::cout << std::endl;
+	}
+      std::cout << std::endl;
+    }
+  */
+  
   tmsh.coarsen (1, partforcoarsen);
   
   // Interpolate solution at new mesh.

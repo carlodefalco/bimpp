@@ -549,7 +549,7 @@ tmesh::vtk_export (const char *filename)
 template<class T>
 void
 octbin_export_tmpl (tmesh *THIS, const char* basename, const T& f,
-		    const ordering& ord)
+                    const ordering& ord)
 {
   //  assert (f.size () == num_global_nodes ());
 
@@ -595,7 +595,7 @@ octbin_export_tmpl (tmesh *THIS, const char* basename, const T& f,
               parents[0] = quadrant->gparent (0, ii);
               parents[1] = quadrant->gparent (1, ii);
               f_loc.push_back (0.5 * (f[ord (parents[0])] +
-				      f[ord (parents[1])]));
+                                      f[ord (parents[1])]));
               t[4 * quadrant->get_forest_quad_idx () + (ij++)] =
                 f_loc.size () - 1;
             }
@@ -633,12 +633,12 @@ octbin_export_tmpl (tmesh *THIS, const char* basename, const T& f,
 
 void
 tmesh::octbin_export (const char* filename, const std::vector<double>& f,
-		      const ordering& ord)
+                      const ordering& ord)
 { octbin_export_tmpl (this, filename, f, ord); };
 
 void
 tmesh::octbin_export (const char* filename, const distributed_vector& f,
-		      const ordering& ord)
+                      const ordering& ord)
 { octbin_export_tmpl (this, filename, f, ord); };
 
 void
@@ -738,12 +738,12 @@ tmesh::set_metrics_marker
       set_interpolation_matrix (quadrant);
         
       hxhat_hx = static_cast<int> (std::round (std::log2 (estimator (quadrant)
-							  * std::sqrt (this->num_global_quadrants ()) / tol)));
+                                                          * std::sqrt (this->num_global_quadrants ()) / tol)));
 
       if (hxhat_hx >= 0)
-	hxhat_hx = std::max (0, hxhat_hx - n_refine);
+        hxhat_hx = std::max (0, hxhat_hx - n_refine);
       else
-	hxhat_hx = std::min (0, hxhat_hx + n_coarsen);
+        hxhat_hx = std::min (0, hxhat_hx + n_coarsen);
       
       tmesh::data_t * data =
         static_cast<tmesh::data_t *> (quadrant->the_quadrant->p.user_data);
@@ -980,35 +980,6 @@ tmesh::user_data_replace (std::vector<tmesh::data_t *> old_user_data)
           new_user_data[i].interp_idx =
             old_user_data[0]->interp_idx;
           
-          // Balancing.
-          // In this case the indices for the 4 vertices are different,
-          // so only the really needed ones (i.e. the ones with interp_coeff = 1)
-          // are extracted.
-          if (! (new_user_data[i].interp_idx[0] == new_user_data[i].interp_idx[1] &&
-                 new_user_data[i].interp_idx[0] == new_user_data[i].interp_idx[2] &&
-                 new_user_data[i].interp_idx[0] == new_user_data[i].interp_idx[3])
-              && (i == 0))
-            {
-              std::array<tmesh::idx_t, 4> new_interp_idx ({0});
-              std::array<std::array<double, 4>, 4> new_interp_coeff ({0.0});
-              
-              for (int row = 0; row < 4; ++row)
-                {
-                  for (int col = 0; col < 4; ++col)
-                    {
-                      if (old_user_data[0]->interp_coeff[row][col] == 1)
-                        {
-                          new_interp_idx[row] = old_user_data[0]->interp_idx[row][col];
-                          new_interp_coeff[row][row] = old_user_data[0]->interp_coeff[row][col];
-                          break;
-                        }
-                    }
-                }
-              
-              old_user_data[0]->interp_idx.fill (new_interp_idx);
-              old_user_data[0]->interp_coeff = new_interp_coeff;
-            }
-          
           // Compute local interpolation matrix.
           std::array<std::array<double, 4>, 4> loc_interp;
           
@@ -1074,21 +1045,25 @@ tmesh::user_data_replace (std::vector<tmesh::data_t *> old_user_data)
                            ref_counts.end ()) + 1;
 
       // Replace interpolation matrix.
-      new_user_data[0].interp_idx =
-        {
-          old_user_data[0]->interp_idx[0],
-          old_user_data[1]->interp_idx[1],
-          old_user_data[2]->interp_idx[2],
-          old_user_data[3]->interp_idx[3]
-        };
+      new_user_data[0].interp_coeff = {0};
       
-      new_user_data[0].interp_coeff =
+      for (int row = 0; row < 4; ++row)
         {
-          old_user_data[0]->interp_coeff[0],
-          old_user_data[1]->interp_coeff[1],
-          old_user_data[2]->interp_coeff[2],
-          old_user_data[3]->interp_coeff[3]
-        };
+          // If coarsening, then (due to balancing)
+          // the four parent indices have a "1" entry.
+          for (int col = 0; col < 4; ++col)
+            {
+              if (old_user_data[row]->interp_coeff[row][col] == 1)
+                {
+                  new_user_data[0].interp_idx[row] = 
+                    old_user_data[row]->interp_idx[col];
+                  
+                  // Insert diagonal entry.
+                  new_user_data[0].interp_coeff[row][row] = 1;
+                  break;
+                }
+            }
+        }
     }
   
   return new_user_data;
@@ -1174,15 +1149,10 @@ tmesh::set_interpolation_matrix (tmesh::quadrant_iterator & q)
        map_el != interp_map.end ();
        ++col, ++map_el)
     {
-      // Indices are the same for every row.
-      for (size_t row = 0; row < interp_map.size (); ++row)
-        data->interp_idx[row][col] =
-          map_el->first;
+      data->interp_idx[col] =
+        map_el->first;
       
-      for (size_t row = 0; row < map_el->second.size (); ++row)
-        {
-          data->interp_coeff[map_el->second[row].first][col] =
-            map_el->second[row].second;
-        }
+      for (auto vec_entry : map_el->second)
+        data->interp_coeff[vec_entry.first][col] = vec_entry.second;
     }
 };
