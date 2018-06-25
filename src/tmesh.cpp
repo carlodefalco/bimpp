@@ -729,6 +729,7 @@ tmesh::set_metrics_marker
 {
   this->metrics_max_depth = max_depth;
 
+  tmesh::data_t * data;
   int hxhat_hx = 0;
 
   for (auto quadrant = this->begin_quadrant_sweep ();
@@ -736,7 +737,7 @@ tmesh::set_metrics_marker
        ++quadrant)
     {
       set_interpolation_matrix (quadrant);
-        
+      
       hxhat_hx = static_cast<int> (std::round (std::log2 (estimator (quadrant)
                                                           * std::sqrt (this->num_global_quadrants ()) / tol)));
 
@@ -745,8 +746,7 @@ tmesh::set_metrics_marker
       else
         hxhat_hx = std::min (0, hxhat_hx + n_coarsen);
       
-      tmesh::data_t * data =
-        static_cast<tmesh::data_t *> (quadrant->the_quadrant->p.user_data);
+      data = static_cast<tmesh::data_t *> (quadrant->the_quadrant->p.user_data);
       
       data->refine_count =
         std::min (std::max (-max_depth, hxhat_hx), max_depth);
@@ -1129,14 +1129,14 @@ tmesh::set_interpolation_matrix (tmesh::quadrant_iterator & q)
           (std::make_pair(node, 1));
       else
         {
-          interp_map[q->parent (0, node)].push_back
+          interp_map[q->gparent (0, node)].push_back
             (std::make_pair(node, 0.5));
 
-          interp_map[q->parent (1, node)].push_back
+          interp_map[q->gparent (1, node)].push_back
             (std::make_pair(node, 0.5));
         }
     }
-
+  
   // Copy interp_map into user_data.
   tmesh::data_t * data =
     static_cast<tmesh::data_t *> (q->the_quadrant->p.user_data);
