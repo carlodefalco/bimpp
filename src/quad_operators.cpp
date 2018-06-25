@@ -1139,9 +1139,9 @@ bim2c_quadtree_pde_recovered_gradient (tmesh & mesh,
       // Loop over non-hanging vertices of current quadrant.
       for (int node = 0; node < 4; ++node)
         {
-          /*if (assigned_x[quadrant->gt (node)] &&
+          if (assigned_x[quadrant->gt (node)] &&
               assigned_y[quadrant->gt (node)])
-              continue;*/
+            continue;
           
           if (! quadrant->is_hanging (node))
             {
