@@ -1139,28 +1139,39 @@ bim2c_quadtree_pde_recovered_gradient (tmesh & mesh,
       // Loop over non-hanging vertices of current quadrant.
       for (int node = 0; node < 4; ++node)
         {
-          if (quadrant->is_hanging (node) ||
-              (assigned_x[quadrant->gt (node)] &&
-               assigned_y[quadrant->gt (node)]))
-            continue;
-
-          // Assemble also entries related to inactive quadrants.
-          du_x_star[quadrant->gt (node)] = 0;
-          du_y_star[quadrant->gt (node)] = 0;
+          /*if (assigned_x[quadrant->gt (node)] &&
+              assigned_y[quadrant->gt (node)])
+              continue;*/
           
-          // Skip inactive quadrants.
-          if (! is_active(quadrant))
-            continue;
+          if (! quadrant->is_hanging (node))
+            {
+              // Assemble also entries related to inactive quadrants.
+              du_x_star[quadrant->gt (node)] = 0;
+              du_y_star[quadrant->gt (node)] = 0;
           
-          du_star_loc =
-            bim2c_recovered_gradient_loc (quadrant, node,
-                                          u, is_active);
+              // Skip inactive quadrants.
+              if (! is_active(quadrant))
+                continue;
           
-          du_x_star [quadrant->gt (node)] = std::get<0> (du_star_loc);
-          du_y_star [quadrant->gt (node)] = std::get<1> (du_star_loc);
+              du_star_loc =
+                bim2c_recovered_gradient_loc (quadrant, node,
+                                              u, is_active);
           
-          assigned_x[quadrant->gt (node)] = std::get<2> (du_star_loc);
-          assigned_y[quadrant->gt (node)] = std::get<3> (du_star_loc);
+              du_x_star [quadrant->gt (node)] = std::get<0> (du_star_loc);
+              du_y_star [quadrant->gt (node)] = std::get<1> (du_star_loc);
+          
+              assigned_x[quadrant->gt (node)] = std::get<2> (du_star_loc);
+              assigned_y[quadrant->gt (node)] = std::get<3> (du_star_loc);
+            }
+          // Assemble parents.
+          else
+            {
+              du_x_star[quadrant->gparent (0, node)] += 0;
+              du_x_star[quadrant->gparent (1, node)] += 0;
+              
+              du_y_star[quadrant->gparent (0, node)] += 0;
+              du_y_star[quadrant->gparent (1, node)] += 0;
+            }
         }
     }
   
