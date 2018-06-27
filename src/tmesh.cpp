@@ -487,7 +487,7 @@ octbingz2connectivity
   //    t_matrix = tmp.scalar_map_value ().contents ("t").octave_idx_type_vector_value ();
 
   p4est_topidx_t num_vertices = p_matrix.cols (),
-    num_trees = t_matrix.cols ();
+    num_trees = t_matrix.numel () / 5;
 
   arrays2connectivity (p_matrix.fortran_vec (),
                        num_vertices,
