@@ -130,7 +130,6 @@ assemble_diag (tmesh::quadrant_iterator& quadrant,
 
 /// Assemble rhs.
 template <class T>
-static
 void
 assemble_rhs (tmesh::quadrant_iterator& quadrant,
               const std::array<double, 4>& locrhs,
@@ -177,7 +176,7 @@ bim2a_structure (tmesh &tmsh,
 }
 
 
-static void 
+void 
 bim2a_advection_diffusion_loc
 (tmesh::quadrant_iterator& quadrant,
  const double & alpha,
@@ -267,7 +266,8 @@ bim2a_advection_diffusion (tmesh& mesh,
     }
 }
 
-static void 
+
+void 
 bim2a_advection_eafe_diffusion_loc
 (tmesh::quadrant_iterator& quadrant,
  const std::array<double, 4>& alpha,
@@ -358,7 +358,7 @@ bim2a_advection_eafe_diffusion (tmesh& mesh,
     }
 }
 
-static void
+void
 bim2a_reaction_loc (tmesh::quadrant_iterator& quadrant,
                     const double& delta,
                     const std::array<double, 4>& zeta,
@@ -406,7 +406,7 @@ bim2a_reaction (tmesh& mesh,
 }
 
 
-static void
+void
 bim2a_rhs_loc (tmesh::quadrant_iterator& quadrant,
                const double & f,
                const std::array<double, 4>& g,
@@ -485,7 +485,7 @@ bim2a_boundary_mass (tmesh& mesh,
 
 
 template <class T>
-static void
+void
 bim2a_dirichlet_bc_loc (sparse_matrix& A,
                         T& rhs,
                         const unsigned int& row,
@@ -770,7 +770,7 @@ nedelec_gradient (tmesh::quadrant_iterator & q,
 }
 
 template <class T>
-static std::tuple<double, double, bool, bool>
+std::tuple<double, double, bool, bool>
 bim2c_recovered_gradient_loc (tmesh::quadrant_iterator quadrant,
                               int node,
                               const T & u,
@@ -1697,23 +1697,8 @@ semih1_star_error (tmesh::quadrant_iterator q,
   return std::sqrt (quad_integral (x, y, fun));
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // Explicit instantiation.
 template
-static
 void
 assemble_rhs (tmesh::quadrant_iterator&,
               const std::array<double, 4>&,
@@ -1721,7 +1706,6 @@ assemble_rhs (tmesh::quadrant_iterator&,
               const ordering& ord);
 
 template
-static
 void
 assemble_rhs (tmesh::quadrant_iterator&,
               const std::array<double, 4>&,
@@ -1821,7 +1805,7 @@ bim2a_boundary_mass (tmesh&,
 
 /* ---- */
 template
-static void
+void
 bim2a_dirichlet_bc_loc (sparse_matrix&,
                         std::vector<double>&,
                         const unsigned int&,
@@ -1829,7 +1813,7 @@ bim2a_dirichlet_bc_loc (sparse_matrix&,
                         const bool&);
 
 template
-static void
+void
 bim2a_dirichlet_bc_loc (sparse_matrix&,
                         distributed_vector&,
                         const unsigned int&,
