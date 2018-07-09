@@ -617,12 +617,12 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
     }
 }
 
-template <>
+template <class T>
 void
 bim2a_robin_bc_loc (tmesh& mesh,
                     sparse_matrix& A,
-                    distributed_vector& rhs,
-                    distributed_vector& M_boundary,
+                    T& rhs,
+                    T& M_boundary,
                     const unsigned int& row,
                     const double& value_A,
                     const double& value_rhs)
@@ -1883,6 +1883,27 @@ bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs_quad&,
                     sparse_matrix&, distributed_vector&,
                     const ordering&,
                     const bool&);
+
+/* ---- */
+template
+void
+bim2a_robin_bc_loc (tmesh& mesh,
+                    sparse_matrix& A,
+                    std::vector<double>& rhs,
+                    std::vector<double>& M_boundary,
+                    const unsigned int& row,
+                    const double& value_A,
+                    const double& value_rhs);
+
+template
+void
+bim2a_robin_bc_loc (tmesh& mesh,
+                    sparse_matrix& A,
+                    distributed_vector& rhs,
+                    distributed_vector& M_boundary,
+                    const unsigned int& row,
+                    const double& value_A,
+                    const double& value_rhs);
 
 /* ---- */
 template

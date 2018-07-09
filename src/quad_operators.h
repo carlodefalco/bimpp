@@ -100,7 +100,7 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                     const bool& only_rhs = false);
 
 template <class T>
-static void
+void
 bim2a_robin_bc_loc (tmesh& mesh,
                     sparse_matrix& A,
                     T& rhs,
