@@ -100,6 +100,16 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                     const bool& only_rhs = false);
 
 template <class T>
+static void
+bim2a_robin_bc_loc (tmesh& mesh,
+                    sparse_matrix& A,
+                    T& rhs,
+                    T& M_boundary,
+                    const unsigned int& row,
+                    const double& value_A,
+                    const double& value_rhs);
+
+template <class T>
 T
 interpolate_vector (tmesh & mesh,
                     T & vec_in,

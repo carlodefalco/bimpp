@@ -617,6 +617,40 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
     }
 }
 
+template <>
+void
+bim2a_robin_bc_loc (tmesh& mesh,
+                    sparse_matrix& A,
+                    distributed_vector& rhs,
+                    distributed_vector& M_boundary,
+                    const unsigned int& row,
+                    const double& value_A,
+                    const double& value_rhs)
+{
+  size_t start = mesh.lnodes->global_offset;
+  size_t end = start + mesh.num_owned_nodes ();
+  
+  // If current node is owned.
+  if (row >= start && row < end)
+    rhs[row] = M_boundary[row] * value_rhs;
+  else
+    rhs[row] = 0;
+              
+  if (A[row].size ())
+    {
+      for (auto col = A[row].begin ();
+           col != A[row].end ();
+           ++col)
+        {
+          A[row][A.col_idx (col)] *= value_A;
+        }
+                  
+      // If current node is owned.
+      if (row >= start && row < end)
+        A[row][row] += M_boundary[row];
+    }
+}
+
 // Specialization.
 template <>
 std::vector<double>
