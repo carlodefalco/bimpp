@@ -493,6 +493,9 @@ octbingz2connectivity
                        num_vertices,
                        t_matrix.fortran_vec (),
                        num_trees, conn);
+  
+  int flag_close = octave_io_close ();
+  assert (flag_close == 0);
 };
 
 
