@@ -42,7 +42,7 @@ main (int argc, char **argv)
     }
   
   tmsh.vtk_export ("p4est_interpolation_test");
-
+  
   double delta1 = 1.5;
   double delta2 = 0.5;
   
@@ -177,7 +177,12 @@ main (int argc, char **argv)
   tmsh.coarsen (1, partforcoarsen);
   
   // Interpolate solution at new mesh.
-  std::vector<double> new_sol = interpolate_vector (tmsh, global_rhs);
+  std::vector<double> new_sol (tmsh.num_global_nodes ());
+  interpolate_vector (tmsh, global_rhs, new_sol);
+  
+  MPI_Allreduce (MPI_IN_PLACE, new_sol.data (),
+                 new_sol.size (), MPI_DOUBLE,
+                 MPI_SUM, MPI_COMM_WORLD);
   
   tmsh.octbin_export ("p4est_interpolation_test_u_new", new_sol);
   

@@ -653,13 +653,12 @@ bim2a_robin_bc_loc (tmesh& mesh,
 
 // Specialization.
 template <>
-std::vector<double>
+void
 interpolate_vector (tmesh & mesh,
                     std::vector<double> & vec_in,
-                    const size_t & ntot)
+                    std::vector<double> & vec_out,
+                    const ordering & ord)
 {
-  std::vector<double> vec_out (ntot * mesh.num_global_nodes (), 0);
-  
   tmesh::data_t * data;
   
   size_t start = mesh.lnodes->global_offset;
@@ -678,32 +677,24 @@ interpolate_vector (tmesh & mesh,
               vec_out[quadrant->gt (node)] == 0 &&
               quadrant->gt (node) >= start && quadrant->gt (node) < end)
             {
-              // Loop over all the equations.
-              for (size_t eq = 0; eq < ntot; ++eq)
-                for (int i = 0; i < 4; ++i)
-                  vec_out[ntot * quadrant->gt (node) + eq] +=
-                    data->interp_coeff[node][i] *
-                    vec_in[ntot * data->interp_idx[i] + eq];
+              // Multiply by interpolation matrix.
+              for (int i = 0; i < 4; ++i)
+                vec_out[ord (quadrant->gt (node))] +=
+                  data->interp_coeff[node][i] *
+                  vec_in[ord (data->interp_idx[i])];
             }
         }
     }
-  
-  MPI_Allreduce (MPI_IN_PLACE, vec_out.data (),
-                 vec_out.size (), MPI_DOUBLE,
-                 MPI_SUM, MPI_COMM_WORLD);
-  
-  return vec_out;
 }
 
 // Specialization.
 template <>
-distributed_vector
+void
 interpolate_vector (tmesh & mesh,
                     distributed_vector & vec_in,
-                    const size_t & ntot)
+                    distributed_vector & vec_out,
+                    const ordering & ord)
 {
-  distributed_vector vec_out (ntot * mesh.num_owned_nodes ());
-  
   tmesh::data_t * data;
   
   // Assemble indices related to interpolation matrices.
@@ -719,14 +710,13 @@ interpolate_vector (tmesh & mesh,
         {
           if (! quadrant->is_hanging (node))
             {
-              // Loop over all the equations.
-              for (size_t eq = 0; eq < ntot; ++eq)
-                for (int i = 0; i < 4; ++i)
-                  vec_in[ntot * data->interp_idx[i] + eq] += 0;
+              // Multiply by interpolation matrix.
+              for (int i = 0; i < 4; ++i)
+                vec_in[ord (data->interp_idx[i])] += 0;
             }
         }
     }
-
+  
   vec_in.assemble (replace_op);
   
   for (auto quadrant = mesh.begin_quadrant_sweep ();
@@ -741,30 +731,23 @@ interpolate_vector (tmesh & mesh,
             {
               if (vec_out[quadrant->gt (node)] == 0)
                 {
-                  // Loop over all the equations.
-                  for (size_t eq = 0; eq < ntot; ++eq)
-                    for (int i = 0; i < 4; ++i)
-                      vec_out[ntot * quadrant->gt (node) + eq] +=
-                        data->interp_coeff[node][i] *
-                        vec_in[ntot * data->interp_idx[i] + eq];
+                  // Multiply by interpolation matrix.
+                  for (int i = 0; i < 4; ++i)
+                    vec_out[ord (quadrant->gt (node))] +=
+                      data->interp_coeff[node][i] *
+                      vec_in[ord (data->interp_idx[i])];
                 }
             }
           // Assemble parents.
           else
             {
-              // Loop over all the equations.
-              for (size_t eq = 0; eq < ntot; ++eq)
-                {
-                  vec_out[ntot * quadrant->gparent (0, node) + eq] += 0;
-                  vec_out[ntot * quadrant->gparent (1, node) + eq] += 0;
-                }
+              vec_out[ord (quadrant->gparent (0, node))] += 0;
+              vec_out[ord (quadrant->gparent (1, node))] += 0;
             }
         }
     }
   
   vec_out.assemble (replace_op);
-  
-  return vec_out;
 }
 
 /// Edge ordering derived from vertex ordering
@@ -1907,16 +1890,18 @@ bim2a_robin_bc_loc (tmesh& mesh,
 
 /* ---- */
 template
-std::vector<double>
+void
 interpolate_vector (tmesh &,
                     std::vector<double> &,
-                    const size_t &);
+                    std::vector<double> &,
+                    const ordering &);
 
 template
-distributed_vector
+void
 interpolate_vector (tmesh &,
                     distributed_vector &,
-                    const size_t &);
+                    distributed_vector &,
+                    const ordering &);
 
 /* ---- */
 template

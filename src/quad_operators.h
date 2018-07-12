@@ -110,10 +110,11 @@ bim2a_robin_bc_loc (tmesh& mesh,
                     const double& value_rhs);
 
 template <class T>
-T
+void
 interpolate_vector (tmesh & mesh,
                     T & vec_in,
-                    const size_t & ntot = 1);
+                    T & vec_out,
+                    const ordering & ord = default_ord);
 
 template <class T>
 gradient<T>
