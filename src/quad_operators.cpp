@@ -746,8 +746,6 @@ interpolate_vector (tmesh & mesh,
             }
         }
     }
-  
-  vec_out.assemble (replace_op);
 }
 
 /// Edge ordering derived from vertex ordering
