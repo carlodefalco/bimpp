@@ -674,7 +674,7 @@ interpolate_vector (tmesh & mesh,
         {
           // If current node is owned.
           if (! quadrant->is_hanging (node) &&
-              vec_out[quadrant->gt (node)] == 0 &&
+              vec_out[ord (quadrant->gt (node))] == 0 &&
               quadrant->gt (node) >= start && quadrant->gt (node) < end)
             {
               // Multiply by interpolation matrix.
@@ -729,7 +729,7 @@ interpolate_vector (tmesh & mesh,
         {
           if (! quadrant->is_hanging (node))
             {
-              if (vec_out[quadrant->gt (node)] == 0)
+              if (vec_out[ord (quadrant->gt (node))] == 0)
                 {
                   // Multiply by interpolation matrix.
                   for (int i = 0; i < 4; ++i)
