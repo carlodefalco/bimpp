@@ -788,19 +788,20 @@ tmesh::metrics_refine (idx_t max_elems)
 {
   int recursive = 0;
   int partforcoarsen = 1;
-
-  for (int i = 0; i < metrics_max_depth - 1; ++i)
+  int balance = 0; // Balance only once, at the end of the refinement procedure.
+  
+  for (int i = 0; i < metrics_max_depth; ++i)
     {
-      coarsen (recursive, partforcoarsen, 0);
-      refine (recursive, partforcoarsen, 0);
-
+      coarsen (recursive, partforcoarsen, balance);
+      
       // Prevent large meshes.
-      if (max_elems > 0 && this->num_global_quadrants () >= max_elems)
-        break;
+      if (max_elems <= 0 ||
+          this->num_global_quadrants () < max_elems)
+        refine (recursive, partforcoarsen, balance);
     }
-
-  coarsen (recursive, partforcoarsen, 0);
-  refine (recursive, partforcoarsen, 1);
+  
+  p4est_balance_ext (p4est, P4EST_CONNECT_FACE,
+                     nullptr, replace_callback);
 }
 
 void
