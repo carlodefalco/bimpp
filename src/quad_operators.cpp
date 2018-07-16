@@ -457,6 +457,7 @@ bim2a_boundary_mass (tmesh& mesh,
                      const int & tree_idx,
                      const int & boundary_idx,
                      T & M,
+                     const ordering & ord,
                      const func_quad & fun)
 {
   double h = 0;
@@ -476,7 +477,7 @@ bim2a_boundary_mass (tmesh& mesh,
                   else
                     h = quadrant->p(0, 1) - quadrant->p(0, 0);
                   
-                  M[quadrant->gt(i)] += 0.5 * h * fun (quadrant, i);
+                  M[ord (quadrant->gt(i))] += 0.5 * h * fun (quadrant, i);
                 }
             }
         }
@@ -1808,6 +1809,7 @@ bim2a_boundary_mass (tmesh&,
                      const int &,
                      const int &,
                      std::vector<double> &,
+                     const ordering &,
                      const func_quad &);
 
 template
@@ -1816,6 +1818,7 @@ bim2a_boundary_mass (tmesh&,
                      const int &,
                      const int &,
                      distributed_vector &,
+                     const ordering &,
                      const func_quad &);
 
 /* ---- */
