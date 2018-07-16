@@ -80,10 +80,10 @@ bim2a_boundary_mass (tmesh & mesh,
                      const int & tree_idx,
                      const int & boundary_idx,
                      T & M,
-                     const ordering & ord = default_ord,
                      const func_quad & fun =
                      [] (tmesh::quadrant_iterator, tmesh::idx_t)
-                       {return 1;}
+                       {return 1;},
+                     const ordering & ord = default_ord
                      );
 
 template <class T>

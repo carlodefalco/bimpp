@@ -457,8 +457,8 @@ bim2a_boundary_mass (tmesh& mesh,
                      const int & tree_idx,
                      const int & boundary_idx,
                      T & M,
-                     const ordering & ord,
-                     const func_quad & fun)
+                     const func_quad & fun,
+                     const ordering & ord)
 {
   double h = 0;
 
@@ -1809,8 +1809,8 @@ bim2a_boundary_mass (tmesh&,
                      const int &,
                      const int &,
                      std::vector<double> &,
-                     const ordering &,
-                     const func_quad &);
+                     const func_quad &,
+                     const ordering &);
 
 template
 void
@@ -1818,8 +1818,8 @@ bim2a_boundary_mass (tmesh&,
                      const int &,
                      const int &,
                      distributed_vector &,
-                     const ordering &,
-                     const func_quad &);
+                     const func_quad &,
+                     const ordering &);
 
 /* ---- */
 template
