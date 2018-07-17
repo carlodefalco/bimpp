@@ -95,14 +95,14 @@ void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     sparse_matrix& A, T& rhs,
                     const ordering& ord = default_ord,
-                    const unsigned& rhs_or_A = 0);
+                    const bool& only_rhs = false);
 
 template <class T>
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                     sparse_matrix& A, T& rhs,
                     const ordering& ord = default_ord,
-                    const unsigned& rhs_or_A = 0);
+                    const bool& only_rhs = false);
 
 template <class T>
 void
@@ -113,7 +113,7 @@ bim2a_robin_bc_loc (tmesh& mesh,
                     const unsigned int& row,
                     const double& value_A,
                     const double& value_rhs,
-                    const unsigned& rhs_or_A = 0);
+                    const bool& only_rhs = false);
 
 template <class T>
 void
