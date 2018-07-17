@@ -636,7 +636,7 @@ bim2a_robin_bc_loc (tmesh& mesh,
   else
     rhs[row] = 0;
   
-  if (A[row].size () && !only_rhs)
+  if (!only_rhs && A[row].size ())
     {
       for (auto col = A[row].begin ();
            col != A[row].end ();
