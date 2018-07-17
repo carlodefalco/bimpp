@@ -491,10 +491,8 @@ bim2a_dirichlet_bc_loc (sparse_matrix& A,
                         T& rhs,
                         const unsigned int& row,
                         const double& value,
-                        const bool& only_rhs)
+                        const unsigned& rhs_or_A)
 {
-  rhs[row] = value;
-  
   if (std::abs (A[row][row])
       < std::numeric_limits<double>::epsilon ())
     {
@@ -510,11 +508,13 @@ bim2a_dirichlet_bc_loc (sparse_matrix& A,
          );
     }
 
-  if (! only_rhs)
+  if (rhs_or_A == 0 ||
+      rhs_or_A == 2)
     A[row][row] *= 1e16;
-                    
-  // Multiply rhs by the diagonal entry.
-  rhs[row] *= A[row][row];
+  
+  if (rhs_or_A == 0 ||
+      rhs_or_A == 1)
+    rhs[row] = A[row][row] * value;
 }
 
 
@@ -523,7 +523,7 @@ void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     sparse_matrix& A, T& rhs,
                     const ordering& ord,
-                    const bool& only_rhs)
+                    const unsigned& rhs_or_A)
 {
   int boundary_idx, tree_idx;
   unsigned int row, col;
@@ -561,7 +561,7 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     value = (std::get<2> (bcs[bc]))
                       (quadrant->p (0, i), quadrant->p (1, i));
                     
-                    bim2a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
+                    bim2a_dirichlet_bc_loc (A, rhs, row, value, rhs_or_A);
                   }
             }
         }
@@ -573,7 +573,7 @@ void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                     sparse_matrix& A, T& rhs,
                     const ordering& ord,
-                    const bool& only_rhs)
+                    const unsigned& rhs_or_A)
 {
   int boundary_idx, tree_idx;
   unsigned int row, col;
@@ -611,7 +611,7 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                     value = (std::get<2> (bcs[bc]))
                       (quadrant, i);
                     
-                    bim2a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
+                    bim2a_dirichlet_bc_loc (A, rhs, row, value, rhs_or_A);
                   }
             }
         }
@@ -626,29 +626,38 @@ bim2a_robin_bc_loc (tmesh& mesh,
                     T& M_boundary,
                     const unsigned int& row,
                     const double& value_A,
-                    const double& value_rhs)
+                    const double& value_rhs,
+                    const unsigned& rhs_or_A)
 {
   size_t start = mesh.lnodes->global_offset;
   size_t end = start + mesh.num_owned_nodes ();
   
   // If current node is owned.
-  if (row >= start && row < end)
-    rhs[row] = M_boundary[row] * value_rhs;
-  else
-    rhs[row] = 0;
-              
-  if (A[row].size ())
+  if (rhs_or_A == 0 ||
+      rhs_or_A == 1)
     {
-      for (auto col = A[row].begin ();
-           col != A[row].end ();
-           ++col)
-        {
-          A[row][A.col_idx (col)] *= value_A;
-        }
-                  
-      // If current node is owned.
       if (row >= start && row < end)
-        A[row][row] += M_boundary[row];
+        rhs[row] = M_boundary[row] * value_rhs;
+      else
+        rhs[row] = 0;
+    }
+
+  if (rhs_or_A == 0 ||
+      rhs_or_A == 2)
+    {
+      if (A[row].size ())
+        {
+          for (auto col = A[row].begin ();
+               col != A[row].end ();
+               ++col)
+            {
+              A[row][A.col_idx (col)] *= value_A;
+            }
+                  
+          // If current node is owned.
+          if (row >= start && row < end)
+            A[row][row] += M_boundary[row];
+        }
     }
 }
 
@@ -1828,7 +1837,7 @@ bim2a_dirichlet_bc_loc (sparse_matrix&,
                         std::vector<double>&,
                         const unsigned int&,
                         const double&,
-                        const bool&);
+                        const unsigned&);
 
 template
 void
@@ -1836,7 +1845,7 @@ bim2a_dirichlet_bc_loc (sparse_matrix&,
                         distributed_vector&,
                         const unsigned int&,
                         const double&,
-                        const bool&);
+                        const unsigned&);
 
 /* ---- */
 template
@@ -1844,14 +1853,14 @@ void
 bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs&,
                     sparse_matrix&, std::vector<double>&,
                     const ordering&,
-                    const bool&);
+                    const unsigned&);
 
 template
 void
 bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs&,
                     sparse_matrix&, distributed_vector&,
                     const ordering&,
-                    const bool&);
+                    const unsigned&);
 
 /* ---- */
 template
@@ -1859,35 +1868,37 @@ void
 bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs_quad&,
                     sparse_matrix&, std::vector<double>&,
                     const ordering&,
-                    const bool&);
+                    const unsigned&);
 
 template
 void
 bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs_quad&,
                     sparse_matrix&, distributed_vector&,
                     const ordering&,
-                    const bool&);
+                    const unsigned&);
 
 /* ---- */
 template
 void
-bim2a_robin_bc_loc (tmesh& mesh,
-                    sparse_matrix& A,
-                    std::vector<double>& rhs,
-                    std::vector<double>& M_boundary,
-                    const unsigned int& row,
-                    const double& value_A,
-                    const double& value_rhs);
+bim2a_robin_bc_loc (tmesh&,
+                    sparse_matrix&,
+                    std::vector<double>&,
+                    std::vector<double>&,
+                    const unsigned int&,
+                    const double&,
+                    const double&,
+                    const unsigned&);
 
 template
 void
-bim2a_robin_bc_loc (tmesh& mesh,
-                    sparse_matrix& A,
-                    distributed_vector& rhs,
-                    distributed_vector& M_boundary,
-                    const unsigned int& row,
-                    const double& value_A,
-                    const double& value_rhs);
+bim2a_robin_bc_loc (tmesh&,
+                    sparse_matrix&,
+                    distributed_vector&,
+                    distributed_vector&,
+                    const unsigned int&,
+                    const double&,
+                    const double&,
+                    const unsigned&);
 
 /* ---- */
 template

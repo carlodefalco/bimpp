@@ -86,19 +86,23 @@ bim2a_boundary_mass (tmesh & mesh,
                      const ordering & ord = default_ord
                      );
 
+/// rhs_or_A:
+/// 0, for both matrix and rhs;
+/// 1, for only rhs;
+/// 2, for only matrix.
 template <class T>
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     sparse_matrix& A, T& rhs,
                     const ordering& ord = default_ord,
-                    const bool& only_rhs = false);
+                    const unsigned& rhs_or_A = 0);
 
 template <class T>
 void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                     sparse_matrix& A, T& rhs,
                     const ordering& ord = default_ord,
-                    const bool& only_rhs = false);
+                    const unsigned& rhs_or_A = 0);
 
 template <class T>
 void
@@ -108,7 +112,8 @@ bim2a_robin_bc_loc (tmesh& mesh,
                     T& M_boundary,
                     const unsigned int& row,
                     const double& value_A,
-                    const double& value_rhs);
+                    const double& value_rhs,
+                    const unsigned& rhs_or_A = 0);
 
 template <class T>
 void
