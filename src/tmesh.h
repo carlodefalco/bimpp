@@ -33,7 +33,7 @@ using ordering = std::function<size_t (p4est_gloidx_t)>;
 template<size_t ntot = 1, size_t n = 0>
 size_t
 dof_ordering (p4est_gloidx_t gt)
-{ return ntot*gt+n; };
+{ return ntot*gt+n; }
 
 extern ordering default_ord;
 
