@@ -284,11 +284,11 @@ bim2a_advection_diffusion (tmesh& mesh,
 }
 
 void
-bim2a_advection_diffusion (tmesh& mesh,
-                           const std::vector<double>& alpha,
-                           sparse_matrix& A,                           
-                           const ordering& ordr,
-                           const ordering& ordc)
+bim2a_laplacian (tmesh& mesh,
+                 const std::vector<double>& alpha,
+                 sparse_matrix& A,                           
+                 const ordering& ordr,
+                 const ordering& ordc)
 {
   for (auto row : Aloc)
     row.fill (0.0);
