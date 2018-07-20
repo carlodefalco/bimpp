@@ -18,13 +18,16 @@ distributed_sparse_matrix
 private :
 
   void
-  non_local_csr ( );
+  non_local_csr_index ();
   
+  void
+  non_local_csr_value ();
 
   size_t is, ie;
   MPI_Comm comm;
   int mpirank, mpisize;
 
+  int nnz_owned;
   struct
   non_local_t
   {
@@ -40,19 +43,22 @@ private :
   std::vector<int> rank_nnz;
 
   bool mapped;
-  
+  bool update;
 public :
 
   void
   set_ranges (size_t is_, size_t ie_);
 
+  void
+  set_ranges (int nnz_owned_);
+
   distributed_sparse_matrix (size_t is_, size_t ie_, MPI_Comm comm_ = MPI_COMM_WORLD)
-    : mapped (false)
-    { set_ranges (is_, ie_); }
+    : distributed_sparse_matrix ()
+  { set_ranges (is_, ie_); }
 
   distributed_sparse_matrix (MPI_Comm comm_ = MPI_COMM_WORLD)
     : comm (comm_), mapped (false)
-    { }
+  { }
 
   void
   assemble ();
@@ -60,8 +66,72 @@ public :
   void
   remap ();
 
+
+  void 
+  csr (std::vector<double> &a,
+       std::vector<int> &col,
+       std::vector<int> &row,
+       int base, bool flag = false) 
+  {
+   
+    if (flag == false)
+      {
+        a.resize (nnz_owned);
+   
+        col.resize (nnz_owned);
+        row.resize (ie - is + 1);
+   
+        int idx = 0;
+        int idr = 0;
+        typename sparse_matrix_template<double>::col_iterator jj;
+        for (size_t ii = is; ii < ie; ++ii)
+          {
+            row[idr] = idx + base;
+      
+            if ((*this)[ii].size () > 0)
+              {
+                for (jj  = (*this)[ii].begin (); jj != (*this)[ii].end (); ++jj)
+                  {
+                    col[idx] = this->col_idx (jj) + base;
+                    a[idx] = this->col_val (jj);
+                    idx++;
+                  }
+              }
+            idr++;
+
+          }
+
+        std::fill (row.begin () + idr, row.end (), idx + base);
+      }
+    else 
+      this->sparse_matrix::csr (a, col, row, base); 
+  
+  }
+
+
+  void csr_update (std::vector<double> &a,
+		   const std::vector<int> &col_ind,
+		   const std::vector<int> &row_ptr,
+		   int base)
+  {
+    size_t ni = row_ptr.size ();
+    size_t nj = col_ind.size ();
+    a.resize (nj);
+    int idx = 0;
+    
+    for (size_t in = 0; in < ni - 1; ++in)
+      for (int jn = row_ptr[in] - base; jn < row_ptr[in+1] - base; ++jn)
+        {	
+          a[idx] = (*this)[in + is][col_ind[jn] - base];
+          idx++;
+        }
+  }
+  
   int
   owned_nnz ();
+  
+  void 
+  get_is_ie (int &is_, int &ie_);
  
 };
 

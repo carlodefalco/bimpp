@@ -11,21 +11,43 @@ void
 distributed_sparse_matrix::set_ranges (size_t is_,
                                        size_t ie_)
 {
-  is = is_; ie = ie_; 
+  is = is_; ie = ie_;
   MPI_Comm_rank (comm, &mpirank);
   MPI_Comm_size (comm, &mpisize);
 
   /// Gather ranges
   ranges.assign (mpisize + 1, 0);
   MPI_Allgather (&ie, 1, MPI_INT, &(ranges[1]), 1, MPI_INT, comm);
-  this->resize (ranges.back ());
-  
+
 }
 
+void
+distributed_sparse_matrix::set_ranges (int nnz_owned_)
+{
+  MPI_Comm_size (comm, &mpisize);
+  MPI_Comm_rank (comm, &mpirank);
+
+  /// Gather ranges
+  ranges.assign (mpisize + 1, 0);
+  MPI_Allgather (&nnz_owned_, 1, MPI_INT, &(ranges[1]),
+                 1, MPI_INT, comm);    
+  for (int irank = 0; irank < mpisize; ++irank)
+    ranges[irank+1] += ranges[irank];
+
+  is = ranges[mpirank];
+  ie = ranges[mpirank+1];
+}
 
 void
-distributed_sparse_matrix::non_local_csr ()
+distributed_sparse_matrix::non_local_csr_index ()
 {
+  non_local.row_ind.resize (0);
+  non_local.col_ind.resize (0);
+  non_local.a.resize (0);
+  non_local.row_ind.shrink_to_fit ();
+  non_local.col_ind.shrink_to_fit ();
+  non_local.a.shrink_to_fit ();
+
   this->set_properties ();
 
   non_local.prc_ptr.assign (this->mpisize + 1, 0);
@@ -41,7 +63,7 @@ distributed_sparse_matrix::non_local_csr ()
             non_local.prc_ptr[ii+1] += (*this)[kk].size ();
             non_local.col_ind.reserve ((*this)[kk].size ());
             non_local.row_ind.reserve ((*this)[kk].size ());
-            non_local.a.reserve ((*this)[kk].size ());
+            // non_local.a.reserve ((*this)[kk].size ());
             for (jj  = (*this)[kk].begin ();
                  jj != (*this)[kk].end (); ++jj)
               {
@@ -51,6 +73,16 @@ distributed_sparse_matrix::non_local_csr ()
               }
           }
     }
+  non_local.a.resize (non_local.row_ind.size ());
+}
+
+
+void
+distributed_sparse_matrix::non_local_csr_value ()
+{
+
+  for (int j = 0; j < non_local.col_ind.size (); ++j)
+    non_local.a[j] = (*this)[non_local.row_ind[j]][non_local.col_ind[j]];
 }
 
 int
@@ -62,11 +94,10 @@ distributed_sparse_matrix::owned_nnz ()
   return retval;
 }
 
-
 void
 distributed_sparse_matrix::remap ()
 {
-  non_local_csr ();
+  non_local_csr_index ();
 
   /// Distribute buffer sizes
   rank_nnz.assign (mpisize, 0);
@@ -137,6 +168,7 @@ distributed_sparse_matrix::remap ()
   reqs.clear ();
 
   mapped = true;
+  update = true;
 }
 
 void
@@ -145,7 +177,9 @@ distributed_sparse_matrix::assemble ()
 
   if (! mapped)
     remap ();
+  non_local_csr_value ();
 
+  
   /// 3) communicate values
   std::vector<MPI_Request> reqs;
   for (int ii = 0; ii < mpisize; ++ii)
@@ -171,12 +205,13 @@ distributed_sparse_matrix::assemble ()
   MPI_Waitall (reqs.size (), &(reqs[0]), MPI_STATUSES_IGNORE);
   reqs.clear ();
 
+
   /// 4) insert communicated values into sparse_matrix
   for (int ii = 0; ii < mpisize; ++ii) // loop over ranks
     if (ii != mpirank)
-      for (int kk = 0; kk < rank_nnz[ii]; ++kk)      
-          (*this)[row_buffers[ii][kk]][col_buffers[ii][kk]]
-            += val_buffers[ii][kk];
+      for (int kk = 0; kk < rank_nnz[ii]; ++kk)  
+        (*this)[row_buffers[ii][kk]][col_buffers[ii][kk]]
+          += val_buffers[ii][kk];
 
 
   /// 5) zero out communicated values  
@@ -189,4 +224,19 @@ distributed_sparse_matrix::assemble ()
           // an element which does not exist yet!
           (*this)[non_local.row_ind[ii]].at (non_local.col_ind[ii]) = 0.0;
       }
+
+  if (update)
+    {
+      nnz_owned = 0;
+      for (int irow = is; irow < ie; ++irow)
+        nnz_owned += (*this)[irow].size ();
+    }
+  update = false;
+}
+
+void
+distributed_sparse_matrix::get_is_ie (int &is_, int &ie_)
+{
+  ie_ = ie;
+  is_ = is;   
 }
