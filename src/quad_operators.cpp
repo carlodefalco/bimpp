@@ -175,6 +175,27 @@ bim2a_structure (tmesh &tmsh,
   A.set_properties ();
 }
 
+void 
+bim2a_laplacian_loc
+(tmesh::quadrant_iterator& quadrant,
+ const double & alpha,
+ std::array<std::array<double,4>,4>& locmat)
+{
+  double
+    hx = quadrant->p (0, 1) - quadrant->p (0, 0),
+    hy = quadrant->p (1, 2) - quadrant->p (1, 0);
+
+  double
+    hxby2hy = .5 * hx / hy,
+    hyby2hx = .5 * hy / hx;
+
+  double diag = hxby2hy + hyby2hx;
+  
+  Aloc[0] = {  diag  , -hyby2hx, -hxby2hy,     0   };
+  Aloc[1] = {-hyby2hx,   diag  ,     0   , -hxby2hy};
+  Aloc[2] = {-hxby2hy,     0   ,   diag  , -hyby2hx};
+  Aloc[3] = {    0   , -hxby2hy, -hyby2hx,   diag  };
+}
 
 void 
 bim2a_advection_diffusion_loc
@@ -201,10 +222,6 @@ bim2a_advection_diffusion_loc
     hxby2hy = .5 * hx / hy,
     hyby2hx = .5 * hy / hx;
     
-  std::vector<unsigned int> rows, cols;
-  rows.reserve (2);
-  cols.reserve (2);
-  
   psi01 = psi[1] - psi[0];
   psi13 = psi[3] - psi[1];
   psi32 = psi[2] - psi[3];
@@ -262,6 +279,27 @@ bim2a_advection_diffusion (tmesh& mesh,
         }
   
       bim2a_advection_diffusion_loc (quadrant, alpha_loc, psi_loc, Aloc);
+      assemble (quadrant, Aloc, A, ordr, ordc);
+    }
+}
+
+void
+bim2a_advection_diffusion (tmesh& mesh,
+                           const std::vector<double>& alpha,
+                           sparse_matrix& A,                           
+                           const ordering& ordr,
+                           const ordering& ordc)
+{
+  for (auto row : Aloc)
+    row.fill (0.0);
+  
+  double alpha_loc = 0;
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      bim2a_laplacian_loc (quadrant, alpha[quadrant->get_forest_quad_idx ()], Aloc);
       assemble (quadrant, Aloc, A, ordr, ordc);
     }
 }
