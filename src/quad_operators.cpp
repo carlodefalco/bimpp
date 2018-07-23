@@ -1226,16 +1226,8 @@ bim2c_quadtree_pde_recovered_gradient (tmesh & mesh,
         }
     }
   
-  // Replace function for zero entries - i.e. those 
-  // left unassigned on current process.
-  binary_operator replace_zero =
-    [] (const double & x, const double & y)
-    {
-      return (x != 0) ? x : y;
-    };
-  
-  du_x_star.assemble (replace_zero);
-  du_y_star.assemble (replace_zero);
+  du_x_star.assemble (replace_op);
+  du_y_star.assemble (replace_op);
   
   return std::make_pair (du_x_star, du_y_star);
 }
