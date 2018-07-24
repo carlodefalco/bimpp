@@ -532,11 +532,11 @@ tmesh::read_connectivity (const double *p,
 
 void
 tmesh::save (const char *filename)
-{ p4est_save (filename, p4est, 0); };
+{ p4est_save (filename, p4est, 1); };
 
 void
 tmesh::load (const char *filename)
-{ p4est = p4est_load (filename, comm, 0, 0, this, &conn); };
+{ p4est = p4est_load (filename, comm, sizeof (tmesh::data_t), 1, this, &conn); };
 
 void
 tmesh::vtk_export (const char *filename)
