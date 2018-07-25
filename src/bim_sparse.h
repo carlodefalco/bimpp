@@ -97,33 +97,20 @@ public:
               const std::vector<int> &j)
   { this->aij_update (a, i, j, 0); };
 
-  /// Convert row-oriented sparse matrix to CRS format with shift.
-  void
-  csr (std::vector<double> &a,
-       std::vector<int> &col_ind,
-       std::vector<int> &row_ptr,
-       int base);
-    
   /// Convert row-oriented sparse matrix to CRS format.
   void
   csr (std::vector<double> &a,
        std::vector<int> &col_ind,
-       std::vector<int> &row_ptr)
-  { this->csr (a, col_ind, row_ptr, 0); };
-
-  /// Update the entries of a sparse matrix in CSR format, with shift.
-  void
-  csr_update (std::vector<double> &a,
-              const std::vector<int> &col_ind,
-              const std::vector<int> &row_ptr,
-              int base);
-
+       std::vector<int> &row_ptr,
+       int base = 0);
+  
   /// Update the entries of a sparse matrix in CSR format.
   void
   csr_update (std::vector<double> &a,
               const std::vector<int> &col_ind,
-              const std::vector<int> &row_ptr)
-  { this->csr_update (a, col_ind, row_ptr, 0); };
+              const std::vector<int> &row_ptr,
+              int base = 0);
+  
 };
 
 template<class Y>
