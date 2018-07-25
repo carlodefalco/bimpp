@@ -1920,21 +1920,6 @@ bim2a_robin_bc_loc (tmesh&,
 
 /* ---- */
 template
-void
-interpolate_vector (tmesh &,
-                    std::vector<double> &,
-                    std::vector<double> &,
-                    const ordering &);
-
-template
-void
-interpolate_vector (tmesh &,
-                    distributed_vector &,
-                    distributed_vector &,
-                    const ordering &);
-
-/* ---- */
-template
 double
 nedelec_gradient (tmesh::quadrant_iterator &,
                   const std::vector<double> &, size_t);
@@ -1958,19 +1943,6 @@ bim2c_recovered_gradient_loc (tmesh::quadrant_iterator,
                               int,
                               const distributed_vector & u,
                               active_fun);
-
-/* ---- */
-template
-gradient<std::vector<double>>
-bim2c_quadtree_pde_recovered_gradient (tmesh &,
-                                       const std::vector<double> &,
-                                       active_fun);
-
-template
-gradient<distributed_vector>
-bim2c_quadtree_pde_recovered_gradient (tmesh &,
-                                       const distributed_vector &,
-                                       active_fun);
 
 /* ---- */
 template
