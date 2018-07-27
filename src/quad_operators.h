@@ -120,7 +120,9 @@ bim2a_robin_bc_loc (tmesh& mesh,
                     const unsigned int& row,
                     const double& value_A,
                     const double& value_rhs,
-                    const bool& only_rhs = false);
+                    const bool& only_rhs = false,
+		    int start = -1,
+		    int end = -1);
 
 template <class T>
 void

@@ -663,10 +663,15 @@ bim2a_robin_bc_loc (tmesh& mesh,
                     const unsigned int& row,
                     const double& value_A,
                     const double& value_rhs,
-                    const bool& only_rhs)
+                    const bool& only_rhs,
+		    int start,
+		    int end)
 {
-  size_t start = mesh.lnodes->global_offset;
-  size_t end = start + mesh.num_owned_nodes ();
+  if (start == -1)
+    start = mesh.lnodes->global_offset;
+
+  if (end == -1)
+    end = start + mesh.num_owned_nodes ();
   
   // If current node is owned.
   if (row >= start && row < end)
@@ -1905,7 +1910,9 @@ bim2a_robin_bc_loc (tmesh&,
                     const unsigned int&,
                     const double&,
                     const double&,
-                    const bool&);
+                    const bool&,
+		    int,
+		    int);
 
 template
 void
@@ -1916,7 +1923,9 @@ bim2a_robin_bc_loc (tmesh&,
                     const unsigned int&,
                     const double&,
                     const double&,
-                    const bool&);
+                    const bool&,
+		    int,
+		    int);
 
 /* ---- */
 template
