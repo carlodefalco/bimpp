@@ -186,8 +186,8 @@ bim2a_laplacian_loc
     hy = quadrant->p (1, 2) - quadrant->p (1, 0);
 
   double
-    hxby2hy = .5 * hx / hy,
-    hyby2hx = .5 * hy / hx;
+    hxby2hy = alpha * 0.5 * hx / hy,
+    hyby2hx = alpha * 0.5 * hy / hx;
 
   double diag = hxby2hy + hyby2hx;
   
