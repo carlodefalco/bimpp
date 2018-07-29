@@ -143,17 +143,16 @@ mumps::set_rhs_distributed (distributed_vector &rhs)
   // Rank 0 contains all the data - i.e. the complete rhs
   // (later the solution computed by MUMPS) - stored as "owned".
   // Other ranks only have the really owned data stored as "non-local".
-  glob_rhs =
-    std::make_shared<distributed_vector> (rank == 0 ? rhs.size () : 0);
+  glob_rhs = distributed_vector (rank == 0 ? rhs.size () : 0);
   
   for (int row = 0; row < rhs.get_owned_data ().size (); ++row)
-    (*glob_rhs)[rhs.get_range_start () + row] = rhs.get_owned_data ()[row];
+    glob_rhs[rhs.get_range_start () + row] = rhs.get_owned_data ()[row];
   
-  glob_rhs->assemble ();
+  glob_rhs.assemble ();
   
   // Set actual rhs.
   if (rank == 0)
-    set_rhs (glob_rhs->get_owned_data ());
+    set_rhs (glob_rhs.get_owned_data ());
 }
 
 int

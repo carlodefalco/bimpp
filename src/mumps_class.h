@@ -22,8 +22,6 @@
 #include <dmumps_c.h>
 #include "linear_solver.h"
 
-#include <memory>
-
 //using namespace bim;
 
 /// Wrapper class around the MUMPS linear solver.
@@ -36,7 +34,7 @@ private :
   int working_host;
   static const int index_base = 1;
   
-  std::shared_ptr<distributed_vector> glob_rhs;
+  distributed_vector glob_rhs;
   
 public :
   
@@ -48,10 +46,11 @@ public :
   
   /// Default constructor.
   mumps (bool verbose_ = false, int icntl23_ = 0, int working_host_ = 1) :
-  linear_solver ("MUMPS", "direct"),
-  verbose (verbose_),
-  icntl23 (icntl23_),
-  working_host (working_host_)
+    linear_solver ("MUMPS", "direct"),
+    verbose (verbose_),
+    icntl23 (icntl23_),
+    working_host (working_host_),
+    glob_rhs (0)
   { init (); };
   
   /// Set-up the matrix structure.
@@ -103,15 +102,13 @@ public :
   solve ();
 
   /// Returns the distributed_vector solution.
-  distributed_vector &
+  distributed_vector
   get_distributed_solution ()
   {
-    assert (glob_rhs != nullptr);
-    
     // Communicate non-local values to their owners first.
-    glob_rhs->assemble (replace_op);
+    glob_rhs.assemble (replace_op);
     
-    return *glob_rhs;
+    return glob_rhs;
   }
   
   /// Cleanup memory.
