@@ -71,7 +71,8 @@ public :
   csr (std::vector<double> &a,
        std::vector<int> &col,
        std::vector<int> &row,
-       int base, bool flag = false) 
+       int base = 0,
+       bool flag = false) 
   {
    
     if (flag == false)
