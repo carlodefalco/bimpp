@@ -28,6 +28,7 @@ private :
   int mpirank, mpisize;
 
   int nnz_owned;
+  
   struct
   non_local_t
   {
@@ -44,6 +45,7 @@ private :
 
   bool mapped;
   bool update;
+  
 public :
 
   void

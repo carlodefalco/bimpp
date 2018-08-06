@@ -17,6 +17,7 @@ distributed_sparse_matrix::set_ranges (int is_, int ie_)
   /// Gather ranges
   ranges.assign (mpisize + 1, 0);
   MPI_Allgather (&ie, 1, MPI_INT, &(ranges[1]), 1, MPI_INT, comm);
+  this->resize (ranges.back ());
 }
 
 void
@@ -29,11 +30,12 @@ distributed_sparse_matrix::set_ranges (int nnz_owned_)
   ranges.assign (mpisize + 1, 0);
   MPI_Allgather (&nnz_owned_, 1, MPI_INT, &(ranges[1]),
                  1, MPI_INT, comm);    
-  for (int irank = 0; irank < mpisize; ++irank)
+  for (auto irank = 0; irank < mpisize; ++irank)
     ranges[irank+1] += ranges[irank];
 
   is = ranges[mpirank];
   ie = ranges[mpirank+1];
+  this->resize (ranges.back ());
 }
 
 void
