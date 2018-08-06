@@ -8,8 +8,7 @@
 #include <bim_sparse_distributed.h>
 
 void
-distributed_sparse_matrix::set_ranges (size_t is_,
-                                       size_t ie_)
+distributed_sparse_matrix::set_ranges (int is_, int ie_)
 {
   is = is_; ie = ie_;
   MPI_Comm_rank (comm, &mpirank);
@@ -18,7 +17,6 @@ distributed_sparse_matrix::set_ranges (size_t is_,
   /// Gather ranges
   ranges.assign (mpisize + 1, 0);
   MPI_Allgather (&ie, 1, MPI_INT, &(ranges[1]), 1, MPI_INT, comm);
-
 }
 
 void
@@ -53,11 +51,11 @@ distributed_sparse_matrix::non_local_csr_index ()
   non_local.prc_ptr.assign (this->mpisize + 1, 0);
   sparse_matrix::col_iterator jj;
 
-  for (size_t ii = 0; ii < this->mpisize; ++ii)
+  for (auto ii = 0; ii < this->mpisize; ++ii)
     {
       non_local.prc_ptr[ii+1] = non_local.prc_ptr[ii];
       if (ii != mpirank)
-        for (size_t kk = ranges[ii]; kk < ranges[ii+1]; ++kk)
+        for (auto kk = ranges[ii]; kk < ranges[ii+1]; ++kk)
           {
             // std::cout <<  non_local.prc_ptr.size () << " " << ii + 1 << std::endl;
             non_local.prc_ptr[ii+1] += (*this)[kk].size ();

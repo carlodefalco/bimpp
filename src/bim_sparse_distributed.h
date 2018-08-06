@@ -23,7 +23,7 @@ private :
   void
   non_local_csr_value ();
 
-  size_t is, ie;
+  int is, ie;
   MPI_Comm comm;
   int mpirank, mpisize;
 
@@ -47,12 +47,12 @@ private :
 public :
 
   void
-  set_ranges (size_t is_, size_t ie_);
+  set_ranges (int is_, int ie_);
 
   void
   set_ranges (int nnz_owned_);
 
-  distributed_sparse_matrix (size_t is_, size_t ie_, MPI_Comm comm_ = MPI_COMM_WORLD)
+  distributed_sparse_matrix (int is_, int ie_, MPI_Comm comm_ = MPI_COMM_WORLD)
     : distributed_sparse_matrix ()
   { set_ranges (is_, ie_); }
 
@@ -85,7 +85,7 @@ public :
         int idx = 0;
         int idr = 0;
         typename sparse_matrix_template<double>::col_iterator jj;
-        for (size_t ii = is; ii < ie; ++ii)
+        for (auto ii = is; ii < ie; ++ii)
           {
             row[idr] = idx + base;
       
@@ -115,13 +115,14 @@ public :
 		   const std::vector<int> &row_ptr,
 		   int base)
   {
-    size_t ni = row_ptr.size ();
-    size_t nj = col_ind.size ();
+    auto ni = row_ptr.size ();
+    auto nj = col_ind.size ();
     a.resize (nj);
     int idx = 0;
     
-    for (size_t in = 0; in < ni - 1; ++in)
-      for (int jn = row_ptr[in] - base; jn < row_ptr[in+1] - base; ++jn)
+    for (auto in = 0; in < ni - 1; ++in)
+      for (auto jn = row_ptr[in] - base;
+           jn < row_ptr[in+1] - base; ++jn)
         {	
           a[idx] = (*this)[in + is][col_ind[jn] - base];
           idx++;
