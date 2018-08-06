@@ -7,6 +7,16 @@ function export_tmesh_data (msh_basename,
   nnodefields = numel (nodedata_names);
   ncellfields = numel (celldata_names);
   
+  if (nnodefields == 0)
+    n = {};
+    nodedata_names = {};
+  endif
+  
+  if (ncellfields == 0)
+    c = {};
+    celldata_names = {};
+  endif
+  
   for step = steps
     fprintf("*** Step %d ***\n", step + 1);
     t = [];
