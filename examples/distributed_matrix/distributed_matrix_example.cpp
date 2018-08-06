@@ -53,18 +53,19 @@ main (int argc, char *argv[])
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
-  int is, ie, is_elems, ie_elems;
+  int is, ie, is_elems, ie_elems, rank_owned;
   distributed_sparse_matrix A;
   
   A.resize (55);
 
 
-  if (rank == 0 || size == 1)
+  if (rank == 0)
     {
       is_elems = 0;
       ie_elems = 20;
       is = 0;
       ie = 28;
+      rank_owned = ie - is;
       std::cout << "if (rank == 0 || size == 1)" << std::endl;
     }
   else if (rank == 1)
@@ -73,6 +74,7 @@ main (int argc, char *argv[])
       ie_elems = 40;
       is = 28;
       ie = 55;
+      rank_owned = ie - is;
       std::cout << "if (rank == 1 || size == 1)" << std::endl;
     }
   else
@@ -81,45 +83,49 @@ main (int argc, char *argv[])
       ie_elems = 40;
       is = 55;
       ie = 55;
+      rank_owned = ie - is;
       std::cout << "else" << std::endl;
     }
 
   if (size == 1)
     {
       std::cout << "runing serially\n" ;
+      is_elems = 0;  is = 0;
       ie_elems = 40; ie = 55;
+      rank_owned = ie - is;
     }
   
-   A.set_ranges (is, ie);
-   std::cout << "rank " << rank << " is " << is << " ie " << ie << " is_elems " << is_elems << "  ie_elems " << ie_elems << std::endl;  
+  // A.set_ranges (is, ie);
+  A.set_ranges (rank_owned);
+  std::cout << "rank " << rank << " is " << is << " ie " << ie << " is_elems " << is_elems << "  ie_elems " << ie_elems << std::endl;  
         
-   std::vector<std::vector<double>> locmatrix =
-     {{2,-1,-1,0}, {-1,2,0,-1},{-1,0,2,-1},{0,-1,-1,2}};
+  std::vector<std::vector<double>> locmatrix =
+    {{2,-1,-1,0}, {-1,2,0,-1},{-1,0,2,-1},{0,-1,-1,2}};
 
-   double tmp;
-   for (int iel = is_elems; iel < ie_elems; ++iel)
-     for (int inode = 0; inode < 4; ++inode)
-       for (int jnode = 0; jnode < 4; ++jnode)
-         {
-           tmp = locmatrix[inode][jnode];
-           if (tmp != 0.)
-             A[conn (inode,iel)][conn (jnode,iel)] +=
-               tmp;
-         }
+  double tmp;
+  for (int iel = is_elems; iel < ie_elems; ++iel)
+    for (int inode = 0; inode < 4; ++inode)
+      for (int jnode = 0; jnode < 4; ++jnode)
+        {
+          tmp = locmatrix[inode][jnode];
+          if (tmp != 0.)
+            A[conn (inode,iel)][conn (jnode,iel)] +=
+              tmp;
+        }
 
-   A.assemble ();
+  A.assemble ();
   
-   for (int ii = 0; ii < size; ++ii)
-     {
-       if (ii == rank)
-         {
-           std::cout << "## rank " << rank << std::endl;
-           std::cout << A << std::endl;
-           std::cout << "\n\n";
-         }
-       MPI_Barrier (MPI_COMM_WORLD);
-     }
+  for (int ii = 0; ii < size; ++ii)
+    {
+      if (ii == rank)
+        {
+          std::cout << "## rank " << rank << std::endl;
+          std::cout << A << std::endl;
+          std::cout << "\n\n";
+        }
+      MPI_Barrier (MPI_COMM_WORLD);
+    }
    
-   MPI_Finalize ();
-   return 0;
+  MPI_Finalize ();
+  return 0;
 }
