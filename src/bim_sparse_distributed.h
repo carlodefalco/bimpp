@@ -122,10 +122,10 @@ public :
     a.resize (nj);
     int idx = 0;
     
-    for (auto in = 0; in < ni - 1; ++in)
+    for (std::vector<int>::size_type in = 0; in < ni - 1; ++in)
       for (auto jn = row_ptr[in] - base;
            jn < row_ptr[in+1] - base; ++jn)
-        {	
+        {
           a[idx] = (*this)[in + is][col_ind[jn] - base];
           idx++;
         }
