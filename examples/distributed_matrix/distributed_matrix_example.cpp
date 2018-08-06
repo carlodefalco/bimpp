@@ -95,7 +95,10 @@ main (int argc, char *argv[])
   // A.set_ranges (is, ie);
   A.set_ranges (rank_owned);
 
-  std::cout << "rank " << rank << " size " << A.size () << " is " << is << " ie " << ie << " is_elems " << is_elems << "  ie_elems " << ie_elems << std::endl;  
+  std::cout << "rank " << rank << " size " << A.size ()
+            << " is " << is << " ie " << ie
+            << " is_elems " << is_elems
+            << "  ie_elems " << ie_elems << std::endl;  
         
   std::vector<std::vector<double>> locmatrix =
     {{2,-1,-1,0}, {-1,2,0,-1},{-1,0,2,-1},{0,-1,-1,2}};
