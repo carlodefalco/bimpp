@@ -47,6 +47,15 @@ bim2a_laplacian (tmesh & mesh,
                  const ordering& ordc = default_ord);
 
 template <class T>
+void 
+bim2a_laplacian_eafe (tmesh& mesh,
+                      const std::vector<double>& D,
+                      const T& alpha,
+                      sparse_matrix& A,
+                      const ordering& ordr,
+                      const ordering& ordc);
+
+template <class T>
 void
 bim2a_advection_diffusion (tmesh & mesh,
                            const std::vector<double>& alpha,

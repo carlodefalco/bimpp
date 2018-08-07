@@ -191,10 +191,104 @@ bim2a_laplacian_loc
 
   double diag = hxby2hy + hyby2hx;
   
-  Aloc[0] = {  diag  , -hyby2hx, -hxby2hy,     0   };
-  Aloc[1] = {-hyby2hx,   diag  ,     0   , -hxby2hy};
-  Aloc[2] = {-hxby2hy,     0   ,   diag  , -hyby2hx};
-  Aloc[3] = {    0   , -hxby2hy, -hyby2hx,   diag  };
+  locmat[0] = {  diag  , -hyby2hx, -hxby2hy,     0   };
+  locmat[1] = {-hyby2hx,   diag  ,     0   , -hxby2hy};
+  locmat[2] = {-hxby2hy,     0   ,   diag  , -hyby2hx};
+  locmat[3] = {    0   , -hxby2hy, -hyby2hx,   diag  };
+}
+
+void
+bim2a_laplacian (tmesh& mesh,
+                 const std::vector<double>& alpha,
+                 sparse_matrix& A,                           
+                 const ordering& ordr,
+                 const ordering& ordc)
+{
+  for (auto row : Aloc)
+    row.fill (0.0);
+  
+  double alpha_loc = 0;
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      bim2a_laplacian_loc (quadrant, alpha[quadrant->get_forest_quad_idx ()], Aloc);
+      assemble (quadrant, Aloc, A, ordr, ordc);
+    }
+}
+
+void
+bim2a_laplacian_eafe_loc
+(tmesh::quadrant_iterator& quadrant,
+ const double& D,
+ const std::array<double, 4>& alpha,
+ std::array<std::array<double,4>,4>& locmat)
+{
+  double bp01 = 0, bm01 = 0;
+  double bp13 = 0, bm13 = 0;
+  double bp32 = 0, bm32 = 0;
+  double bp20 = 0, bm20 = 0;
+  
+  double
+    hx = quadrant->p (0, 1) - quadrant->p (0, 0),
+    hy = quadrant->p (1, 2) - quadrant->p (1, 0);
+
+  double
+    hxby2hy = D * 0.5 * hx / hy,
+    hyby2hx = D * 0.5 * hy / hx;
+  
+  bp01 = hm (alpha[0], alpha[1]) * hyby2hx;
+  bm01 = hm (alpha[0], alpha[1]) * hyby2hx;
+  bp13 = hm (alpha[1], alpha[3]) * hxby2hy;
+  bm13 = hm (alpha[1], alpha[3]) * hxby2hy;
+  bp32 = hm (alpha[3], alpha[2]) * hyby2hx;
+  bm32 = hm (alpha[3], alpha[2]) * hyby2hx;
+  bp20 = hm (alpha[2], alpha[0]) * hxby2hy;
+  bm20 = hm (alpha[2], alpha[0]) * hxby2hy;
+  
+  locmat[0] = { bm01 + bp20, -bp01,        -bm20,         0          };
+  locmat[1] = {-bm01,         bp01 + bm13,  0,           -bp13       };
+  locmat[2] = {-bp20,         0,            bp32 + bm20, -bm32       };
+  locmat[3] = { 0,           -bm13,        -bp32,         bm32 + bp13};
+}
+
+template <class T>
+void 
+bim2a_laplacian_eafe (tmesh& mesh,
+                      const std::vector<double>& D,
+                      const T& alpha,
+                      sparse_matrix& A,
+                      const ordering& ordr,
+                      const ordering& ordc)
+{
+  for (auto row : Aloc)
+    row.fill (0.0);
+
+  double D_loc;
+  std::array<double, 4> alpha_loc;
+      
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep (); ++quadrant)
+    {
+      D_loc = D[quadrant->get_forest_quad_idx ()];
+      
+      for (int n = 0; n < 4; ++n)
+        {
+          if (! quadrant->is_hanging (n))
+            {
+              alpha_loc[n] = alpha[quadrant->gt (n)];
+            }
+          else
+            {
+              alpha_loc[n] = 0.5 * (alpha[quadrant->gparent (0, n)] +
+                                    alpha[quadrant->gparent (1, n)]);
+            }
+        }
+      
+      bim2a_laplacian_eafe_loc (quadrant, D_loc, alpha_loc, Aloc);
+      assemble (quadrant, Aloc, A, ordr, ordc);
+    }
 }
 
 void 
@@ -241,10 +335,10 @@ bim2a_advection_diffusion_loc
   bp20 *= alpha * hxby2hy;
   bm20 *= alpha * hxby2hy;
   
-  Aloc[0] = { bm01+bp20, -bp01,      -bm20,       0        };
-  Aloc[1] = {-bm01,       bp01+bm13,  0,         -bp13     };
-  Aloc[2] = {-bp20,       0,          bp32+bm20, -bm32     };
-  Aloc[3] = { 0,         -bm13,      -bp32,       bm32+bp13};
+  locmat[0] = { bm01+bp20, -bp01,      -bm20,       0        };
+  locmat[1] = {-bm01,       bp01+bm13,  0,         -bp13     };
+  locmat[2] = {-bp20,       0,          bp32+bm20, -bm32     };
+  locmat[3] = { 0,         -bm13,      -bp32,       bm32+bp13};
 
 }
 
@@ -282,28 +376,6 @@ bim2a_advection_diffusion (tmesh& mesh,
       assemble (quadrant, Aloc, A, ordr, ordc);
     }
 }
-
-void
-bim2a_laplacian (tmesh& mesh,
-                 const std::vector<double>& alpha,
-                 sparse_matrix& A,                           
-                 const ordering& ordr,
-                 const ordering& ordc)
-{
-  for (auto row : Aloc)
-    row.fill (0.0);
-  
-  double alpha_loc = 0;
-  
-  for (auto quadrant = mesh.begin_quadrant_sweep ();
-       quadrant != mesh.end_quadrant_sweep ();
-       ++quadrant)
-    {
-      bim2a_laplacian_loc (quadrant, alpha[quadrant->get_forest_quad_idx ()], Aloc);
-      assemble (quadrant, Aloc, A, ordr, ordc);
-    }
-}
-
 
 void 
 bim2a_advection_eafe_diffusion_loc
@@ -1759,6 +1831,25 @@ assemble_rhs (tmesh::quadrant_iterator&,
               const std::array<double, 4>&,
               distributed_vector&,
               const ordering& ord);
+
+/* ---- */
+template
+void
+bim2a_laplacian_eafe (tmesh&,
+                      const std::vector<double>&,
+                      const std::vector<double>&,
+                      sparse_matrix&,
+                      const ordering&,
+                      const ordering&);
+
+template
+void
+bim2a_laplacian_eafe (tmesh&,
+                      const std::vector<double>&,
+                      const distributed_vector&,
+                      sparse_matrix&,
+                      const ordering&,
+                      const ordering&);
 
 /* ---- */
 template
