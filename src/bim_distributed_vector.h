@@ -22,6 +22,10 @@ using binary_operator =
 /// the owning process of its node.
 extern binary_operator replace_op;
 
+/// Instance of binary_operator that replaces local
+/// with the maximum between local and mirror values.
+extern binary_operator max_op;
+
 //!    Class for distributed memory vector.
 //|
 //!    The data transfer pattern for assembly/synchronization 

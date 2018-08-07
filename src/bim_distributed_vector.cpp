@@ -14,6 +14,12 @@ binary_operator replace_op =
   return x;
 };
 
+binary_operator max_op =
+  [] (const double & x, const double & y)
+{
+  return std::max (x, y);
+};
+
 void
 distributed_vector::ghost_csr ()
 {
