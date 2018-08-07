@@ -268,11 +268,12 @@ distributed_sparse_matrix::csr (std::vector<double> &a,
 }
 
 void
-distributed_sparse_matrix::csr_update (std::vector<double> &a,
-                                       const std::vector<int> &col_ind,
-                                       const std::vector<int> &row_ptr,
-                                       int base,
-                                       bool flag)
+distributed_sparse_matrix::csr_update
+(std::vector<double> &a,
+ const std::vector<int> &col_ind,
+ const std::vector<int> &row_ptr,
+ int base,
+ bool flag)
 {
   if (! flag)
     {

@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 Carlo de Falco
+  Copyright (C) 2011-2018 Carlo de Falco
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
@@ -65,10 +65,6 @@ public:
   /// Default constructor.
   sparse_matrix_template () {init ();};
 
-  ///
-  template<class U> friend std::ostream
-  &operator<< (std::ostream &, sparse_matrix_template<U> &);
-
   /// Convert row-oriented sparse matrix to AIJ format, with shift.
   void
   aij (std::vector<double> &a,
@@ -99,11 +95,14 @@ public:
   
 };
 
-template<class Y>
-void sparse_matrix_template<Y>::init () {nnz = 0; m = 0;}
 
 template<class Y>
-void sparse_matrix_template<Y>::set_properties ()
+void
+sparse_matrix_template<Y>::init () {nnz = 0; m = 0;}
+
+template<class Y>
+void
+sparse_matrix_template<Y>::set_properties ()
 {
   typename sparse_matrix_template<Y>::col_iterator j;
   nnz = 0; m = 0;
@@ -120,8 +119,9 @@ void sparse_matrix_template<Y>::set_properties ()
 
 
 template<class Y>
-std::ostream & operator<< (std::ostream &stream,
-                           sparse_matrix_template<Y> &sp)
+std::ostream &
+operator<< (std::ostream &stream,
+            sparse_matrix_template<Y> &sp)
 {
   typename sparse_matrix_template<Y>::col_iterator j;
 
@@ -144,10 +144,11 @@ std::ostream & operator<< (std::ostream &stream,
 }
 
 template<class T>
-void sparse_matrix_template<T>::aij (std::vector<double> &a,
-                                     std::vector<int> &i,
-                                     std::vector<int> &j,
-                                     int base)
+void
+sparse_matrix_template<T>::aij (std::vector<double> &a,
+                                std::vector<int> &i,
+                                std::vector<int> &j,
+                                int base)
 {
   this->set_properties ();
   a.resize (nnz); i.resize (nnz); j.resize (nnz);
@@ -166,10 +167,11 @@ void sparse_matrix_template<T>::aij (std::vector<double> &a,
 }
 
 template<class T>
-void sparse_matrix_template<T>::aij_update (std::vector<double> &a,
-                                            const std::vector<int> &i,
-                                            const std::vector<int> &j,
-                                            int base)
+void
+sparse_matrix_template<T>::aij_update (std::vector<double> &a,
+                                       const std::vector<int> &i,
+                                       const std::vector<int> &j,
+                                       int base)
 {
   size_t n = i.size ();
   typename sparse_matrix_template<T>::col_iterator jj;
@@ -182,10 +184,11 @@ void sparse_matrix_template<T>::aij_update (std::vector<double> &a,
 }
 
 template<class T>
-void sparse_matrix_template<T>::csr (std::vector<double> &a,
-                                     std::vector<int> &col_ind,
-                                     std::vector<int> &row_ptr,
-                                     int base)
+void
+sparse_matrix_template<T>::csr (std::vector<double> &a,
+                                std::vector<int> &col_ind,
+                                std::vector<int> &row_ptr,
+                                int base)
 {
   this->set_properties ();
   a.resize (nnz); col_ind.resize (nnz);
@@ -212,10 +215,11 @@ void sparse_matrix_template<T>::csr (std::vector<double> &a,
 }
 
 template<class T>
-void sparse_matrix_template<T>::csr_update (std::vector<double> &a,
-                                            const std::vector<int> &col_ind,
-                                            const std::vector<int> &row_ptr,
-                                            int base)
+void
+sparse_matrix_template<T>::csr_update (std::vector<double> &a,
+                                       const std::vector<int> &col_ind,
+                                       const std::vector<int> &row_ptr,
+                                       int base)
 {
   auto ni = row_ptr.size ();
   auto nj = col_ind.size ();
@@ -229,8 +233,8 @@ void sparse_matrix_template<T>::csr_update (std::vector<double> &a,
 }
 
 
-typedef  sparse_matrix_template<double> double_sparse_matrix;
-typedef  sparse_matrix_template<double*> double_p_sparse_matrix;
+using  double_sparse_matrix=sparse_matrix_template<double>;
+using  double_p_sparse_matrix=sparse_matrix_template<double*>;
 
 /// Sparse row-oriented double* matrix.
 class
@@ -272,14 +276,15 @@ public :
   void 
   operator+= (T &adm);
 
-  /// Compute matrix-vector product.
-  friend std::vector<double>
-  operator * (sparse_matrix& M, const std::vector<double>& x);
-  
-  /// Compute matrix-vector product.
-  friend distributed_vector
-  operator * (sparse_matrix& M, const distributed_vector& x);
 };
+
+/// Compute matrix-vector product.
+std::vector<double>
+operator* (sparse_matrix& M, const std::vector<double>& x);
+  
+/// Compute matrix-vector product.
+distributed_vector
+operator* (sparse_matrix& M, const distributed_vector& x);
 
 template<class T>
 void
