@@ -74,28 +74,14 @@ public:
   aij (std::vector<double> &a,
        std::vector<int> &i,
        std::vector<int> &j,
-       int base);
-
-  /// Convert row-oriented sparse matrix to AIJ format.
-  void
-  aij (std::vector<double> &a,
-       std::vector<int> &i,
-       std::vector<int> &j)
-  { this->aij (a, i, j, 0); };
-
-  /// Update the entries of a sparse matrix in AIJ format, with shift.
-  void
-  aij_update (std::vector<double> &a,
-              const std::vector<int> &i,
-              const std::vector<int> &j,
-              int base);
+       int base = 0);
 
   /// Update the entries of a sparse matrix in AIJ format.
   void
   aij_update (std::vector<double> &a,
               const std::vector<int> &i,
-              const std::vector<int> &j)
-  { this->aij_update (a, i, j, 0); };
+              const std::vector<int> &j,
+              int base = 0);
 
   /// Convert row-oriented sparse matrix to CRS format.
   void
@@ -231,15 +217,14 @@ void sparse_matrix_template<T>::csr_update (std::vector<double> &a,
                                             const std::vector<int> &row_ptr,
                                             int base)
 {
-  size_t ni = row_ptr.size ();
-  size_t nj = col_ind.size ();
-  a.clear ();
-  a.reserve (nj);
-
-  std::cout << " ni = " << ni << std::endl;
-  for (size_t in = 0; in < ni - 1; ++in)
-    for (size_t jn = row_ptr[in] - base; jn < row_ptr[in+1] - base; ++jn)
-      a.push_back (col_val (((*this)[in]).find (col_ind[jn] - base)));
+  auto ni = row_ptr.size ();
+  auto nj = col_ind.size ();
+  a.resize (nj);
+  int idx = 0;
+  
+  for (auto in = 0; in < ni - 1; ++in)
+    for (auto jn = row_ptr[in] - base; jn < row_ptr[in+1] - base; ++jn)
+      a[idx++] = (*this)[in][col_ind[jn] - base];
 
 }
 

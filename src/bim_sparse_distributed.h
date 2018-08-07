@@ -19,11 +19,11 @@ private :
 
   void
   non_local_csr ();
-    
+
   int is, ie;
   MPI_Comm comm;
   int mpirank, mpisize;
-  
+
   struct
   non_local_t
   {
@@ -39,7 +39,7 @@ private :
   std::vector<int> rank_nnz;
 
   bool mapped;
-  
+
 public :
 
   void
@@ -58,81 +58,44 @@ public :
   { }
 
   void
+  remap ();
+
+  void
   assemble ();
 
   void
-  remap ();
-
-
-  void 
   csr (std::vector<double> &a,
        std::vector<int> &col,
        std::vector<int> &row,
        int base = 0,
-       bool flag = false) 
-  {
-   
-    if (flag == false)
-      {
-        a.resize (owned_nnz ());
-        col.resize (a.size ());
+       bool flag = false);
 
-        row.resize (ie - is + 1);
-   
-        int idx = 0;
-        int idr = 0;
-        typename sparse_matrix::col_iterator jj;
-        for (auto ii = is; ii < ie; ++ii)
-          {
-            row[idr] = idx + base;
-      
-            if ((*this)[ii].size () > 0)
-              {
-                for (jj  = (*this)[ii].begin ();
-                     jj != (*this)[ii].end (); ++jj)
-                  {
-                    col[idx] = this->col_idx (jj) + base;
-                    a[idx] = this->col_val (jj);
-                    idx++;
-                  }
-              }
-            idr++;
+  void
+  csr_update (std::vector<double> &a,
+              const std::vector<int> &col_ind,
+              const std::vector<int> &row_ptr,
+              int base = 0,
+              bool flag = false);
 
-          }
+  void
+  aij (std::vector<double> &a,
+       std::vector<int> &i,
+       std::vector<int> &j,
+       int base = 0,
+       bool flag = false);
 
-        std::fill (row.begin () + idr, row.end (), idx + base);
-      }
-    else 
-      this->sparse_matrix::csr (a, col, row, base); 
-  
-  }
-
-
-  void csr_update (std::vector<double> &a,
-		   const std::vector<int> &col_ind,
-		   const std::vector<int> &row_ptr,
-		   int base)
-  {
-    auto ni = row_ptr.size ();
-    auto nj = col_ind.size ();
-    a.resize (nj);
-    int idx = 0;
-    
-    for (std::vector<int>::size_type in = 0; in < ni - 1; ++in)
-      for (auto jn = row_ptr[in] - base;
-           jn < row_ptr[in+1] - base; ++jn)
-        {
-          a[idx] = (*this)[in + is][col_ind[jn] - base];
-          idx++;
-        }
-  }
-  
   int
   owned_nnz ();
-  
-  void 
-  get_is_ie (int &is_, int &ie_);
- 
+
+  int
+  range_start ()
+  { return is; };
+
+  int
+  range_end ()
+  { return ie; };
+
+
 };
 
 #endif

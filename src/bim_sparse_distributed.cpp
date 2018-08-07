@@ -29,7 +29,7 @@ distributed_sparse_matrix::set_ranges (int num_owned_)
   /// Gather ranges
   ranges.assign (mpisize + 1, 0);
   MPI_Allgather (&num_owned_, 1, MPI_INT, &(ranges[1]),
-                 1, MPI_INT, comm);    
+                 1, MPI_INT, comm);
   for (auto irank = 0; irank < mpisize; ++irank)
     ranges[irank+1] += ranges[irank];
 
@@ -111,7 +111,7 @@ distributed_sparse_matrix::remap ()
 
 
   /// Communicate overlap regions
-  
+
   /// 1) communicate row_ptr
   std::vector<MPI_Request> reqs;
   for (int ii = 0; ii < mpisize; ++ii)
@@ -133,9 +133,9 @@ distributed_sparse_matrix::remap ()
           MPI_Isend (&(non_local.row_ind[non_local.prc_ptr[ii]]),
                      rank_nnz_snd_ii, MPI_INT, ii, send_tag, comm,
                      &(reqs.back ()));
-        }     
+        }
     }
-  
+
   MPI_Waitall (reqs.size (), &(reqs[0]), MPI_STATUSES_IGNORE);
   reqs.clear ();
 
@@ -159,7 +159,7 @@ distributed_sparse_matrix::remap ()
           MPI_Isend (&(non_local.col_ind[non_local.prc_ptr[ii]]),
                      rank_nnz_snd_ii, MPI_INT, ii, send_tag, comm,
                      &(reqs.back ()));
-        }     
+        }
     }
   MPI_Waitall (reqs.size (), &(reqs[0]), MPI_STATUSES_IGNORE);
   reqs.clear ();
@@ -167,13 +167,14 @@ distributed_sparse_matrix::remap ()
   mapped = true;
 }
 
+
 void
 distributed_sparse_matrix::assemble ()
 {
 
   if (! mapped)
     remap ();
-  
+
   /// 3) communicate values
   std::vector<MPI_Request> reqs;
   for (int ii = 0; ii < mpisize; ++ii)
@@ -187,7 +188,7 @@ distributed_sparse_matrix::assemble ()
                      MPI_DOUBLE, ii, recv_tag, comm, &(reqs.back ()));
         }
       int rank_nnz_snd_ii = non_local.prc_ptr[ii+1]
-        - non_local.prc_ptr[ii];      
+        - non_local.prc_ptr[ii];
       if (rank_nnz_snd_ii > 0) // we must send something to rank ii
         {
           int send_tag = mpirank + mpisize * ii;
@@ -195,7 +196,7 @@ distributed_sparse_matrix::assemble ()
           MPI_Isend (&(non_local.a[non_local.prc_ptr[ii]]),
                      rank_nnz_snd_ii, MPI_DOUBLE, ii, send_tag, comm,
                      &(reqs.back ()));
-        }     
+        }
     }
   MPI_Waitall (reqs.size (), &(reqs[0]), MPI_STATUSES_IGNORE);
   reqs.clear ();
@@ -204,12 +205,12 @@ distributed_sparse_matrix::assemble ()
   /// 4) insert communicated values into sparse_matrix
   for (int ii = 0; ii < mpisize; ++ii) // loop over ranks
     if (ii != mpirank)
-      for (int kk = 0; kk < rank_nnz[ii]; ++kk)  
+      for (int kk = 0; kk < rank_nnz[ii]; ++kk)
         (*this)[row_buffers[ii][kk]][col_buffers[ii][kk]]
           += val_buffers[ii][kk];
 
 
-  /// 5) zero out communicated values  
+  /// 5) zero out communicated values
   for (int iprc = 0; iprc < mpisize; ++iprc)
     if (iprc != mpirank)
       {
@@ -224,8 +225,97 @@ distributed_sparse_matrix::assemble ()
 }
 
 void
-distributed_sparse_matrix::get_is_ie (int &is_, int &ie_)
+distributed_sparse_matrix::csr (std::vector<double> &a,
+                                std::vector<int> &col,
+                                std::vector<int> &row,
+                                int base,
+                                bool flag)
 {
-  ie_ = ie;
-  is_ = is;   
+
+  if (flag == false)
+    {
+      a.resize (owned_nnz ());
+      col.resize (a.size ());
+
+      row.resize (ie - is + 1);
+
+      int idx = 0;
+      int idr = 0;
+      typename sparse_matrix::col_iterator jj;
+      for (auto ii = is; ii < ie; ++ii)
+        {
+          row[idr] = idx + base;
+
+          if ((*this)[ii].size () > 0)
+            {
+              for (jj  = (*this)[ii].begin ();
+                   jj != (*this)[ii].end (); ++jj)
+                {
+                  col[idx] = this->col_idx (jj) + base;
+                  a[idx] = this->col_val (jj);
+                  idx++;
+                }
+            }
+          idr++;
+
+        }
+
+      std::fill (row.begin () + idr, row.end (), idx + base);
+    }
+  else
+    this->sparse_matrix::csr (a, col, row, base);
+
+}
+
+void
+distributed_sparse_matrix::csr_update (std::vector<double> &a,
+                                       const std::vector<int> &col_ind,
+                                       const std::vector<int> &row_ptr,
+                                       int base,
+                                       bool flag)
+{
+  if (! flag)
+    {
+      auto ni = row_ptr.size ();
+      auto nj = col_ind.size ();
+      a.resize (nj);
+      int idx = 0;
+  
+      for (auto in = 0; in < ni - 1; ++in)
+        for (auto jn = row_ptr[in] - base;
+             jn < row_ptr[in+1] - base; ++jn)
+          a[idx++] = (*this)[in + is][col_ind[jn] - base];
+    }
+  else
+    this->sparse_matrix::csr_update (a, col_ind, row_ptr, base);
+}
+
+void
+distributed_sparse_matrix::aij (std::vector<double> &a,
+                                std::vector<int> &i,
+                                std::vector<int> &j,
+                                int base,
+                                bool flag)
+{
+  if (! flag)
+    {
+      a.resize (owned_nnz ());
+      i.resize (a.size ());
+      j.resize (a.size ());
+
+      int idx = 0;
+      sparse_matrix::col_iterator jj;
+
+      for (size_t ii = is; ii < ie; ++ii)
+        if ((*this)[ii].size ())
+          for (jj  = (*this)[ii].begin (); jj != (*this)[ii].end (); ++jj)
+            {
+              i[idx] = ii+base;
+              j[idx] = this->col_idx (jj)+base;
+              a[idx] = this->col_val (jj);
+              idx++;
+            }
+    }
+  else
+    this->sparse_matrix::aij (a, i, j, base);
 }
