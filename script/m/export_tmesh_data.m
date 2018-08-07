@@ -18,7 +18,7 @@ function export_tmesh_data (msh_basename,
   endif
   
   for step = steps
-    fprintf("*** Step %d ***\n", step + 1);
+    fprintf("*** Step %d ***\n", step);
     t = [];
     p = [];
 
@@ -31,7 +31,7 @@ function export_tmesh_data (msh_basename,
     endfor
     
     for proc = 0 : nprocs - 1
-      fprintf("Reading and processing input file %d...\n", proc + 1);
+      fprintf("Reading and processing input file %d...\n", proc);
       
       filename = sprintf (msh_basename, step, proc);
       load ([filename ".octbin.gz"]);
