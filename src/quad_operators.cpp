@@ -731,7 +731,7 @@ void
 bim2a_robin_bc_loc (tmesh& mesh,
                     sparse_matrix& A,
                     T& rhs,
-                    T& M_boundary,
+                    const double& M_boundary_loc,
                     const unsigned int& row,
                     const double& value_A,
                     const double& value_rhs,
@@ -747,7 +747,7 @@ bim2a_robin_bc_loc (tmesh& mesh,
   
   // If current node is owned.
   if (row >= start && row < end)
-    rhs[row] = M_boundary[row] * value_rhs;
+    rhs[row] = M_boundary_loc * value_rhs;
   else
     rhs[row] = 0;
   
@@ -760,7 +760,7 @@ bim2a_robin_bc_loc (tmesh& mesh,
       
       // If current node is owned.
       if (row >= start && row < end)
-        A[row][row] += M_boundary[row];
+        A[row][row] += M_boundary_loc;
     }
 }
 
@@ -1997,7 +1997,7 @@ void
 bim2a_robin_bc_loc (tmesh&,
                     sparse_matrix&,
                     std::vector<double>&,
-                    std::vector<double>&,
+                    const double&,
                     const unsigned int&,
                     const double&,
                     const double&,
@@ -2010,7 +2010,7 @@ void
 bim2a_robin_bc_loc (tmesh&,
                     sparse_matrix&,
                     distributed_vector&,
-                    distributed_vector&,
+                    const double&,
                     const unsigned int&,
                     const double&,
                     const double&,

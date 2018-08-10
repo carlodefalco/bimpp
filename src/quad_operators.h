@@ -125,7 +125,7 @@ void
 bim2a_robin_bc_loc (tmesh& mesh,
                     sparse_matrix& A,
                     T& rhs,
-                    T& M_boundary,
+                    const double& M_boundary_loc,
                     const unsigned int& row,
                     const double& value_A,
                     const double& value_rhs,
