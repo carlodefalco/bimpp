@@ -46,7 +46,7 @@ function export_tmesh_data (msh_basename,
       endfor
 
       for ii = 1 : ncellfields
-        filename = sprintf (nodedata_basenames{ii}, step, proc);
+        filename = sprintf (celldata_basenames{ii}, step, proc);
         load ([filename ".octbin.gz"]);
         c{ii} = [c{ii}; msh.f];
       endfor
