@@ -6,17 +6,17 @@ function export_tmesh_data (msh_basename,
 
   nnodefields = numel (nodedata_names);
   ncellfields = numel (celldata_names);
-  
+
   if (nnodefields == 0)
     n = {};
     nodedata_names = {};
   endif
-  
+
   if (ncellfields == 0)
     c = {};
     celldata_names = {};
   endif
-  
+
   for step = steps
     fprintf("*** Step %d ***\n", step);
     t = [];
@@ -29,13 +29,13 @@ function export_tmesh_data (msh_basename,
     for ii = 1 : ncellfields
       c{ii} = [];
     endfor
-    
+
     for proc = 0 : nprocs - 1
-      fprintf("Reading and processing input file %d...\n", proc);
-      
+      fprintf("Reading and processing input file %d / %d...\r", proc, nprocs - 1);
+
       filename = sprintf (msh_basename, step, proc);
       load ([filename ".octbin.gz"]);
-      
+
       t = [t, msh.t + columns(p) + 1];
       p = [p, msh.p];
 
@@ -51,10 +51,12 @@ function export_tmesh_data (msh_basename,
         c{ii} = [c{ii}; msh.f];
       endfor
     endfor
-    
+
+    fprintf ("\n");
+
     msh.p = p;
     msh.t = t;
-    
+
     filename_out = sprintf ([out_name "_%d"], step);
     if (exist ([filename_out ".vtu"], "file"))
       delete ([filename_out ".vtu"]);
@@ -63,7 +65,7 @@ function export_tmesh_data (msh_basename,
     fpl_vtk_write_field_octree (filename_out, msh,
                                 [n; nodedata_names].',
                                 [c; celldata_names].', 1);
-    
+
     fprintf("\n");
   endfor
 endfunction
