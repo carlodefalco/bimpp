@@ -88,8 +88,8 @@ main (int argc, char **argv)
     if (rank == 0) tic ();
     A.reset ();
     
-    bim2a_advection_diffusion (tmsh, ecoeff, ncoeff, A, ord0, ord0);
-    bim2a_advection_diffusion (tmsh, ecoeff, ncoeff, A, ord1, ord1);
+    bim2a_advection_diffusion (tmsh, ecoeff, ncoeff, A, true, ord0, ord0);
+    bim2a_advection_diffusion (tmsh, ecoeff, ncoeff, A, true, ord1, ord1);
     bim2a_rhs (tmsh, ecoeff, ncoeff, u, ord0);
     bim2a_rhs (tmsh, ecoeff, ncoeff, u, ord1);
     

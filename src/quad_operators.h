@@ -47,7 +47,7 @@ bim2a_laplacian (tmesh & mesh,
                  const ordering& ordc = default_ord);
 
 template <class T>
-void 
+void
 bim2a_laplacian_eafe (tmesh& mesh,
                       const std::vector<double>& D,
                       const T& alpha,
@@ -61,6 +61,7 @@ bim2a_advection_diffusion (tmesh & mesh,
                            const std::vector<double>& alpha,
                            const T& psi,
                            sparse_matrix& A,
+                           bool symmetric = true,
                            const ordering& ordr = default_ord,
                            const ordering& ordc = default_ord);
 
@@ -173,7 +174,7 @@ estimator_sol (tmesh::quadrant_iterator q,
                const T & u);
 
 template <class T>
-int 
+int
 zz_marker_sol (tmesh::quadrant_iterator q,
                const q2_vec & ustar,
                const T & u,

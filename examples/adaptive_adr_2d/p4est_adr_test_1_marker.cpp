@@ -80,7 +80,7 @@ main (int argc, char **argv)
       MPI_Allreduce(psi.data(), global_psi.data(), psi.size(),
                     MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
       
-      bim2a_advection_diffusion (tmsh, alpha, global_psi, A);
+      bim2a_advection_diffusion (tmsh, alpha, global_psi, A, false);
       
       // Assemble right-hand side.
       std::vector<double> rhs(tmsh.num_global_nodes (), 0);
