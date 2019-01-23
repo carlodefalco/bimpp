@@ -178,17 +178,13 @@ main (int argc, char **argv)
     {
       for (int nn = 0; nn < 8; ++nn)
         {
-          double x = q->p(0,nn);
-          double y = q->p(1,nn);
-          double z = q->p(2,nn);
-          double uu = my_u(x,y,z);
           if (! q->is_hanging(nn))
-            u_vec[q->gt(nn)] = uu;
-          else
             {
-              int nump = q->num_parents(nn);
-              for (int pp = 0; pp < nump; ++pp)
-                u_vec[q->gparent(pp,nn)] = uu / nump;
+              double x = q->p(0,nn);
+              double y = q->p(1,nn);
+              double z = q->p(2,nn);
+              double uu = my_u(x,y,z);
+              u_vec[q->gt(nn)] = uu;
             }
         }  
     }
@@ -265,17 +261,13 @@ main (int argc, char **argv)
     {
       for (int nn = 0; nn < 8; ++nn)
         {
-          double x = q->p(0,nn);
-          double y = q->p(1,nn);
-          double z = q->p(2,nn);
-          double uu = my_u(x,y,z);
           if (! q->is_hanging(nn))
-            u_vec[q->gt(nn)] = uu;
-          else
             {
-              int nump = q->num_parents(nn);
-              for (int pp = 0; pp < nump; ++pp)
-                u_vec[q->gparent(pp,nn)] = uu / nump;
+              double x = q->p(0,nn);
+              double y = q->p(1,nn);
+              double z = q->p(2,nn);
+              double uu = my_u(x,y,z);
+              u_vec[q->gt(nn)] = uu;
             }
         }  
     }
