@@ -1160,7 +1160,208 @@ bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
 
   return std::make_tuple (du_x_star, du_y_star, du_z_star);    
 }
+/*
+q2_vec3
+bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
+                                       const q1_vec& u,
+                                       const gradient3& du)
+{
+  q2_vec3 u_star (mesh.num_local_quadrants (),
+                 std::array<double, 27> ({0,0,0,0,0,0,0,0,0,
+                 						  0,0,0,0,0,0,0,0,0,
+                 						  0,0,0,0,0,0,0,0,0}));
 
+  double hx = 0, hy = 0, hz = 0;
+
+  std::array<double, 8> u_star_loc,
+    					du_x_star_loc,
+    					du_y_star_loc,
+    					du_z_star_loc;
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      hx = quadrant->p (0, 1) - quadrant->p (0, 0);
+      hy = quadrant->p (1, 2) - quadrant->p (1, 0);
+      hz = quadrant->p (2, 4) - quadrant->p (2, 0);
+
+      // Compute values at vertices.
+      for (int n = 0; n < 8; ++n)
+        {
+          if (! quadrant->is_hanging (n))
+            {
+              u_star_loc[n] = u[quadrant->gt (n)];
+              du_x_star_loc[n] = std::get<0>(du)[quadrant->gt (n)];
+              du_y_star_loc[n] = std::get<1>(du)[quadrant->gt (n)];
+              du_z_star_loc[n] = std::get<2>(du)[quadrant->gt (n)];
+            }
+          else
+          	{
+          	  // value of u_star_loc, du_x_star_loc, du_y_star_loc, and
+          	  // du_z_star_loc are computed as the average over all the
+          	  // parents
+          	  int np = quadrant->num_parents(n);
+        	  for (int pp = 0; pp < np; ++pp)
+        	  {
+        	  	u_star_loc[n] += u[quadrant->gparent(pp,n)];
+        	  	du_x_star_loc[n] += std::get<0>(du)[quadrant->gparent (pp, n)];
+        	  	du_y_star_loc[n] += std::get<1>(du)[quadrant->gparent (pp, n)];
+        	  	du_z_star_loc[n] += std::get<2>(du)[quadrant->gparent (pp, n)];
+        	  }
+        	  u_star_loc[n] /= np;	
+        	  du_x_star_loc[n] /= np;
+        	  du_y_star_loc[n] /= np;
+        	  du_z_star_loc[n] /= np;
+
+        	  // Determine whether n is hanging on an edge
+              // directed along the x or y or z direction.
+              int i = 0; int p = 0;
+              bool found = false;
+
+              for (; i < 8 && !found; ++i)
+                {
+                  for (int pp = 0; pp < np && !found; ++pp)
+                  	{
+                  	  if (quadrant->parent (pp, n) == quadrant->t (i))	
+                  	  	{
+                  	  	  p = pp;
+                  	  	  found = true;	
+                  	  	}  	
+                  	}
+                }
+
+              // Compute recovered solution at the
+              // double-sized neighbor element.
+              if (n == 0)
+                {
+                  if (i == 1)
+                    u_star_loc[n] +=
+                      (2 * hx) * (std::get<0>(du)[quadrant->gparent (, n)] -
+                                  std::get<0>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 2)
+                    u_star_loc[n] +=
+                      (2 * hy) * (std::get<1>(du)[quadrant->gparent (, n)] -
+                                  std::get<1>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 4)
+                    u_star_loc[n] +=
+                      (2 * hz) * (std::get<2>(du)[quadrant->gparent (, n)] -
+                                  std::get<2>(du)[quadrant->gparent (, n)]) / 8;
+                }  
+              else if (n == 1)
+                {
+                  if (i == 0)
+                    u_star_loc[n] +=
+                      (2 * hx) * (std::get<0>(du)[quadrant->gparent (, n)] -
+                                  std::get<0>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 3)
+                    u_star_loc[n] +=
+                      (2 * hy) * (std::get<1>(du)[quadrant->gparent (, n)] -
+                                  std::get<1>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 5)
+                    u_star_loc[n] +=
+                      (2 * hz) * (std::get<2>(du)[quadrant->gparent (, n)] -
+                                  std::get<2>(du)[quadrant->gparent (, n)]) / 8;
+                } 
+              else if (n == 2)
+                {
+                  if (i == 3)
+                    u_star_loc[n] +=
+                      (2 * hx) * (std::get<0>(du)[quadrant->gparent (, n)] -
+                                  std::get<0>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 0)
+                    u_star_loc[n] +=
+                      (2 * hy) * (std::get<1>(du)[quadrant->gparent (, n)] -
+                                  std::get<1>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 6)
+                    u_star_loc[n] +=
+                      (2 * hz) * (std::get<2>(du)[quadrant->gparent (, n)] -
+                                  std::get<2>(du)[quadrant->gparent (, n)]) / 8;
+                }
+              else if (n == 3)
+                {
+                  if (i == 2)
+                    u_star_loc[n] +=
+                      (2 * hx) * (std::get<0>(du)[quadrant->gparent (, n)] -
+                                  std::get<0>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 1)
+                    u_star_loc[n] +=
+                      (2 * hy) * (std::get<1>(du)[quadrant->gparent (, n)] -
+                                  std::get<1>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 7)
+                    u_star_loc[n] +=
+                      (2 * hz) * (std::get<2>(du)[quadrant->gparent (, n)] -
+                                  std::get<2>(du)[quadrant->gparent (, n)]) / 8;
+                }
+              else if (n == 4)
+                {
+                  if (i == 5)
+                    u_star_loc[n] +=
+                      (2 * hx) * (std::get<0>(du)[quadrant->gparent (, n)] -
+                                  std::get<0>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 6)
+                    u_star_loc[n] +=
+                      (2 * hy) * (std::get<1>(du)[quadrant->gparent (, n)] -
+                                  std::get<1>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 0)
+                    u_star_loc[n] +=
+                      (2 * hz) * (std::get<2>(du)[quadrant->gparent (, n)] -
+                                  std::get<2>(du)[quadrant->gparent (, n)]) / 8;
+                }          
+              else if (n == 5)
+                {
+                  if (i == 4)
+                    u_star_loc[n] +=
+                      (2 * hx) * (std::get<0>(du)[quadrant->gparent (, n)] -
+                                  std::get<0>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 7)
+                    u_star_loc[n] +=
+                      (2 * hy) * (std::get<1>(du)[quadrant->gparent (, n)] -
+                                  std::get<1>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 1)
+                    u_star_loc[n] +=
+                      (2 * hz) * (std::get<2>(du)[quadrant->gparent (, n)] -
+                                  std::get<2>(du)[quadrant->gparent (, n)]) / 8;
+                }  
+              else if (n == 6)
+                {
+                  if (i == 7)
+                    u_star_loc[n] +=
+                      (2 * hx) * (std::get<0>(du)[quadrant->gparent (, n)] -
+                                  std::get<0>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 4)
+                    u_star_loc[n] +=
+                      (2 * hy) * (std::get<1>(du)[quadrant->gparent (, n)] -
+                                  std::get<1>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 2)
+                    u_star_loc[n] +=
+                      (2 * hz) * (std::get<2>(du)[quadrant->gparent (, n)] -
+                                  std::get<2>(du)[quadrant->gparent (, n)]) / 8;
+                }    
+              else if (n == 7)
+                {
+                  if (i == 6)
+                    u_star_loc[n] +=
+                      (2 * hx) * (std::get<0>(du)[quadrant->gparent (, n)] -
+                                  std::get<0>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 5)
+                    u_star_loc[n] +=
+                      (2 * hy) * (std::get<1>(du)[quadrant->gparent (, n)] -
+                                  std::get<1>(du)[quadrant->gparent (, n)]) / 8;
+                  else if (i == 3)
+                    u_star_loc[n] +=
+                      (2 * hz) * (std::get<2>(du)[quadrant->gparent (, n)] -
+                                  std::get<2>(du)[quadrant->gparent (, n)]) / 8;
+                }   
+          	}  
+
+          u_star[quadrant->get_forest_quad_idx ()][n] = u_star_loc[n];  
+        }
+    }
+
+  return u_star;  
+}
+*/
 /* CCI: END ADDED */
 
 // 4-points Gauss quadature nodes and weights (in [0, 1]).
