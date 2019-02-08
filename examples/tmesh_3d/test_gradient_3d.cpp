@@ -4,22 +4,27 @@
 #include <array>
 #include <cassert>
 #include <cstdio>
+#include <string>
+#include <fstream>
 
-#include "simple_connectivity_3d.h"
+#include "simple_connectivity_3d.h"   // one tree
 
 #include "quad_operators_3d.h"
 
 static const int nref =  1;
 static char filename[255] = "\0";
 
+// uniform_refinement:
+//
+// returns 1 ----> all quadrants are refined
 static int
 uniform_refinement (tmesh_3d::quadrant_iterator quadrant)
 { return 1; }
 
 // my_refinement:
 //
-// returns 1 if the global index of node 0 is equal to 0 (i.e. it refines only
-// the first quadrant) 
+// returns 1 if the global index of node 0 is equal to 0 ----> only the first 
+// quadrant is refined
 static int
 my_refinement (tmesh_3d::quadrant_iterator quadrant)
 {
@@ -29,16 +34,25 @@ my_refinement (tmesh_3d::quadrant_iterator quadrant)
   return is_zero;
 }
 
-// function u
+// my_u:
+//
+// implements the function u
 static double
 my_u (double x, double y, double z)
 {
-  return (5*x + 4*y + 2*z);
+  return (5*x + 4*y);
 }
 
+// print_mesh_info:
+//
+// it prints the number of nodes and quadrants of the mesh; it scans all the 
+// quadrants and prints all the information about the nodes (: local index,
+// global index, coordinates)
 static void
-print_mesh_info (tmesh_3d& tmsh)
+print_mesh_info (tmesh_3d& tmsh, const std::string& str)
 {
+  std::cout << "**************** mesh info " << str << " ****************" 
+            << std::endl;
   std::cout << "num owned nodes " << tmsh.num_owned_nodes() << std::endl;
   std::cout << "num local nodes " << tmsh.num_local_nodes() << std::endl;
   std::cout << "num global nodes " << tmsh.num_global_nodes() << std::endl;
@@ -69,6 +83,36 @@ print_mesh_info (tmesh_3d& tmsh)
     }
 }
 
+// print:
+//
+// prints on std::cout an object of type TT (a vector or an array of doubles) 
+template <typename TT>
+void print (const TT& vec, const std::string& str)
+{
+  std::cout << "\n***** " << str << ": " << std::endl;
+  for (double d : vec)
+    std::cout << d << " ";
+  std::cout << std::endl << std::endl;
+}
+
+// print:
+//
+// prints on std::ofstream an object of type TT (a vector or an array of 
+// doubles) in csv format
+template <typename TT>
+void print (const TT& vec, const std::string& str,
+            std::ofstream& ofs)
+{
+  ofs << str;
+  for (double d : vec)
+    ofs << "," << d;
+  ofs << std::endl;
+}
+
+
+
+
+/*********************************** MAIN ***********************************/
 int
 main (int argc, char **argv)
 {
@@ -84,16 +128,21 @@ main (int argc, char **argv)
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
 
+  // set to true if you want the information about the mesh to be printed 
+  // after any refinement
   bool print_mesh = false;
-  
-  MPI_Barrier (MPI_COMM_WORLD);
+
+
+  /************************ initialization of the mesh ***********************/
+
+  MPI_Barrier (mpicomm);
   if (rank == 0) { tic (); }
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
   if (rank == 0) { toc ("read connectivity"); }
-  MPI_Barrier (MPI_COMM_WORLD);
+  MPI_Barrier (mpicomm);
 
-  // definition of u
+  // definition of u (initial mesh)
   q1_vec u_vec(tmsh.num_global_nodes());
   for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
@@ -112,22 +161,19 @@ main (int argc, char **argv)
         }  
     }
 
-  // print u
-  MPI_Barrier (MPI_COMM_WORLD);
+  // print u (initial mesh)
+  MPI_Barrier (mpicomm);
   if (rank == 0)
-    {
-      std::cout << "\n***** u: " << std::endl;
-      for (double d : u_vec)
-        std::cout << d << " ";
-      std::cout << std::endl;
-      std::cout << std::endl;  
-    }
+    print(u_vec,"u");   
 
-  // first mesh uniform refinement
-  for (auto i = 0; i < 1; ++i)
+
+
+  /*********************** first mesh uniform refinement *********************/
+ 
+  for (auto i = 0; i < nref; ++i)
     {
 
-      MPI_Barrier (MPI_COMM_WORLD);
+      MPI_Barrier (mpicomm);
       if (rank == 0) { tic (); }
 
       tmsh.set_refine_marker (uniform_refinement);
@@ -135,25 +181,21 @@ main (int argc, char **argv)
       tmsh.refine (recursive, partforcoarsen);
 
       if (rank == 0) { toc ("uniform refinement"); }
-      MPI_Barrier (MPI_COMM_WORLD);
+      MPI_Barrier (mpicomm);
 
       sprintf (filename, "test_grad_3d_initial_mesh_%5.5d", i);
       tmsh.vtk_export (filename);
     }
 
-  // mesh info
+  // mesh info (intermediate mesh - uniform refinement)
   if (print_mesh)
 	{  
-	  MPI_Barrier (MPI_COMM_WORLD);
+	  MPI_Barrier (mpicomm);
 	  if (rank == 0)
-	  	{
-	  	  std::cout << "**************** mesh info ****************" 
-	  	  			<< std::endl;
-	      print_mesh_info(tmsh); 
-		} 
+	  	print_mesh_info(tmsh,"after uniform refinement");  
 	}	  
 
-  // update of u
+  // update of u (intermediate mesh - uniform refinement)
   u_vec.resize(tmsh.num_global_nodes());
   for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
@@ -172,98 +214,71 @@ main (int argc, char **argv)
         }  
     }
 
-  // print u
-  MPI_Barrier (MPI_COMM_WORLD);  
+  // print u (intermediate mesh - uniform refinement)
+  MPI_Barrier (mpicomm);  
   if (rank == 0)
-    {
-      std::cout << "\n\n***** u: " << std::endl;
-      for (double d : u_vec)
-        std::cout << d << " ";
-      std::cout << std::endl;
-    }    
+    print(u_vec,"u");
 
-  // computation of the gradient with the intermediate mesh
+  // computation of the gradient (intermediate mesh - uniform refinement)
   gradient3 grad_vec_2 = bim2c_quadtree_pde_recovered_gradient(tmsh,u_vec);
   q1_vec dudx_2 = std::get<0>(grad_vec_2);
   q1_vec dudy_2 = std::get<1>(grad_vec_2);  
   q1_vec dudz_2 = std::get<2>(grad_vec_2);
   
-  // print the gradient
-  MPI_Barrier (MPI_COMM_WORLD);
+  // print the gradient (intermediate mesh - uniform refinement)
+  MPI_Barrier (mpicomm);
   if (rank == 0)
   {
-    std::cout << "\n\n***** dudx_2: " << std::endl;
-    for (double d : dudx_2)
-      std::cout << d << " ";
-    std::cout << std::endl;
-    std::cout << "\n\n***** dudy_2: " << std::endl;
-    for (double d : dudy_2)
-      std::cout << d << " ";
-    std::cout << std::endl;
-    std::cout << "\n\n***** dudz_2: " << std::endl;
-    for (double d : dudz_2)
-      std::cout << d << " ";
-    std::cout << std::endl;
+    print(dudx_2,"dudx_2");
+    print(dudy_2,"dudy_2");
+    print(dudz_2,"dudz_2");
   }
 
-  // estimator gradient
-  std::vector<double> est_grad_2;
+  // estimator gradient (intermediate mesh - uniform refinement)
+  q1_vec est_grad_2;
   for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
             ++q)
   	est_grad_2.push_back(estimator_grad(q, grad_vec_2, u_vec));
 
-  // print estimator gradient  
-  MPI_Barrier (MPI_COMM_WORLD);
+  // print estimator gradient (intermediate mesh - uniform refinement)
+  MPI_Barrier (mpicomm);
   if (rank == 0)
-    {
-      std::cout << "\n***** estimator grad_2:" << std::endl;
-      for (double d : est_grad_2)
-        std::cout << d << " ";
-      std::cout << std::endl;
-      std::cout << std::endl;
-    }       
+    print(est_grad_2,"estimator grad _2");
 
-  // recovered solution
+  // recovered solution (intermediate mesh - uniform refinement)
   q2_vec3 u_rec_2 = bim2c_quadtree_pde_recovered_solution (tmsh,u_vec,
   														   grad_vec_2);  
 
-  // print recovered solution
-  MPI_Barrier (MPI_COMM_WORLD);
+  // print recovered solution (intermediate mesh - uniform refinement)
+  MPI_Barrier (mpicomm);
   if (rank == 0)
   	{
   	  std::cout << "\n***** recovered solution _2:" << std::endl;
   	  for (const auto& arr : u_rec_2)
-  	  	{
-  	  	  std::cout << "arr - ";	
-  	  	  for (double d : arr)
-  	  	  	std::cout << d << " ";
-  	  	  std::cout << std::endl;		
-  	  	}	
+  	  	print(arr,"");	
   	}
 
-  // estimator solution
-  std::vector<double> est_sol_2;
+  // estimator solution (intermediate mesh - uniform refinement)
+  q1_vec est_sol_2;
   for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
             ++q)
   	est_sol_2.push_back(estimator_sol(q, u_rec_2, u_vec));
 
-  // print estimator solution  
-  MPI_Barrier (MPI_COMM_WORLD);
+  // print estimator solution (intermediate mesh - uniform refinement)  
+  MPI_Barrier (mpicomm);
   if (rank == 0)
-    {
-      std::cout << "\n***** estimator sol_2:" << std::endl;
-      for (double d : est_sol_2)
-        std::cout << d << " ";
-      std::cout << std::endl;
-      std::cout << std::endl;
-    }
+    print(est_sol_2,"estimator sol _2");
 
-  // second mesh refinement
+
+
+
+  /************************** second mesh refinement *************************/
+
   for (auto i = 0; i < nref; ++i)
     {
-      MPI_Barrier (MPI_COMM_WORLD);
+      MPI_Barrier (mpicomm);
       if (rank == 0) { tic (); }
 
       tmsh.set_refine_marker (my_refinement);
@@ -271,24 +286,19 @@ main (int argc, char **argv)
       tmsh.refine (recursive, partforcoarsen);
 
       if (rank == 0) { toc ("my refinement"); }
-      MPI_Barrier (MPI_COMM_WORLD);
+      MPI_Barrier (mpicomm);
 
       sprintf (filename, "test_grad_3d_%5.5d", i);
       tmsh.vtk_export (filename);
     } 
 
-  // mesh info
+  // mesh info (final mesh - my_refinement)
   if (print_mesh)
-	{
-	  MPI_Barrier (MPI_COMM_WORLD);
-	  if (rank == 0)
-	    {
-	      std::cout 
-	        << "**************** mesh info after my refinement ****************" 
-	        << std::endl;
-		  print_mesh_info(tmsh);
-	  	}
-  	} 
+	 {
+  	  MPI_Barrier (mpicomm);
+  	  if (rank == 0)
+  	    print_mesh_info(tmsh,"after my_refinement");
+    } 
 
 /*
 *
@@ -299,7 +309,7 @@ main (int argc, char **argv)
 *
 */
 
-  // update of u
+  // update of u (final mesh - my_refinement)
   u_vec.resize(tmsh.num_global_nodes());
   for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
@@ -325,96 +335,65 @@ main (int argc, char **argv)
            5, 7, 6, 8, 4, 6.5, 5, 7.5, 9, 10, 2, 4.5, 4, 6.5, 7, 9, 6, 8.5, 11};  
 */
 
-  // print u
-  MPI_Barrier (MPI_COMM_WORLD);
+  // print u (final mesh - my_refinement)
+  MPI_Barrier (mpicomm);
   if (rank == 0)
-    {
-      std::cout << "\n\n***** u: " << std::endl;
-      for (double d : u_vec)
-        std::cout << d << " ";
-      std::cout << std::endl;
-    }      
+    print(u_vec,"u");      
 
-  // computation of the gradient with the final mesh
+  // computation of the gradient (final mesh - my_refinement)
   gradient3 grad_vec_3 = bim2c_quadtree_pde_recovered_gradient(tmsh,u_vec);
   q1_vec dudx_3 = std::get<0>(grad_vec_3);
   q1_vec dudy_3 = std::get<1>(grad_vec_3);  
   q1_vec dudz_3 = std::get<2>(grad_vec_3);
   
-  // print the gradient
-  MPI_Barrier (MPI_COMM_WORLD);
+  // print the gradient (final mesh - my_refinement)
+  MPI_Barrier (mpicomm);
   if (rank == 0)
   {
-    std::cout << "\n\n***** dudx_3: " << std::endl;
-    for (double d : dudx_3)
-      std::cout << d << " ";
-    std::cout << std::endl;
-    std::cout << "\n\n***** dudy_3: " << std::endl;
-    for (double d : dudy_3)
-      std::cout << d << " ";
-    std::cout << std::endl;
-    std::cout << "\n\n***** dudz_3: " << std::endl;
-    for (double d : dudz_3)
-      std::cout << d << " ";
-    std::cout << std::endl;
+    print(dudx_3,"dudx_3");
+    print(dudy_3,"dudy_3");
+    print(dudz_3,"dudz_3");
   }
 
-  // estimator gradient
-  std::vector<double> est_grad_3;
+  // estimator gradient (final mesh - my_refinement)
+  q1_vec est_grad_3;
   for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
             ++q)
       est_grad_3.push_back(estimator_grad(q, grad_vec_3, u_vec));
 
-  // print estimator gradient  
-  MPI_Barrier (MPI_COMM_WORLD);
+  // print estimator gradient (final mesh - my_refinement)
+  MPI_Barrier (mpicomm);
   if (rank == 0)
-    {
-      std::cout << "***** estimator grad_3:" << std::endl;
-      for (double d : est_grad_3)
-        std::cout << d << " ";
-      std::cout << std::endl;
-      std::cout << std::endl;  
-    }  
+    print(est_grad_3,"estimator grad _3");  
 
-  // recovered solution
+  // recovered solution (final mesh - my_refinement)
   q2_vec3 u_rec_3 = bim2c_quadtree_pde_recovered_solution (tmsh,u_vec,
   														   grad_vec_3);  
 
-  // print recovered solution
-  MPI_Barrier (MPI_COMM_WORLD);
+  // print recovered solution (final mesh - my_refinement)
+  MPI_Barrier (mpicomm);
   if (rank == 0)
   	{
   	  std::cout << "\n***** recovered solution _3:" << std::endl;
   	  for (const auto& arr : u_rec_3)
-  	  	{
-  	  	  std::cout << "arr - ";	
-  	  	  for (double d : arr)
-  	  	  	std::cout << d << " ";
-  	  	  std::cout << std::endl;		
-  	  	}	
+  	  	print(arr,"");	
   	}
 
-  // estimator solution
-  std::vector<double> est_sol_3;
+  // estimator solution (final mesh - my_refinement)
+  q1_vec est_sol_3;
   for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
             ++q)
   	est_sol_3.push_back(estimator_sol(q, u_rec_3, u_vec));
 
-  // print estimator solution  
-  MPI_Barrier (MPI_COMM_WORLD);
+  // print estimator solution (final mesh - my_refinement) 
+  MPI_Barrier (mpicomm);
   if (rank == 0)
-    {
-      std::cout << "\n***** estimator sol_3:" << std::endl;
-      for (double d : est_sol_3)
-        std::cout << d << " ";
-      std::cout << std::endl;
-      std::cout << std::endl;
-    }
+    print(est_sol_3,"estimator sol _3");
 
   if (rank == 0) {print_timing_report();}
-  MPI_Barrier (MPI_COMM_WORLD);
+  MPI_Barrier (mpicomm);
   
   MPI_Finalize ();
   return 0;
