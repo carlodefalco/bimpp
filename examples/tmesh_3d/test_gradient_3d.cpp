@@ -40,7 +40,7 @@ my_refinement (tmesh_3d::quadrant_iterator quadrant)
 static double
 my_u (double x, double y, double z)
 {
-  return (5*x + 4*y);
+  return (5*x + 4*y + 2*z);
 }
 
 // print_mesh_info:
@@ -399,4 +399,3 @@ main (int argc, char **argv)
   return 0;
 
 }
-

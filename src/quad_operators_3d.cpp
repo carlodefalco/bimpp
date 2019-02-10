@@ -1687,10 +1687,10 @@ q1 (double X, double Y, double Z, const double *x,
   double Zz1 = (Z - z[1]);
   double Zz0 = (Z - z[0]);
 
-  double num = u[0] * Xx1  * Yy1 * -Zz1 + 
-               u[1] * -Xx0 * Yy1 * -Zz1 +
-               u[2] * -Xx1 * Yy0 * -Zz1 + 
-               u[3] * Xx0  * Yy0 * -Zz1 +
+  double num = u[0] * -Xx1  * Yy1 * Zz1 + 
+               u[1] * Xx0 * Yy1 * Zz1 +
+               u[2] * Xx1 * Yy0 * Zz1 + 
+               u[3] * -Xx0  * Yy0 * Zz1 +
                u[4] * Xx1  * Yy1 * Zz0 + 
                u[5] * -Xx0 * Yy1 * Zz0 +
                u[6] * -Xx1 * Yy0 * Zz0 +
@@ -1722,45 +1722,45 @@ q2 (double X, double Y, double Z, const double *x,
 
   double hxhyhz2 = std::pow ((x[1] - x[0]) * (y[1] - y[0]) * (z[1] - z[0]), 2);
 
-  double num = (u[0] * 4  * Xxc * Xx1 * Yyc * Yy1 * Zzc * Zz1 +
-                u[1] * 4  * Xx0 * Xxc * Yyc * Yy1 * Zzc * Zz1 +
-                u[2] * 4  * Xxc * Xx1 * Yy0 * Yyc * Zzc * Zz1 +
-                u[3] * 4  * Xx0 * Xxc * Yy0 * Yyc * Zzc * Zz1 +
+  double num = (u[0] * 8  * Xxc * Xx1 * Yyc * Yy1 * Zzc * Zz1 +
+                u[1] * 8  * Xx0 * Xxc * Yyc * Yy1 * Zzc * Zz1 +
+                u[2] * 8  * Xxc * Xx1 * Yy0 * Yyc * Zzc * Zz1 +
+                u[3] * 8  * Xx0 * Xxc * Yy0 * Yyc * Zzc * Zz1 +
 
-                u[4] * 4  * Xxc * Xx1 * Yyc * Yy1 * Zz0 * Zzc +
-                u[5] * 4  * Xx0 * Xxc * Yyc * Yy1 * Zz0 * Zzc +
-                u[6] * 4  * Xxc * Xx1 * Yy0 * Yyc * Zz0 * Zzc +
-                u[7] * 4  * Xx0 * Xxc * Yy0 * Yyc * Zz0 * Zzc +
+                u[4] * 8  * Xxc * Xx1 * Yyc * Yy1 * Zz0 * Zzc +
+                u[5] * 8  * Xx0 * Xxc * Yyc * Yy1 * Zz0 * Zzc +
+                u[6] * 8  * Xxc * Xx1 * Yy0 * Yyc * Zz0 * Zzc +
+                u[7] * 8  * Xx0 * Xxc * Yy0 * Yyc * Zz0 * Zzc +
 
-                u[8] * -8  * Xxc * Xx1 * Yy0 * Yyc * Zz0 * Zz1 +
-                u[9] * -8  * Xxc * Xx1 * Yyc * Yy1 * Zz0 * Zz1 +
-                u[10] * -8  * Xxc * Xx1 * Yy0 * Yy1 * Zzc * Zz1 +
-                u[11] * -8  * Xxc * Xx1 * Yy0 * Yy1 * Zz0 * Zzc +
+                u[8] * -16  * Xxc * Xx1 * Yy0 * Yyc * Zz0 * Zz1 +
+                u[9] * -16  * Xxc * Xx1 * Yyc * Yy1 * Zz0 * Zz1 +
+                u[10] * -16  * Xxc * Xx1 * Yy0 * Yy1 * Zzc * Zz1 +
+                u[11] * -16  * Xxc * Xx1 * Yy0 * Yy1 * Zz0 * Zzc +
 
-                u[12] * -8  * Xx0 * Xxc * Yyc * Yy1 * Zz0 * Zz1 +
-                u[13] * -8  * Xx0 * Xxc * Yy0 * Yyc * Zz0 * Zz1 +
-                u[14] * -8  * Xx0 * Xxc * Yy0 * Yy1 * Zzc * Zz1 +
-                u[15] * -8  * Xx0 * Xxc * Yy0 * Yy1 * Zz0 * Zzc +
+                u[12] * -16  * Xx0 * Xxc * Yyc * Yy1 * Zz0 * Zz1 +
+                u[13] * -16  * Xx0 * Xxc * Yy0 * Yyc * Zz0 * Zz1 +
+                u[14] * -16  * Xx0 * Xxc * Yy0 * Yy1 * Zzc * Zz1 +
+                u[15] * -16  * Xx0 * Xxc * Yy0 * Yy1 * Zz0 * Zzc +
 
-                u[16] * -8  * Xx0 * Xx1 * Yyc * Yy1 * Zzc * Zz1 +
-                u[17] * -8  * Xx0 * Xx1 * Yyc * Yy1 * Zz0 * Zzc +
+                u[16] * -16  * Xx0 * Xx1 * Yyc * Yy1 * Zzc * Zz1 +
+                u[17] * -16  * Xx0 * Xx1 * Yyc * Yy1 * Zz0 * Zzc +
 
-                u[18] * -8  * Xx0 * Xx1 * Yy0 * Yyc * Zzc * Zz1 +
-                u[19] * -8  * Xx0 * Xx1 * Yy0 * Yyc * Zz0 * Zzc +
+                u[18] * -16  * Xx0 * Xx1 * Yy0 * Yyc * Zzc * Zz1 +
+                u[19] * -16  * Xx0 * Xx1 * Yy0 * Yyc * Zz0 * Zzc +
 
-                u[20] * -16  * Xxc * Xx1 * Yy0 * Yy1 * Zz0 * Zz1 +
+                u[20] * 32  * Xxc * Xx1 * Yy0 * Yy1 * Zz0 * Zz1 +
 
-                u[21] * -16  * Xx0 * Xxc * Yy0 * Yy1 * Zz0 * Zz1 +
+                u[21] * 32  * Xx0 * Xxc * Yy0 * Yy1 * Zz0 * Zz1 +
 
-                u[22] * -16  * Xx0 * Xx1 * Yyc * Yy1 * Zz0 * Zz1 +
+                u[22] * 32  * Xx0 * Xx1 * Yyc * Yy1 * Zz0 * Zz1 +
 
-                u[23] * -16  * Xx0 * Xx1 * Yy0 * Yyc * Zz0 * Zz1 +
+                u[23] * 32  * Xx0 * Xx1 * Yy0 * Yyc * Zz0 * Zz1 +
 
-                u[24] * -16  * Xx0 * Xx1 * Yy0 * Yy1 * Zzc * Zz1 +
+                u[24] * 32  * Xx0 * Xx1 * Yy0 * Yy1 * Zzc * Zz1 +
 
-                u[25] * -16  * Xx0 * Xx1 * Yy0 * Yy1 * Zz0 * Zzc +
+                u[25] * 32  * Xx0 * Xx1 * Yy0 * Yy1 * Zz0 * Zzc +
 
-                u[26] * 32 * Xx0 * Xx1 * Yy0 * Yy1 * Zz0 * Zz1);
+                u[26] * -64 * Xx0 * Xx1 * Yy0 * Yy1 * Zz0 * Zz1);
 
   return num / hxhyhz2;
 }
