@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cstdio>
 #include <string>
-#include <fstream>
 
 #include "simple_connectivity_3d.h"   // one tree
 
@@ -72,7 +71,7 @@ print_mesh_info (tmesh_3d& tmsh, const std::string& str)
           double y = q->p(1,nn);
           double z = q->p(2,nn);
           unsigned gidx = q->gt(nn);
-          std:: cout << "\tnode: " << nn 
+          std::cout << "\tnode: " << nn 
           			 << " x: " << x
           			 << " y: " << y
           			 << " z: " << z
@@ -95,20 +94,14 @@ void print (const TT& vec, const std::string& str)
   std::cout << std::endl << std::endl;
 }
 
-// print:
-//
-// prints on std::ofstream an object of type TT (a vector or an array of 
-// doubles) in csv format
-template <typename TT>
-void print (const TT& vec, const std::string& str,
-            std::ofstream& ofs)
+// MPI_User_function.
+static void replace(double *invec, double *inoutvec,
+                    int *len, MPI_Datatype *dtype)
 {
-  ofs << str;
-  for (double d : vec)
-    ofs << "," << d;
-  ofs << std::endl;
+  for (int i = 0; i < *len; ++i)
+    if (/*invec[i] != 0 && inoutvec[i] == 0*/ i < 15)
+      inoutvec[i] = invec[i];
 }
-
 
 
 
@@ -300,15 +293,6 @@ main (int argc, char **argv)
   	    print_mesh_info(tmsh,"after my_refinement");
     } 
 
-/*
-*
-    NOTE:
-    The update of u in lines below is not working in the parallel case.
-    To test the parallel case, insert manually the updated value of u computed 
-    in the serial case (it follows an example for u(x,y,z)=5x+4y+2z)
-*
-*/
-
   // update of u (final mesh - my_refinement)
   u_vec.resize(tmsh.num_global_nodes());
   for (auto q = tmsh.begin_quadrant_sweep();
@@ -328,12 +312,13 @@ main (int argc, char **argv)
         }  
     } 
 
-/*    
-  // u(x,y,z) = 5x + 4y + 2z
-  u_vec.resize(tmsh.num_global_nodes());
-  u_vec = {0, 1.25, 1, 2.25, 0.5, 1.75, 1.5, 2.75, 2.5, 2, 4.5, 1, 3.5, 3, 5.5,
-           5, 7, 6, 8, 4, 6.5, 5, 7.5, 9, 10, 2, 4.5, 4, 6.5, 7, 9, 6, 8.5, 11};  
-*/
+  // Send u data to all processes so that non-assigned values
+  // on current rank get assigned by other ranks.
+  MPI_Op op;
+  MPI_Op_create ((MPI_User_function *) replace, 1, &op);
+
+  MPI_Allreduce (MPI_IN_PLACE, u_vec.data (), u_vec.size (), MPI_DOUBLE,
+                 op, mpicomm);  
 
   // print u (final mesh - my_refinement)
   MPI_Barrier (mpicomm);
