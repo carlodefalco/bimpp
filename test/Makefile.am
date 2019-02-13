@@ -271,7 +271,7 @@ if HAVE_P4EST
   p4est_hanging_test_3d_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
   CLEANFILES += p4est_hanging_test_3d.octbin.gz p4est_hanging_test_3d.pvtu \
                 p4est_hanging_test_3d.visit p4est_hanging_test_3d_*.vtu
-  
+
   p4est_operator_test_3d_SOURCES =  p4est_operator_test_3d.cpp
   p4est_operator_test_3d_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
   p4est_operator_test_3d_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
@@ -280,6 +280,11 @@ if HAVE_P4EST
                 p4est_operator_test_3d.visit p4est_operator_test_3d_*.vtu
 
 endif
+
+TEST_EXTENSIONS = .m .sh
+M_LOG_COMPILER = octave
+SH_LOG_COMPILER = bash
+AM_M_LOG_FLAGS = -q --no-gui --path $(top_srcdir)/script/m:$(top_srcdir)/data
 
 TESTS =
 
