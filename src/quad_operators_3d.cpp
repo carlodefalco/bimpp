@@ -1310,7 +1310,7 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
 {
   q2_vec3 u_star (mesh.num_local_quadrants (),
                  std::array<double, 27> ({0,0,0,0,0,0,0,0,0,
-                 						              0,0,0,0,0,0,0,0,0,
+                 						  0,0,0,0,0,0,0,0,0,
                                           0,0,0,0,0,0,0,0,0}));
 
   double hx = 0, hy = 0, hz = 0;
@@ -1422,11 +1422,11 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
 
       u_star[quadrant->get_forest_quad_idx ()][10] =
         0.5 * (u_star_loc[2] + u_star_loc[0])
-        + hy * (du_y_star_loc[2] - du_y_star_loc[0]) / 8;
+        + hy * (du_y_star_loc[0] - du_y_star_loc[2]) / 8;
 
       u_star[quadrant->get_forest_quad_idx ()][11] =
         0.5 * (u_star_loc[6] + u_star_loc[4])
-        + hy * (du_y_star_loc[6] - du_y_star_loc[4]) / 8;
+        + hy * (du_y_star_loc[4] - du_y_star_loc[6]) / 8;
 
       // face 1  
       u_star[quadrant->get_forest_quad_idx ()][12] =
@@ -1457,11 +1457,11 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
       // face 3
       u_star[quadrant->get_forest_quad_idx ()][18] =
         0.5 * (u_star_loc[3] + u_star_loc[2])
-        + hx * (du_x_star_loc[3] - du_x_star_loc[2]) / 8;
+        + hx * (du_x_star_loc[2] - du_x_star_loc[3]) / 8;
 
       u_star[quadrant->get_forest_quad_idx ()][19] =
         0.5 * (u_star_loc[7] + u_star_loc[6])
-        + hx * (du_x_star_loc[7] - du_x_star_loc[6]) / 8;   
+        + hx * (du_x_star_loc[6] - du_x_star_loc[7]) / 8;   
 
 
       // Compute values at faces midpoints.
@@ -1474,8 +1474,8 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
                 u_star[quadrant->get_forest_quad_idx ()][11])
         + hz * 0.5 * (du_z_star_loc[2] + du_z_star_loc[0] -
                       du_z_star_loc[6] - du_z_star_loc[4]) / 16
-        + hy * 0.5 * (du_y_star_loc[2] + du_y_star_loc[6] -
-                      du_y_star_loc[0] - du_y_star_loc[4]) / 16;
+        + hy * 0.5 * (du_y_star_loc[0] + du_y_star_loc[4] -
+                      du_y_star_loc[2] - du_y_star_loc[6]) / 16;
 
       // face 1  
       u_star[quadrant->get_forest_quad_idx ()][21] =
@@ -1505,8 +1505,8 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
                 u_star[quadrant->get_forest_quad_idx ()][13] +
                 u_star[quadrant->get_forest_quad_idx ()][18] +
                 u_star[quadrant->get_forest_quad_idx ()][19])
-        + hx * 0.5 * (du_x_star_loc[3] + du_x_star_loc[7] -
-                      du_x_star_loc[2] - du_x_star_loc[6]) / 16
+        + hx * 0.5 * (du_x_star_loc[2] + du_x_star_loc[6] -
+                      du_x_star_loc[3] - du_x_star_loc[7]) / 16
         + hz * 0.5 * (du_z_star_loc[3] + du_z_star_loc[2] -
                       du_z_star_loc[6] - du_z_star_loc[7]) / 16; 
       
@@ -1532,7 +1532,7 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
         + hy * 0.5 * (du_y_star_loc[4] + du_y_star_loc[5] -
                       du_y_star_loc[6] - du_y_star_loc[7]) / 16;  
 
-
+/*
       // Compute value at cell midpoint.  
       u_star[quadrant->get_forest_quad_idx ()][26] =
         0.25 * (u_star[quadrant->get_forest_quad_idx ()][20] +
@@ -1561,6 +1561,27 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
                        du_z_star_loc[4] - du_z_star_loc[5] -
                        du_z_star_loc[6] - du_z_star_loc[7]) / 16; 
       u_star[quadrant->get_forest_quad_idx ()][26] /= 2;                                                                                                                                
+*/
+
+	  u_star[quadrant->get_forest_quad_idx ()][26] =
+        		(u_star[quadrant->get_forest_quad_idx ()][20] +
+                u_star[quadrant->get_forest_quad_idx ()][21] +
+                u_star[quadrant->get_forest_quad_idx ()][22] +
+                u_star[quadrant->get_forest_quad_idx ()][23] +
+                u_star[quadrant->get_forest_quad_idx ()][24] +
+                u_star[quadrant->get_forest_quad_idx ()][25]) / 6
+        + hx * 0.25 * (du_x_star_loc[0] + du_x_star_loc[2] +
+                       du_x_star_loc[4] + du_x_star_loc[6] -
+                       du_x_star_loc[1] - du_x_star_loc[3] -
+                       du_x_star_loc[5] - du_x_star_loc[7]) / 24  
+		+ hy * 0.25 * (du_y_star_loc[0] + du_y_star_loc[1] +
+                       du_y_star_loc[4] + du_y_star_loc[5] -
+                       du_y_star_loc[2] - du_y_star_loc[3] -
+                       du_y_star_loc[6] - du_y_star_loc[7]) / 24 
+		+ hz * 0.25 * (du_z_star_loc[0] + du_z_star_loc[1] +
+                       du_z_star_loc[2] + du_z_star_loc[3] -
+                       du_z_star_loc[4] - du_z_star_loc[5] -
+                       du_z_star_loc[6] - du_z_star_loc[7]) / 24;    
     }
 
   return u_star;  
