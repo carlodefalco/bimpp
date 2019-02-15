@@ -1,6 +1,7 @@
 #ifndef HAVE_QUAD_OPERATORS_3D_H
 #define HAVE_QUAD_OPERATORS_3D_H 1
 
+#include "bim_distributed_vector.h"
 #include "bim_sparse.h"
 #include "operators.h"
 #include "tmesh_3d.h"
@@ -13,15 +14,18 @@
 using func3 = std::function<double (double, double, double)>;
 
 /// f(quadrant, node index).
-using func3_quad = std::function<double (tmesh_3d::quadrant_iterator, tmesh_3d::idx_t)>;
+using func3_quad = std::function<double (tmesh_3d::quadrant_iterator, 
+                                          tmesh_3d::idx_t)>;
 
 /// Tree index, boundary index, function.
 using dirichlet_bcs3 = std::vector<std::tuple<int, int, func3>>;
 using dirichlet_bcs3_quad = std::vector<std::tuple<int, int, func3_quad>>;
 
-using q1_vec = std::vector<double>;
+template <class T>
+using q1_vec = T;   // std::vector<double> or distributed_vector
 
-using gradient3 = std::tuple<q1_vec, q1_vec, q1_vec>;
+template <class T>
+using gradient3 = std::tuple<T, T, T>;
 
 /// Nodes, faces, cell midpoint dofs.
 using q2_vec3 = std::vector<std::array<double, 27>>;
@@ -76,47 +80,55 @@ void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
                     sparse_matrix& A, std::vector<double>& rhs);
 
-double
+template <class T>
+static double
 nedelec_gradient (tmesh_3d::quadrant_iterator & q,
-                  const q1_vec& u, size_t i);
+                  const T& u, size_t i);
 
-gradient3
+template <class T>
+gradient3<T>
 bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
-                                       const q1_vec& u,
+                                       const T& u,
                                        active_fun3 is_active =
                                         [] (tmesh_3d::quadrant_iterator)
                                          {return true;});
 
+template <class T>
 q2_vec3
 bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
-                                       const q1_vec& u,
-                                       const gradient3& du);
+                                       const T& u,
+                                       const gradient3<T>& du);
 
+template <class T>
 double
 estimator_grad (tmesh_3d::quadrant_iterator q,
-                const gradient3 & du_star,
-                const q1_vec & u);
+                const gradient3<T>& du_star,
+                const T& u);
 
+template <class T>
 int 
 zz_marker_grad (tmesh_3d::quadrant_iterator q,
-                const gradient3& du_star,
-                const q1_vec& u,
+                const gradient3<T>& du_star,
+                const T& u,
                 double limit);
 
+template <class T>
 double
 estimator_sol (tmesh_3d::quadrant_iterator q,
                const q2_vec3 & ustar,
-               const q1_vec & u);
+               const T & u);
 
+template <class T>
 int 
 zz_marker_sol (tmesh_3d::quadrant_iterator q,
                const q2_vec3& ustar,
-               const q1_vec& u,
+               const T& u,
                double limit);
 
+template <class T>
 double
 l2_error (tmesh_3d::quadrant_iterator q,
           const func3 & u_ex,
-          const q1_vec & u);
+          const T & u);
 
 #endif

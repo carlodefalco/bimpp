@@ -1,7 +1,6 @@
 #include "quad_operators_3d.h"
 
 #include <cmath>
-#include <functional>
 #include <numeric>
 #include <set>
 #include <limits>
@@ -532,9 +531,10 @@ std::array<std::array<int, 3>, 12> edge =
   {0,2,1, 1,3,1, 0,1,0, 2,3,0, 4,6,1, 5,7,1, 4,5,0, 7,6,0,
     0,4,2, 1,5,2, 2,6,2, 3,7,2};
 
-double
+template <class T>
+static double
 nedelec_gradient (tmesh_3d::quadrant_iterator & q,
-                  const q1_vec& u, size_t i)
+                  const T& u, size_t i)
 {
   std::array<double,8> u_aux;
 
@@ -558,10 +558,11 @@ nedelec_gradient (tmesh_3d::quadrant_iterator & q,
   return ((u_aux[edge[i][1]] - u_aux[edge[i][0]]) / h);     
 }
 
+template <class T>
 std::tuple<double, double, double, bool, bool, bool>
 bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
                               int node,
-                              const q1_vec& u,
+                              const T& u,
                               active_fun3 is_active)
 {
   double hx = quadrant->p (0, 1) - quadrant->p (0, 0);
@@ -1094,21 +1095,22 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
                           assigned_x, assigned_y, assigned_z);
 }
 
-gradient3
+// Specialization.
+template <>
+gradient3<std::vector<double>>
 bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
-                                       const q1_vec& u,
+                                       const std::vector<double>& u,
                                        active_fun3 is_active)
 {
-  q1_vec du_x_star (mesh.num_global_nodes (), 0);
-  q1_vec du_y_star (mesh.num_global_nodes (), 0);
-  q1_vec du_z_star (mesh.num_global_nodes (), 0);
+  std::vector<double> du_x_star (mesh.num_global_nodes (), 0);
+  std::vector<double> du_y_star (mesh.num_global_nodes (), 0);
+  std::vector<double> du_z_star (mesh.num_global_nodes (), 0);
 
   std::vector<bool> assigned_x (mesh.num_global_nodes (), 0);
   std::vector<bool> assigned_y (mesh.num_global_nodes (), 0);
   std::vector<bool> assigned_z (mesh.num_global_nodes (), 0);
 
-  std::tuple<double, double, double,
-         bool, bool, bool> du_star_loc; 
+  std::tuple<double, double, double, bool, bool, bool> du_star_loc; 
 
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
@@ -1161,9 +1163,84 @@ bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
   return std::make_tuple (du_x_star, du_y_star, du_z_star);    
 }
 
+// Specialization.
+template <>
+gradient3<distributed_vector>
+bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
+                                       const distributed_vector& u,
+                                       active_fun3 is_active)
+{
+  distributed_vector du_x_star (mesh.num_owned_nodes ());
+  distributed_vector du_y_star (mesh.num_owned_nodes ());
+  distributed_vector du_z_star (mesh.num_owned_nodes ());
+
+  distributed_vector assigned_x (mesh.num_owned_nodes ());
+  distributed_vector assigned_y (mesh.num_owned_nodes ());
+  distributed_vector assigned_z (mesh.num_owned_nodes ());
+
+  std::tuple<double, double, double, bool, bool, bool> du_star_loc; 
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      // Loop over non-hanging vertices of current quadrant.
+      for (int node = 0; node < 8; ++node)
+        {
+          if (assigned_x[quadrant->gt (node)] &&
+              assigned_y[quadrant->gt (node)] &&
+              assigned_z[quadrant->gt (node)])
+            continue;
+
+          // Assemble non-hanging nodes
+          if (! quadrant->is_hanging (node))
+	          {
+	          	// Assemble entries related to inactive quadrants
+	          	du_x_star [quadrant->gt (node)] = 0;
+		          du_y_star [quadrant->gt (node)] = 0;
+		          du_z_star [quadrant->gt (node)] = 0;
+
+			        // Skip inactive quadrants.
+		          if (! is_active(quadrant))
+		            continue;
+		          
+		          du_star_loc =
+		            bim2c_recovered_gradient_loc (quadrant, node,
+		                                          u, is_active);
+
+		          du_x_star [quadrant->gt (node)] = std::get<0> (du_star_loc);
+		          du_y_star [quadrant->gt (node)] = std::get<1> (du_star_loc);
+		          du_z_star [quadrant->gt (node)] = std::get<2> (du_star_loc);
+
+		          assigned_x[quadrant->gt (node)] = std::get<3> (du_star_loc);
+		          assigned_y[quadrant->gt (node)] = std::get<4> (du_star_loc);
+		          assigned_z[quadrant->gt (node)] = std::get<5> (du_star_loc);
+	        	}
+	        // Assemble parents	
+	       	else
+	       		{
+	       			int np = quadrant->num_parents(node);
+        			for (int pp = 0; pp < np; ++pp)
+        				{
+        					du_x_star [quadrant->gparent(pp,node)] += 0;
+        					du_y_star [quadrant->gparent(pp,node)] += 0;
+        					du_z_star [quadrant->gparent(pp,node)] += 0;
+        				}
+	       		}
+        }
+    }
+
+  du_x_star.assemble (replace_op);
+  du_y_star.assemble (replace_op);
+  du_z_star.assemble (replace_op);
+
+  return std::make_tuple (du_x_star, du_y_star, du_z_star);    
+}
+
+template <class T>
 void
 compute_solution_if_hanging (std::array<double, 8>& u_star_loc,
-                             const gradient3& du,
+                             const gradient3<T>& du,
                              tmesh_3d::quadrant_iterator & quadrant,
                              int n, int p, int i, bool secondcase)
 {
@@ -1303,28 +1380,29 @@ compute_solution_if_hanging (std::array<double, 8>& u_star_loc,
     }
 }
 
+template <class T>
 q2_vec3
 bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
-                                       const q1_vec& u,
-                                       const gradient3& du)
+                                       const T& u,
+                                       const gradient3<T>& du)
 {
   q2_vec3 u_star (mesh.num_local_quadrants (),
-                 std::array<double, 27> ({0,0,0,0,0,0,0,0,0,
-                 						  0,0,0,0,0,0,0,0,0,
+                  std::array<double, 27> ({0,0,0,0,0,0,0,0,0,
+                 	              				  0,0,0,0,0,0,0,0,0,
                                           0,0,0,0,0,0,0,0,0}));
 
-  double hx = 0, hy = 0, hz = 0;
+  double hx = 0.0, hy = 0.0, hz = 0.0;
 
   std::array<double, 8> u_star_loc,
-    					du_x_star_loc,
-    					du_y_star_loc,
-    					du_z_star_loc;
+    					         du_x_star_loc,
+    					         du_y_star_loc,
+    					         du_z_star_loc;
 
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
     {
-      hx = quadrant->p (0, 1) - quadrant->p (0, 0);
+			hx = quadrant->p (0, 1) - quadrant->p (0, 0);
       hy = quadrant->p (1, 2) - quadrant->p (1, 0);
       hz = quadrant->p (2, 4) - quadrant->p (2, 0);
 
@@ -1404,8 +1482,7 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
                   compute_solution_if_hanging(u_star_loc,du,quadrant,n,p,i,true);  
                 }  
           	} 
-
-          u_star[quadrant->get_forest_quad_idx ()][n] = u_star_loc[n];  
+          u_star[quadrant->get_forest_quad_idx ()][n] = u_star_loc[n]; 
         }
 
 
@@ -1519,8 +1596,8 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
         + hx * 0.5 * (du_x_star_loc[0] + du_x_star_loc[2] -
                       du_x_star_loc[1] - du_x_star_loc[3]) / 16
         + hy * 0.5 * (du_y_star_loc[0] + du_y_star_loc[1] -
-                      du_y_star_loc[2] - du_y_star_loc[3]) / 16;   
-      
+                      du_y_star_loc[2] - du_y_star_loc[3]) / 16;  
+          
       // face 5  
       u_star[quadrant->get_forest_quad_idx ()][25] =
         0.25 * (u_star[quadrant->get_forest_quad_idx ()][11] +
@@ -1532,56 +1609,26 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
         + hy * 0.5 * (du_y_star_loc[4] + du_y_star_loc[5] -
                       du_y_star_loc[6] - du_y_star_loc[7]) / 16;  
 
-/*
       // Compute value at cell midpoint.  
-      u_star[quadrant->get_forest_quad_idx ()][26] =
-        0.25 * (u_star[quadrant->get_forest_quad_idx ()][20] +
-                u_star[quadrant->get_forest_quad_idx ()][21] +
-                u_star[quadrant->get_forest_quad_idx ()][24] +
-                u_star[quadrant->get_forest_quad_idx ()][25])
-        + hx * 0.25 * (du_x_star_loc[0] + du_x_star_loc[2] +
-                       du_x_star_loc[4] + du_x_star_loc[6] -
-                       du_x_star_loc[1] - du_x_star_loc[3] -
-                       du_x_star_loc[5] - du_x_star_loc[7]) / 16
-        + hz * 0.25 * (du_z_star_loc[0] + du_z_star_loc[1] +
-                       du_z_star_loc[2] + du_z_star_loc[3] -
-                       du_z_star_loc[4] - du_z_star_loc[5] -
-                       du_z_star_loc[6] - du_z_star_loc[7]) / 16; 
-      u_star[quadrant->get_forest_quad_idx ()][26] += 
-        0.25 * (u_star[quadrant->get_forest_quad_idx ()][22] +
-                u_star[quadrant->get_forest_quad_idx ()][23] +
-                u_star[quadrant->get_forest_quad_idx ()][24] +
-                u_star[quadrant->get_forest_quad_idx ()][25])
-        + hy * 0.25 * (du_y_star_loc[0] + du_y_star_loc[1] +
-                       du_y_star_loc[4] + du_y_star_loc[5] -
-                       du_y_star_loc[2] - du_y_star_loc[3] -
-                       du_y_star_loc[6] - du_y_star_loc[7]) / 16
-        + hz * 0.25 * (du_z_star_loc[0] + du_z_star_loc[1] +
-                       du_z_star_loc[2] + du_z_star_loc[3] -
-                       du_z_star_loc[4] - du_z_star_loc[5] -
-                       du_z_star_loc[6] - du_z_star_loc[7]) / 16; 
-      u_star[quadrant->get_forest_quad_idx ()][26] /= 2;                                                                                                                                
-*/
-
-	  u_star[quadrant->get_forest_quad_idx ()][26] =
-        		(u_star[quadrant->get_forest_quad_idx ()][20] +
-                u_star[quadrant->get_forest_quad_idx ()][21] +
-                u_star[quadrant->get_forest_quad_idx ()][22] +
-                u_star[quadrant->get_forest_quad_idx ()][23] +
-                u_star[quadrant->get_forest_quad_idx ()][24] +
-                u_star[quadrant->get_forest_quad_idx ()][25]) / 6
-        + hx * 0.25 * (du_x_star_loc[0] + du_x_star_loc[2] +
-                       du_x_star_loc[4] + du_x_star_loc[6] -
-                       du_x_star_loc[1] - du_x_star_loc[3] -
-                       du_x_star_loc[5] - du_x_star_loc[7]) / 24  
-		+ hy * 0.25 * (du_y_star_loc[0] + du_y_star_loc[1] +
-                       du_y_star_loc[4] + du_y_star_loc[5] -
-                       du_y_star_loc[2] - du_y_star_loc[3] -
-                       du_y_star_loc[6] - du_y_star_loc[7]) / 24 
-		+ hz * 0.25 * (du_z_star_loc[0] + du_z_star_loc[1] +
-                       du_z_star_loc[2] + du_z_star_loc[3] -
-                       du_z_star_loc[4] - du_z_star_loc[5] -
-                       du_z_star_loc[6] - du_z_star_loc[7]) / 24;    
+		  u_star[quadrant->get_forest_quad_idx ()][26] =
+	        	(u_star[quadrant->get_forest_quad_idx ()][20] +
+	        	u_star[quadrant->get_forest_quad_idx ()][21] +
+	        	u_star[quadrant->get_forest_quad_idx ()][22] +
+	        	u_star[quadrant->get_forest_quad_idx ()][23] +
+	          u_star[quadrant->get_forest_quad_idx ()][24] +
+	          u_star[quadrant->get_forest_quad_idx ()][25]) / 6
+	        + hx * 0.25 * (du_x_star_loc[0] + du_x_star_loc[2] +
+	                     	du_x_star_loc[4] + du_x_star_loc[6] -
+	                     	du_x_star_loc[1] - du_x_star_loc[3] -
+	                     	du_x_star_loc[5] - du_x_star_loc[7]) / 24  
+					+ hy * 0.25 * (du_y_star_loc[0] + du_y_star_loc[1] +
+	                     	du_y_star_loc[4] + du_y_star_loc[5] -
+	                     	du_y_star_loc[2] - du_y_star_loc[3] -
+	                     	du_y_star_loc[6] - du_y_star_loc[7]) / 24 
+					+ hz * 0.25 * (du_z_star_loc[0] + du_z_star_loc[1] +
+	                     	du_z_star_loc[2] + du_z_star_loc[3] -
+	                     	du_z_star_loc[4] - du_z_star_loc[5] -
+	                     	du_z_star_loc[6] - du_z_star_loc[7]) / 24; 
     }
 
   return u_star;  
@@ -1796,10 +1843,11 @@ q2 (double X, double Y, double Z, const double *x,
 }
 
 // Compute ||grad^* u - grad u||_L^2(q).
+template <class T>
 double
 estimator_grad (tmesh_3d::quadrant_iterator q,
-                const gradient3 & du_star,
-                const q1_vec & u)
+                const gradient3<T>& du_star,
+                const T& u)
 {
   double
     x[2] = {q->p(0,0), q->p(0,1)},
@@ -1852,11 +1900,13 @@ estimator_grad (tmesh_3d::quadrant_iterator q,
   return std::sqrt (quad_integral (x, y, z, fun));  
 }
 
+
 // Compute ||u^* - u||_L^2(q).
+template <class T>
 double
 estimator_sol (tmesh_3d::quadrant_iterator q,
                const q2_vec3 & ustar,
-               const q1_vec & u)
+               const T & u)
 {
   double
     x[2] = {q->p(0,0), q->p (0,1)},
@@ -1896,4 +1946,66 @@ estimator_sol (tmesh_3d::quadrant_iterator q,
   return std::sqrt (quad_integral (x, y, z, fun));  
 }
 
+// Explicit instantiation of template functions
+template
+double
+nedelec_gradient (tmesh_3d::quadrant_iterator & ,
+                  const std::vector<double>& , size_t);
+
+template
+double
+nedelec_gradient (tmesh_3d::quadrant_iterator &,
+                  const distributed_vector &, size_t);
+
+/* ---- */
+template
+std::tuple<double, double, double, bool, bool, bool>
+bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator,
+                              int,
+                              const std::vector<double>&,
+                              active_fun3);
+
+template
+std::tuple<double, double, double, bool, bool, bool>
+bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator,
+                              int,
+                              const distributed_vector&,
+                              active_fun3);
+
+/* ---- */
+template
+q2_vec3
+bim2c_quadtree_pde_recovered_solution (tmesh_3d&,
+                                       const std::vector<double>&,
+                                       const gradient3<std::vector<double>>&);
+template
+q2_vec3
+bim2c_quadtree_pde_recovered_solution (tmesh_3d&,
+                                       const distributed_vector&,
+                                       const gradient3<distributed_vector>&);
+/* ---- */
+template
+double
+estimator_grad (tmesh_3d::quadrant_iterator,
+                const gradient3<std::vector<double>>&,
+                const std::vector<double>&);
+
+template
+double
+estimator_grad (tmesh_3d::quadrant_iterator,
+                const gradient3<distributed_vector>&,
+                const distributed_vector&);
+
+/* ---- */
+template
+double
+estimator_sol (tmesh_3d::quadrant_iterator,
+               const q2_vec3 &,
+               const std::vector<double>&);
+
+template
+double
+estimator_sol (tmesh_3d::quadrant_iterator,
+               const q2_vec3&,
+               const distributed_vector&);
 /* CCI: END ADDED */
