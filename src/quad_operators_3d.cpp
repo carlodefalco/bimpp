@@ -510,27 +510,26 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
 
 /// Edge ordering:
 ///
-///             ______7__________     
+///             ______11_________     
 ///            /|                /|
-///           4 |               5 |
+///           3 |               7 |
 ///          /  |              /  |
-///         /___|____6________/   |
-///        |    |             |   11
-///        |    10            |   |
-///        |    |             9   |
-///        8    |_______3_____|___|
+///         /___|____9________/   |
+///        |    |             |   5
+///        |    0            	|   |
+///        |    |             4   |
+///        1    |_______10____|___|
 ///        |   /              |   /
-///        |  0               |  1
+///        |  2               |  6
 ///        | /                | /
-///        |/_______2_________|/
+///        |/_______8_________|/
 ///
 ///
-
 
 static constexpr
-std::array<std::array<int, 3>, 12> edge =
-  {0,2,1, 1,3,1, 0,1,0, 2,3,0, 4,6,1, 5,7,1, 4,5,0, 6,7,0,
-  0,4,2, 1,5,2, 2,6,2, 3,7,2};
+std::array<std::array<int, 3>, 12> edge = {2,6,2, 0,4,2, 0,2,1, 4,6,1, 
+  																				 1,5,2, 3,7,2, 1,3,1, 5,7,1,
+  																				 0,1,0, 4,5,0, 2,3,0, 6,7,0};
 
 template <class T>
 static double
@@ -591,44 +590,44 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
   switch (node)
     {
     case 0:
-      du_x.push_back (nedelec_gradient (quadrant, u, 2));
-      du_y.push_back (nedelec_gradient (quadrant, u, 0));
-      du_z.push_back (nedelec_gradient (quadrant, u, 8));
+      du_x.push_back (nedelec_gradient (quadrant, u, 8));
+      du_y.push_back (nedelec_gradient (quadrant, u, 2));
+      du_z.push_back (nedelec_gradient (quadrant, u, 1));
       break;
     case 1:
-      du_x.push_back (nedelec_gradient (quadrant, u, 2));
-      du_y.push_back (nedelec_gradient (quadrant, u, 1));
-      du_z.push_back (nedelec_gradient (quadrant, u, 9));
+      du_x.push_back (nedelec_gradient (quadrant, u, 8));
+      du_y.push_back (nedelec_gradient (quadrant, u, 6));
+      du_z.push_back (nedelec_gradient (quadrant, u, 4));
       break;
     case 2:
-      du_x.push_back (nedelec_gradient (quadrant, u, 3));
-      du_y.push_back (nedelec_gradient (quadrant, u, 0));
-      du_z.push_back (nedelec_gradient (quadrant, u, 10));
+      du_x.push_back (nedelec_gradient (quadrant, u, 10));
+      du_y.push_back (nedelec_gradient (quadrant, u, 2));
+      du_z.push_back (nedelec_gradient (quadrant, u, 0));
       break;
     case 3:
-      du_x.push_back (nedelec_gradient (quadrant, u, 3));
-      du_y.push_back (nedelec_gradient (quadrant, u, 1));
-      du_z.push_back (nedelec_gradient (quadrant, u, 11));
+      du_x.push_back (nedelec_gradient (quadrant, u, 10));
+      du_y.push_back (nedelec_gradient (quadrant, u, 6));
+      du_z.push_back (nedelec_gradient (quadrant, u, 5));
       break;
     case 4:
-      du_x.push_back (nedelec_gradient (quadrant, u, 6));
-      du_y.push_back (nedelec_gradient (quadrant, u, 4));
-      du_z.push_back (nedelec_gradient (quadrant, u, 8));
+      du_x.push_back (nedelec_gradient (quadrant, u, 9));
+      du_y.push_back (nedelec_gradient (quadrant, u, 3));
+      du_z.push_back (nedelec_gradient (quadrant, u, 1));
       break;
     case 5:
-      du_x.push_back (nedelec_gradient (quadrant, u, 6));
-      du_y.push_back (nedelec_gradient (quadrant, u, 5));
-      du_z.push_back (nedelec_gradient (quadrant, u, 9));
+      du_x.push_back (nedelec_gradient (quadrant, u, 9));
+      du_y.push_back (nedelec_gradient (quadrant, u, 7));
+      du_z.push_back (nedelec_gradient (quadrant, u, 4));
       break;
     case 6:
-      du_x.push_back (nedelec_gradient (quadrant, u, 7));
-      du_y.push_back (nedelec_gradient (quadrant, u, 4));
-      du_z.push_back (nedelec_gradient (quadrant, u, 10));
+      du_x.push_back (nedelec_gradient (quadrant, u, 11));
+      du_y.push_back (nedelec_gradient (quadrant, u, 3));
+      du_z.push_back (nedelec_gradient (quadrant, u, 0));
       break;
     case 7:
-      du_x.push_back (nedelec_gradient (quadrant, u, 7));
-      du_y.push_back (nedelec_gradient (quadrant, u, 5));
-      du_z.push_back (nedelec_gradient (quadrant, u, 11));
+      du_x.push_back (nedelec_gradient (quadrant, u, 11));
+      du_y.push_back (nedelec_gradient (quadrant, u, 7));
+      du_z.push_back (nedelec_gradient (quadrant, u, 5));
       break;
     }
 
@@ -668,67 +667,67 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
         {
         case 0:
           if (node == 1)
-            du_x.push_back (nedelec_gradient(neighbor, u, 2));
+            du_x.push_back (nedelec_gradient(neighbor, u, 8));
           if (node == 2)
-            du_y.push_back (nedelec_gradient(neighbor, u, 0));
+            du_y.push_back (nedelec_gradient(neighbor, u, 2));
           if (node == 4)
-            du_z.push_back (nedelec_gradient(neighbor, u, 8));
+            du_z.push_back (nedelec_gradient(neighbor, u, 1));
           break;
         case 1:
           if (node == 0)
-            du_x.push_back (nedelec_gradient(neighbor, u, 2));
+            du_x.push_back (nedelec_gradient(neighbor, u, 8));
           if (node == 3)
-            du_y.push_back (nedelec_gradient(neighbor, u, 1));
+            du_y.push_back (nedelec_gradient(neighbor, u, 6));
           if (node == 5)
-            du_z.push_back (nedelec_gradient(neighbor, u, 9));
+            du_z.push_back (nedelec_gradient(neighbor, u, 4));
           break;
         case 2:
           if (node == 3)
-            du_x.push_back (nedelec_gradient(neighbor, u, 3));
+            du_x.push_back (nedelec_gradient(neighbor, u, 10));
           if (node == 0)
-            du_y.push_back (nedelec_gradient(neighbor, u, 0));
+            du_y.push_back (nedelec_gradient(neighbor, u, 2));
           if (node == 6)
-            du_z.push_back (nedelec_gradient(neighbor, u, 10));
+            du_z.push_back (nedelec_gradient(neighbor, u, 0));
           break;
         case 3:
           if (node == 2)
-            du_x.push_back (nedelec_gradient(neighbor, u, 3));
+            du_x.push_back (nedelec_gradient(neighbor, u, 10));
           if (node == 1)
-            du_y.push_back (nedelec_gradient(neighbor, u, 1));
+            du_y.push_back (nedelec_gradient(neighbor, u, 6));
           if (node == 7)
-            du_z.push_back (nedelec_gradient(neighbor, u, 11));
+            du_z.push_back (nedelec_gradient(neighbor, u, 5));
           break;
         case 4:
           if (node == 5)
-            du_x.push_back (nedelec_gradient(neighbor, u, 6));
+            du_x.push_back (nedelec_gradient(neighbor, u, 9));
           if (node == 6)
-            du_y.push_back (nedelec_gradient(neighbor, u, 4));
+            du_y.push_back (nedelec_gradient(neighbor, u, 3));
           if (node == 0)
-            du_z.push_back (nedelec_gradient(neighbor, u, 8));
+            du_z.push_back (nedelec_gradient(neighbor, u, 1));
           break;
         case 5:
           if (node == 4)
-            du_x.push_back (nedelec_gradient(neighbor, u, 6));
+            du_x.push_back (nedelec_gradient(neighbor, u, 9));
           if (node == 7)
-            du_y.push_back (nedelec_gradient(neighbor, u, 5));
+            du_y.push_back (nedelec_gradient(neighbor, u, 7));
           if (node == 1)
-            du_z.push_back (nedelec_gradient(neighbor, u, 9));
+            du_z.push_back (nedelec_gradient(neighbor, u, 4));
           break;
         case 6:
           if (node == 7)
-            du_x.push_back (nedelec_gradient(neighbor, u, 7));
+            du_x.push_back (nedelec_gradient(neighbor, u, 11));
           if (node == 4)
-            du_y.push_back (nedelec_gradient(neighbor, u, 4));
+            du_y.push_back (nedelec_gradient(neighbor, u, 3));
           if (node == 2)
-            du_z.push_back (nedelec_gradient(neighbor, u, 10));
+            du_z.push_back (nedelec_gradient(neighbor, u, 0));
           break;
         case 7:
           if (node == 6)
-            du_x.push_back (nedelec_gradient(neighbor, u, 7));
+            du_x.push_back (nedelec_gradient(neighbor, u, 11));
           if (node == 5)
-            du_y.push_back (nedelec_gradient(neighbor, u, 5));
+            du_y.push_back (nedelec_gradient(neighbor, u, 7));
           if (node == 3)
-            du_z.push_back (nedelec_gradient(neighbor, u, 11));
+            du_z.push_back (nedelec_gradient(neighbor, u, 5));
           break;
         }
 
@@ -804,35 +803,35 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
             {
             case 0:
               if (node_side == 1)
-                du_x.push_back (nedelec_gradient (neighbor, u, 2));
+                du_x.push_back (nedelec_gradient (neighbor, u, 8));
               break;
             case 1:
               if (node_side == 0)
-                du_x.push_back (nedelec_gradient (neighbor, u, 2));
+                du_x.push_back (nedelec_gradient (neighbor, u, 8));
               break;
             case 2:
               if (node_side == 3)
-                du_x.push_back (nedelec_gradient (neighbor, u, 3));
+                du_x.push_back (nedelec_gradient (neighbor, u, 10));
               break;
             case 3:
               if (node_side == 2)
-                du_x.push_back (nedelec_gradient (neighbor, u, 3));
+                du_x.push_back (nedelec_gradient (neighbor, u, 10));
               break;
             case 4:
               if (node_side == 5)
-                du_x.push_back (nedelec_gradient (neighbor, u, 6));
+                du_x.push_back (nedelec_gradient (neighbor, u, 9));
               break;
             case 5:
               if (node_side == 4)
-                du_x.push_back (nedelec_gradient (neighbor, u, 6));
+                du_x.push_back (nedelec_gradient (neighbor, u, 9));
               break;
             case 6:
               if (node_side == 7)
-                du_x.push_back (nedelec_gradient (neighbor, u, 7));
+                du_x.push_back (nedelec_gradient (neighbor, u, 11));
               break;
             case 7:
               if (node_side == 6)
-                du_x.push_back (nedelec_gradient (neighbor, u, 7));
+                du_x.push_back (nedelec_gradient (neighbor, u, 11));
               break;  
             }
 
@@ -906,35 +905,35 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
             {
             case 0:
               if (node_side == 2)
-                du_y.push_back (nedelec_gradient (neighbor, u, 0));
+                du_y.push_back (nedelec_gradient (neighbor, u, 2));
               break;
             case 1:
               if (node_side == 3)
-                du_y.push_back (nedelec_gradient (neighbor, u, 1));
+                du_y.push_back (nedelec_gradient (neighbor, u, 6));
               break;
             case 2:
               if (node_side == 0)
-                du_y.push_back (nedelec_gradient (neighbor, u, 0));
+                du_y.push_back (nedelec_gradient (neighbor, u, 2));
               break;
             case 3:
               if (node_side == 1)
-                du_y.push_back (nedelec_gradient (neighbor, u, 1));
+                du_y.push_back (nedelec_gradient (neighbor, u, 6));
               break;
             case 4:
               if (node_side == 6)
-                du_y.push_back (nedelec_gradient (neighbor, u, 4));
+                du_y.push_back (nedelec_gradient (neighbor, u, 3));
               break;
             case 5:
               if (node_side == 7)
-                du_y.push_back (nedelec_gradient (neighbor, u, 5));
+                du_y.push_back (nedelec_gradient (neighbor, u, 7));
               break;
             case 6:
               if (node_side == 4)
-                du_y.push_back (nedelec_gradient (neighbor, u, 4));
+                du_y.push_back (nedelec_gradient (neighbor, u, 3));
               break;
             case 7:
               if (node_side == 5)
-                du_y.push_back (nedelec_gradient (neighbor, u, 5));
+                du_y.push_back (nedelec_gradient (neighbor, u, 7));
               break;  
             }
 
@@ -1008,35 +1007,35 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
             {
             case 0:
               if (node_side == 4)
-                du_z.push_back (nedelec_gradient (neighbor, u, 8));
+                du_z.push_back (nedelec_gradient (neighbor, u, 1));
               break;
             case 1:
               if (node_side == 5)
-                du_z.push_back (nedelec_gradient (neighbor, u, 9));
+                du_z.push_back (nedelec_gradient (neighbor, u, 4));
               break;
             case 2:
               if (node_side == 6)
-                du_z.push_back (nedelec_gradient (neighbor, u, 10));
+                du_z.push_back (nedelec_gradient (neighbor, u, 0));
               break;
             case 3:
               if (node_side == 7)
-                du_z.push_back (nedelec_gradient (neighbor, u, 11));
+                du_z.push_back (nedelec_gradient (neighbor, u, 5));
               break;
             case 4:
               if (node_side == 0)
-                du_z.push_back (nedelec_gradient (neighbor, u, 8));
+                du_z.push_back (nedelec_gradient (neighbor, u, 1));
               break;
             case 5:
               if (node_side == 1)
-                du_z.push_back (nedelec_gradient (neighbor, u, 9));
+                du_z.push_back (nedelec_gradient (neighbor, u, 4));
               break;
             case 6:
               if (node_side == 2)
-                du_z.push_back (nedelec_gradient (neighbor, u, 10));
+                du_z.push_back (nedelec_gradient (neighbor, u, 0));
               break;
             case 7:
               if (node_side == 3)
-                du_z.push_back (nedelec_gradient (neighbor, u, 11));
+                du_z.push_back (nedelec_gradient (neighbor, u, 5));
               break;  
             }
 
