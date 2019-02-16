@@ -526,10 +526,11 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
 ///
 ///
 
+
 static constexpr
 std::array<std::array<int, 3>, 12> edge =
-  {0,2,1, 1,3,1, 0,1,0, 2,3,0, 4,6,1, 5,7,1, 4,5,0, 7,6,0,
-    0,4,2, 1,5,2, 2,6,2, 3,7,2};
+  {0,2,1, 1,3,1, 0,1,0, 2,3,0, 4,6,1, 5,7,1, 4,5,0, 6,7,0,
+  0,4,2, 1,5,2, 2,6,2, 3,7,2};
 
 template <class T>
 static double
@@ -741,7 +742,7 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
         weights_z.push_back (1 / hz);    
     }
 
-  // If on any vertical boundary/interface.
+  // If on any boundary/interface normal to x
   if (du_x.size () < 2)
     {
       for (auto neighbor = quadrant->begin_neighbor_sweep  ();
@@ -758,7 +759,7 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
             continue;
 
           // Check if neighbor contains the opposite vertex
-          // of the horizontal side containing "node".
+          // of the side along x containing "node".
           switch (node)
             {
             case 0:
@@ -843,7 +844,7 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
         }
     }
 
-  // If on any horizontal boundary/interface.
+  // If on any boundary/interface normal to y
   if (du_y.size () < 2)
     {
       for (auto neighbor = quadrant->begin_neighbor_sweep ();
@@ -860,7 +861,7 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
             continue;
 
           // Check if neighbor contains the opposite vertex
-          // of the vertical side containing "node".
+          // of the side along y containing "node".
           switch (node)
             {
             case 0:
@@ -945,8 +946,7 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
         }
     }
 
-  //CCI
-  // If on any boundary/interface...NON SO COME CHIAMARLA, AL MOMENTO
+  // If on any boundary/interface normal to z
   if (du_z.size () < 2)
     {
       for (auto neighbor = quadrant->begin_neighbor_sweep  ();
@@ -962,9 +962,8 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
           if (! is_active (neighbor))
             continue;
 
-          //CCI
           // Check if neighbor contains the opposite vertex
-          // of the "BOH" side containing "node".
+          // of the side along z containing "node".
           switch (node)
             {
             case 0:
@@ -1095,7 +1094,7 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
                           assigned_x, assigned_y, assigned_z);
 }
 
-// Specialization.
+// Specialization ----> std::vector<double>
 template <>
 gradient3<std::vector<double>>
 bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
@@ -1163,7 +1162,7 @@ bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
   return std::make_tuple (du_x_star, du_y_star, du_z_star);    
 }
 
-// Specialization.
+// Specialization ----> distributed_vector
 template <>
 gradient3<distributed_vector>
 bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
@@ -1242,141 +1241,356 @@ void
 compute_solution_if_hanging (std::array<double, 8>& u_star_loc,
                              const gradient3<T>& du,
                              tmesh_3d::quadrant_iterator & quadrant,
-                             int n, int p, int i, bool secondcase)
+                             int n, int p, int i)
 {
   double hx = quadrant->p (0, 1) - quadrant->p (0, 0);
   double hy = quadrant->p (1, 2) - quadrant->p (1, 0);
   double hz = quadrant->p (2, 4) - quadrant->p (2, 0);   
 
-  int q;
-  if (p == 0)
-    q = 1;
-  else if (p == 1)
-    q = 0;
-  else if (p == 2)
-    q = 3;
-  else
-    q = 2;
+  int np = quadrant->num_parents(n);
+  int q1 = -1;	// index of parent on the same side
+  int q2 = -1;	// index of parent on the opposite side
+  if (np > 2)
+	  {
+	  	if (p == 0)
+		  	{
+		  		q1 = 1;
+		    	q2 = 2;
+		  	}
+	  	else if (p == 1)
+		  	{
+		  		q1 = 0;
+		  		q2 = 3;
+		  	}
+		  else if (p == 2)
+		  	{
+		  		q1 = 3;
+		  		q2 = 0;
+		  	}
+		  else if (p == 3)
+		  	{
+		  		q1 = 2;
+		  		q2 = 1;
+		  	}
+	  }
+	else
+		{
+			q1 = 1-p;		// in case of two parents, their indices are always 0,1
+			q2 = 1-p;
+		}
 
-  if (n == 0)
+  if (n == 0)	// ------- node 0
     {
-      if (i == 1)
+      if (i == 1)	// two parents; edge directed along x
         u_star_loc[n] +=
-          (2 * hx) * (std::get<0>(du)[quadrant->gparent (q, n)] -
+          (2 * hx) * (std::get<0>(du)[quadrant->gparent (q1, n)] -
                       std::get<0>(du)[quadrant->gparent (p, n)]) / 8;
-      else if (i == 2)
+      else if (i == 2)	// two or four parents; 
+	      {
+	      	// one edge directed along y
+	        u_star_loc[n] +=
+	          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q1, n)] -
+	                      std::get<1>(du)[quadrant->gparent (p, n)]) / 8;
+	        if (np > 2)	// if four parents, face normal to x
+        		u_star_loc[n] +=
+		          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q2, n)] -
+		                      std::get<2>(du)[quadrant->gparent (p, n)]) / 8;	
+	      }
+      else if (i == 4)	// two parents; edge directed along z
         u_star_loc[n] +=
-          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q, n)] -
-                      std::get<1>(du)[quadrant->gparent (p, n)]) / 8;
-      else if (i == 4)
-        u_star_loc[n] +=
-          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q, n)] -
+          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q1, n)] -
                       std::get<2>(du)[quadrant->gparent (p, n)]) / 8;
+      else if (i == 8)	// four parents; face normal to z
+  			{
+  				u_star_loc[n] +=
+	          (2 * hx) * (std::get<0>(du)[quadrant->gparent (q1, n)] -
+	                      std::get<0>(du)[quadrant->gparent (p, n)]) / 8;
+	        u_star_loc[n] +=
+	          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q2, n)] -
+	                      std::get<1>(du)[quadrant->gparent (p, n)]) / 8;
+  			}
+      else if (i == 9)	// four parents; face normal to y
+  			{
+  				u_star_loc[n] +=
+	          (2 * hx) * (std::get<0>(du)[quadrant->gparent (q1, n)] -
+	                      std::get<0>(du)[quadrant->gparent (p, n)]) / 8;
+	        u_star_loc[n] +=
+	          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q2, n)] -
+	                      std::get<2>(du)[quadrant->gparent (p, n)]) / 8;
+  			}
     }  
-  else if (n == 1)
+  else if (n == 1)	// ------- node 1
     {
-      if (i == 0)
+      if (i == 0)	// two parents; edge directed along x
         u_star_loc[n] +=
           (2 * hx) * (std::get<0>(du)[quadrant->gparent (p, n)] -
-                      std::get<0>(du)[quadrant->gparent (q, n)]) / 8;
-      else if (i == 3)
+                      std::get<0>(du)[quadrant->gparent (q1, n)]) / 8;
+      else if (i == 3)	// two or four parents; 
+	      {
+	      	// one edge directed along y
+	        u_star_loc[n] +=
+	          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q1, n)] -
+	                      std::get<1>(du)[quadrant->gparent (p, n)]) / 8;
+	        if (np > 2)	// if four parents, face normal to x
+	        	u_star_loc[n] +=
+		          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q2, n)] -
+		                      std::get<2>(du)[quadrant->gparent (p, n)]) / 8;
+	      }
+      else if (i == 5)	// two parents; edge directed along z
         u_star_loc[n] +=
-          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q, n)] -
-                      std::get<1>(du)[quadrant->gparent (p, n)]) / 8;
-      else if (i == 5)
-        u_star_loc[n] +=
-          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q, n)] -
+          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q1, n)] -
                       std::get<2>(du)[quadrant->gparent (p, n)]) / 8;
+      else if (i == 8)	// four parents; face normal to z
+  			{
+  				u_star_loc[n] +=
+	          (2 * hx) * (std::get<0>(du)[quadrant->gparent (p, n)] -
+	                      std::get<0>(du)[quadrant->gparent (q1, n)]) / 8;
+	        u_star_loc[n] +=
+	          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q2, n)] -
+	                      std::get<1>(du)[quadrant->gparent (p, n)]) / 8;
+  			}
+      else if (i == 9)	// four parents; face normal to y
+  			{
+  				u_star_loc[n] +=
+	          (2 * hx) * (std::get<0>(du)[quadrant->gparent (p, n)] -
+	                      std::get<0>(du)[quadrant->gparent (q1, n)]) / 8;
+	        u_star_loc[n] +=
+	          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q2, n)] -
+	                      std::get<2>(du)[quadrant->gparent (p, n)]) / 8;
+  			}
     } 
-  else if (n == 2)
+  else if (n == 2)	// ------- node 2
     {
-      if (i == 3)
-        u_star_loc[n] +=
-          (2 * hx) * (std::get<0>(du)[quadrant->gparent (q, n)] -
-                      std::get<0>(du)[quadrant->gparent (p, n)]) / 8;
-      else if (i == 0)
+    	if (i == 0)	// two parents; edge directed along y
         u_star_loc[n] +=
           (2 * hy) * (std::get<1>(du)[quadrant->gparent (p, n)] -
-                      std::get<1>(du)[quadrant->gparent (q, n)]) / 8;
-      else if (i == 6)
+                      std::get<1>(du)[quadrant->gparent (q1, n)]) / 8;
+      else if (i == 3)	// two or four parents; 
+	      {
+	      	// one edge directed along x
+	        u_star_loc[n] +=
+	          (2 * hx) * (std::get<0>(du)[quadrant->gparent (q1, n)] -
+	                      std::get<0>(du)[quadrant->gparent (p, n)]) / 8;
+	        if (np > 2)	// if four parents, face normal to y
+	        	u_star_loc[n] +=
+		          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q2, n)] -
+		                      std::get<2>(du)[quadrant->gparent (p, n)]) / 8;
+	      }
+	    else if (i == 6)	// two parents; edge directed along z
         u_star_loc[n] +=
-          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q, n)] -
+          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q1, n)] -
+                      std::get<2>(du)[quadrant->gparent (p, n)]) / 8;
+      else if (i == 8)	// four parents; face normal to z
+    		{
+    			u_star_loc[n] +=
+	          (2 * hx) * (std::get<0>(du)[quadrant->gparent (q1, n)] -
+	                      std::get<0>(du)[quadrant->gparent (p, n)]) / 8;
+    			u_star_loc[n] +=
+	          (2 * hy) * (std::get<1>(du)[quadrant->gparent (p, n)] -
+	                      std::get<1>(du)[quadrant->gparent (q2, n)]) / 8;	
+    		}
+	    else if (i == 9)	// four parents; face normal to x
+    		{
+    			u_star_loc[n] +=
+	          (2 * hy) * (std::get<1>(du)[quadrant->gparent (p, n)] -
+	                      std::get<1>(du)[quadrant->gparent (q1, n)]) / 8;
+	        u_star_loc[n] +=
+	          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q2, n)] -
+	                      std::get<2>(du)[quadrant->gparent (p, n)]) / 8;
+    		}
+    }
+  else if (n == 3)	// ------- node 2
+    {
+    	if (i == 0)	// four parents; face normal to z
+	      {
+	        u_star_loc[n] +=
+	          (2 * hx) * (std::get<0>(du)[quadrant->gparent (p, n)] -
+	                      std::get<0>(du)[quadrant->gparent (q1, n)]) / 8;
+	        u_star_loc[n] +=
+	          (2 * hy) * (std::get<1>(du)[quadrant->gparent (p, n)] -
+	                      std::get<1>(du)[quadrant->gparent (q2, n)]) / 8;
+	      }
+	    else if (i == 1)	// two or four parents; 
+	      {
+	      	// one edge directed along y
+	        u_star_loc[n] +=
+	          (2 * hy) * (std::get<1>(du)[quadrant->gparent (p, n)] -
+	                      std::get<1>(du)[quadrant->gparent (q1, n)]) / 8;
+	        if (np > 2)	// if four parents, face normal to x
+	        	u_star_loc[n] +=
+		          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q2, n)] -
+		                      std::get<2>(du)[quadrant->gparent (p, n)]) / 8;
+	      }
+      else if (i == 2)	// two or four parents; 
+	      {
+	      	// one edge directed along x
+	        u_star_loc[n] +=
+	          (2 * hx) * (std::get<0>(du)[quadrant->gparent (p, n)] -
+	                      std::get<0>(du)[quadrant->gparent (q1, n)]) / 8;
+	        if (np > 2)	// if four parents, face normal to y
+	        	u_star_loc[n] +=
+		          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q2, n)] -
+		                      std::get<2>(du)[quadrant->gparent (p, n)]) / 8;
+	      }
+      else if (i == 7)	// two parents; edge directed along z
+        u_star_loc[n] +=
+          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q1, n)] -
                       std::get<2>(du)[quadrant->gparent (p, n)]) / 8;
     }
-  else if (n == 3)
+  else if (n == 4)	// ------- node 4
     {
-      if (i == 2)
-        u_star_loc[n] +=
-          (2 * hx) * (std::get<0>(du)[quadrant->gparent (p, n)] -
-                      std::get<0>(du)[quadrant->gparent (q, n)]) / 8;
-      else if (i == 1)
-        u_star_loc[n] +=
-          (2 * hy) * (std::get<1>(du)[quadrant->gparent (p, n)] -
-                      std::get<1>(du)[quadrant->gparent (q, n)]) / 8;
-      else if (i == 7)
-        u_star_loc[n] +=
-          (2 * hz) * (std::get<2>(du)[quadrant->gparent (q, n)] -
-                      std::get<2>(du)[quadrant->gparent (p, n)]) / 8;
-    }
-  else if (n == 4)
-    {
-      if (i == 5)
-        u_star_loc[n] +=
-          (2 * hx) * (std::get<0>(du)[quadrant->gparent (q, n)] -
-                      std::get<0>(du)[quadrant->gparent (p, n)]) / 8;
-      else if (i == 6)
-        u_star_loc[n] +=
-          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q, n)] -
-                      std::get<1>(du)[quadrant->gparent (p, n)]) / 8;
-      else if (i == 0)
+    	if (i == 0)	// two parents; edge directed along z
         u_star_loc[n] +=
           (2 * hz) * (std::get<2>(du)[quadrant->gparent (p, n)] -
-                      std::get<2>(du)[quadrant->gparent (q, n)]) / 8;
+                      std::get<2>(du)[quadrant->gparent (q1, n)]) / 8;
+      else if (i == 5)	// two or four parents;
+	      {
+	      	// one edge directed along x
+	        u_star_loc[n] +=
+	          (2 * hx) * (std::get<0>(du)[quadrant->gparent (q1, n)] -
+	                      std::get<0>(du)[quadrant->gparent (p, n)]) / 8;
+	        if (np > 2)	// if four parents, face normal to z
+	        	u_star_loc[n] +=
+		          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q2, n)] -
+		                      std::get<1>(du)[quadrant->gparent (p, n)]) / 8;
+	      }
+      else if (i == 6)	// two parents; edge directed along y
+        u_star_loc[n] +=
+          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q1, n)] -
+                      std::get<1>(du)[quadrant->gparent (p, n)]) / 8;
+      else if (i == 8)	// four parents; face normal to y
+      	{
+      		u_star_loc[n] +=
+	          (2 * hx) * (std::get<0>(du)[quadrant->gparent (q1, n)] -
+	                      std::get<0>(du)[quadrant->gparent (p, n)]) / 8;
+      		u_star_loc[n] +=
+	          (2 * hz) * (std::get<2>(du)[quadrant->gparent (p, n)] -
+	                      std::get<2>(du)[quadrant->gparent (q2, n)]) / 8;	
+      	}
+		  else if (i == 9)	// four parents; face normal to x
+      	{
+      		u_star_loc[n] +=
+	          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q1, n)] -
+	                      std::get<1>(du)[quadrant->gparent (p, n)]) / 8;
+      		u_star_loc[n] +=
+	          (2 * hz) * (std::get<2>(du)[quadrant->gparent (p, n)] -
+	                      std::get<2>(du)[quadrant->gparent (q2, n)]) / 8;
+      	}
     }          
-  else if (n == 5)
+  else if (n == 5)	// ------- node 5
     {
-      if (i == 4)
+    	if (i == 0)	// four parents; face normal to y
+	      {
+	        u_star_loc[n] +=
+	          (2 * hx) * (std::get<0>(du)[quadrant->gparent (p, n)] -
+	                      std::get<0>(du)[quadrant->gparent (q1, n)]) / 8;
+        	u_star_loc[n] +=
+	          (2 * hz) * (std::get<2>(du)[quadrant->gparent (p, n)] -
+	                      std::get<2>(du)[quadrant->gparent (q2, n)]) / 8;
+	      }
+	    else if (i == 1)	// two or four parents;
+	      {
+	      	if (np > 2)	// if four parents, face normal to x
+	      		u_star_loc[n] +=
+		          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q1, n)] -
+		                      std::get<1>(du)[quadrant->gparent (p, n)]) / 8;
+		      // one edge directed along z
+	        u_star_loc[n] +=
+	          (2 * hz) * (std::get<2>(du)[quadrant->gparent (p, n)] -
+	                      std::get<2>(du)[quadrant->gparent (q2, n)]) / 8;
+	      }
+      else if (i == 4)	// two or four parents;
+	      {
+	      	// one edge directed along x
+	        u_star_loc[n] +=
+	          (2 * hx) * (std::get<0>(du)[quadrant->gparent (p, n)] -
+	                      std::get<0>(du)[quadrant->gparent (q1, n)]) / 8;
+	        if (np > 2)	// if four parents, face normal to z
+	        	u_star_loc[n] +=
+		          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q2, n)] -
+		                      std::get<1>(du)[quadrant->gparent (p, n)]) / 8;
+	      }
+      else if (i == 7)	// two parents; edge directed along y
         u_star_loc[n] +=
-          (2 * hx) * (std::get<0>(du)[quadrant->gparent (p, n)] -
-                      std::get<0>(du)[quadrant->gparent (q, n)]) / 8;
-      else if (i == 7)
-        u_star_loc[n] +=
-          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q, n)] -
+          (2 * hy) * (std::get<1>(du)[quadrant->gparent (q1, n)] -
                       std::get<1>(du)[quadrant->gparent (p, n)]) / 8;
-      else if (i == 1)
-        u_star_loc[n] +=
-          (2 * hz) * (std::get<2>(du)[quadrant->gparent (p, n)] -
-                      std::get<2>(du)[quadrant->gparent (q, n)]) / 8;
     }  
-  else if (n == 6)
+  else if (n == 6)	// ------- node 6
     {
-      if (i == 7)
+    	if (i == 2)	// two or four parents;
+	      {
+	      	if (np > 2)	// if four parents, face normal to y
+	      		u_star_loc[n] +=
+          			(2 * hx) * (std::get<0>(du)[quadrant->gparent (q1, n)] -
+                			      std::get<0>(du)[quadrant->gparent (p, n)]) / 8;
+          // one edge directed along z
+	        u_star_loc[n] +=
+	          (2 * hz) * (std::get<2>(du)[quadrant->gparent (p, n)] -
+	                      std::get<2>(du)[quadrant->gparent (q2, n)]) / 8;
+	      }
+      else if (i == 4)	// two or four parents;
+	      {
+	      	if (np > 2)	// if four parents, face normal to z
+	      		u_star_loc[n] +=
+          			(2 * hx) * (std::get<0>(du)[quadrant->gparent (q1, n)] -
+                			      std::get<0>(du)[quadrant->gparent (p, n)]) / 8;
+          // one edge directed along y
+	        u_star_loc[n] +=
+	          (2 * hy) * (std::get<1>(du)[quadrant->gparent (p, n)] -
+	                      std::get<1>(du)[quadrant->gparent (q2, n)]) / 8;
+	      }
+	    else if (i == 7)	// two parents; edge directed along x
         u_star_loc[n] +=
-          (2 * hx) * (std::get<0>(du)[quadrant->gparent (q, n)] -
+          (2 * hx) * (std::get<0>(du)[quadrant->gparent (q1, n)] -
                       std::get<0>(du)[quadrant->gparent (p, n)]) / 8;
-      else if (i == 4)
-        u_star_loc[n] +=
-          (2 * hy) * (std::get<1>(du)[quadrant->gparent (p, n)] -
-                      std::get<1>(du)[quadrant->gparent (q, n)]) / 8;
-      else if (i == 2)
-        u_star_loc[n] +=
-          (2 * hz) * (std::get<2>(du)[quadrant->gparent (p, n)] -
-                      std::get<2>(du)[quadrant->gparent (q, n)]) / 8;
     }    
-  else if (n == 7)
+  else if (n == 7)	// ------- node 7
     {
-      if (i == 6)
-        u_star_loc[n] +=
-          (2 * hx) * (std::get<0>(du)[quadrant->gparent (p, n)] -
-                      std::get<0>(du)[quadrant->gparent (q, n)]) / 8;
-      else if (i == 5)
-        u_star_loc[n] +=
-          (2 * hy) * (std::get<1>(du)[quadrant->gparent (p, n)] -
-                      std::get<1>(du)[quadrant->gparent (q, n)]) / 8;
-      else if (i == 3)
-        u_star_loc[n] +=
-          (2 * hz) * (std::get<2>(du)[quadrant->gparent (p, n)] -
-                      std::get<2>(du)[quadrant->gparent (q, n)]) / 8;
+    	if (np > 2)	// four parents; 
+	    	{
+		    	if (i == 1)	// face normal to x
+		    		{
+		    			u_star_loc[n] +=
+			          (2 * hy) * (std::get<1>(du)[quadrant->gparent (p, n)] -
+			                      std::get<1>(du)[quadrant->gparent (q1, n)]) / 8;
+		          u_star_loc[n] +=
+			          (2 * hz) * (std::get<2>(du)[quadrant->gparent (p, n)] -
+			                      std::get<2>(du)[quadrant->gparent (q2, n)]) / 8;
+		    		}
+		    	else if (i == 2)	// face normal to y
+		    		{
+		    			u_star_loc[n] +=
+		          	(2 * hx) * (std::get<0>(du)[quadrant->gparent (p, n)] -
+		            	          std::get<0>(du)[quadrant->gparent (q1, n)]) / 8;
+		          u_star_loc[n] +=
+		          	(2 * hz) * (std::get<2>(du)[quadrant->gparent (p, n)] -
+		            	          std::get<2>(du)[quadrant->gparent (q2, n)]) / 8;
+		    		}
+		    	else if (i == 4)	// face normal to z
+		    		{
+		    			u_star_loc[n] +=
+		          	(2 * hx) * (std::get<0>(du)[quadrant->gparent (p, n)] -
+		            	          std::get<0>(du)[quadrant->gparent (q1, n)]) / 8;
+		          u_star_loc[n] +=
+		          	(2 * hy) * (std::get<1>(du)[quadrant->gparent (p, n)] -
+		            	          std::get<1>(du)[quadrant->gparent (q2, n)]) / 8;
+		    		}	
+	    	}
+	    else	// two parents; 
+		    {
+			    if (i == 3)	// edge directed along z
+				    u_star_loc[n] +=
+			        (2 * hz) * (std::get<2>(du)[quadrant->gparent (p, n)] -
+			                    std::get<2>(du)[quadrant->gparent (q1, n)]) / 8;
+		      else if (i == 5)	// edge directed along y
+		        u_star_loc[n] +=
+		          (2 * hy) * (std::get<1>(du)[quadrant->gparent (p, n)] -
+		                      std::get<1>(du)[quadrant->gparent (q1, n)]) / 8;
+		      else if (i == 6)	// edge directed along x
+		        u_star_loc[n] +=
+		          (2 * hx) * (std::get<0>(du)[quadrant->gparent (p, n)] -
+		                      std::get<0>(du)[quadrant->gparent (q1, n)]) / 8;
+	      }
     }
 }
 
@@ -1427,15 +1641,15 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
               du_y_star_loc[n] = 0.;
               du_z_star_loc[n] = 0.;
           	  for (int pp = 0; pp < np; ++pp)
-	          	{
-	          	  u_star_loc[n] += u[quadrant->gparent(pp,n)];
-	          	  du_x_star_loc[n] += std::get<0>(du)
-	          	  								[quadrant->gparent (pp, n)];
-	          	  du_y_star_loc[n] += std::get<1>(du)
-	          	  								[quadrant->gparent (pp, n)];
-	          	  du_z_star_loc[n] += std::get<2>(du)
-	          	  								[quadrant->gparent (pp, n)];
-	          	}
+  	          	{
+  	          	  u_star_loc[n] += u[quadrant->gparent(pp,n)];
+  	          	  du_x_star_loc[n] += std::get<0>(du)
+                                                  [quadrant->gparent (pp, n)];
+  	          	  du_y_star_loc[n] += std::get<1>(du)
+                                                  [quadrant->gparent (pp, n)];
+  	          	  du_z_star_loc[n] += std::get<2>(du)
+                                                  [quadrant->gparent (pp, n)];
+  	          	}
           	  u_star_loc[n] /= np;	
           	  du_x_star_loc[n] /= np;
           	  du_y_star_loc[n] /= np;
@@ -1446,12 +1660,87 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
               int i = 0; int p = 0;
               bool found = false;
 
+              // lookfor function: it loops over the np parents of node n,
+              // starting from index i0, and returns the index of the 
+              // first parent whose global index is equal to the index of
+              // the current node
+              // If we are considering parent pp,
+              // par = quadrant->parent(pp,n);
+              // tt = quadrant->t(i);
+              auto lookfor = [n, np] (int par, int tt, int i0) -> int
+              	{
+              		bool found = false;
+              		int i = i0;
+              		for (; i < 8 && !found; ++i)
+	              		{
+	              			for (int pp = 0; pp < np && !found; ++pp)
+	              				{
+	              					if (i!=n && par == tt)	
+	              					{
+	              						found = true;
+	              						--i;
+	              					}
+	              				}
+	              		}
+	              	return i;
+              	};
+
               for (; i < 8 && !found; ++i)
                 {
-                  for (int pp = 0; pp < 2 && !found; ++pp)
+                  for (int pp = 0; pp < np && !found; ++pp)
                   	{
-                  	  if (quadrant->parent (pp, n) == quadrant->t (i))	
+                  		int par = quadrant->parent(pp,n);
+                  		int tt = quadrant->t(i);
+                  	  if (i != n && par == tt)	
                   	  	{
+                  	  		if (np > 2)
+                  	  		{
+	                  	  		if (i == 0)
+		                  	  		{
+		                  	  			int j	= lookfor(par,tt,1);
+		                  	  			if (n == 1)
+				                  	  		{
+				                  	  			// node 1 ---> 
+				                  	  			// i=0,j=2 -> face normal to z
+				                  	  			// i=0,j=4 -> face normal to y
+					                  	  		if (j == 2)
+						                  	  		i = 9;
+						                  	  	else if (j == 4)
+						                  	  		i = 10;	
+				                  	  		}
+			                  	  		else if (n == 2)
+				                  	  		{
+				                  	  			// node 2 ---> 
+				                  	  			// i=0,j=1 -> face normal to z
+				                  	  			// i=0,j=4 -> face normal to x
+				                  	  			if (j == 1)
+				                  	  				i = 9;	
+				                  	  			else if (j == 4)
+				                  	  				i = 10;	
+				                  	  		}
+				                  	  	else if (n == 4)
+				                  	  		{
+				                  	  			// node 4 ---> 
+				                  	  			// i=0,j=1 -> face normal to y
+				                  	  			// i=0,j=2 -> face normal to x
+				                  	  			if (j == 1)
+				                  	  				i = 9;	
+				                  	  			else if (j == 2)
+				                  	  				i = 10;	
+				                  	  		}
+		                  	  		}
+		                  	  	else if (n == 0 && i == 1)
+		                  	  		{
+		                  	  			// node 0 ---> 
+				                  	  	// i=1,j=2 -> face normal to z
+				                  	  	// i=1,j=4 -> face normal to y
+		                  	  			int j	= lookfor(par,tt,2);
+		                  	  			if (j == 2)
+		                  	  				i = 9;
+		                  	  			else if (j == 4)
+		                  	  				i = 10;
+		                  	  		}
+	                  	  	}	
                   	  	  p = pp;
                   	  	  found = true;	
                           --i;
@@ -1461,27 +1750,9 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
 
               // Compute recovered solution at the
               // double-sized neighbor element.
-              compute_solution_if_hanging(u_star_loc,du,quadrant,n,p,i,false);  
-
-              if (np > 2)
-                {
-                  p = 0;
-                  found = false;
-                  for (; i < 8 && !found; ++i)
-                    {
-                      for (int pp = 2; pp < np && !found; ++pp)
-                        {
-                          if (quadrant->parent (pp, n) == quadrant->t (i)) 
-                            {
-                              p = pp;
-                              found = true;
-                              --i; 
-                            }   
-                        }
-                    }
-                  compute_solution_if_hanging(u_star_loc,du,quadrant,n,p,i,true);  
-                }  
+              compute_solution_if_hanging(u_star_loc,du,quadrant,n,p,i);  
           	} 
+
           u_star[quadrant->get_forest_quad_idx ()][n] = u_star_loc[n]; 
         }
 
