@@ -1659,31 +1659,9 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
               int i = 0; int p = 0;
               bool found = false;
 
-              // lookfor function: it loops over the np parents of node n,
-              // starting from index i0, and returns the index of the 
-              // first parent whose global index is equal to the index of
-              // the current node
-              // If we are considering parent pp,
-              // par = quadrant->parent(pp,n);
-              // tt = quadrant->t(i);
-              auto lookfor = [n, np] (int par, int tt, int i0) -> int
-              	{
-              		bool found = false;
-              		int i = i0;
-              		for (; i < 8 && !found; ++i)
-	              		{
-	              			for (int pp = 0; pp < np && !found; ++pp)
-	              				{
-	              					if (i!=n && par == tt)	
-	              					{
-	              						found = true;
-	              						--i;
-	              					}
-	              				}
-	              		}
-	              	return i;
-              	};
-
+              // we loop over the np parents of node n, looking for the index 
+              // of the first parent whose global index is equal to the index 
+              // of the current node
               for (; i < 8 && !found; ++i)
                 {
                   for (int pp = 0; pp < np && !found; ++pp)
@@ -1696,8 +1674,22 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
                   	  		{
 	                  	  		if (i == 0)
 		                  	  		{
-		                  	  			int j	= lookfor(par,tt,1);
-		                  	  			if (n == 1)
+                                found = false;
+                                int j = 1;
+                                for (; j < 8 && !found; ++j)
+                                  {
+                                    for (int pp = 0; pp < np && !found; ++pp)
+                                      {
+                                        int par = quadrant->parent(pp,n);
+                                        int tt = quadrant->t(j);
+                                        if (j!=n && par == tt)  
+                                        {
+                                          found = true;
+                                          --j;
+                                        }
+                                      }
+                                  }
+                                if (n == 1)
 				                  	  		{
 				                  	  			// node 1 ---> 
 				                  	  			// i=0,j=2 -> face normal to z
@@ -1733,7 +1725,21 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
 		                  	  			// node 0 ---> 
 				                  	  	// i=1,j=2 -> face normal to z
 				                  	  	// i=1,j=4 -> face normal to y
-		                  	  			int j	= lookfor(par,tt,2);
+                                found = false;
+                                int j = 2;
+                                for (; j < 8 && !found; ++j)
+                                  {
+                                    for (int pp = 0; pp < np && !found; ++pp)
+                                      {
+                                        int par = quadrant->parent(pp,n);
+                                        int tt = quadrant->t(j);
+                                        if (j!=n && par == tt)  
+                                        {
+                                          found = true;
+                                          --j;
+                                        }
+                                      }
+                                  }
 		                  	  			if (j == 2)
 		                  	  				i = 9;
 		                  	  			else if (j == 4)
