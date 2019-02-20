@@ -560,7 +560,7 @@ nedelec_gradient (tmesh_3d::quadrant_iterator & q,
 
 template <class T>
 std::tuple<double, double, double, bool, bool, bool>
-bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
+bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
                               int node,
                               const T& u,
                               active_fun3 is_active)
@@ -1100,7 +1100,7 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
 // Specialization ----> std::vector<double>
 template <>
 gradient3<std::vector<double>>
-bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
+bim3c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
                                        const std::vector<double>& u,
                                        active_fun3 is_active)
 {
@@ -1132,7 +1132,7 @@ bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
             continue;
 
           du_star_loc =
-            bim2c_recovered_gradient_loc (quadrant, node,
+            bim3c_recovered_gradient_loc (quadrant, node,
                                           u, is_active);
 
           du_x_star [quadrant->gt (node)] = std::get<0> (du_star_loc);
@@ -1168,7 +1168,7 @@ bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
 // Specialization ----> distributed_vector
 template <>
 gradient3<distributed_vector>
-bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
+bim3c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
                                        const distributed_vector& u,
                                        active_fun3 is_active)
 {
@@ -1207,7 +1207,7 @@ bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
 		            continue;
 		          
 		          du_star_loc =
-		            bim2c_recovered_gradient_loc (quadrant, node,
+		            bim3c_recovered_gradient_loc (quadrant, node,
 		                                          u, is_active);
 
 		          du_x_star [quadrant->gt (node)] = std::get<0> (du_star_loc);
@@ -1599,7 +1599,7 @@ compute_solution_if_hanging (std::array<double, 8>& u_star_loc,
 
 template <class T>
 q2_vec3
-bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
+bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
                                        const T& u,
                                        const gradient3<T>& du)
 {
@@ -2240,14 +2240,14 @@ nedelec_gradient (tmesh_3d::quadrant_iterator &,
 /* ---- */
 template
 std::tuple<double, double, double, bool, bool, bool>
-bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator,
+bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator,
                               int,
                               const std::vector<double>&,
                               active_fun3);
 
 template
 std::tuple<double, double, double, bool, bool, bool>
-bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator,
+bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator,
                               int,
                               const distributed_vector&,
                               active_fun3);
@@ -2255,12 +2255,12 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator,
 /* ---- */
 template
 q2_vec3
-bim2c_quadtree_pde_recovered_solution (tmesh_3d&,
+bim3c_quadtree_pde_recovered_solution (tmesh_3d&,
                                        const std::vector<double>&,
                                        const gradient3<std::vector<double>>&);
 template
 q2_vec3
-bim2c_quadtree_pde_recovered_solution (tmesh_3d&,
+bim3c_quadtree_pde_recovered_solution (tmesh_3d&,
                                        const distributed_vector&,
                                        const gradient3<distributed_vector>&);
 /* ---- */

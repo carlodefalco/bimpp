@@ -87,7 +87,7 @@ nedelec_gradient (tmesh_3d::quadrant_iterator & q,
 
 template <class T>
 gradient3<T>
-bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
+bim3c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
                                        const T& u,
                                        active_fun3 is_active =
                                         [] (tmesh_3d::quadrant_iterator)
@@ -95,7 +95,7 @@ bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
 
 template <class T>
 q2_vec3
-bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
+bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
                                        const T& u,
                                        const gradient3<T>& du);
 

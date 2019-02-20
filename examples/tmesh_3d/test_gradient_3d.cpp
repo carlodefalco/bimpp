@@ -243,7 +243,7 @@ main (int argc, char **argv)
     print(u_vec_2,"u");
 
   // computation of the gradient (intermediate mesh - uniform refinement)
-  gradient3 grad_vec_2 = bim2c_quadtree_pde_recovered_gradient(tmsh,u_vec_2);
+  gradient3 grad_vec_2 = bim3c_quadtree_pde_recovered_gradient(tmsh,u_vec_2);
   q1_vec dudx_2 = std::get<0>(grad_vec_2);
   q1_vec dudy_2 = std::get<1>(grad_vec_2);  
   q1_vec dudz_2 = std::get<2>(grad_vec_2);
@@ -274,7 +274,7 @@ main (int argc, char **argv)
     print(est_grad_2,"estimator grad _2");
 
   // recovered solution (intermediate mesh - uniform refinement)
-  q2_vec3 u_rec_2 = bim2c_quadtree_pde_recovered_solution (tmsh,u_vec_2,
+  q2_vec3 u_rec_2 = bim3c_quadtree_pde_recovered_solution (tmsh,u_vec_2,
   														                              grad_vec_2);  
 
   // print recovered solution (intermediate mesh - uniform refinement)
@@ -386,7 +386,7 @@ main (int argc, char **argv)
     print(u_vec_3,"u");  
 
   // computation of the gradient (final mesh - my_refinement)
-  gradient3 grad_vec_3 = bim2c_quadtree_pde_recovered_gradient(tmsh,u_vec_3);
+  gradient3 grad_vec_3 = bim3c_quadtree_pde_recovered_gradient(tmsh,u_vec_3);
   q1_vec dudx_3 = std::get<0>(grad_vec_3);
   q1_vec dudy_3 = std::get<1>(grad_vec_3);  
   q1_vec dudz_3 = std::get<2>(grad_vec_3);
@@ -413,7 +413,7 @@ main (int argc, char **argv)
     print(est_grad_3,"estimator grad _3");  
 
   // recovered solution (final mesh - my_refinement)
-  q2_vec3 u_rec_3 = bim2c_quadtree_pde_recovered_solution (tmsh,u_vec_3,
+  q2_vec3 u_rec_3 = bim3c_quadtree_pde_recovered_solution (tmsh,u_vec_3,
   														                              grad_vec_3);  
 
   // print recovered solution (final mesh - my_refinement)
