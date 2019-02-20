@@ -635,7 +635,7 @@ bim2a_solution_with_ghosts (tmesh& mesh,
       for (node = 0; node < 4; ++node)
         {
           if (! q->is_hanging (node))
-            v[q->gt (node)] += 0;
+            v[ord (q->gt (node))] += 0;
         }
 
               
@@ -644,11 +644,11 @@ bim2a_solution_with_ghosts (tmesh& mesh,
            ++n)
         for (node = 0; node < 4; ++node)
           if (! n->is_hanging (node))
-            v[n->gt (node)] += 0;
+            v[ord (n->gt (node))] += 0;
           else
             {
-              v[n->gparent (0, node)] += 0;
-              v[n->gparent (1, node)] += 0;
+              v[ord (n->gparent (0, node))] += 0;
+              v[ord (n->gparent (1, node))] += 0;
             }
     }
 
