@@ -91,6 +91,12 @@ bim2a_rhs (tmesh& mesh,
            T& rhs,
            const ordering& ord = default_ord);
 
+void
+bim2a_solution_with_ghosts (tmesh& mesh,
+                            distributed_vector& rhs,
+                            const binary_operator &op = std::plus<double> (),
+                            const ordering& ord = default_ord);
+
 template <class T>
 void
 bim2a_boundary_mass (tmesh & mesh,

@@ -620,6 +620,42 @@ bim2a_rhs (tmesh& mesh,
     }
 }
 
+void
+bim2a_solution_with_ghosts (tmesh& mesh,
+                            distributed_vector& v,
+                            const binary_operator &op =
+                            std::plus<double> (),
+                            const ordering& ord = default_ord)
+{
+  int node = 0;
+  for (auto q = mesh.begin_quadrant_sweep ();
+       q != mesh.end_quadrant_sweep ();
+       ++q)
+    {
+      for (node = 0; node < 4; ++node)
+        {
+          if (! q->is_hanging (node))
+            v[ord (q->gt (node))] += 0;
+        }
+
+              
+      for (auto n = q->begin_neighbor_sweep ();
+           n != q->end_neighbor_sweep ();
+           ++n)
+        for (node = 0; node < 4; ++node)
+          if (! n->is_hanging (node))
+            v[ord (n->gt (node))] += 0;
+          else
+            {
+              v[ord (n->gparent (0, node))] += 0;
+              v[ord (n->gparent (1, node))] += 0;
+            }
+    }
+
+  v.assemble (op);
+}
+
+
 template <class T>
 void
 bim2a_boundary_mass (tmesh& mesh,
