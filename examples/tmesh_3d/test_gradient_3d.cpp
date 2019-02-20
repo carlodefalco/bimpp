@@ -28,7 +28,7 @@ static int
 my_refinement (tmesh_3d::quadrant_iterator quadrant)
 {
   bool is_zero = false;
-  if (quadrant->gt(0) == 0) 
+  if (quadrant->gt(7) == 26) 
     is_zero = true;
   return is_zero;
 }
@@ -39,7 +39,7 @@ my_refinement (tmesh_3d::quadrant_iterator quadrant)
 static double
 my_u (double x, double y, double z)
 {
-  return (5 * x + 4 * y + 2 * z);
+  return (x * x * y * y);
 }
 
 // print_mesh_info:
@@ -75,7 +75,8 @@ print_mesh_info (tmesh_3d& tmsh, const std::string& str)
           			 << " x: " << x
           			 << " y: " << y
           			 << " z: " << z
-          			 << " gt: " << gidx << std::endl;
+          			 << " gt: " << gidx 
+                 << " h: " << q->is_hanging(nn) << std::endl;
         }  
       std::cout << std::endl; 
       ++nq; 
@@ -86,10 +87,19 @@ print_mesh_info (tmesh_3d& tmsh, const std::string& str)
 //
 // prints on std::cout an object of type TT (a vector or an array of doubles) 
 template <typename TT>
-void print (TT& vec, const std::string& str)
+void print (const TT& vec, const std::string& str)
 {
   std::cout << "\n***** " << str << ": " << std::endl;
   for (int j=0; j<vec.size(); ++j)
+    std::cout << vec[j] << " ";
+  std::cout << std::endl << std::endl;
+}
+
+template <>
+void print (const distributed_vector& vec, const std::string& str)
+{
+  std::cout << "\n***** " << str << ": " << std::endl;
+  for (int j=vec.get_range_start(); j<vec.get_range_end(); ++j)
     std::cout << vec[j] << " ";
   std::cout << std::endl << std::endl;
 }
@@ -108,8 +118,8 @@ main (int argc, char **argv)
   int                   rank, size;
   tmesh_3d              tmsh;
 
-  using q1_vec = q1_vec<std::vector<double>>;
-  using gradient3 = gradient3<std::vector<double>>;
+  using q1_vec = q1_vec<distributed_vector>;
+  using gradient3 = gradient3<distributed_vector>;
   
   mpicomm = MPI_COMM_WORLD;
   MPI_Comm_rank (mpicomm, &rank);
@@ -130,7 +140,7 @@ main (int argc, char **argv)
   MPI_Barrier (mpicomm);
 
   // definition of u (initial mesh)
-  q1_vec u_vec(tmsh.num_global_nodes());
+  q1_vec u_vec(tmsh.num_owned_nodes());
   for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
             ++q)
@@ -159,6 +169,7 @@ main (int argc, char **argv)
             }
         }  
     }
+  u_vec.assemble(replace_op);
 
   // print u (initial mesh)
   MPI_Barrier (mpicomm);
@@ -195,7 +206,7 @@ main (int argc, char **argv)
 	}	  
 
   // update of u (intermediate mesh - uniform refinement)
-  q1_vec u_vec_2(tmsh.num_global_nodes());
+  q1_vec u_vec_2(tmsh.num_owned_nodes());
   for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
             ++q)
@@ -224,6 +235,7 @@ main (int argc, char **argv)
             }
         }  
     }
+  u_vec_2.assemble(replace_op);
 
   // print u (intermediate mesh - uniform refinement)
   MPI_Barrier (mpicomm);  
@@ -316,7 +328,7 @@ main (int argc, char **argv)
     } 
 
   // update of u (final mesh - my_refinement)
-  q1_vec u_vec_3(tmsh.num_global_nodes());
+  q1_vec u_vec_3(tmsh.num_owned_nodes());
   for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
             ++q)
@@ -338,15 +350,36 @@ main (int argc, char **argv)
             {
               int np = q->num_parents(nn);
               for (int pp = 0; pp < np; ++pp)
+                  u_vec_3[q->gparent(pp,nn)] += 0;
+            }
+        }
+      for (auto neigh = q->begin_neighbor_sweep();
+                neigh != q->end_neighbor_sweep(); ++neigh)
+        {
+          for (int nn = 0; nn < 8; ++nn)
+            {
+              // assemble non-hanging nodes
+              if (! neigh->is_hanging(nn))
+                u_vec_3[neigh->gt(nn)] += 0.;
+              // assemble parents
+              else
                 {
-                  u_vec_3[q->gparent(pp,nn)] += 0;
-                  u_vec_3[q->gparent(pp,nn)] += 0;
-                  u_vec_3[q->gparent(pp,nn)] += 0;
+                  int np = neigh->num_parents(nn);
+                  for (int pp = 0; pp < np; ++pp)
+                      u_vec_3[neigh->gparent(pp,nn)] += 0.;
                 }
             }
         }  
     }
-  
+  u_vec_3.assemble(replace_op);
+
+  MPI_Barrier(mpicomm);
+  if (rank == 1)
+  {
+    std::cout << "***** u_vec_3 ****" << std::endl;
+    std::cout << u_vec_3 << std::endl;
+  }
+ 
   // print u (final mesh - my_refinement)
   MPI_Barrier (mpicomm);
   if (rank == 0)

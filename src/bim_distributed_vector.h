@@ -156,7 +156,7 @@ public:
   assemble (const binary_operator & = std::plus<double> ());
 
   int
-  size ()
+  size () const
   { return ranges.back (); }
 
   /// Resets all the non-local maps.

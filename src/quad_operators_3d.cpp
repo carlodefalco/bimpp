@@ -578,6 +578,10 @@ bim2c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
   du_y.clear (); weights_y.clear ();
   du_z.clear (); weights_z.clear ();
 
+  du_x.reserve(2); weights_x.reserve(2);
+  du_y.reserve(2); weights_y.reserve(2);
+  du_z.reserve(2); weights_z.reserve(2);
+
   double du_x_star = 0;
   double du_y_star = 0;
   double du_z_star = 0;
@@ -1683,10 +1687,10 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
                                         int par = quadrant->parent(pp,n);
                                         int tt = quadrant->t(j);
                                         if (j!=n && par == tt)  
-                                        {
-                                          found = true;
-                                          --j;
-                                        }
+                                          {
+                                            found = true;
+                                            --j;
+                                          }
                                       }
                                   }
                                 if (n == 1)
@@ -1734,10 +1738,10 @@ bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
                                         int par = quadrant->parent(pp,n);
                                         int tt = quadrant->t(j);
                                         if (j!=n && par == tt)  
-                                        {
-                                          found = true;
-                                          --j;
-                                        }
+                                          {
+                                            found = true;
+                                            --j;
+                                          }
                                       }
                                   }
 		                  	  			if (j == 2)
