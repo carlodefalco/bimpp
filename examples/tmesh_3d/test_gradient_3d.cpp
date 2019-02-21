@@ -39,7 +39,7 @@ my_refinement (tmesh_3d::quadrant_iterator quadrant)
 static double
 my_u (double x, double y, double z)
 {
-  return (x * x * y * y);
+  return (5 * x + 4 * y + 2 * z);
 }
 
 // print_mesh_info:
@@ -141,6 +141,7 @@ main (int argc, char **argv)
 
   // definition of u (initial mesh)
   q1_vec u_vec(tmsh.num_owned_nodes());
+  bim3a_solution_with_ghosts(tmsh,u_vec);
   for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
             ++q)
@@ -155,17 +156,6 @@ main (int argc, char **argv)
               double z = q->p(2,nn);
               double uu = my_u(x,y,z);
               u_vec[q->gt(nn)] = uu;
-            }
-          // assemble parents
-          else
-            {
-              int np = q->num_parents(nn);
-              for (int pp = 0; pp < np; ++pp)
-                {
-                  u_vec[q->gparent(pp,nn)] += 0;
-                  u_vec[q->gparent(pp,nn)] += 0;
-                  u_vec[q->gparent(pp,nn)] += 0;
-                }
             }
         }  
     }
@@ -207,6 +197,7 @@ main (int argc, char **argv)
 
   // update of u (intermediate mesh - uniform refinement)
   q1_vec u_vec_2(tmsh.num_owned_nodes());
+  bim3a_solution_with_ghosts(tmsh,u_vec_2);
   for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
             ++q)
@@ -221,17 +212,6 @@ main (int argc, char **argv)
               double z = q->p(2,nn);
               double uu = my_u(x,y,z);
               u_vec_2[q->gt(nn)] = uu;
-            }
-          // assemble parents
-          else
-            {
-              int np = q->num_parents(nn);
-              for (int pp = 0; pp < np; ++pp)
-                {
-                  u_vec_2[q->gparent(pp,nn)] += 0;
-                  u_vec_2[q->gparent(pp,nn)] += 0;
-                  u_vec_2[q->gparent(pp,nn)] += 0;
-                }
             }
         }  
     }
@@ -329,6 +309,7 @@ main (int argc, char **argv)
 
   // update of u (final mesh - my_refinement)
   q1_vec u_vec_3(tmsh.num_owned_nodes());
+  bim3a_solution_with_ghosts(tmsh,u_vec_3);
   for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
             ++q)
@@ -338,47 +319,15 @@ main (int argc, char **argv)
           // assemble non-hanging nodes
           if (! q->is_hanging(nn))
             {
-              u_vec_3[q->gt (nn)] = 0;
               double x = q->p(0,nn);
               double y = q->p(1,nn);
               double z = q->p(2,nn);
               double uu = my_u(x,y,z);
               u_vec_3[q->gt(nn)] = uu;
             }
-          // assemble parents
-          else
-            {
-              int np = q->num_parents(nn);
-              for (int pp = 0; pp < np; ++pp)
-                  u_vec_3[q->gparent(pp,nn)] += 0;
-            }
-        }
-      for (auto neigh = q->begin_neighbor_sweep();
-                neigh != q->end_neighbor_sweep(); ++neigh)
-        {
-          for (int nn = 0; nn < 8; ++nn)
-            {
-              // assemble non-hanging nodes
-              if (! neigh->is_hanging(nn))
-                u_vec_3[neigh->gt(nn)] += 0.;
-              // assemble parents
-              else
-                {
-                  int np = neigh->num_parents(nn);
-                  for (int pp = 0; pp < np; ++pp)
-                      u_vec_3[neigh->gparent(pp,nn)] += 0.;
-                }
-            }
         }  
     }
   u_vec_3.assemble(replace_op);
-
-  MPI_Barrier(mpicomm);
-  if (rank == 1)
-  {
-    std::cout << "***** u_vec_3 ****" << std::endl;
-    std::cout << u_vec_3 << std::endl;
-  }
  
   // print u (final mesh - my_refinement)
   MPI_Barrier (mpicomm);

@@ -623,9 +623,8 @@ bim2a_rhs (tmesh& mesh,
 void
 bim2a_solution_with_ghosts (tmesh& mesh,
                             distributed_vector& v,
-                            const binary_operator &op =
-                            std::plus<double> (),
-                            const ordering& ord = default_ord)
+                            const binary_operator &op,
+                            const ordering& ord)
 {
   int node = 0;
   for (auto q = mesh.begin_quadrant_sweep ();

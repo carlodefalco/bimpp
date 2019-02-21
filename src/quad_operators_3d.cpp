@@ -288,6 +288,39 @@ bim3a_rhs (tmesh_3d& mesh,
     }
 }
 
+void
+bim3a_solution_with_ghosts (tmesh_3d& mesh,
+                            distributed_vector& v,
+                            const binary_operator &op)
+{
+  int node = 0;
+  for (auto q = mesh.begin_quadrant_sweep ();
+       q != mesh.end_quadrant_sweep ();
+       ++q)
+    {
+      for (node = 0; node < 8; ++node)
+        {
+          if (! q->is_hanging (node))
+            v[q->gt (node)] += 0;
+        }
+
+      for (auto n = q->begin_neighbor_sweep ();
+           n != q->end_neighbor_sweep ();
+           ++n)
+        for (node = 0; node < 8; ++node)
+          if (! n->is_hanging (node))
+            v[n->gt (node)] += 0;
+          else
+            {
+              int np = n->num_parents(node);
+              for (int pp = 0; pp < np; ++pp)
+                v[n->gparent(pp,node)] += 0;
+            }
+    }
+
+  v.assemble (op);
+}
+
 std::vector<double>
 bim3a_boundary_mass (tmesh_3d & mesh,
 		     const int & tree_idx,
