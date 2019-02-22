@@ -6,7 +6,7 @@ bim_sparse.h bim_sparse_distributed.h linear_solver.h mumps_class.h mumps_solve.
 lis_class.h nonlinear_solver.h adaptive_inexact_newton_class.h \
 backtracking_inexact_newton_class.h abstract_nonlinear_problem.h \
 abstract_forcing_term.h forcing_class.h bgs_class.h schur_class.h rre.h \
-tmesh.h quad_operators.h tmesh_3d.h quad_operators_3d.h bim_distributed_vector.h
+tmesh.h bim_ordering.h quad_operators.h tmesh_3d.h quad_operators_3d.h bim_distributed_vector.h
 
 BIMXXSRC = mesh.cpp operators.cpp bim_sparse.cpp bim_sparse_distributed.cpp adaptive_inexact_newton_class.cpp \
 backtracking_inexact_newton_class.cpp forcing_class.cpp bgs_class.cpp rre.cpp bim_distributed_vector.cpp \
@@ -14,7 +14,7 @@ backtracking_inexact_newton_class.cpp forcing_class.cpp bgs_class.cpp rre.cpp bi
 
 BIMXXIOSRC = octave_file_io.cpp
 BIMXXMUMPSSRC = mumps_class.cpp mumps_solve.cpp
-BIMXXP4ESTSRC = tmesh.cpp quad_operators.cpp tmesh_3d.cpp quad_operators_3d.cpp
+BIMXXP4ESTSRC = tmesh.cpp bim_ordering.cpp quad_operators.cpp tmesh_3d.cpp quad_operators_3d.cpp
 BIMXXLISSRC = lis_class.cpp lis_class_master.cpp lis_class_slaves.cpp
 include_HEADERS = $(BIMXXHEADERS)
 
