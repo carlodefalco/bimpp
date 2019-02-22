@@ -65,7 +65,8 @@ bim3a_rhs (tmesh_3d& mesh,
 void
 bim3a_solution_with_ghosts (tmesh_3d& mesh,
                             distributed_vector& rhs,
-                            const binary_operator &op = std::plus<double> ());
+                            const binary_operator &op = std::plus<double> (),
+                            const ordering& ord = default_ord);
 
 std::vector<double>
 bim3a_boundary_mass (tmesh_3d & mesh,

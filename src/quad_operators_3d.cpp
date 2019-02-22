@@ -291,7 +291,8 @@ bim3a_rhs (tmesh_3d& mesh,
 void
 bim3a_solution_with_ghosts (tmesh_3d& mesh,
                             distributed_vector& v,
-                            const binary_operator &op)
+                            const binary_operator &op,
+                            const ordering& ord)
 {
   int node = 0;
   for (auto q = mesh.begin_quadrant_sweep ();
@@ -301,7 +302,7 @@ bim3a_solution_with_ghosts (tmesh_3d& mesh,
       for (node = 0; node < 8; ++node)
         {
           if (! q->is_hanging (node))
-            v[q->gt (node)] += 0;
+            v[ord(q->gt (node))] += 0;
         }
 
       for (auto n = q->begin_neighbor_sweep ();
@@ -309,12 +310,12 @@ bim3a_solution_with_ghosts (tmesh_3d& mesh,
            ++n)
         for (node = 0; node < 8; ++node)
           if (! n->is_hanging (node))
-            v[n->gt (node)] += 0;
+            v[ord(n->gt (node))] += 0;
           else
             {
               int np = n->num_parents(node);
               for (int pp = 0; pp < np; ++pp)
-                v[n->gparent(pp,node)] += 0;
+                v[ord(n->gparent(pp,node))] += 0;
             }
     }
 
@@ -624,6 +625,7 @@ bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
   bool assigned_z = false;
 
   // Compute Nedelec gradient on current element.
+  
   switch (node)
     {
     case 0:
@@ -766,7 +768,7 @@ bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
           if (node == 3)
             du_z.push_back (nedelec_gradient(neighbor, u, 5));
           break;
-        }
+        }  
 
       if (weights_x.size () < du_x.size ())
         weights_x.push_back (1 / hx);
@@ -870,7 +872,7 @@ bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
               if (node_side == 6)
                 du_x.push_back (nedelec_gradient (neighbor, u, 11));
               break;  
-            }
+            } 
 
           if (weights_x.size () < du_x.size ())
             {
