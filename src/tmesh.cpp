@@ -14,8 +14,6 @@
 #include <utility>
 #include <tmesh.h>
 
-/// Default ordering is identity.
-ordering default_ord = [] (tmesh::idx_t gt) -> size_t { return gt; };
 
 double
 tmesh::quadrant_t::p (tmesh::idx_t ii, tmesh::idx_t jj)
