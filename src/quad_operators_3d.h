@@ -137,4 +137,25 @@ l2_error (tmesh_3d::quadrant_iterator q,
           const func3 & u_ex,
           const T & u);
 
+template <class T>
+double
+semih1_error (tmesh_3d::quadrant_iterator q,
+              const func3 & dudx_ex,
+              const func3 & dudy_ex,
+              const func3 & dudz_ex,
+              const T & u);
+
+double
+l2_star_error (tmesh_3d::quadrant_iterator q,
+               const func3 & u_ex,
+               const q2_vec3 & ustar);
+
+template <class T>
+double
+semih1_star_error (tmesh_3d::quadrant_iterator q,
+                   const func3 & dudx_ex,
+                   const func3 & dudy_ex,
+                   const func3 & dudz_ex,
+                   const gradient3<T> & du_star);
+
 #endif

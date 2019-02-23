@@ -2182,7 +2182,7 @@ estimator_sol (tmesh_3d::quadrant_iterator q,
   double ustar_loc[27] = {0,0,0,0,0,0,0,0,0,
                           0,0,0,0,0,0,0,0,0,
                           0,0,0,0,0,0,0,0,0};
-  double u_loc[8] = {0,0,0,0,0,0,0,0};  
+  double u_loc[8] = {0,0,0,0,0,0,0,0}; 
 
   for (int ii = 0; ii < 27; ++ii)
     ustar_loc[ii] = (ustar[q->get_forest_quad_idx ()])[ii];
@@ -2211,6 +2211,171 @@ estimator_sol (tmesh_3d::quadrant_iterator q,
 
   return std::sqrt (quad_integral (x, y, z, fun));  
 }
+
+
+// Compute ||u - u_ex||_L^2(q).
+template <class T>
+double
+l2_error (tmesh_3d::quadrant_iterator q,
+          const func3 & u_ex,
+          const T & u)
+{
+  double
+    x[2] = {q->p (0,0), q->p (0,1)},
+    y[2] = {q->p (1,0), q->p (1,3)},
+    z[2] = {q->p (2,0), q->p (2,7)};
+
+  double u_loc[8] = {0,0,0,0,0,0,0,0};
+
+  for (int ii = 0; ii < 8; ++ii)
+    if (! q->is_hanging (ii))
+      u_loc[ii] = u[q->gt (ii)];
+    else
+      {
+        int np = q->num_parents(ii);
+        for (int pp = 0; pp < np; ++pp)
+          u_loc[ii] += u[q->gparent (pp, ii)];
+        u_loc[ii] /= np;
+      }
+
+  auto fun =
+    [x, y, z, u_loc, u_ex]
+    (double X, double Y, double Z) -> double
+    { return std::pow (q1 (X, Y, Z, x, y, z, u_loc) - u_ex (X, Y, Z), 2); };
+
+  return std::sqrt (quad_integral (x, y, z, fun));
+}
+
+
+// Compute |u - u_ex|_H^1(q).
+template <class T>
+double
+semih1_error (tmesh_3d::quadrant_iterator q,
+              const func3 & dudx_ex,
+              const func3 & dudy_ex,
+              const func3 & dudz_ex,
+              const T & u)
+{
+  double
+    x[2] = {q->p (0,0), q->p (0,1)},
+    y[2] = {q->p (1,0), q->p (1,3)},
+    z[2] = {q->p (2,0), q->p (2,7)};
+
+  double u_loc[8] = {0,0,0,0,0,0,0,0}; 
+  
+  for (int ii = 0; ii < 8; ++ii)
+    if (! q->is_hanging (ii))
+      u_loc[ii] = u[q->gt (ii)];
+    else
+      {
+        int np = q->num_parents(ii);
+        for (int pp = 0; pp < np; ++pp)
+          u_loc[ii] += u[q->gparent (pp, ii)];
+        u_loc[ii] /= np;
+      }
+
+  auto fun =
+    [x, y, z, dudx_ex, dudy_ex, dudz_ex, u_loc]
+    (double X, double Y, double Z) -> double
+    {
+      return
+      std::pow (dudx (X, Y, Z, x, y, z, u_loc) -
+                dudx_ex (X, Y, Z), 2) +
+      std::pow (dudy (X, Y, Z, x, y, z, u_loc) -
+                dudy_ex (X, Y, Z), 2) +
+      std::pow (dudz (X, Y, Z, x, y, z, u_loc) -
+                dudz_ex (X, Y, Z), 2);
+    };
+
+  return std::sqrt (quad_integral (x, y, z, fun)); 
+}
+
+// Compute ||u_star - u_ex||_L^2(q).
+double
+l2_star_error (tmesh_3d::quadrant_iterator q,
+               const func3 & u_ex,
+               const q2_vec3 & ustar)
+{
+  double
+    x[2] = {q->p (0,0), q->p (0,1)},
+    y[2] = {q->p (1,0), q->p (1,3)},
+    z[2] = {q->p (2,0), q->p (2,7)};
+
+  double ustar_loc[27] = {0,0,0,0,0,0,0,0,0,
+                          0,0,0,0,0,0,0,0,0,
+                          0,0,0,0,0,0,0,0,0};
+
+  for (int ii = 0; ii < 27; ++ii)
+    ustar_loc[ii] = (ustar[q->get_forest_quad_idx ()])[ii];
+
+  auto fun =
+    [x, y, z, ustar_loc, u_ex]
+    (double X, double Y, double Z) -> double
+    {
+      return
+      std::pow (q2 (X, Y, Z, x, y, z, ustar_loc) - u_ex (X, Y, Z), 2);
+    };
+
+  return std::sqrt (quad_integral (x, y, z, fun));
+}
+
+
+// Compute ||du_star - grad(u_ex)||_L^2(q).
+template <class T>
+double
+semih1_star_error (tmesh_3d::quadrant_iterator q,
+                   const func3 & dudx_ex,
+                   const func3 & dudy_ex,
+                   const func3 & dudz_ex,
+                   const gradient3<T> & du_star)
+{
+  double
+    x[2] = {q->p (0,0), q->p (0,1)},
+    y[2] = {q->p (1,0), q->p (1,3)},
+    z[2] = {q->p (2,0), q->p (2,7)};
+
+  double dudxstar_loc[8] = {0,0,0,0,0,0,0,0};
+  double dudystar_loc[8] = {0,0,0,0,0,0,0,0};
+  double dudzstar_loc[8] = {0,0,0,0,0,0,0,0};
+
+  for (int ii = 0; ii < 8; ++ii)
+    if (! q->is_hanging (ii))
+      {
+        dudxstar_loc[ii] = (std::get<0>(du_star))[q->gt (ii)];
+        dudystar_loc[ii] = (std::get<1>(du_star))[q->gt (ii)];
+        dudzstar_loc[ii] = (std::get<2>(du_star))[q->gt (ii)];
+      }
+    else
+      {
+        int np = q->num_parents(ii);
+        for (int pp = 0; pp < np; ++pp)
+          {
+            dudxstar_loc[ii] += (std::get<0>(du_star))[q->gparent (pp, ii)];
+            dudystar_loc[ii] += (std::get<1>(du_star))[q->gparent (pp, ii)];
+            dudzstar_loc[ii] += (std::get<2>(du_star))[q->gparent (pp, ii)];
+          }
+        dudxstar_loc[ii] /= np;
+        dudystar_loc[ii] /= np;
+        dudzstar_loc[ii] /= np;
+      }
+
+  auto fun =
+    [x, y, z, dudxstar_loc, dudystar_loc, dudzstar_loc, 
+    dudx_ex, dudy_ex, dudz_ex]
+    (double X, double Y, double Z) -> double
+    {
+      return
+      std::pow (dudx_ex (X, Y, Z) -
+                q1 (X, Y, Z, x, y, z, dudxstar_loc), 2) +
+      std::pow (dudy_ex (X, Y, Z) -
+                q1 (X, Y, Z, x, y, z, dudystar_loc), 2) +
+      std::pow (dudz_ex (X, Y, Z) -
+                q1 (X, Y, Z, x, y, z, dudzstar_loc), 2);
+    };
+
+  return std::sqrt (quad_integral (x, y, z, fun));
+}
+
 
 // Explicit instantiation of template functions
 template
@@ -2274,4 +2439,50 @@ double
 estimator_sol (tmesh_3d::quadrant_iterator,
                const q2_vec3&,
                const distributed_vector&);
+
+/* ---- */
+template
+double
+l2_error (tmesh_3d::quadrant_iterator,
+          const func3 &,
+          const std::vector<double> &);
+
+template
+double
+l2_error (tmesh_3d::quadrant_iterator,
+          const func3 &,
+          const distributed_vector &);
+
+/* ---- */
+template
+double
+semih1_error (tmesh_3d::quadrant_iterator,
+              const func3 &,
+              const func3 &,
+              const func3 &,
+              const std::vector<double> &);
+
+template
+double
+semih1_error (tmesh_3d::quadrant_iterator,
+              const func3 &,
+              const func3 &,
+              const func3 &,
+              const distributed_vector &);
+
+/* ---- */
+template
+double
+semih1_star_error (tmesh_3d::quadrant_iterator,
+                   const func3 &,
+                   const func3 &,
+                   const func3 &,
+                   const gradient3<std::vector<double>> &);
+template
+double
+semih1_star_error (tmesh_3d::quadrant_iterator,
+                   const func3 &,
+                   const func3 &,
+                   const func3 &,
+                   const gradient3<distributed_vector> &);
 /* CCI: END ADDED */
