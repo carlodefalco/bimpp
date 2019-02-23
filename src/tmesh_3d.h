@@ -17,20 +17,12 @@
 #include <p8est_mesh.h>
 #include <p8est_vtk.h>
 
+#include <bim_ordering.h>
+
 #include <cassert>
 #include <functional>
 #include <array>
 #include <vector>
-
-/// Ordering.
-using ordering = std::function<size_t (p4est_gloidx_t)>;
-
-template<size_t ntot = 1, size_t n = 0>
-size_t
-dof_ordering (p4est_gloidx_t gt)
-{ return ntot*gt+n; }
-
-extern ordering default_ord;
 
 /// C++ interface class for p4est 3d quadrant meshes.
 class
