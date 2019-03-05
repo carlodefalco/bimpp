@@ -599,9 +599,9 @@ bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
                               const T& u,
                               active_fun3 is_active)
 {
-  double hx = quadrant->p (0, 1) - quadrant->p (0, 0);
-  double hy = quadrant->p (1, 2) - quadrant->p (1, 0);
-  double hz = quadrant->p (2, 4) - quadrant->p (2, 0);
+  double hx = quadrant->p (0, 7) - quadrant->p (0, 0);
+  double hy = quadrant->p (1, 7) - quadrant->p (1, 0);
+  double hz = quadrant->p (2, 7) - quadrant->p (2, 0);
 
   int node_n = 0, node_side = 0;
   std::vector<double> du_x, weights_x;
@@ -698,9 +698,9 @@ bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
       if (node_n == 8 || neighbor->is_hanging (node_n))
         continue;
 
-      hx = neighbor->p (0, 1) - neighbor->p (0, 0);
-      hy = neighbor->p (1, 2) - neighbor->p (1, 0);
-      hz = neighbor->p (2, 4) - neighbor->p (2, 0);
+      hx = neighbor->p (0, 7) - neighbor->p (0, 0);
+      hy = neighbor->p (1, 7) - neighbor->p (1, 0);
+      hz = neighbor->p (2, 7) - neighbor->p (2, 0);
 
       switch (node_n)
         {
@@ -1178,6 +1178,7 @@ bim3c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
           assigned_y[quadrant->gt (node)] = std::get<4> (du_star_loc);
           assigned_z[quadrant->gt (node)] = std::get<5> (du_star_loc);
         }
+
     }
 
   // Send data to all processes so that non-assigned values
@@ -1281,9 +1282,9 @@ compute_solution_if_hanging (std::array<double, 8>& u_star_loc,
                              tmesh_3d::quadrant_iterator & quadrant,
                              int n, int pp, int i)
 {
-  double hx = quadrant->p (0, 1) - quadrant->p (0, 0);
-  double hy = quadrant->p (1, 2) - quadrant->p (1, 0);
-  double hz = quadrant->p (2, 4) - quadrant->p (2, 0);   
+  double hx = quadrant->p (0, 7) - quadrant->p (0, 0);
+  double hy = quadrant->p (1, 7) - quadrant->p (1, 0);
+  double hz = quadrant->p (2, 7) - quadrant->p (2, 0);   
 
   int np = quadrant->num_parents(n);
   int q1 = -1;	// index of parent on the same side
@@ -1605,9 +1606,9 @@ bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
     {
-			hx = quadrant->p (0, 1) - quadrant->p (0, 0);
-      hy = quadrant->p (1, 2) - quadrant->p (1, 0);
-      hz = quadrant->p (2, 4) - quadrant->p (2, 0);
+			hx = quadrant->p (0, 7) - quadrant->p (0, 0);
+      hy = quadrant->p (1, 7) - quadrant->p (1, 0);
+      hz = quadrant->p (2, 7) - quadrant->p (2, 0);
 
       // Compute values at vertices.
       for (int n = 0; n < 8; ++n)
@@ -2116,8 +2117,8 @@ estimator_grad (tmesh_3d::quadrant_iterator q,
                 const T& u)
 {
   double
-    x[2] = {q->p(0,0), q->p(0,1)},
-    y[2] = {q->p(1,0), q->p(1,3)},
+    x[2] = {q->p(0,0), q->p(0,7)},
+    y[2] = {q->p(1,0), q->p(1,7)},
     z[2] = {q->p(2,0), q->p(2,7)};
 
   double dudxstar_loc[8] = {0,0,0,0,0,0,0,0};
@@ -2175,8 +2176,8 @@ estimator_sol (tmesh_3d::quadrant_iterator q,
                const T & u)
 {
   double
-    x[2] = {q->p(0,0), q->p (0,1)},
-    y[2] = {q->p(1,0), q->p (1,3)},
+    x[2] = {q->p(0,0), q->p (0,7)},
+    y[2] = {q->p(1,0), q->p (1,7)},
     z[2] = {q->p(2,0), q->p (2,7)};
 
   double ustar_loc[27] = {0,0,0,0,0,0,0,0,0,
@@ -2221,8 +2222,8 @@ l2_error (tmesh_3d::quadrant_iterator q,
           const T & u)
 {
   double
-    x[2] = {q->p (0,0), q->p (0,1)},
-    y[2] = {q->p (1,0), q->p (1,3)},
+    x[2] = {q->p (0,0), q->p (0,7)},
+    y[2] = {q->p (1,0), q->p (1,7)},
     z[2] = {q->p (2,0), q->p (2,7)};
 
   double u_loc[8] = {0,0,0,0,0,0,0,0};
@@ -2257,8 +2258,8 @@ semih1_error (tmesh_3d::quadrant_iterator q,
               const T & u)
 {
   double
-    x[2] = {q->p (0,0), q->p (0,1)},
-    y[2] = {q->p (1,0), q->p (1,3)},
+    x[2] = {q->p (0,0), q->p (0,7)},
+    y[2] = {q->p (1,0), q->p (1,7)},
     z[2] = {q->p (2,0), q->p (2,7)};
 
   double u_loc[8] = {0,0,0,0,0,0,0,0}; 
@@ -2297,8 +2298,8 @@ l2_star_error (tmesh_3d::quadrant_iterator q,
                const q2_vec3 & ustar)
 {
   double
-    x[2] = {q->p (0,0), q->p (0,1)},
-    y[2] = {q->p (1,0), q->p (1,3)},
+    x[2] = {q->p (0,0), q->p (0,7)},
+    y[2] = {q->p (1,0), q->p (1,7)},
     z[2] = {q->p (2,0), q->p (2,7)};
 
   double ustar_loc[27] = {0,0,0,0,0,0,0,0,0,
@@ -2330,8 +2331,8 @@ semih1_star_error (tmesh_3d::quadrant_iterator q,
                    const gradient3<T> & du_star)
 {
   double
-    x[2] = {q->p (0,0), q->p (0,1)},
-    y[2] = {q->p (1,0), q->p (1,3)},
+    x[2] = {q->p (0,0), q->p (0,7)},
+    y[2] = {q->p (1,0), q->p (1,7)},
     z[2] = {q->p (2,0), q->p (2,7)};
 
   double dudxstar_loc[8] = {0,0,0,0,0,0,0,0};
