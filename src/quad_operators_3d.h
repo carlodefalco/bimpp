@@ -38,29 +38,37 @@ void
 bim3a_structure (tmesh_3d &tmsh,
                  sparse_matrix& A);
 
+template <class T>
 void
 bim3a_advection_diffusion (tmesh_3d & mesh,
                            const std::vector<double>& alpha,
-                           const std::vector<double>& psi,
+                           //const std::vector<double>& psi,
+                           const T& psi,
                            sparse_matrix& A);
 
+template <class T>
 void
 bim3a_advection_eafe_diffusion (tmesh_3d & mesh,
-                                const std::vector<double>& alpha,
-                                const std::vector<double>& psi,
-                                sparse_matrix& A);
+                                const T& alpha,
+                                const T& psi,
+                                sparse_matrix& A); 
 
+template <class T>
 void
 bim3a_reaction (tmesh_3d& mesh,
                 const std::vector<double>& delta,
-                const std::vector<double>& zeta,
+                //const std::vector<double>& zeta,
+                const T& zeta,
                 sparse_matrix& A);
 
+template <class T>
 void
 bim3a_rhs (tmesh_3d& mesh,
            const std::vector<double>& f,
-           const std::vector<double>& g,
-           std::vector<double>& rhs);
+           //const std::vector<double>& g,
+           //std::vector<double>& rhs
+           const T& g,
+           T& rhs);
 
 void
 bim3a_solution_with_ghosts (tmesh_3d& mesh,
@@ -78,13 +86,19 @@ bim3a_boundary_mass (tmesh_3d & mesh,
 		       {return 1;}
 		     );
 
+template <class T>
 void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
-                    sparse_matrix& A, std::vector<double>& rhs);
+                    sparse_matrix& A, 
+                    //std::vector<double>& rhs
+                    T& rhs);
 
+template <class T>
 void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
-                    sparse_matrix& A, std::vector<double>& rhs);
+                    sparse_matrix& A, 
+                    //std::vector<double>& rhs
+                    T& rhs);
 
 template <class T>
 static double
@@ -105,6 +119,7 @@ bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
                                        const T& u,
                                        const gradient3<T>& du);
 
+// Compute ||grad^* u - grad u||_L^2(q).
 template <class T>
 double
 estimator_grad (tmesh_3d::quadrant_iterator q,
@@ -118,6 +133,7 @@ zz_marker_grad (tmesh_3d::quadrant_iterator q,
                 const T& u,
                 double limit);
 
+// Compute ||u^* - u||_L^2(q).
 template <class T>
 double
 estimator_sol (tmesh_3d::quadrant_iterator q,
@@ -131,12 +147,14 @@ zz_marker_sol (tmesh_3d::quadrant_iterator q,
                const T& u,
                double limit);
 
+// Compute ||u - u_ex||_L^2(q).
 template <class T>
 double
 l2_error (tmesh_3d::quadrant_iterator q,
           const func3 & u_ex,
           const T & u);
 
+// Compute |u - u_ex|_H^1(q).
 template <class T>
 double
 semih1_error (tmesh_3d::quadrant_iterator q,
@@ -145,11 +163,13 @@ semih1_error (tmesh_3d::quadrant_iterator q,
               const func3 & dudz_ex,
               const T & u);
 
+// Compute ||u_star - u_ex||_L^2(q).
 double
 l2_star_error (tmesh_3d::quadrant_iterator q,
                const func3 & u_ex,
                const q2_vec3 & ustar);
 
+// Compute |du_star - grad(u_ex)|_H^1(q).
 template <class T>
 double
 semih1_star_error (tmesh_3d::quadrant_iterator q,

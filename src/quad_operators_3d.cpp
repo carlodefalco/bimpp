@@ -61,10 +61,12 @@ bim3a_structure (tmesh_3d &tmsh,
   A.set_properties ();
 }
 
+template <class T>
 void
 bim3a_advection_diffusion (tmesh_3d& mesh,
                            const std::vector<double>& alpha,
-                           const std::vector<double>& psi,
+                           //const std::vector<double>& psi,
+                           const T& psi,
                            sparse_matrix& A)
 {
   
@@ -97,7 +99,7 @@ bim3a_advection_diffusion (tmesh_3d& mesh,
           else
             for (int pp = 0; pp < quadrant->num_parents (n); ++pp)
               psi_aux[n] += psi[quadrant->gparent (pp, n)] /
-		quadrant->num_parents (n);
+		                        quadrant->num_parents (n);
         }
 
       bimu_bernoulli(psi_aux[1] - psi_aux[0], bp01, bm01);
@@ -192,10 +194,12 @@ bim3a_advection_diffusion (tmesh_3d& mesh,
     }
 }
 
+template <class T>
 void
 bim3a_reaction (tmesh_3d& mesh,
                 const std::vector<double>& delta,
-                const std::vector<double>& zeta,
+                //const std::vector<double>& zeta,
+                const T& zeta,
                 sparse_matrix& A)
 {
   double hx, hy, hz;
@@ -230,7 +234,7 @@ bim3a_reaction (tmesh_3d& mesh,
               {
                 rows.push_back (quadrant->gparent (pp, i));
                 z_loc += zeta[quadrant->gparent (pp, i)] /
-		  quadrant->num_parents (i);
+		                      quadrant->num_parents (i);
               }
           
           for (int r = 0; r < rows.size (); ++r)
@@ -240,11 +244,14 @@ bim3a_reaction (tmesh_3d& mesh,
     }
 }
 
+template <class T>
 void
 bim3a_rhs (tmesh_3d& mesh,
            const std::vector<double>& f,
-           const std::vector<double>& g,
-           std::vector<double>& rhs)
+           //const std::vector<double>& g,
+           //std::vector<double>& rhs
+           const T& g,
+           T& rhs)
 {
   double hx, hy, hz;
    
@@ -365,9 +372,12 @@ bim3a_boundary_mass (tmesh_3d & mesh,
   return M;
 }
 
+template <class T>
 void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
-                    sparse_matrix& A, std::vector<double>& rhs)
+                    sparse_matrix& A, 
+                    //std::vector<double>& rhs
+                    T& rhs)
 {
   int boundary_idx, tree_idx;
   unsigned int row, col;
@@ -454,9 +464,12 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
     }
 }
 
+template <class T>
 void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
-                    sparse_matrix& A, std::vector<double>& rhs)
+                    sparse_matrix& A, 
+                    //std::vector<double>& rhs
+                    T& rhs)
 {
   int boundary_idx, tree_idx;
   unsigned int row, col;
@@ -2321,7 +2334,7 @@ l2_star_error (tmesh_3d::quadrant_iterator q,
 }
 
 
-// Compute ||du_star - grad(u_ex)||_L^2(q).
+// Compute |du_star - grad(u_ex)|_H^1(q).
 template <class T>
 double
 semih1_star_error (tmesh_3d::quadrant_iterator q,
@@ -2379,6 +2392,78 @@ semih1_star_error (tmesh_3d::quadrant_iterator q,
 
 
 // Explicit instantiation of template functions
+
+template
+void
+bim3a_advection_diffusion (tmesh_3d&,
+                           const std::vector<double>&,
+                           const std::vector<double>&,
+                           sparse_matrix&);
+
+template
+void
+bim3a_advection_diffusion (tmesh_3d&,
+                           const std::vector<double>&,
+                           const distributed_vector&,
+                           sparse_matrix&);
+
+/* ---- */
+template
+void
+bim3a_reaction (tmesh_3d&,
+                const std::vector<double>&,
+                const std::vector<double>&,
+                sparse_matrix&);
+
+template
+void
+bim3a_reaction (tmesh_3d&,
+                const std::vector<double>&,
+                const distributed_vector&,
+                sparse_matrix&);
+
+/* ---- */
+template
+void
+bim3a_rhs (tmesh_3d&,
+           const std::vector<double>&,
+           const std::vector<double>&,
+           std::vector<double>&);
+
+template
+void
+bim3a_rhs (tmesh_3d&,
+           const std::vector<double>&,
+           const distributed_vector&,
+           distributed_vector&);
+
+/* ---- */
+template
+void
+bim3a_dirichlet_bc (tmesh_3d&, const dirichlet_bcs3&,
+                    sparse_matrix&, 
+                    std::vector<double>&);
+
+template
+void
+bim3a_dirichlet_bc (tmesh_3d&, const dirichlet_bcs3&,
+                    sparse_matrix&, 
+                    distributed_vector&);
+
+/* ---- */
+template
+void
+bim3a_dirichlet_bc (tmesh_3d&, const dirichlet_bcs3_quad&,
+                    sparse_matrix&, 
+                    std::vector<double>&);
+
+template
+void
+bim3a_dirichlet_bc (tmesh_3d&, const dirichlet_bcs3_quad&,
+                    sparse_matrix&, 
+                    distributed_vector&);
+
+/* ---- */
 template
 double
 nedelec_gradient (tmesh_3d::quadrant_iterator & ,
