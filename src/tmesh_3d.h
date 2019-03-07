@@ -17,6 +17,7 @@
 #include <p8est_mesh.h>
 #include <p8est_vtk.h>
 
+#include <bim_distributed_vector.h>
 #include <bim_ordering.h>
 
 #include <cassert>
@@ -334,12 +335,19 @@ public:
   /// Export nodal field f to a octbin.gz file for visualization.
   void
   octbin_export (const char * filename,
-                 const std::vector<double> & f);
+                 const std::vector<double> & f,
+                 const ordering& ord = default_ord);
+
+  /// Export nodal field f to a octbin.gz file for visualization.
+  void
+  octbin_export (const char * filename,
+                 const distributed_vector & f, 
+                 const ordering& ord = default_ord);
 
   /// Export quadrant field f to a octbin.gz file for visualization.
   void
   octbin_export_quadrant (const char * filename,
-			  const std::vector<double> & f);
+			  									const std::vector<double> & f);
 
   /// Get an iterator to the first quadrant of the mesh.
   quadrant_iterator
