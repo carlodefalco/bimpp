@@ -754,7 +754,8 @@ tmesh_3d::set_metrics_marker
                             std::ceil (hxhat_hx)),
                   double (max_depth));
 
-      std::cout << quadrant->the_quadrant->p.user_int << std::endl;
+      //std::cout << hxhat_hx << " ";
+      //std::cout << quadrant->the_quadrant->p.user_int << std::endl;
     }
 
   return;
