@@ -55,8 +55,6 @@ main (int argc, char *argv[])
 
   int is, ie, is_elems, ie_elems, rank_owned;
   distributed_sparse_matrix A;
-  
-  A.resize (55);
 
 
   if (rank == 0)
