@@ -16,8 +16,8 @@ hm (const double& a, const double& b)
 { return 2 / (1 / a + 1 / b); }
 
 // MPI_User_function.
-static void replace(double *invec, double *inoutvec,
-                    int *len, MPI_Datatype *dtype)
+static void replace (double *invec, double *inoutvec,
+                     int *len, MPI_Datatype *dtype)
 {
   for (int i = 0; i < *len; ++i)
     if (invec[i] != 0 && inoutvec[i] == 0)
@@ -349,11 +349,11 @@ bim2a_laplacian_eafe (tmesh& mesh,
 }
 
 void
-bim2a_advection_diffusion_loc
-(tmesh::quadrant_iterator& quadrant,
- const double & alpha,
- const std::array<double, 4>& psi,
- std::array<std::array<double,4>,4>& locmat)
+bim2a_advection_diffusion_loc (tmesh::quadrant_iterator& quadrant,
+                               const double & alpha,
+                               const std::array<double, 4>& psi,
+                               std::array<std::array<double,4>,4>&
+                               locmat)
 {
   double psi01 = 0;
   double psi13 = 0;

@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <cstdio>
 
 #include "simple_connectivity_3d.h"

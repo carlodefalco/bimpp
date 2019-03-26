@@ -1,27 +1,34 @@
 #ifndef HAVE_QUAD_OPERATORS_3D_H
 #define HAVE_QUAD_OPERATORS_3D_H 1
 
-#include "bim_sparse.h"
-#include "operators.h"
-#include "tmesh_3d.h"
+#include <tmesh_3d.h>
+#include <bim_distributed_vector.h>
+#include <bim_ordering.h>
+#include <bim_sparse.h>
+#include <operators.h>
 
 #include <functional>
 #include <tuple>
 #include <vector>
 
+// CDF : FIXME : ORDERINGS ARE PASSED BUT NOT ACTUALLY USED !!!
+
 /// f(x, y, z).
 using func3 = std::function<double (double, double, double)>;
 
 /// f(quadrant, node index).
-using func3_quad = std::function<double (tmesh_3d::quadrant_iterator, tmesh_3d::idx_t)>;
+using func3_quad = std::function<double (tmesh_3d::quadrant_iterator,
+                                          tmesh_3d::idx_t)>;
 
 /// Tree index, boundary index, function.
 using dirichlet_bcs3 = std::vector<std::tuple<int, int, func3>>;
 using dirichlet_bcs3_quad = std::vector<std::tuple<int, int, func3_quad>>;
 
-using q1_vec = std::vector<double>;
+template <class T>
+using q1_vec = T;   // std::vector<double> or distributed_vector
 
-using gradient3 = std::tuple<q1_vec, q1_vec, q1_vec>;
+template <class T>
+using gradient3 = std::tuple<T, T, T>;
 
 /// Nodes, faces, cell midpoint dofs.
 using q2_vec3 = std::vector<std::array<double, 27>>;
@@ -30,93 +37,193 @@ using q2_vec3 = std::vector<std::array<double, 27>>;
 /// account when computing the recovered gradient.
 using active_fun3 = std::function<bool (tmesh_3d::quadrant_iterator)>;
 
+
 void
 bim3a_structure (tmesh_3d &tmsh,
-                 sparse_matrix& A);
+                 sparse_matrix& A,
+                 const ordering& ordr = default_ord,
+                 const ordering& ordc = default_ord);
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+template <class T>
 void
 bim3a_advection_diffusion (tmesh_3d & mesh,
                            const std::vector<double>& alpha,
-                           const std::vector<double>& psi,
-                           sparse_matrix& A);
+                           const T& psi,
+                           sparse_matrix& A,
+                           bool symmetric = true,
+                           const ordering& ordr = default_ord,
+                           const ordering& ordc = default_ord);
 
+template <class T>
 void
 bim3a_advection_eafe_diffusion (tmesh_3d & mesh,
-                                const std::vector<double>& alpha,
-                                const std::vector<double>& psi,
-                                sparse_matrix& A);
+                                const T& alpha,
+                                const T& psi,
+                                sparse_matrix& A,
+                                const ordering& ordr = default_ord,
+                                const ordering& ordc = default_ord);
 
+template <class T>
 void
 bim3a_reaction (tmesh_3d& mesh,
                 const std::vector<double>& delta,
-                const std::vector<double>& zeta,
-                sparse_matrix& A);
+                const T& zeta,
+                sparse_matrix& A,
+                const ordering& ordr = default_ord,
+                const ordering& ordc = default_ord);
 
+template <class T>
 void
 bim3a_rhs (tmesh_3d& mesh,
            const std::vector<double>& f,
-           const std::vector<double>& g,
-           std::vector<double>& rhs);
+           const T& g, T& rhs,
+           const ordering& ord = default_ord);
 
-std::vector<double>
+void
+bim3a_solution_with_ghosts (tmesh_3d& mesh,
+                            distributed_vector& rhs,
+                            const binary_operator &op = std::plus<double> (),
+                            const ordering& ord = default_ord);
+
+template <class T>
+void
 bim3a_boundary_mass (tmesh_3d & mesh,
-		     const int & tree_idx,
-		     const int & boundary_idx,
-		     std::vector<double> & M,
-		     const func3_quad & fun =
-		     [] (tmesh_3d::quadrant_iterator, tmesh_3d::idx_t)
-		       {return 1;}
-		     );
+                     const int & tree_idx,
+                     const int & boundary_idx,
+                     T & M,
+                     const func3_quad & fun =
+                     [] (tmesh_3d::quadrant_iterator, tmesh_3d::idx_t)
+                       {return 1;},
+                     const ordering & ord = default_ord);
 
+/// rhs_or_A:
+/// 0, for both matrix and rhs;
+/// 1, for only rhs;
+/// 2, for only matrix.
+template <class T>
 void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
-                    sparse_matrix& A, std::vector<double>& rhs);
+                    sparse_matrix& A, T& rhs,
+                    const ordering& ord = default_ord,
+                    const bool& only_rhs = false);
 
+template <class T>
 void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
-                    sparse_matrix& A, std::vector<double>& rhs);
+                    sparse_matrix& A, T& rhs,
+                    const ordering& ord = default_ord,
+                    const bool& only_rhs = false);
 
-double
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+template <class T>
+static double
 nedelec_gradient (tmesh_3d::quadrant_iterator & q,
-                  const q1_vec& u, size_t i);
+                  const T& u, size_t i);
 
-gradient3
-bim2c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
-                                       const q1_vec& u,
+template <class T>
+gradient3<T>
+bim3c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
+                                       const T& u,
                                        active_fun3 is_active =
                                         [] (tmesh_3d::quadrant_iterator)
                                          {return true;});
 
+template <class T>
 q2_vec3
-bim2c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
-                                       const q1_vec& u,
-                                       const gradient3& du);
+bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
+                                       const T& u,
+                                       const gradient3<T>& du);
 
+/// Compute ||grad^* u - grad u||_L^2(q).
+template <class T>
 double
 estimator_grad (tmesh_3d::quadrant_iterator q,
-                const gradient3 & du_star,
-                const q1_vec & u);
+                const gradient3<T>& du_star,
+                const T& u);
 
-int 
+template <class T>
+int
 zz_marker_grad (tmesh_3d::quadrant_iterator q,
-                const gradient3& du_star,
-                const q1_vec& u,
+                const gradient3<T>& du_star,
+                const T& u,
                 double limit);
 
+/// Compute ||u^* - u||_L^2(q).
+template <class T>
 double
 estimator_sol (tmesh_3d::quadrant_iterator q,
                const q2_vec3 & ustar,
-               const q1_vec & u);
+               const T & u);
 
-int 
+template <class T>
+int
 zz_marker_sol (tmesh_3d::quadrant_iterator q,
                const q2_vec3& ustar,
-               const q1_vec& u,
+               const T& u,
                double limit);
 
+/// Compute ||u - u_ex||_L^2(q).
+template <class T>
 double
 l2_error (tmesh_3d::quadrant_iterator q,
           const func3 & u_ex,
-          const q1_vec & u);
+          const T & u);
+
+/// Compute |u - u_ex|_H^1(q).
+template <class T>
+double
+semih1_error (tmesh_3d::quadrant_iterator q,
+              const func3 & dudx_ex,
+              const func3 & dudy_ex,
+              const func3 & dudz_ex,
+              const T & u);
+
+/// Compute ||u_star - u_ex||_L^2(q).
+double
+l2_star_error (tmesh_3d::quadrant_iterator q,
+               const func3 & u_ex,
+               const q2_vec3 & ustar);
+
+/// Compute |du_star - grad(u_ex)|_H^1(q).
+template <class T>
+double
+semih1_star_error (tmesh_3d::quadrant_iterator q,
+                   const func3 & dudx_ex,
+                   const func3 & dudy_ex,
+                   const func3 & dudz_ex,
+                   const gradient3<T> & du_star);
 
 #endif
