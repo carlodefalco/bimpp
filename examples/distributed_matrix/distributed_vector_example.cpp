@@ -4,6 +4,7 @@
   the terms of the GNU/GPL licence v3
 */
 
+#include <iostream>
 
 #include <bim_distributed_vector.h>
 

@@ -6,7 +6,9 @@
 
 
 #include <bim_distributed_vector.h>
+
 #include <cassert>
+#include <iostream>
 
 binary_operator replace_op =
   [] (const double & x, const double & y)

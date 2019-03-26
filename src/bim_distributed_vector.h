@@ -7,7 +7,6 @@
 #ifndef HAVE_BIM_DISTRIBUTED_VECTOR_H
 #define HAVE_BIM_DISTRIBUTED_VECTOR_H 1
 
-#include <iostream>
 #include <map>
 #include <mpi.h>
 #include <vector>
