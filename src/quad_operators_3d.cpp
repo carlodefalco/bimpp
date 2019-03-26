@@ -7,8 +7,8 @@
 #include <iomanip>
 
 // MPI_User_function.
-static void replace(double *invec, double *inoutvec,
-                    int *len, MPI_Datatype *dtype)
+static void replace (double *invec, double *inoutvec,
+                     int *len, MPI_Datatype *dtype)
 {
   for (int i = 0; i < *len; ++i)
     if (invec[i] != 0 && inoutvec[i] == 0)
@@ -17,7 +17,9 @@ static void replace(double *invec, double *inoutvec,
 
 void
 bim3a_structure (tmesh_3d &tmsh,
-                 sparse_matrix& A)
+                 sparse_matrix& A,
+                 const ordering& ordr,
+                 const ordering& ordc)
 {
 
   std::vector<unsigned int> rows, cols;
@@ -65,9 +67,11 @@ template <class T>
 void
 bim3a_advection_diffusion (tmesh_3d& mesh,
                            const std::vector<double>& alpha,
-                           //const std::vector<double>& psi,
                            const T& psi,
-                           sparse_matrix& A)
+                           sparse_matrix& A,
+                           bool symmetric,
+                           const ordering& ordr,
+                           const ordering& ordc)
 {
   
   double bp01, bp13, bp23, bp02, bp04, bp15,
@@ -99,7 +103,7 @@ bim3a_advection_diffusion (tmesh_3d& mesh,
           else
             for (int pp = 0; pp < quadrant->num_parents (n); ++pp)
               psi_aux[n] += psi[quadrant->gparent (pp, n)] /
-		                        quadrant->num_parents (n);
+                quadrant->num_parents (n);
         }
 
       bimu_bernoulli(psi_aux[1] - psi_aux[0], bp01, bm01);
@@ -198,9 +202,10 @@ template <class T>
 void
 bim3a_reaction (tmesh_3d& mesh,
                 const std::vector<double>& delta,
-                //const std::vector<double>& zeta,
                 const T& zeta,
-                sparse_matrix& A)
+                sparse_matrix& A,
+                const ordering& ordr,
+                const ordering& ordc)
 {
   double hx, hy, hz;
   
@@ -234,7 +239,7 @@ bim3a_reaction (tmesh_3d& mesh,
               {
                 rows.push_back (quadrant->gparent (pp, i));
                 z_loc += zeta[quadrant->gparent (pp, i)] /
-		                      quadrant->num_parents (i);
+                  quadrant->num_parents (i);
               }
           
           for (int r = 0; r < rows.size (); ++r)
@@ -248,10 +253,8 @@ template <class T>
 void
 bim3a_rhs (tmesh_3d& mesh,
            const std::vector<double>& f,
-           //const std::vector<double>& g,
-           //std::vector<double>& rhs
-           const T& g,
-           T& rhs)
+           const T& g, T& rhs,
+           const ordering& ord)
 {
   double hx, hy, hz;
    
@@ -334,7 +337,8 @@ bim3a_boundary_mass (tmesh_3d & mesh,
 		     const int & tree_idx,
 		     const int & boundary_idx,
 		     std::vector<double> & M,
-		     const func3_quad & fun)
+		     const func3_quad & fun,
+                     const ordering & ord)
 {
   double area = 0;
 
@@ -375,9 +379,9 @@ bim3a_boundary_mass (tmesh_3d & mesh,
 template <class T>
 void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
-                    sparse_matrix& A, 
-                    //std::vector<double>& rhs
-                    T& rhs)
+                    sparse_matrix& A, T& rhs,
+                    const ordering& ord,
+                    const bool& only_rhs)
 {
   int boundary_idx, tree_idx;
   unsigned int row, col;
@@ -467,9 +471,9 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
 template <class T>
 void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
-                    sparse_matrix& A, 
-                    //std::vector<double>& rhs
-                    T& rhs)
+                    sparse_matrix& A, T& rhs,
+                    const ordering& ord,
+                    const bool& only_rhs)
 {
   int boundary_idx, tree_idx;
   unsigned int row, col;
@@ -575,8 +579,8 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
 
 static constexpr
 std::array<std::array<int, 3>, 12> edge = {2,6,2, 0,4,2, 0,2,1, 4,6,1, 
-  																				 1,5,2, 3,7,2, 1,3,1, 5,7,1,
-  																				 0,1,0, 4,5,0, 2,3,0, 6,7,0};
+                                           1,5,2, 3,7,2, 1,3,1, 5,7,1,
+                                           0,1,0, 4,5,0, 2,3,0, 6,7,0};
 
 template <class T>
 static double
@@ -586,21 +590,21 @@ nedelec_gradient (tmesh_3d::quadrant_iterator & q,
   std::array<double,8> u_aux;
 
   for (int n = 0; n < 8; ++n)
-  {
-    if (! q->is_hanging(n))
-      u_aux[n] = u[q -> gt(n)];
-    else
-      {   
-        u_aux[n] = 0.;
-        int np = q->num_parents(n);
-        for (int pp = 0; pp < np; ++pp)
-          u_aux[n] += u[q->gparent(pp,n)];
-        u_aux[n] /= np;
-      } 
-  }
+    {
+      if (! q->is_hanging(n))
+        u_aux[n] = u[q -> gt(n)];
+      else
+        {   
+          u_aux[n] = 0.;
+          int np = q->num_parents(n);
+          for (int pp = 0; pp < np; ++pp)
+            u_aux[n] += u[q->gparent(pp,n)];
+          u_aux[n] /= np;
+        } 
+    }
 
   double h = q->p (edge[i][2], edge[i][1]) -
-             q->p (edge[i][2], edge[i][0]);
+    q->p (edge[i][2], edge[i][0]);
 
   return ((u_aux[edge[i][1]] - u_aux[edge[i][0]]) / h);     
 }
@@ -1100,7 +1104,7 @@ bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
     }
    
   assert (du_x.size () <= 2 && du_y.size () <= 2 
-        && du_z.size () <= 2);
+          && du_z.size () <= 2);
 
   if (du_x.size () == 2)
     {
@@ -1245,39 +1249,39 @@ bim3c_quadtree_pde_recovered_gradient (tmesh_3d& mesh,
 
           // Assemble non-hanging nodes
           if (! quadrant->is_hanging (node))
-	          {
-	          	// Assemble entries related to inactive quadrants
-	          	du_x_star [quadrant->gt (node)] = 0;
-		          du_y_star [quadrant->gt (node)] = 0;
-		          du_z_star [quadrant->gt (node)] = 0;
+            {
+              // Assemble entries related to inactive quadrants
+              du_x_star [quadrant->gt (node)] = 0;
+              du_y_star [quadrant->gt (node)] = 0;
+              du_z_star [quadrant->gt (node)] = 0;
 
-			        // Skip inactive quadrants.
-		          if (! is_active(quadrant))
-		            continue;
+              // Skip inactive quadrants.
+              if (! is_active(quadrant))
+                continue;
 		          
-		          du_star_loc =
-		            bim3c_recovered_gradient_loc (quadrant, node,
-		                                          u, is_active);
+              du_star_loc =
+                bim3c_recovered_gradient_loc (quadrant, node,
+                                              u, is_active);
 
-		          du_x_star [quadrant->gt (node)] = std::get<0> (du_star_loc);
-		          du_y_star [quadrant->gt (node)] = std::get<1> (du_star_loc);
-		          du_z_star [quadrant->gt (node)] = std::get<2> (du_star_loc);
+              du_x_star [quadrant->gt (node)] = std::get<0> (du_star_loc);
+              du_y_star [quadrant->gt (node)] = std::get<1> (du_star_loc);
+              du_z_star [quadrant->gt (node)] = std::get<2> (du_star_loc);
 
-		          assigned_x[quadrant->gt (node)] = std::get<3> (du_star_loc);
-		          assigned_y[quadrant->gt (node)] = std::get<4> (du_star_loc);
-		          assigned_z[quadrant->gt (node)] = std::get<5> (du_star_loc);
-	        	}
-	        // Assemble parents	
-	       	else
-	       		{
-	       			int np = quadrant->num_parents(node);
-        			for (int pp = 0; pp < np; ++pp)
-        				{
-        					du_x_star [quadrant->gparent(pp,node)] += 0;
-        					du_y_star [quadrant->gparent(pp,node)] += 0;
-        					du_z_star [quadrant->gparent(pp,node)] += 0;
-        				}
-	       		}
+              assigned_x[quadrant->gt (node)] = std::get<3> (du_star_loc);
+              assigned_y[quadrant->gt (node)] = std::get<4> (du_star_loc);
+              assigned_z[quadrant->gt (node)] = std::get<5> (du_star_loc);
+            }
+          // Assemble parents	
+          else
+            {
+              int np = quadrant->num_parents(node);
+              for (int pp = 0; pp < np; ++pp)
+                {
+                  du_x_star [quadrant->gparent(pp,node)] += 0;
+                  du_y_star [quadrant->gparent(pp,node)] += 0;
+                  du_z_star [quadrant->gparent(pp,node)] += 0;
+                }
+            }
         }
     }
 
@@ -1304,49 +1308,49 @@ compute_solution_if_hanging (std::array<double, 8>& u_star_loc,
   int q2 = -1;	// index of first parent on the opposite side
   int q3 = -1;  // index of second parent on the opposite side
   if (np > 2)
-	  {
-	  	if (pp == 0)
-		  	{
-		  		q1 = 1;
-		    	q2 = 2;
+    {
+      if (pp == 0)
+        {
+          q1 = 1;
+          q2 = 2;
           q3 = 3;
-		  	}
-	  	else if (pp == 1)
-		  	{
-		  		q1 = 0;
-		  		q2 = 3;
+        }
+      else if (pp == 1)
+        {
+          q1 = 0;
+          q2 = 3;
           q3 = 2;
-		  	}
-		  else if (pp == 2)
-		  	{
-		  		q1 = 3;
-		  		q2 = 0;
+        }
+      else if (pp == 2)
+        {
+          q1 = 3;
+          q2 = 0;
           q3 = 1;
-		  	}
-		  else if (pp == 3)
-		  	{
-		  		q1 = 2;
-		  		q2 = 1;
+        }
+      else if (pp == 3)
+        {
+          q1 = 2;
+          q2 = 1;
           q3 = 0;
-		  	}
-	  }
-	else
-		q1 = 1-pp;		// in case of two parents, their indices are always 0,1
+        }
+    }
+  else
+    q1 = 1-pp;		// in case of two parents, their indices are always 0,1
 
   auto normal_to_x =
     [hy, hz, du, pp, q1, q2, q3, n]
     (tmesh_3d::quadrant_iterator & quadrant, std::array<double, 8>& u_star_loc)
     {
       u_star_loc[n] +=
-        hz * (std::get<2>(du)[quadrant->gparent (q1, n)] +
-              std::get<2>(du)[quadrant->gparent (pp, n)] -
-              std::get<2>(du)[quadrant->gparent (q2, n)] -
-              std::get<2>(du)[quadrant->gparent (q3, n)]) / 16;
+      hz * (std::get<2>(du)[quadrant->gparent (q1, n)] +
+            std::get<2>(du)[quadrant->gparent (pp, n)] -
+            std::get<2>(du)[quadrant->gparent (q2, n)] -
+            std::get<2>(du)[quadrant->gparent (q3, n)]) / 16;
       u_star_loc[n] += 
-        hy * (std::get<1>(du)[quadrant->gparent (pp, n)] +
-              std::get<1>(du)[quadrant->gparent (q2, n)] -
-              std::get<1>(du)[quadrant->gparent (q1, n)] -
-              std::get<1>(du)[quadrant->gparent (q3, n)]) / 16;
+      hy * (std::get<1>(du)[quadrant->gparent (pp, n)] +
+            std::get<1>(du)[quadrant->gparent (q2, n)] -
+            std::get<1>(du)[quadrant->gparent (q1, n)] -
+            std::get<1>(du)[quadrant->gparent (q3, n)]) / 16;
     };
 
   auto normal_to_y =
@@ -1354,15 +1358,15 @@ compute_solution_if_hanging (std::array<double, 8>& u_star_loc,
     (tmesh_3d::quadrant_iterator & quadrant, std::array<double, 8>& u_star_loc)
     {
       u_star_loc[n] +=
-        hx * (std::get<0>(du)[quadrant->gparent (pp, n)] +
-              std::get<0>(du)[quadrant->gparent (q2, n)] -
-              std::get<0>(du)[quadrant->gparent (q1, n)] -
-              std::get<0>(du)[quadrant->gparent (q3, n)]) / 16;
+      hx * (std::get<0>(du)[quadrant->gparent (pp, n)] +
+            std::get<0>(du)[quadrant->gparent (q2, n)] -
+            std::get<0>(du)[quadrant->gparent (q1, n)] -
+            std::get<0>(du)[quadrant->gparent (q3, n)]) / 16;
       u_star_loc[n] +=
-        hz * (std::get<2>(du)[quadrant->gparent (pp, n)] +
-              std::get<2>(du)[quadrant->gparent (q1, n)] -
-              std::get<2>(du)[quadrant->gparent (q2, n)] -
-              std::get<2>(du)[quadrant->gparent (q3, n)]) / 16;
+      hz * (std::get<2>(du)[quadrant->gparent (pp, n)] +
+            std::get<2>(du)[quadrant->gparent (q1, n)] -
+            std::get<2>(du)[quadrant->gparent (q2, n)] -
+            std::get<2>(du)[quadrant->gparent (q3, n)]) / 16;
     };
 
   auto normal_to_z =
@@ -1370,15 +1374,15 @@ compute_solution_if_hanging (std::array<double, 8>& u_star_loc,
     (tmesh_3d::quadrant_iterator & quadrant, std::array<double, 8>& u_star_loc)
     {
       u_star_loc[n] +=
-        hx * (std::get<0>(du)[quadrant->gparent (pp, n)] +
-              std::get<0>(du)[quadrant->gparent (q2, n)] -
-              std::get<0>(du)[quadrant->gparent (q1, n)] -
-              std::get<0>(du)[quadrant->gparent (q3, n)]) / 16;
+      hx * (std::get<0>(du)[quadrant->gparent (pp, n)] +
+            std::get<0>(du)[quadrant->gparent (q2, n)] -
+            std::get<0>(du)[quadrant->gparent (q1, n)] -
+            std::get<0>(du)[quadrant->gparent (q3, n)]) / 16;
       u_star_loc[n] +=
-        hy * (std::get<1>(du)[quadrant->gparent (pp, n)] +
-              std::get<1>(du)[quadrant->gparent (q1, n)] -
-              std::get<1>(du)[quadrant->gparent (q2, n)] -
-              std::get<1>(du)[quadrant->gparent (q3, n)]) / 16;
+      hy * (std::get<1>(du)[quadrant->gparent (pp, n)] +
+            std::get<1>(du)[quadrant->gparent (q1, n)] -
+            std::get<1>(du)[quadrant->gparent (q2, n)] -
+            std::get<1>(du)[quadrant->gparent (q3, n)]) / 16;
     };
 
   if (n == 0)	// ------- node 0
@@ -1521,7 +1525,7 @@ compute_solution_if_hanging (std::array<double, 8>& u_star_loc,
       if (np > 2) // four parents
       	{
           if (i == 0)	// face normal to y
-    	      normal_to_y(quadrant,u_star_loc);
+            normal_to_y(quadrant,u_star_loc);
           else if (i == 1)  // face normal to x
             normal_to_x(quadrant,u_star_loc);
           else if (i == 4)  // face normal to z
@@ -1570,30 +1574,30 @@ compute_solution_if_hanging (std::array<double, 8>& u_star_loc,
     }    
   else if (n == 7)	// ------- node 7
     {
-    	if (np > 2)	// four parents; 
-	    	{
-		    	if (i == 1)	// face normal to x
-		    		normal_to_x(quadrant,u_star_loc);
-		    	else if (i == 2)	// face normal to y
-		    		normal_to_y(quadrant,u_star_loc);
-		    	else if (i == 4)	// face normal to z
-		    		normal_to_z(quadrant,u_star_loc);	
-	    	}
-	    else	// two parents; 
-		    {
-			    if (i == 3)	// edge directed along z
-				    u_star_loc[n] +=
-			        (2 * hz) * (std::get<2>(du)[quadrant->gparent (pp, n)] -
-			                    std::get<2>(du)[quadrant->gparent (q1, n)]) / 8;
-		      else if (i == 5)	// edge directed along y
-		        u_star_loc[n] +=
-		          (2 * hy) * (std::get<1>(du)[quadrant->gparent (pp, n)] -
-		                      std::get<1>(du)[quadrant->gparent (q1, n)]) / 8;
-		      else if (i == 6)	// edge directed along x
-		        u_star_loc[n] +=
-		          (2 * hx) * (std::get<0>(du)[quadrant->gparent (pp, n)] -
-		                      std::get<0>(du)[quadrant->gparent (q1, n)]) / 8;
-	      }
+      if (np > 2)	// four parents; 
+        {
+          if (i == 1)	// face normal to x
+            normal_to_x(quadrant,u_star_loc);
+          else if (i == 2)	// face normal to y
+            normal_to_y(quadrant,u_star_loc);
+          else if (i == 4)	// face normal to z
+            normal_to_z(quadrant,u_star_loc);	
+        }
+      else	// two parents; 
+        {
+          if (i == 3)	// edge directed along z
+            u_star_loc[n] +=
+              (2 * hz) * (std::get<2>(du)[quadrant->gparent (pp, n)] -
+                          std::get<2>(du)[quadrant->gparent (q1, n)]) / 8;
+          else if (i == 5)	// edge directed along y
+            u_star_loc[n] +=
+              (2 * hy) * (std::get<1>(du)[quadrant->gparent (pp, n)] -
+                          std::get<1>(du)[quadrant->gparent (q1, n)]) / 8;
+          else if (i == 6)	// edge directed along x
+            u_star_loc[n] +=
+              (2 * hx) * (std::get<0>(du)[quadrant->gparent (pp, n)] -
+                          std::get<0>(du)[quadrant->gparent (q1, n)]) / 8;
+        }
     }
 }
 
@@ -1605,21 +1609,21 @@ bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
 {
   q2_vec3 u_star (mesh.num_local_quadrants (),
                   std::array<double, 27> ({0,0,0,0,0,0,0,0,0,
-                 	              				  0,0,0,0,0,0,0,0,0,
-                                          0,0,0,0,0,0,0,0,0}));
+                        0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,0,0,0,0}));
 
   double hx = 0.0, hy = 0.0, hz = 0.0;
 
   std::array<double, 8> u_star_loc,
-                        du_x_star_loc,
-                        du_y_star_loc,
-                        du_z_star_loc;
+    du_x_star_loc,
+    du_y_star_loc,
+    du_z_star_loc;
 
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
     {
-			hx = quadrant->p (0, 7) - quadrant->p (0, 0);
+      hx = quadrant->p (0, 7) - quadrant->p (0, 0);
       hy = quadrant->p (1, 7) - quadrant->p (1, 0);
       hz = quadrant->p (2, 7) - quadrant->p (2, 0);
 
@@ -1634,31 +1638,31 @@ bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
               du_z_star_loc[n] = std::get<2>(du)[quadrant->gt (n)];
             }
           else
-          	{
-          	  // value of u_star_loc, du_x_star_loc, du_y_star_loc, and
-          	  // du_z_star_loc are computed as the average over all the
-          	  // parents
-          	  int np = quadrant->num_parents(n);
+            {
+              // value of u_star_loc, du_x_star_loc, du_y_star_loc, and
+              // du_z_star_loc are computed as the average over all the
+              // parents
+              int np = quadrant->num_parents(n);
               u_star_loc[n] = 0.;
               du_x_star_loc[n] = 0.;
               du_y_star_loc[n] = 0.;
               du_z_star_loc[n] = 0.;
-          	  for (int pp = 0; pp < np; ++pp)
-  	          	{
-  	          	  u_star_loc[n] += u[quadrant->gparent(pp,n)];
-  	          	  du_x_star_loc[n] += std::get<0>(du)
-                                                  [quadrant->gparent (pp, n)];
-  	          	  du_y_star_loc[n] += std::get<1>(du)
-                                                  [quadrant->gparent (pp, n)];
-  	          	  du_z_star_loc[n] += std::get<2>(du)
-                                                  [quadrant->gparent (pp, n)];
-  	          	}
-          	  u_star_loc[n] /= np;	
-          	  du_x_star_loc[n] /= np;
-          	  du_y_star_loc[n] /= np;
-          	  du_z_star_loc[n] /= np;
+              for (int pp = 0; pp < np; ++pp)
+                {
+                  u_star_loc[n] += u[quadrant->gparent(pp,n)];
+                  du_x_star_loc[n] += std::get<0>(du)
+                    [quadrant->gparent (pp, n)];
+                  du_y_star_loc[n] += std::get<1>(du)
+                    [quadrant->gparent (pp, n)];
+                  du_z_star_loc[n] += std::get<2>(du)
+                    [quadrant->gparent (pp, n)];
+                }
+              u_star_loc[n] /= np;	
+              du_x_star_loc[n] /= np;
+              du_y_star_loc[n] /= np;
+              du_z_star_loc[n] /= np;
 
-        	    // Determine whether n is hanging on an edge
+              // Determine whether n is hanging on an edge
               // directed along the x or y or z direction.
               int i = 0; int p = 0;
               bool found = false;
@@ -1669,98 +1673,98 @@ bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
               for (; i < 8 && !found; ++i)
                 {
                   for (int pp = 0; pp < np && !found; ++pp)
-                  	{
-                  		int par = quadrant->parent(pp,n);
-                  		int tt = quadrant->t(i);
-                  	  if (i != n && par == tt)	
-                  	  	{
-                  	  		if (np > 2)
-                  	  		{
-	                  	  		if (i == 0)
-		                  	  		{
-                                found = false;
-                                int j = 1;
-                                for (; j < 8 && !found; ++j)
-                                  {
-                                    for (int pp = 0; pp < np && !found; ++pp)
-                                      {
-                                        int par = quadrant->parent(pp,n);
-                                        int tt = quadrant->t(j);
-                                        if (j!=n && par == tt)  
-                                          {
-                                            found = true;
-                                            --j;
-                                          }
-                                      }
-                                  }
-                                if (n == 1)
-				                  	  		{
-				                  	  			// node 1 ---> 
-				                  	  			// i=0,j=2 -> face normal to z
-				                  	  			// i=0,j=4 -> face normal to y
-					                  	  		if (j == 2)
-						                  	  		i = 9;
-						                  	  	else if (j == 4)
-						                  	  		i = 10;	
-				                  	  		}
-			                  	  		else if (n == 2)
-				                  	  		{
-				                  	  			// node 2 ---> 
-				                  	  			// i=0,j=1 -> face normal to z
-				                  	  			// i=0,j=4 -> face normal to x
-				                  	  			if (j == 1)
-				                  	  				i = 9;	
-				                  	  			else if (j == 4)
-				                  	  				i = 10;	
-				                  	  		}
-				                  	  	else if (n == 4)
-				                  	  		{
-				                  	  			// node 4 ---> 
-				                  	  			// i=0,j=1 -> face normal to y
-				                  	  			// i=0,j=2 -> face normal to x
-				                  	  			if (j == 1)
-				                  	  				i = 9;	
-				                  	  			else if (j == 2)
-				                  	  				i = 10;	
-				                  	  		}
-		                  	  		}
-		                  	  	else if (n == 0 && i == 1)
-		                  	  		{
-		                  	  			// node 0 ---> 
-				                  	  	// i=1,j=2 -> face normal to z
-				                  	  	// i=1,j=4 -> face normal to y
-                                found = false;
-                                int j = 2;
-                                for (; j < 8 && !found; ++j)
-                                  {
-                                    for (int pp = 0; pp < np && !found; ++pp)
-                                      {
-                                        int par = quadrant->parent(pp,n);
-                                        int tt = quadrant->t(j);
-                                        if (j!=n && par == tt)  
-                                          {
-                                            found = true;
-                                            --j;
-                                          }
-                                      }
-                                  }
-		                  	  			if (j == 2)
-		                  	  				i = 9;
-		                  	  			else if (j == 4)
-		                  	  				i = 10;
-		                  	  		}
-	                  	  	}	
-                  	  	  p = pp;
-                  	  	  found = true;	
+                    {
+                      int par = quadrant->parent(pp,n);
+                      int tt = quadrant->t(i);
+                      if (i != n && par == tt)	
+                        {
+                          if (np > 2)
+                            {
+                              if (i == 0)
+                                {
+                                  found = false;
+                                  int j = 1;
+                                  for (; j < 8 && !found; ++j)
+                                    {
+                                      for (int pp = 0; pp < np && !found; ++pp)
+                                        {
+                                          int par = quadrant->parent(pp,n);
+                                          int tt = quadrant->t(j);
+                                          if (j!=n && par == tt)  
+                                            {
+                                              found = true;
+                                              --j;
+                                            }
+                                        }
+                                    }
+                                  if (n == 1)
+                                    {
+                                      // node 1 ---> 
+                                      // i=0,j=2 -> face normal to z
+                                      // i=0,j=4 -> face normal to y
+                                      if (j == 2)
+                                        i = 9;
+                                      else if (j == 4)
+                                        i = 10;	
+                                    }
+                                  else if (n == 2)
+                                    {
+                                      // node 2 ---> 
+                                      // i=0,j=1 -> face normal to z
+                                      // i=0,j=4 -> face normal to x
+                                      if (j == 1)
+                                        i = 9;	
+                                      else if (j == 4)
+                                        i = 10;	
+                                    }
+                                  else if (n == 4)
+                                    {
+                                      // node 4 ---> 
+                                      // i=0,j=1 -> face normal to y
+                                      // i=0,j=2 -> face normal to x
+                                      if (j == 1)
+                                        i = 9;	
+                                      else if (j == 2)
+                                        i = 10;	
+                                    }
+                                }
+                              else if (n == 0 && i == 1)
+                                {
+                                  // node 0 ---> 
+                                  // i=1,j=2 -> face normal to z
+                                  // i=1,j=4 -> face normal to y
+                                  found = false;
+                                  int j = 2;
+                                  for (; j < 8 && !found; ++j)
+                                    {
+                                      for (int pp = 0; pp < np && !found; ++pp)
+                                        {
+                                          int par = quadrant->parent(pp,n);
+                                          int tt = quadrant->t(j);
+                                          if (j!=n && par == tt)  
+                                            {
+                                              found = true;
+                                              --j;
+                                            }
+                                        }
+                                    }
+                                  if (j == 2)
+                                    i = 9;
+                                  else if (j == 4)
+                                    i = 10;
+                                }
+                            }	
+                          p = pp;
+                          found = true;	
                           --i;
-                  	  	}  	
-                  	}
+                        }  	
+                    }
                 }
 
               // Compute recovered solution at the
               // double-sized neighbor element.
               compute_solution_if_hanging(u_star_loc,du,quadrant,n,p,i);  
-          	} 
+            } 
 
           u_star[quadrant->get_forest_quad_idx ()][n] = u_star_loc[n]; 
         }
@@ -1890,25 +1894,25 @@ bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
                       du_y_star_loc[6] - du_y_star_loc[7]) / 16;  
 
       // Compute value at cell midpoint.  
-		  u_star[quadrant->get_forest_quad_idx ()][26] =
-	        	(u_star[quadrant->get_forest_quad_idx ()][20] +
-	        	u_star[quadrant->get_forest_quad_idx ()][21] +
-	        	u_star[quadrant->get_forest_quad_idx ()][22] +
-	        	u_star[quadrant->get_forest_quad_idx ()][23] +
-	          u_star[quadrant->get_forest_quad_idx ()][24] +
-	          u_star[quadrant->get_forest_quad_idx ()][25]) / 6
-	        + hx * 0.25 * (du_x_star_loc[0] + du_x_star_loc[2] +
-	                     	du_x_star_loc[4] + du_x_star_loc[6] -
-	                     	du_x_star_loc[1] - du_x_star_loc[3] -
-	                     	du_x_star_loc[5] - du_x_star_loc[7]) / 24  
-					+ hy * 0.25 * (du_y_star_loc[0] + du_y_star_loc[1] +
-	                     	du_y_star_loc[4] + du_y_star_loc[5] -
-	                     	du_y_star_loc[2] - du_y_star_loc[3] -
-	                     	du_y_star_loc[6] - du_y_star_loc[7]) / 24 
-					+ hz * 0.25 * (du_z_star_loc[0] + du_z_star_loc[1] +
-	                     	du_z_star_loc[2] + du_z_star_loc[3] -
-	                     	du_z_star_loc[4] - du_z_star_loc[5] -
-	                     	du_z_star_loc[6] - du_z_star_loc[7]) / 24; 
+      u_star[quadrant->get_forest_quad_idx ()][26] =
+        (u_star[quadrant->get_forest_quad_idx ()][20] +
+         u_star[quadrant->get_forest_quad_idx ()][21] +
+         u_star[quadrant->get_forest_quad_idx ()][22] +
+         u_star[quadrant->get_forest_quad_idx ()][23] +
+         u_star[quadrant->get_forest_quad_idx ()][24] +
+         u_star[quadrant->get_forest_quad_idx ()][25]) / 6
+        + hx * 0.25 * (du_x_star_loc[0] + du_x_star_loc[2] +
+                       du_x_star_loc[4] + du_x_star_loc[6] -
+                       du_x_star_loc[1] - du_x_star_loc[3] -
+                       du_x_star_loc[5] - du_x_star_loc[7]) / 24  
+        + hy * 0.25 * (du_y_star_loc[0] + du_y_star_loc[1] +
+                       du_y_star_loc[4] + du_y_star_loc[5] -
+                       du_y_star_loc[2] - du_y_star_loc[3] -
+                       du_y_star_loc[6] - du_y_star_loc[7]) / 24 
+        + hz * 0.25 * (du_z_star_loc[0] + du_z_star_loc[1] +
+                       du_z_star_loc[2] + du_z_star_loc[3] -
+                       du_z_star_loc[4] - du_z_star_loc[5] -
+                       du_z_star_loc[6] - du_z_star_loc[7]) / 24; 
     }
 
   return u_star;  
@@ -1954,7 +1958,7 @@ quad_integral (const double *x, const double *y, const double *z,
           ny = xformx (y, gn[jy]);
           for (kz = 0; kz < 4; ++kz)
             sum += fun (nx, ny, xformx(z, gn[kz])) *
-                   wx * wy * xformw(z, gw[kz]);
+              wx * wy * xformw(z, gw[kz]);
         }        
     }
   return (sum);
@@ -1976,9 +1980,9 @@ dudx (double X, double Y, double Z, const double *x,
   double dt2 = (u[7] - u[6]);
 
   double result = (db1 * (y[1] - Y) * (z[1] - Z) + 
-             dt1 * (Y - y[0]) * (z[1] - Z) +
-             db2 * (y[1] - Y) * (Z - z[0]) +
-             dt2 * (Y - y[0]) * (Z - z[0])) / hxhyhz;
+                   dt1 * (Y - y[0]) * (z[1] - Z) +
+                   db2 * (y[1] - Y) * (Z - z[0]) +
+                   dt2 * (Y - y[0]) * (Z - z[0])) / hxhyhz;
 
   return  result;
 }
@@ -1999,9 +2003,9 @@ dudy (double X, double Y, double Z, const double *x,
   double dr2 = (u[7] - u[5]);
 
   double result = (dl1 * (x[1] - X) * (z[1] - Z) + 
-             dr1 * (X - x[0]) * (z[1] - Z) +
-             dl2 * (x[1] - X) * (Z - z[0]) + 
-             dr2 * (X - x[0]) * (Z - z[0])) / hxhyhz;
+                   dr1 * (X - x[0]) * (z[1] - Z) +
+                   dl2 * (x[1] - X) * (Z - z[0]) + 
+                   dr2 * (X - x[0]) * (Z - z[0])) / hxhyhz;
 
   return result;
 }
@@ -2022,9 +2026,9 @@ dudz (double X, double Y, double Z, const double *x,
   double d22 = (u[7] - u[3]);
 
   double result = (d11 * (x[1] - X) * (y[1] - Y) + 
-             d21 * (X - x[0]) * (y[1] - Y) +
-             d12 * (x[1] - X) * (Y - y[0]) + 
-             d22 * (X - x[0]) * (Y - y[0])) / hxhyhz;
+                   d21 * (X - x[0]) * (y[1] - Y) +
+                   d12 * (x[1] - X) * (Y - y[0]) + 
+                   d22 * (X - x[0]) * (Y - y[0])) / hxhyhz;
   
   return result;
 }
@@ -2034,7 +2038,7 @@ dudz (double X, double Y, double Z, const double *x,
 // at (X, Y, Z).
 static double
 q1 (double X, double Y, double Z, const double *x,
-      const double *y, const double *z, const double *u)
+    const double *y, const double *z, const double *u)
 {
   double hxhyhz = (x[1] - x[0]) * (y[1] - y[0]) * (z[1] - z[0]);
   double Xx1 = (X - x[1]);
@@ -2045,13 +2049,13 @@ q1 (double X, double Y, double Z, const double *x,
   double Zz0 = (Z - z[0]);
 
   double num = u[0] * -Xx1  * Yy1 * Zz1 + 
-               u[1] * Xx0 * Yy1 * Zz1 +
-               u[2] * Xx1 * Yy0 * Zz1 + 
-               u[3] * -Xx0  * Yy0 * Zz1 +
-               u[4] * Xx1  * Yy1 * Zz0 + 
-               u[5] * -Xx0 * Yy1 * Zz0 +
-               u[6] * -Xx1 * Yy0 * Zz0 +
-               u[7] * Xx0  * Yy0 * Zz0;          
+    u[1] * Xx0 * Yy1 * Zz1 +
+    u[2] * Xx1 * Yy0 * Zz1 + 
+    u[3] * -Xx0  * Yy0 * Zz1 +
+    u[4] * Xx1  * Yy1 * Zz0 + 
+    u[5] * -Xx0 * Yy1 * Zz0 +
+    u[6] * -Xx1 * Yy0 * Zz0 +
+    u[7] * Xx0  * Yy0 * Zz0;          
 
   return (num / hxhyhz);
 }
@@ -2061,7 +2065,7 @@ q1 (double X, double Y, double Z, const double *x,
 // at (X, Y, Z).
 static double
 q2 (double X, double Y, double Z, const double *x,
-      const double *y, const double *z, const double *u)
+    const double *y, const double *z, const double *u)
 {
   double xc = 0.5 * (x[0] + x[1]);
   double yc = 0.5 * (y[0] + y[1]);
@@ -2375,7 +2379,7 @@ semih1_star_error (tmesh_3d::quadrant_iterator q,
 
   auto fun =
     [x, y, z, dudxstar_loc, dudystar_loc, dudzstar_loc, 
-    dudx_ex, dudy_ex, dudz_ex]
+     dudx_ex, dudy_ex, dudz_ex]
     (double X, double Y, double Z) -> double
     {
       return
@@ -2398,14 +2402,16 @@ void
 bim3a_advection_diffusion (tmesh_3d&,
                            const std::vector<double>&,
                            const std::vector<double>&,
-                           sparse_matrix&);
+                           sparse_matrix&, bool,
+                           const ordering&, const ordering&);
 
 template
 void
 bim3a_advection_diffusion (tmesh_3d&,
                            const std::vector<double>&,
                            const distributed_vector&,
-                           sparse_matrix&);
+                           sparse_matrix&, bool,
+                           const ordering&, const ordering&);
 
 /* ---- */
 template
@@ -2413,14 +2419,18 @@ void
 bim3a_reaction (tmesh_3d&,
                 const std::vector<double>&,
                 const std::vector<double>&,
-                sparse_matrix&);
+                sparse_matrix&,
+                const ordering&,
+                const ordering&);
 
 template
 void
 bim3a_reaction (tmesh_3d&,
                 const std::vector<double>&,
                 const distributed_vector&,
-                sparse_matrix&);
+                sparse_matrix&,
+                const ordering&,
+                const ordering&);
 
 /* ---- */
 template
@@ -2428,40 +2438,42 @@ void
 bim3a_rhs (tmesh_3d&,
            const std::vector<double>&,
            const std::vector<double>&,
-           std::vector<double>&);
+           std::vector<double>&,
+           const ordering&);
 
 template
 void
 bim3a_rhs (tmesh_3d&,
            const std::vector<double>&,
            const distributed_vector&,
-           distributed_vector&);
+           distributed_vector&,
+           const ordering&);
 
 /* ---- */
 template
 void
 bim3a_dirichlet_bc (tmesh_3d&, const dirichlet_bcs3&,
-                    sparse_matrix&, 
-                    std::vector<double>&);
+                    sparse_matrix&, std::vector<double>&,
+                    const ordering&, const bool&);
 
 template
 void
 bim3a_dirichlet_bc (tmesh_3d&, const dirichlet_bcs3&,
-                    sparse_matrix&, 
-                    distributed_vector&);
+                    sparse_matrix&, distributed_vector&,
+                    const ordering&, const bool&);
 
 /* ---- */
 template
 void
 bim3a_dirichlet_bc (tmesh_3d&, const dirichlet_bcs3_quad&,
-                    sparse_matrix&, 
-                    std::vector<double>&);
+                    sparse_matrix&, std::vector<double>&,
+                    const ordering&, const bool&);
 
 template
 void
 bim3a_dirichlet_bc (tmesh_3d&, const dirichlet_bcs3_quad&,
-                    sparse_matrix&, 
-                    distributed_vector&);
+                    sparse_matrix&, distributed_vector&,
+                    const ordering&, const bool&);
 
 /* ---- */
 template

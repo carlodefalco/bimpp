@@ -14,6 +14,7 @@
 #define HAVE_ZLIB
 
 #include <fstream>
+#include <iostream>
 #include <octave/octave-config.h>
 #include <octave/zfstream.h>
 
