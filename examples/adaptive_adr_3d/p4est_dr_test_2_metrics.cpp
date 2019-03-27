@@ -16,9 +16,6 @@ static int
 uniform_refinement (tmesh_3d::quadrant_iterator q)
 { return 1; }
 
-void
-print_matrix (std::ofstream &ofs, distributed_sparse_matrix &A);
-
 // main:
 //
 int
@@ -162,6 +159,7 @@ main (int argc, char **argv)
       //
       // advection_diffusion
       bim3a_advection_diffusion (tmsh, alpha, psi, A);
+      A.assemble();
       for (int r = 0; r < size; ++r)
         {
           if (rank == r)
@@ -169,12 +167,13 @@ main (int argc, char **argv)
               std::ostringstream ss;
               ss << "matrix0_" << r << ".m";
               std::ofstream ofs(ss.str());
-              print_matrix(ofs,A);
+              ofs << A;
             }
         }
       //
       // reaction
       bim3a_reaction (tmsh, delta, zeta, A);
+      A.assemble();
       for (int r = 0; r < size; ++r)
 	      {
           if (rank == r)
@@ -182,7 +181,7 @@ main (int argc, char **argv)
               std::ostringstream ss;
               ss << "matrix1_" << r << ".m";
               std::ofstream ofs(ss.str());
-              print_matrix(ofs,A);
+              ofs << A;
             }
 	      }
       
@@ -200,6 +199,7 @@ main (int argc, char **argv)
         bcs.push_back (std::make_tuple(0, i, u_ex));
       
       bim3a_dirichlet_bc (tmsh, bcs, A, rhs);
+      A.assemble();
       for (int r = 0; r < size; ++r)
 	      {
           if (rank == r)
@@ -207,7 +207,7 @@ main (int argc, char **argv)
               std::ostringstream ss;
 	      	    ss << "matrix2_" << r << ".m";
 	      	    std::ofstream ofs(ss.str());
-	      	    print_matrix(ofs,A);
+	      	    ofs << A;
             }
 	      }
       
@@ -225,6 +225,7 @@ main (int argc, char **argv)
       mumps_solver.set_lhs_distributed ();
       mumps_solver.set_distributed_lhs_structure (A.rows (), irow, jcol);
       mumps_solver.set_distributed_lhs_data (vals);
+      A.assemble();
       for (int r = 0; r < size; ++r)
 	      {
           if (rank == r)
@@ -232,7 +233,7 @@ main (int argc, char **argv)
               std::ostringstream ss;
 	      	    ss << "matrix3_" << r << ".m";
 	      	    std::ofstream ofs(ss.str());
-	      	    print_matrix(ofs,A);
+	      	    ofs << A;
             }
 	      }
       
@@ -404,21 +405,4 @@ main (int argc, char **argv)
   MPI_Finalize ();
   
   return 0;
-}
-
-void
-print_matrix (std::ofstream &ofs, distributed_sparse_matrix &A)
-{
-  ofs << "mat = spconvert ([";
-  for (int j = A.range_start(); j < A.range_end(); ++j)
-    {
-      if (A[j].size ())
-        for (auto k = A[j].begin (); k != A[j].end (); ++k)
-          {
-            ofs << j+1 << ", " << A.col_idx (k) + 1 << ", ";
-            ofs  << std::setprecision (17)
-                    << A.col_val (k) << ";" << std::endl;
-          }
-    }
-  ofs << "]);" << std::endl;
 }
