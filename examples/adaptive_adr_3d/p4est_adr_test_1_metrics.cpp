@@ -1,4 +1,4 @@
-#include <bim_sparse.h>
+#include <bim_sparse_distributed.h>
 #include <mumps_class.h>
 #include <quad_operators_3d.h>
 
@@ -13,41 +13,46 @@ static int
 uniform_refinement (tmesh_3d::quadrant_iterator q)
 { return 1; }
 
+
+// main:
+//
 int
 main (int argc, char **argv)
 {
   MPI_Init (&argc, &argv);
 
-  using idx_t = tmesh_3d::idx_t;
-  using q1_vec = q1_vec<std::vector<double>>;
-  using gradient3 = gradient3<std::vector<double>>;
-  
   int                   recursive, partforcoarsen, balance;
   MPI_Comm              mpicomm = MPI_COMM_WORLD;  
   int                   rank, size;
   tmesh_3d              tmsh;
 
+  using q1_vec = q1_vec<distributed_vector>;
+  using gradient3 = gradient3<std::vector<double>>;
+  using idx_t = tmesh_3d::idx_t;
+
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
 
-  // number of initial uniform refinement steps
-  constexpr unsigned unif_refine_steps = 3;
-  // number of adaptive refinement steps
-  constexpr unsigned adapt_refine_steps = 10;
+  // Number of refinement steps
+  constexpr unsigned unif_refine_steps = 3;   // initial uniform refinement
+  constexpr unsigned adapt_refine_steps = 4;  // adaptive refinement
   
-  std::vector<idx_t>    nnodes;         // number of nodes
-  std::vector<double>   h_step;         // mesh size
+  // Mesh parameters
+  std::vector<idx_t>    nnodes;         // number of nodes at every step
+  std::vector<double>   h_step;         // mesh size at every step
+
+  // Error at every step
+  std::vector<double> error;
 
   // Problem parameters
-  double epsilon = 1e-6;                // diffusion coefficient
-  double theta = M_PI / 4;              // angle
-  double n_coeff = 1/std::sqrt(3.0);    // normalization coefficient
+  constexpr double epsilon = 1e-6;              // diffusion coefficient
+  double n_coeff = 1/std::sqrt(3.0);            // normalization coefficient
 
   // Mesh generation
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
   
-  // Initial level of uniform refinement
+  // Initial uniform refinement
   recursive = 0; partforcoarsen = 1;
   for (int cycle = 0; cycle < unif_refine_steps; ++cycle)
     {
@@ -55,25 +60,27 @@ main (int argc, char **argv)
       tmsh.set_refine_marker (uniform_refinement);  
     }
   
-  // Export mesh
+  // Export initial mesh
   tmsh.vtk_export ("p4est_adr_test_1_metrics_initial_mesh");
   
   // Adaptive refinement loop
   for (int adapt = 0; adapt < adapt_refine_steps; ++adapt)
     {
-      std::cout << "*** Step " << adapt << " (rank " 
+      std::cout << "*** Step " 
+                << adapt << " (rank " 
                 << rank << ") ***" << std::endl;
       
-      // Assemble matrix.
-      sparse_matrix A;
-      A.resize(tmsh.num_global_nodes());
-
+      // Compute coefficients
+      //
+      // diffusion
       std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
-  
-      q1_vec psi(tmsh.num_global_nodes (),0);
-      //q1_vec psi(tmsh.num_owned_nodes ());
-      //bim3a_solution_with_ghosts(tmsh,psi);
-      double x = 0, y = 0, z = 0;
+      q1_vec psi(tmsh.num_owned_nodes ());
+      //
+      // rhs
+      std::vector<double> f(tmsh.num_local_quadrants (), 0);
+      q1_vec g(tmsh.num_owned_nodes ());
+      //
+      double x = .0, y = .0, z = .0;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
@@ -86,57 +93,41 @@ main (int argc, char **argv)
                   y = quadrant->p(1, ii);
                   z = quadrant->p(2, ii);
                   
-                  psi[quadrant->gt(ii)] = (- x - y - z) / n_coeff;
-                  psi[quadrant->gt(ii)] /= epsilon;
+                  // CCI: divisione per epsilon --> matrice singolare (?)
+                  psi[quadrant->gt(ii)] = (x + y - z) * n_coeff;// / epsilon;
+
+                  g[quadrant->gt(ii)] = 0.;
                 }
             }
         }
-      //psi.assemble(replace_op);
+      psi.assemble(max_op);
+      g.assemble(replace_op);
 
-      // Reduce coefficients.
-
-      q1_vec global_psi(tmsh.num_global_nodes(),0);
-      MPI_Allreduce(psi.data(), global_psi.data(), 
-                    psi.size(), MPI_DOUBLE, MPI_MAX, mpicomm);
-			/*
-      q1_vec global_psi(tmsh.num_owned_nodes ());
-      bim3a_solution_with_ghosts(tmsh,global_psi);   
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-           quadrant != tmsh.end_quadrant_sweep ();
-           ++quadrant)
-        {
-          for (int ii = 0; ii < 8; ++ii)
-            if (! quadrant->is_hanging (ii))
-              global_psi[quadrant->gt(ii)] = psi[quadrant->gt(ii)];
-        }
-      global_psi.assemble(replace_op);  
-      */ 
-
-      bim3a_advection_diffusion (tmsh, alpha, global_psi, A);
+      // Assemble matrix.
+      //distributed_sparse_matrix A;
+      //A.set_ranges(tmsh.num_owned_nodes());
+      sparse_matrix A;
+      A.resize(tmsh.num_global_nodes());
+      //
+      // advection_diffusion
+      bim3a_advection_diffusion (tmsh, alpha, psi, A);
       
       // Assemble right-hand side.
-      q1_vec rhs(tmsh.num_global_nodes(),0);
-      //q1_vec rhs(tmsh.num_owned_nodes ());
-      //bim3a_solution_with_ghosts(tmsh,rhs);  
-      
-      std::vector<double> f(tmsh.num_local_quadrants (), 0);
-
-      q1_vec g(tmsh.num_global_nodes(),0);
-      //q1_vec g(tmsh.num_owned_nodes ());
-      //bim3a_solution_with_ghosts(tmsh,g);  
+      q1_vec rhs(tmsh.num_owned_nodes ());
+      bim3a_solution_with_ghosts(tmsh,rhs);  
       
       bim3a_rhs (tmsh, f, g, rhs);
 
       // Set boundary conditions.
       func3 u0  = [] (double x, double y, double z) { return 0; };
       func3 u10 = [] (double x, double y, double z) 
-      	{
-      		double d = 1.;
-      		if (x >= 0.5 && y >= (- x + 1.5))
-      			d = 0.;
-      		return d; 
-      	};
-      
+      {
+        double d = 1.;
+        if (x <= 0.5 && y <= (- x + 0.5))
+          d = 0.;
+        return d; 
+      };
+      //
       dirichlet_bcs3 bcs;
       bcs.push_back (std::make_tuple(0, 0, u0));
       bcs.push_back (std::make_tuple(0, 1, u0));
@@ -144,14 +135,13 @@ main (int argc, char **argv)
       bcs.push_back (std::make_tuple(0, 3, u0));
       bcs.push_back (std::make_tuple(0, 4, u0));
       bcs.push_back (std::make_tuple(0, 5, u10));
-      
+      //
       bim3a_dirichlet_bc (tmsh, bcs, A, rhs);
       
       // Solve problem.
-      std::cout << "Solving linear system (rank "
-                << rank << ")" << std::endl;
+      std::cout << "Solving linear system (rank " << rank << ")" << std::endl;
 
-      mumps mumps_solver(true);
+      mumps mumps_solver;
       
       std::vector<double> vals;
       std::vector<int> irow, jcol;
@@ -162,35 +152,11 @@ main (int argc, char **argv)
       mumps_solver.set_distributed_lhs_structure (A.rows (), irow, jcol);
       mumps_solver.set_distributed_lhs_data (vals);
       
-      // Reduce rhs (so that rank 0 has the actual rhs).
-      
-      q1_vec global_rhs(tmsh.num_global_nodes(),0);
-      MPI_Reduce(rhs.data(), global_rhs.data(), 
-                  rhs.size(),MPI_DOUBLE, MPI_SUM, 0, mpicomm);
-			
-      /*
-      q1_vec global_rhs(tmsh.num_owned_nodes ());
-      bim3a_solution_with_ghosts(tmsh,global_rhs);   
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-           quadrant != tmsh.end_quadrant_sweep ();
-           ++quadrant)
-        {
-          for (int ii = 0; ii < 8; ++ii)
-            if (! quadrant->is_hanging (ii))
-              global_rhs[quadrant->gt(ii)] = rhs[quadrant->gt(ii)];
-        }
-      global_rhs.assemble(); 
-      */
-
-      MPI_Barrier(mpicomm);
-      if (rank == 0)
-        mumps_solver.set_rhs(global_rhs);
+      mumps_solver.set_rhs_distributed(rhs);
 
       // Solve.
       std::cout << "\tanalyze (rank " << rank << ")" << std::endl;
-      int analyze_res =  mumps_solver.analyze ();
-      std::cout << "\tanalyze_res = " << analyze_res 
-      					<< " (rank " << rank << ")" << std::endl;
+      mumps_solver.analyze ();
       std::cout << "\tfactorize (rank " << rank << ")" << std::endl;
 			mumps_solver.factorize ();
       std::cout << "\tsolve (rank " << rank << ")" << std::endl;
@@ -198,9 +164,24 @@ main (int argc, char **argv)
       std::cout << "\tcleanup (rank " << rank << ")" << std::endl;
       mumps_solver.cleanup ();
 
-      // Export solution.
+      q1_vec rhs_on_0 = mumps_solver.get_distributed_solution();
 
-      MPI_Bcast(global_rhs.data(), global_rhs.size(), MPI_DOUBLE, 0, mpicomm);
+      unsigned size_global_rhs = 0;
+      std::vector<double> global_rhs;
+      if (rank == 0)
+        {
+          global_rhs = rhs_on_0.get_owned_data();
+          size_global_rhs = global_rhs.size();
+        }
+
+      MPI_Bcast(&size_global_rhs, 1, MPI_UNSIGNED, 0 , mpicomm);
+
+      if (rank != 0)
+        global_rhs.resize(size_global_rhs);
+
+      MPI_Bcast(global_rhs.data(), size_global_rhs, MPI_DOUBLE, 0, mpicomm);
+
+      // Export solution.
 
       tmsh.octbin_export ((std::string("p4est_adr_test_1_metrics_u_")
                            + std::to_string(adapt)).c_str(), global_rhs);
@@ -213,8 +194,10 @@ main (int argc, char **argv)
       
       std::cout << "\tgradient (rank " << rank << ")" << std::endl;
       gradient3 du = bim3c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
+
       std::cout << "\tsolution (rank " << rank << ")" << std::endl;
-      q2_vec3 u_star = bim3c_quadtree_pde_recovered_solution(tmsh, global_rhs, 
+      q2_vec3 u_star = bim3c_quadtree_pde_recovered_solution(tmsh,
+                                                              global_rhs,
                                                               du);
       
       // Export reconstructed gradient
