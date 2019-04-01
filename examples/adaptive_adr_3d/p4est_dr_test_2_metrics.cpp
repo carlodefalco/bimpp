@@ -16,15 +16,58 @@ static int
 uniform_refinement (tmesh_3d::quadrant_iterator q)
 { return 1; }
 
+// Number of refinement steps 
+constexpr unsigned unif_refine_steps  = 2;  // initial uniform refinement 
+constexpr unsigned adapt_refine_steps = 3;  // adaptive refinement
+
+// Problem parameters
+constexpr double inv_epsilon = 1e11;  // 1 / epsilon
+constexpr double R = 0.25;            // radius of the internal sphere
+constexpr double kS = 1;            	// diffusion coefficient in the sphere
+constexpr double kG = 1;              // diffusion coefficient outside
+
+// Exact solution
+static inline double
+u_ex (double x, double y, double z) 
+{
+  double R2 = R*R;
+  double r2 = rho2 (x, y, z);
+  return (r2 > R2 ?  std::sin (r2) : std::sin (R2));
+} 
+
 static inline double
 rho2 (double x, double y, double z)
 {
   x -= .5; y -= .5; z -= .5;
   return (x*x + y*y + z*z);
-};
+}
 
-// main:
-//
+// Load term
+static inline double
+load (double r2)
+{
+  double R2 = R*R;
+  return (r2 > R2 ?
+          (6 * std::cos (r2) - 4 * r2 * std::sin (r2)) :
+          inv_epsilon * std::sin (R2));
+}
+
+// Diffusion term
+static inline double
+diffusion (double r2)
+{
+  double R2 = R*R;
+  return (r2 > R2 ? kG : kS);
+}
+
+// Reaction term
+static inline double
+reaction (double r2)
+{
+  double R2 = R*R;
+  return (r2 > R2 ? 0.0 : inv_epsilon);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -42,56 +85,12 @@ main (int argc, char **argv)
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
 
-  // Number of refinement steps 
-  constexpr unsigned unif_refine_steps = 2;   // initial uniform refinement 
-  constexpr unsigned adapt_refine_steps = 3;  // adaptive refinement 
-
   // Mesh parameters
   std::vector<idx_t> nnodes;            // number of nodes at every step
   std::vector<double> h_step;           // mesh size at every step
 
   // Error at every step
   std::vector<double> error;
-
-  // Problem parameters
-  constexpr double inv_epsilon = 1e11;  // 1 / epsilon
-  constexpr double R = 0.25;            // radius of the internal sphere
-  constexpr double kS = 1;            	// diffusion coefficient in the sphere
-  constexpr double kG = 1;              // diffusion coefficient outside
-
-  // Exact solution
-  func3 u_ex = [rho2,R] (double x, double y, double z) 
-  {
-    double R2 = R*R;
-    double r2 = rho2 (x, y, z);
-    return (r2 > R2 ?  std::sin (r2) : std::sin (R2));
-  }; 
-
-  // Load term
-  func3 load = [rho2,R,inv_epsilon] (double x, double y, double z)
-  {
-    double R2 = R*R;
-    double r2 = rho2 (x, y, z);
-    return (r2 > R2 ?
-            (6 * std::cos (r2) - 4 * r2 * std::sin (r2)) :
-            inv_epsilon * std::sin (R2));
-  };
-
-  // Diffusion term
-  func3 diffusion = [rho2,R,kG,kS] (double x, double y, double z)
-  {
-    double R2 = R*R;
-    double r2 = rho2 (x, y, z);
-    return (r2 > R2 ? kG : kS);
-  }; 
-
-  // Reaction term
-  func3 reaction = [rho2,R,inv_epsilon] (double x, double y, double z)
-  {
-    double R2 = R*R;
-    double r2 = rho2 (x, y, z);
-    return (r2 > R2 ? 0.0 : inv_epsilon);
-  };
   
   // Mesh generation
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
@@ -129,36 +128,38 @@ main (int argc, char **argv)
       std::vector<double> f (tmsh.num_local_quadrants (), -1.);
       q1_vec g (tmsh.num_owned_nodes ());
       //
-      double x = .0, y = .0, z = .0;
+      double x = .0, y = .0, z = .0, r2 = .0;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
           for (int ii = 0; ii < 8; ++ii)
             {
-              x = quadrant->p(0,ii);
-              y = quadrant->p(1,ii);
-              z = quadrant->p(2,ii);
-
-              if (! quadrant->is_hanging(ii))
+              x = quadrant->p (0,ii);
+              y = quadrant->p (1,ii);
+              z = quadrant->p (2,ii);
+              r2 = roh2 (x, y, z);
+              if (! quadrant->is_hanging (ii))
                 {
-                  alpha[quadrant->get_forest_quad_idx()] = diffusion(x, y, z);
+                  alpha[quadrant->get_forest_quad_idx()] = diffusion (r2);
                   psi[quadrant->gt(ii)] = 0.;
-                  zeta[quadrant->gt(ii)] = reaction (x, y, z);
-                  g[quadrant->gt(ii)] = load (x, y, z);
+                  zeta[quadrant->gt(ii)] = reaction (r2);
+                  g[quadrant->gt(ii)] = load (r2);
                 }
             }
         }
+      
       psi.assemble (replace_op);
       zeta.assemble (replace_op);
       g.assemble (replace_op);
       
       // Assemble system matrix and right-hand side.
-      //distributed_sparse_matrix A;
-      //A.set_ranges(tmsh.num_owned_nodes());
-      sparse_matrix A;
-      A.resize(tmsh.num_global_nodes());
-      //
+      distributed_sparse_matrix A;
+      A.set_ranges(tmsh.num_owned_nodes());
+      //sparse_matrix A;
+      //A.resize (tmsh.num_global_nodes());
+
+      
       // advection_diffusion
       bim3a_advection_diffusion (tmsh, alpha, psi, A);
 
