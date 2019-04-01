@@ -128,6 +128,10 @@ main (int argc, char **argv)
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
+          alpha[get_forest_quad_idx ()] =
+            diffusion (rho2 (q->centroid(0),
+                             q->centroid(1),
+                             q->centroid(2)));
           for (int ii = 0; ii < 8; ++ii)
             {
               x = quadrant->p (0,ii);
