@@ -129,9 +129,9 @@ main (int argc, char **argv)
            ++quadrant)
         {
           alpha[get_forest_quad_idx ()] =
-            diffusion (rho2 (q->centroid(0),
-                             q->centroid(1),
-                             q->centroid(2)));
+            diffusion (rho2 (quadrant->centroid(0),
+                             quadrant->centroid(1),
+                             quadrant->centroid(2)));
           for (int ii = 0; ii < 8; ++ii)
             {
               x = quadrant->p (0,ii);
