@@ -26,6 +26,13 @@ constexpr double R = 0.25;            // radius of the internal sphere
 constexpr double kS = 1;            	// diffusion coefficient in the sphere
 constexpr double kG = 1;              // diffusion coefficient outside
 
+static inline double
+rho2 (double x, double y, double z)
+{
+  x -= .5; y -= .5; z -= .5;
+  return (x*x + y*y + z*z);
+}
+
 // Exact solution
 static inline double
 u_ex (double x, double y, double z) 
@@ -33,13 +40,6 @@ u_ex (double x, double y, double z)
   double R2 = R*R;
   double r2 = rho2 (x, y, z);
   return (r2 > R2 ?  std::sin (r2) : std::sin (R2));
-} 
-
-static inline double
-rho2 (double x, double y, double z)
-{
-  x -= .5; y -= .5; z -= .5;
-  return (x*x + y*y + z*z);
 }
 
 // Load term
@@ -115,19 +115,20 @@ main (int argc, char **argv)
                 << rank << ") ***" << std::endl;
       
       // Compute coefficients   
-      //
+
+
       // diffusion   
       std::vector<double> alpha (tmsh.num_local_quadrants (), 0.);
       q1_vec psi (tmsh.num_owned_nodes ());
-      //
+
       // reaction
       std::vector<double> delta (tmsh.num_local_quadrants (), -1.);
       q1_vec zeta (tmsh.num_owned_nodes ());
-      //
+
       // rhs
       std::vector<double> f (tmsh.num_local_quadrants (), -1.);
       q1_vec g (tmsh.num_owned_nodes ());
-      //
+
       double x = .0, y = .0, z = .0, r2 = .0;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
@@ -138,7 +139,7 @@ main (int argc, char **argv)
               x = quadrant->p (0,ii);
               y = quadrant->p (1,ii);
               z = quadrant->p (2,ii);
-              r2 = roh2 (x, y, z);
+              r2 = rho2 (x, y, z);
               if (! quadrant->is_hanging (ii))
                 {
                   alpha[quadrant->get_forest_quad_idx ()] = diffusion (r2);
@@ -166,11 +167,12 @@ main (int argc, char **argv)
             {
               std::ostringstream ss;
               ss << "matrix0_" << r << ".m";
-              std::ofstream of s(ss.str());
+              std::ofstream ofs (ss.str());
               ofs << A;
             }
+          MPI_Barrier (mpicomm);
         }
-      //
+
       // reaction
       bim3a_reaction (tmsh, delta, zeta, A);
 
@@ -180,17 +182,17 @@ main (int argc, char **argv)
             {
               std::ostringstream ss;
               ss << "matrix1_" << r << ".m";
-              std::ofstream ofs(ss.str());
+              std::ofstream ofs (ss.str ());
               ofs << A;
             }
+          MPI_Barrier (mpicomm);
         }
       
       // rhs
       q1_vec rhs (tmsh.num_owned_nodes ());
       bim3a_solution_with_ghosts (tmsh, rhs);
-      A.assemble ();
+      
       bim3a_rhs (tmsh, f, g, rhs);
-
       /// CDF : end checked
 
       // Set boundary conditions.      
@@ -199,20 +201,24 @@ main (int argc, char **argv)
         bcs.push_back (std::make_tuple(0, i, u_ex));
       
       bim3a_dirichlet_bc (tmsh, bcs, A, rhs);
-
+      A.assemble ();
+      
       for (int r = 0; r < size; ++r)
         {
           if (rank == r)
             {
               std::ostringstream ss;
               ss << "matrix2_" << r << ".m";
-              std::ofstream ofs(ss.str());
+              std::ofstream ofs (ss.str());
               ofs << A;
             }
-          }
-      
+          MPI_Barrier (mpicomm);
+        }
+
+      MPI_Finalize ();
+      return 0;
+
       // Solve problem.
-      MPI_Barrier(mpicomm);
       std::cout << "Solving linear system. (rank " << rank << ")" << std::endl;
       
       mumps mumps_solver;
@@ -305,16 +311,16 @@ main (int argc, char **argv)
       std::cout << "Computing reconstructed gradient and estimator.";
       
       // Activation function outside the sphere
-      active_fun3 regionG = [rho2,R] (tmesh_3d::quadrant_iterator q)
-      { 
-        return (rho2(q->centroid(0),q->centroid(1),q->centroid(2)) > (R*R));
-      };
+      active_fun3 regionG = [] (tmesh_3d::quadrant_iterator q)
+        { 
+          return (rho2(q->centroid(0),q->centroid(1),q->centroid(2)) > (R*R));
+        };
       
       // Activation function inside the sphere
-      active_fun3 regionS = [rho2,R] (tmesh_3d::quadrant_iterator q)
-      { 
-        return (rho2(q->centroid(0),q->centroid(1),q->centroid(2)) <= (R*R));
-      };
+      active_fun3 regionS = [] (tmesh_3d::quadrant_iterator q)
+        { 
+          return (rho2(q->centroid(0),q->centroid(1),q->centroid(2)) <= (R*R));
+        };
       
       // Gradient outside the sphere
       std::cout << "\tgradient (rank " << rank << ")" << std::endl;
@@ -362,10 +368,10 @@ main (int argc, char **argv)
                            + std::to_string(adapt)).c_str(), std::get<2>(du1));
       
       // Gradient estimator
-      auto estimator = [rho2, &du0, &du1, &global_rhs, R] 
-                                                (tmesh_3d::quadrant_iterator q)
+      auto estimator = [&du0, &du1, &global_rhs] 
+        (tmesh_3d::quadrant_iterator q)
         {
-          if (rho2(q->centroid(0),q->centroid(1),q->centroid(2)) > (R*R))
+          if (rho2 (q->centroid(0), q->centroid(1), q->centroid(2)) > (R*R))
             return estimator_grad (q, du0, global_rhs);
           else
             return estimator_grad (q, du1, global_rhs);
@@ -376,8 +382,8 @@ main (int argc, char **argv)
       // Compute h and error.
       std::cout << "\tmetrics (rank " << rank << ")" << std::endl;
       double  hx = 0, hy = 0, hz = 0,
-              h = std::numeric_limits<double>::max (),
-              global_h = 0;
+        h = std::numeric_limits<double>::max (),
+        global_h = 0;
       double err = 0, global_err = 0;
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -432,6 +438,5 @@ main (int argc, char **argv)
                 << error[step] << std::endl;
   
   MPI_Finalize ();
-  
   return 0;
 }
