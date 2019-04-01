@@ -141,10 +141,10 @@ main (int argc, char **argv)
               r2 = roh2 (x, y, z);
               if (! quadrant->is_hanging (ii))
                 {
-                  alpha[quadrant->get_forest_quad_idx()] = diffusion (r2);
-                  psi[quadrant->gt(ii)] = 0.;
-                  zeta[quadrant->gt(ii)] = reaction (r2);
-                  g[quadrant->gt(ii)] = load (r2);
+                  alpha[quadrant->get_forest_quad_idx ()] = diffusion (r2);
+                  psi[quadrant->gt (ii)] = 0.;
+                  zeta[quadrant->gt (ii)] = reaction (r2);
+                  g[quadrant->gt (ii)] = load (r2);
                 }
             }
         }
@@ -155,10 +155,7 @@ main (int argc, char **argv)
       
       // Assemble system matrix and right-hand side.
       distributed_sparse_matrix A;
-      A.set_ranges(tmsh.num_owned_nodes());
-      //sparse_matrix A;
-      //A.resize (tmsh.num_global_nodes());
-
+      A.set_ranges (tmsh.num_owned_nodes());
       
       // advection_diffusion
       bim3a_advection_diffusion (tmsh, alpha, psi, A);
@@ -169,7 +166,7 @@ main (int argc, char **argv)
             {
               std::ostringstream ss;
               ss << "matrix0_" << r << ".m";
-              std::ofstream ofs(ss.str());
+              std::ofstream of s(ss.str());
               ofs << A;
             }
         }
@@ -191,7 +188,7 @@ main (int argc, char **argv)
       // rhs
       q1_vec rhs (tmsh.num_owned_nodes ());
       bim3a_solution_with_ghosts (tmsh, rhs);
-
+      A.assemble ();
       bim3a_rhs (tmsh, f, g, rhs);
 
       /// CDF : end checked
