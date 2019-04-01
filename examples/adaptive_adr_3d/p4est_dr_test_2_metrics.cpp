@@ -16,6 +16,13 @@ static int
 uniform_refinement (tmesh_3d::quadrant_iterator q)
 { return 1; }
 
+static inline double
+rho2 (double x, double y, double z)
+{
+  x -= .5; y -= .5; z -= .5;
+  return (x*x + y*y + z*z);
+};
+
 // main:
 //
 int
@@ -31,13 +38,6 @@ main (int argc, char **argv)
   using q1_vec          = q1_vec<distributed_vector>;
   using gradient3       = gradient3<std::vector<double>>;
   using idx_t           = tmesh_3d::idx_t;
-
-  func3 rho2 = [] (double x, double y, double z) -> double
-    {
-      return ((x - 0.5) * (x - 0.5) + 
-              (y - 0.5) * (y - 0.5) +
-              (z - 0.5) * (z - 0.5));
-    };
     
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
