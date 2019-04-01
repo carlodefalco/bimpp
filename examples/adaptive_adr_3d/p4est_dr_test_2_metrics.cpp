@@ -161,39 +161,30 @@ main (int argc, char **argv)
       // advection_diffusion
       bim3a_advection_diffusion (tmsh, alpha, psi, A);
 
-      for (int r = 0; r < size; ++r)
-        {
-          if (rank == r)
-            {
-              std::ostringstream ss;
-              ss << "matrix0_" << r << ".m";
-              std::ofstream ofs (ss.str());
-              ofs << A;
-            }
-          MPI_Barrier (mpicomm);
-        }
+      /// DEBUG
+      MPI_Barrier (mpicomm);
+      std::ostringstream ss;
+      ss << "matrix0_" << rank << ".m";
+      std::ofstream ofs (ss.str());
+      ofs << A;
+      MPI_Barrier (mpicomm);
 
       // reaction
       bim3a_reaction (tmsh, delta, zeta, A);
 
-      for (int r = 0; r < size; ++r)
-        {
-          if (rank == r)
-            {
-              std::ostringstream ss;
-              ss << "matrix1_" << r << ".m";
-              std::ofstream ofs (ss.str ());
-              ofs << A;
-            }
-          MPI_Barrier (mpicomm);
-        }
+      /// DEBUG
+      MPI_Barrier (mpicomm);      
+      std::ostringstream ss;
+      ss << "matrix1_" << rank << ".m";
+      std::ofstream ofs (ss.str ());
+      ofs << A;
+      MPI_Barrier (mpicomm);
       
       // rhs
       q1_vec rhs (tmsh.num_owned_nodes ());
       bim3a_solution_with_ghosts (tmsh, rhs);
       
       bim3a_rhs (tmsh, f, g, rhs);
-      /// CDF : end checked
 
       // Set boundary conditions.      
       dirichlet_bcs3 bcs;
@@ -202,19 +193,16 @@ main (int argc, char **argv)
       
       bim3a_dirichlet_bc (tmsh, bcs, A, rhs);
       A.assemble ();
-      
-      for (int r = 0; r < size; ++r)
-        {
-          if (rank == r)
-            {
-              std::ostringstream ss;
-              ss << "matrix2_" << r << ".m";
-              std::ofstream ofs (ss.str());
-              ofs << A;
-            }
-          MPI_Barrier (mpicomm);
-        }
 
+      /// DEBUG
+      MPI_Barrier (mpicomm);
+      std::ostringstream ss;
+      ss << "matrix2_" << r << ".m";
+      std::ofstream ofs (ss.str());
+      ofs << A;
+      MPI_Barrier (mpicomm);
+
+      /// DEBUG
       MPI_Finalize ();
       return 0;
 
