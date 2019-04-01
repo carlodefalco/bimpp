@@ -23,8 +23,8 @@ constexpr unsigned adapt_refine_steps = 3;  // adaptive refinement
 // Problem parameters
 constexpr double inv_epsilon = 1e11;  // 1 / epsilon
 constexpr double R = 0.25;            // radius of the internal sphere
-constexpr double kS = 1;            	// diffusion coefficient in the sphere
-constexpr double kG = 1;              // diffusion coefficient outside
+constexpr double kS = 1.;             // diffusion coefficient in the sphere
+constexpr double kG = 1.;             // diffusion coefficient outside
 
 static inline double
 rho2 (double x, double y, double z)
@@ -55,18 +55,12 @@ load (double r2)
 // Diffusion term
 static inline double
 diffusion (double r2)
-{
-  double R2 = R*R;
-  return (r2 > R2 ? kG : kS);
-}
+{ return (r2 > R*R ? kG : kS); }
 
 // Reaction term
 static inline double
 reaction (double r2)
-{
-  double R2 = R*R;
-  return (r2 > R2 ? 0.0 : inv_epsilon);
-}
+{ return (r2 > R*R ? 0.0 : inv_epsilon); }
 
 int
 main (int argc, char **argv)
@@ -118,15 +112,15 @@ main (int argc, char **argv)
 
 
       // diffusion   
-      std::vector<double> alpha (tmsh.num_local_quadrants (), 0.);
+      std::vector<double> alpha (tmsh.num_local_quadrants (), 1.);
       q1_vec psi (tmsh.num_owned_nodes ());
 
       // reaction
-      std::vector<double> delta (tmsh.num_local_quadrants (), -1.);
+      std::vector<double> delta (tmsh.num_local_quadrants (), 1.);
       q1_vec zeta (tmsh.num_owned_nodes ());
 
       // rhs
-      std::vector<double> f (tmsh.num_local_quadrants (), -1.);
+      std::vector<double> f (tmsh.num_local_quadrants (), 1.);
       q1_vec g (tmsh.num_owned_nodes ());
 
       double x = .0, y = .0, z = .0, r2 = .0;
@@ -142,7 +136,6 @@ main (int argc, char **argv)
               r2 = rho2 (x, y, z);
               if (! quadrant->is_hanging (ii))
                 {
-                  alpha[quadrant->get_forest_quad_idx ()] = diffusion (r2);
                   psi[quadrant->gt (ii)] = 0.;
                   zeta[quadrant->gt (ii)] = reaction (r2);
                   g[quadrant->gt (ii)] = load (r2);
@@ -163,21 +156,25 @@ main (int argc, char **argv)
 
       /// DEBUG
       MPI_Barrier (mpicomm);
-      std::ostringstream ss;
-      ss << "matrix0_" << rank << ".m";
-      std::ofstream ofs (ss.str());
-      ofs << A;
+      {
+        std::ostringstream ss;
+        ss << "matrix0_" << rank << ".m";
+        std::ofstream ofs (ss.str());
+        ofs << A;
+      }
       MPI_Barrier (mpicomm);
 
       // reaction
       bim3a_reaction (tmsh, delta, zeta, A);
 
       /// DEBUG
-      MPI_Barrier (mpicomm);      
-      std::ostringstream ss;
-      ss << "matrix1_" << rank << ".m";
-      std::ofstream ofs (ss.str ());
-      ofs << A;
+      MPI_Barrier (mpicomm);
+      {
+        std::ostringstream ss;
+        ss << "matrix1_" << rank << ".m";
+        std::ofstream ofs (ss.str ());
+        ofs << A;
+      }
       MPI_Barrier (mpicomm);
       
       // rhs
@@ -196,10 +193,12 @@ main (int argc, char **argv)
 
       /// DEBUG
       MPI_Barrier (mpicomm);
-      std::ostringstream ss;
-      ss << "matrix2_" << r << ".m";
-      std::ofstream ofs (ss.str());
-      ofs << A;
+      {
+        std::ostringstream ss;
+        ss << "matrix2_" << rank << ".m";
+        std::ofstream ofs (ss.str());
+        ofs << A;
+      }
       MPI_Barrier (mpicomm);
 
       /// DEBUG
@@ -287,7 +286,7 @@ main (int argc, char **argv)
               ss << "uex_" << r << ".m";
               std::ofstream ofs(ss.str());
               for (unsigned j = 0; j < uex.size(); ++j)
-              	ofs << "idx = " << j
+                ofs << "idx = " << j
                     << " val = " << uex[j]
                     << std::endl;
             }
