@@ -4,9 +4,6 @@
 #include <bim_sparse_distributed.h>
 #include <simple_connectivity_3d.h>
 
-#include <fstream>
-#include <sstream>
-
 #include <cassert>
 #include <limits>
 
@@ -32,6 +29,7 @@ main (int argc, char **argv)
   using gradient3       = gradient3<std::vector<double>>;
   using idx_t           = tmesh_3d::idx_t;
 
+  // Compute radius in the given point
   func3 rho2 = [] (double x, double y, double z) -> double
     {
       return ((x - 0.5) * (x - 0.5) + 
@@ -44,7 +42,7 @@ main (int argc, char **argv)
 
   // Number of refinement steps 
   constexpr unsigned unif_refine_steps = 2;   // initial uniform refinement 
-  constexpr unsigned adapt_refine_steps = 3;  // adaptive refinement 
+  constexpr unsigned adapt_refine_steps = 5;  // adaptive refinement 
 
   // Mesh parameters
   std::vector<idx_t> nnodes;            // number of nodes at every step
@@ -142,55 +140,37 @@ main (int argc, char **argv)
 
               if (! quadrant->is_hanging(ii))
                 {
-                  alpha[quadrant->get_forest_quad_idx()] = diffusion(x, y, z);
                   psi[quadrant->gt(ii)] = 0.;
                   zeta[quadrant->gt(ii)] = reaction (x, y, z);
                   g[quadrant->gt(ii)] = load (x, y, z);
                 }
+              else
+                {
+                  psi[quadrant->gt(ii)] += 0.;
+                  zeta[quadrant->gt(ii)] += 0.;
+                  g[quadrant->gt(ii)] += 0.;
+                }
             }
+          alpha[quadrant->get_forest_quad_idx()] = diffusion(x, y, z);
         }
       psi.assemble (replace_op);
       zeta.assemble (replace_op);
       g.assemble (replace_op);
       
       // Assemble system matrix and right-hand side.
-      //distributed_sparse_matrix A;
-      //A.set_ranges(tmsh.num_owned_nodes());
-      sparse_matrix A;
-      A.resize(tmsh.num_global_nodes());
+      distributed_sparse_matrix A;
+      A.set_ranges(tmsh.num_owned_nodes());
       //
       // advection_diffusion
       bim3a_advection_diffusion (tmsh, alpha, psi, A);
-
-      for (int r = 0; r < size; ++r)
-        {
-          if (rank == r)
-            {
-              std::ostringstream ss;
-              ss << "matrix0_" << r << ".m";
-              std::ofstream ofs(ss.str());
-              ofs << A;
-            }
-        }
       //
       // reaction
       bim3a_reaction (tmsh, delta, zeta, A);
-
-      for (int r = 0; r < size; ++r)
-        {
-          if (rank == r)
-            {
-              std::ostringstream ss;
-              ss << "matrix1_" << r << ".m";
-              std::ofstream ofs(ss.str());
-              ofs << A;
-            }
-        }
       
       // rhs
       q1_vec rhs (tmsh.num_owned_nodes ());
       bim3a_solution_with_ghosts (tmsh, rhs);
-
+      //
       bim3a_rhs (tmsh, f, g, rhs);
 
       /// CDF : end checked
@@ -201,24 +181,15 @@ main (int argc, char **argv)
         bcs.push_back (std::make_tuple(0, i, u_ex));
       
       bim3a_dirichlet_bc (tmsh, bcs, A, rhs);
-
-      for (int r = 0; r < size; ++r)
-        {
-          if (rank == r)
-            {
-              std::ostringstream ss;
-              ss << "matrix2_" << r << ".m";
-              std::ofstream ofs(ss.str());
-              ofs << A;
-            }
-          }
       
       // Solve problem.
       MPI_Barrier(mpicomm);
       std::cout << "Solving linear system. (rank " << rank << ")" << std::endl;
       
-      mumps mumps_solver;
+      // Initialize MUMPS solver
+      mumps mumps_solver;//(true);
       
+      // Set distributed structure of lhs
       std::vector<double> vals;
       std::vector<int> irow, jcol;
       
@@ -228,17 +199,7 @@ main (int argc, char **argv)
       mumps_solver.set_distributed_lhs_structure (A.rows (), irow, jcol);
       mumps_solver.set_distributed_lhs_data (vals);
       
-      for (int r = 0; r < size; ++r)
-        {
-          if (rank == r)
-            {
-              std::ostringstream ss;
-              ss << "matrix3_" << r << ".m";
-              std::ofstream ofs(ss.str());
-              ofs << A;
-            }
-        }
-      
+      // Set distributed structure of rhs
       mumps_solver.set_rhs_distributed (rhs);
 
       // Solve.
@@ -251,8 +212,10 @@ main (int argc, char **argv)
       std::cout << "\tcleanup (rank " << rank << ")" << std::endl;
       mumps_solver.cleanup ();
 
+      // Get solution on rank 0...
       q1_vec rhs_on_0 = mumps_solver.get_distributed_solution();
 
+      // ...and send it to all ranks
       unsigned size_global_rhs = 0;
       std::vector<double> global_rhs;
       if (rank == 0)
@@ -260,12 +223,12 @@ main (int argc, char **argv)
           global_rhs = rhs_on_0.get_owned_data();
           size_global_rhs = global_rhs.size();
         }
-
+      //
       MPI_Bcast(&size_global_rhs, 1, MPI_UNSIGNED, 0 , mpicomm);
-
+      //
       if (rank != 0)
         global_rhs.resize(size_global_rhs);
-
+      //
       MPI_Bcast(global_rhs.data(), size_global_rhs, MPI_DOUBLE, 0, mpicomm);
       
       // Export solution.
@@ -287,23 +250,10 @@ main (int argc, char **argv)
       // Export exact solution
       tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_uex_")
                            + std::to_string(adapt)).c_str(), uex);
-      for (int r = 0; r < size; ++r)
-        {
-          if (rank == r)
-            {
-              std::ostringstream ss;
-              ss << "uex_" << r << ".m";
-              std::ofstream ofs(ss.str());
-              for (unsigned j = 0; j < uex.size(); ++j)
-              	ofs << "idx = " << j
-                    << " val = " << uex[j]
-                    << std::endl;
-            }
-        }
       
       std::cout << "Done. (rank " << rank << ")" << std::endl;
       
-      // Compute reconstructed gradient.
+      // Compute reconstructed gradient and solution
       std::cout << "Computing reconstructed gradient and estimator.";
       
       // Activation function outside the sphere
@@ -363,14 +313,14 @@ main (int argc, char **argv)
       tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du1_z_")
                            + std::to_string(adapt)).c_str(), std::get<2>(du1));
       
-      // Gradient estimator
-      auto estimator = [rho2, &du0, &du1, &global_rhs, R] 
+      // Solution estimator
+      auto estimator = [rho2, &u_star0, &u_star1, &global_rhs, R] 
                                                 (tmesh_3d::quadrant_iterator q)
         {
           if (rho2(q->centroid(0),q->centroid(1),q->centroid(2)) > (R*R))
-            return estimator_grad (q, du0, global_rhs);
+            return estimator_sol (q, u_star0, global_rhs);
           else
-            return estimator_grad (q, du1, global_rhs);
+            return estimator_sol (q, u_star1, global_rhs);
         };
       
       std::cout << " Done. (rank " << rank << ")" << std::endl;
@@ -393,7 +343,7 @@ main (int argc, char **argv)
           h = std::min(h, std::sqrt(hx*hx + hy*hy + hz*hz));
           
           // ||u - u_ex||_L^2(q)
-          err += std::pow(l2_error(quadrant, u_ex, rhs), 2);
+          err += std::pow(l2_error(quadrant, u_ex, global_rhs), 2);
         }
       
       // Global mesh size and global error
@@ -404,12 +354,6 @@ main (int argc, char **argv)
       nnodes.push_back (tmsh.num_global_nodes ());
       h_step.push_back (global_h);
       error.push_back (global_err);
-      
-      std::cout << " err = "
-                << global_err
-                << " (rank " 
-                << rank 
-                << ")\n" << std::endl;
 
       std::cout << " Done. (rank " << rank << ")\n" << std::endl;
       

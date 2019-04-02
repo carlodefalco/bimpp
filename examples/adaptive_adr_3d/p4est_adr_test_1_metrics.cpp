@@ -98,16 +98,19 @@ main (int argc, char **argv)
 
                   g[quadrant->gt(ii)] = 0.;
                 }
+              else
+                {
+                  psi[quadrant->gt(ii)] += 0.;
+                  g[quadrant->gt(ii)] += 0.;
+                }
             }
         }
       psi.assemble(max_op);
       g.assemble(replace_op);
 
       // Assemble matrix.
-      //distributed_sparse_matrix A;
-      //A.set_ranges(tmsh.num_owned_nodes());
-      sparse_matrix A;
-      A.resize(tmsh.num_global_nodes());
+      distributed_sparse_matrix A;
+      A.set_ranges(tmsh.num_owned_nodes());
       //
       // advection_diffusion
       bim3a_advection_diffusion (tmsh, alpha, psi, A);
@@ -141,8 +144,10 @@ main (int argc, char **argv)
       // Solve problem.
       std::cout << "Solving linear system (rank " << rank << ")" << std::endl;
 
-      mumps mumps_solver;
+      // Initialize MUMPS solver
+      mumps mumps_solver(true);
       
+      // Set distributed structure of lhs
       std::vector<double> vals;
       std::vector<int> irow, jcol;
       
@@ -152,6 +157,7 @@ main (int argc, char **argv)
       mumps_solver.set_distributed_lhs_structure (A.rows (), irow, jcol);
       mumps_solver.set_distributed_lhs_data (vals);
       
+      // Set distributed structure of rhs
       mumps_solver.set_rhs_distributed(rhs);
 
       // Solve.
@@ -164,8 +170,10 @@ main (int argc, char **argv)
       std::cout << "\tcleanup (rank " << rank << ")" << std::endl;
       mumps_solver.cleanup ();
 
+      // Get solution on rank 0...
       q1_vec rhs_on_0 = mumps_solver.get_distributed_solution();
-
+      //
+      // ...and send it to all ranks
       unsigned size_global_rhs = 0;
       std::vector<double> global_rhs;
       if (rank == 0)
@@ -173,22 +181,21 @@ main (int argc, char **argv)
           global_rhs = rhs_on_0.get_owned_data();
           size_global_rhs = global_rhs.size();
         }
-
+      //
       MPI_Bcast(&size_global_rhs, 1, MPI_UNSIGNED, 0 , mpicomm);
-
+      //
       if (rank != 0)
         global_rhs.resize(size_global_rhs);
-
+      //
       MPI_Bcast(global_rhs.data(), size_global_rhs, MPI_DOUBLE, 0, mpicomm);
 
       // Export solution.
-
       tmsh.octbin_export ((std::string("p4est_adr_test_1_metrics_u_")
                            + std::to_string(adapt)).c_str(), global_rhs);
       
       std::cout << "Done (rank " << rank << ")" << std::endl;
       
-      // Compute reconstructed gradient.
+      // Compute reconstructed gradient and reconstructed solution
       std::cout << "Computing reconstructed gradient and estimator (rank "
       					<< rank << ")" << std::endl;
       
