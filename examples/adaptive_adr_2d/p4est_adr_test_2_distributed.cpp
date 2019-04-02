@@ -93,8 +93,8 @@ main (int argc, char **argv)
       g.assemble(replace_op);
       
       // Assemble matrix.
-      sparse_matrix A;
-      A.resize(tmsh.num_global_nodes());
+      distributed_sparse_matrix A;
+      A.set_ranges(tmsh.num_owned_nodes());
 
       bim2a_advection_diffusion (tmsh, alpha, psi, A);
       
