@@ -4,6 +4,9 @@
 #include <bim_sparse_distributed.h>
 #include <simple_connectivity_3d.h>
 
+#include <fstream>
+#include <sstream>
+
 #include <cassert>
 #include <limits>
 
@@ -14,7 +17,7 @@ uniform_refinement (tmesh_3d::quadrant_iterator q)
 { return 1; }
 
 // Number of refinement steps 
-constexpr unsigned unif_refine_steps  = 1;  // initial uniform refinement 
+constexpr unsigned unif_refine_steps  = 2;  // initial uniform refinement 
 constexpr unsigned adapt_refine_steps = 3;  // adaptive refinement
 
 // Problem parameters
@@ -181,7 +184,7 @@ main (int argc, char **argv)
       std::cout << "Solving linear system. (rank " << rank << ")" << std::endl;
       
       // Initialize MUMPS solver
-      mumps mumps_solver(true);
+      mumps mumps_solver;//(true);
       
       // Set distributed structure of lhs
       std::vector<double> vals;
@@ -224,11 +227,10 @@ main (int argc, char **argv)
         result.resize(size_result);
       //
       MPI_Bcast(result.data(), size_result, MPI_DOUBLE, 0, mpicomm);
-    
+
       // Export solution.
       tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_u_")
                            + std::to_string(adapt)).c_str(), result);
-
       
       // Compute exact solution on the mesh
       q1_vec uex (tmsh.num_owned_nodes());

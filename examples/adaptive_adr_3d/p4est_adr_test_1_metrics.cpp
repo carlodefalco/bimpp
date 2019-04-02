@@ -15,7 +15,7 @@ uniform_refinement (tmesh_3d::quadrant_iterator q)
 
 // Number of refinement steps
 constexpr unsigned unif_refine_steps = 3;   // initial uniform refinement
-constexpr unsigned adapt_refine_steps = 4;  // adaptive refinement
+constexpr unsigned adapt_refine_steps = 3;  // adaptive refinement
 
 
 // main:
@@ -113,7 +113,6 @@ main (int argc, char **argv)
       //
       // advection_diffusion
       bim3a_advection_diffusion (tmsh, alpha, psi, A);
-      A.assemble();
       
       // Assemble right-hand side.
       q1_vec rhs(tmsh.num_owned_nodes ());
@@ -146,7 +145,7 @@ main (int argc, char **argv)
       std::cout << "Solving linear system (rank " << rank << ")" << std::endl;
 
       // Initialize MUMPS solver
-      mumps mumps_solver(true);
+      mumps mumps_solver;
       
       // Set distributed structure of lhs
       std::vector<double> vals;
