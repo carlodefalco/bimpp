@@ -87,6 +87,11 @@ main (int argc, char **argv)
                                            std::sin(theta) * y) / epsilon;
                   g[quadrant->gt(ii)] = 0.;
                 }
+              else
+                {
+                  psi[quadrant->gt(ii)] += 0.;
+                  g[quadrant->gt(ii)] += 0.;
+                }
             }
         }
       psi.assemble(max_op);
@@ -116,11 +121,12 @@ main (int argc, char **argv)
       bcs.push_back (std::make_tuple(0, 3, u0 ));
       
       bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
-      
+      A.assemble();
+
       // Solve problem.
       std::cout << "Solving linear system.";
       
-      mumps mumps_solver(true);
+      mumps mumps_solver;
       
       std::vector<double> vals;
       std::vector<int> irow, jcol;
@@ -156,11 +162,11 @@ main (int argc, char **argv)
         global_rhs.resize(size_global_rhs);
 
       MPI_Bcast(global_rhs.data(), size_global_rhs, MPI_DOUBLE, 0, mpicomm);
-     
+
       // Export solution.
       tmsh.octbin_export ((std::string("p4est_adr_test_2_distributed_u_")
                            + std::to_string(adapt)).c_str(), global_rhs);
-      
+
       std::cout << " Done." << std::endl;
       
       // Compute reconstructed gradient.
