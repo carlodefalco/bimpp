@@ -26,7 +26,7 @@ main (int argc, char **argv)
   tmesh                 tmsh;
 
   using q1_vec = q1_vec<distributed_vector>;
-  using gradient = gradient<std::vector<double>>;
+  using gradient = gradient<distributed_vector>;
 
   mpicomm = MPI_COMM_WORLD;
   MPI_Comm_rank (mpicomm, &rank);
@@ -145,43 +145,37 @@ main (int argc, char **argv)
       mumps_solver.solve ();
       mumps_solver.cleanup ();
 
-      // Get distributed solution and send it to all processes
-      q1_vec rhs_on_0 = mumps_solver.get_distributed_solution();
+      // Get solution of linear system
+      q1_vec mumps_result = mumps_solver.get_distributed_solution();
 
-      unsigned size_global_rhs = 0;
-      std::vector<double> global_rhs;
-      if (rank == 0)
-        {
-          global_rhs = rhs_on_0.get_owned_data();
-          size_global_rhs = global_rhs.size();
-        }
+      q1_vec result (tmsh.num_owned_nodes());
+      bim2a_solution_with_ghosts (tmsh, result);
 
-      MPI_Bcast(&size_global_rhs, 1, MPI_UNSIGNED, 0 , mpicomm);
-
-      if (rank != 0)
-        global_rhs.resize(size_global_rhs);
-
-      MPI_Bcast(global_rhs.data(), size_global_rhs, MPI_DOUBLE, 0, mpicomm);
+      for (auto ii = result.get_range_start (); 
+                ii != result.get_range_end (); 
+                ++ii)
+        result[ii] = mumps_result[ii];
+      result.assemble (replace_op);
 
       // Export solution.
       tmsh.octbin_export ((std::string("p4est_adr_test_2_distributed_u_")
-                           + std::to_string(adapt)).c_str(), global_rhs);
+                           + std::to_string(adapt)).c_str(), result);
 
       std::cout << " Done." << std::endl;
       
       // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient and estimator.";
       
-      gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
-      q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh,global_rhs,du);
+      gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, result);
+      q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh,result,du);
       
       tmsh.octbin_export ((std::string("p4est_adr_test_2_distributed_du_x_")
                            + std::to_string(adapt)).c_str(), du.first);
       tmsh.octbin_export ((std::string("p4est_adr_test_2_distributed_du_y_")
                            + std::to_string(adapt)).c_str(), du.second);
       
-      auto estimator = [& u_star, & global_rhs] (tmesh::quadrant_iterator q)
-        { return estimator_sol (q, u_star, global_rhs); };
+      auto estimator = [& u_star, & result] (tmesh::quadrant_iterator q)
+        { return estimator_sol (q, u_star, result); };
       
       double tol = 1e-6;
       tmsh.set_metrics_marker (estimator, tol, 4);
