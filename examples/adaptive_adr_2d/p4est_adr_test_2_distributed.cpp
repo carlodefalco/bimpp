@@ -121,6 +121,7 @@ main (int argc, char **argv)
       bcs.push_back (std::make_tuple(0, 3, u0 ));
       
       bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
+      rhs.assemble();
       A.assemble();
 
       // Solve problem.
