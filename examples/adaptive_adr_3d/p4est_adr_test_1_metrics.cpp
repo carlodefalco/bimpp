@@ -13,6 +13,10 @@ static int
 uniform_refinement (tmesh_3d::quadrant_iterator q)
 { return 1; }
 
+// Number of refinement steps
+constexpr unsigned unif_refine_steps = 3;   // initial uniform refinement
+constexpr unsigned adapt_refine_steps = 4;  // adaptive refinement
+
 
 // main:
 //
@@ -32,10 +36,6 @@ main (int argc, char **argv)
 
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
-
-  // Number of refinement steps
-  constexpr unsigned unif_refine_steps = 3;   // initial uniform refinement
-  constexpr unsigned adapt_refine_steps = 4;  // adaptive refinement
   
   // Mesh parameters
   std::vector<idx_t>    nnodes;         // number of nodes at every step
@@ -95,7 +95,6 @@ main (int argc, char **argv)
                   
                   // CCI: divisione per epsilon --> matrice singolare (?)
                   psi[quadrant->gt(ii)] = (x + y - z) * n_coeff;// / epsilon;
-
                   g[quadrant->gt(ii)] = 0.;
                 }
               else
@@ -114,6 +113,7 @@ main (int argc, char **argv)
       //
       // advection_diffusion
       bim3a_advection_diffusion (tmsh, alpha, psi, A);
+      A.assemble();
       
       // Assemble right-hand side.
       q1_vec rhs(tmsh.num_owned_nodes ());
@@ -140,6 +140,7 @@ main (int argc, char **argv)
       bcs.push_back (std::make_tuple(0, 5, u10));
       //
       bim3a_dirichlet_bc (tmsh, bcs, A, rhs);
+      A.assemble();
       
       // Solve problem.
       std::cout << "Solving linear system (rank " << rank << ")" << std::endl;
@@ -171,27 +172,27 @@ main (int argc, char **argv)
       mumps_solver.cleanup ();
 
       // Get solution on rank 0...
-      q1_vec rhs_on_0 = mumps_solver.get_distributed_solution();
+      q1_vec result_on_0 = mumps_solver.get_distributed_solution();
       //
       // ...and send it to all ranks
-      unsigned size_global_rhs = 0;
-      std::vector<double> global_rhs;
+      unsigned size_result = 0;
+      std::vector<double> result;
       if (rank == 0)
         {
-          global_rhs = rhs_on_0.get_owned_data();
-          size_global_rhs = global_rhs.size();
+          result = result_on_0.get_owned_data();
+          size_result = result.size();
         }
       //
-      MPI_Bcast(&size_global_rhs, 1, MPI_UNSIGNED, 0 , mpicomm);
+      MPI_Bcast(&size_result, 1, MPI_UNSIGNED, 0 , mpicomm);
       //
       if (rank != 0)
-        global_rhs.resize(size_global_rhs);
+        result.resize(size_result);
       //
-      MPI_Bcast(global_rhs.data(), size_global_rhs, MPI_DOUBLE, 0, mpicomm);
+      MPI_Bcast(result.data(), size_result, MPI_DOUBLE, 0, mpicomm);
 
       // Export solution.
       tmsh.octbin_export ((std::string("p4est_adr_test_1_metrics_u_")
-                           + std::to_string(adapt)).c_str(), global_rhs);
+                           + std::to_string(adapt)).c_str(), result);
       
       std::cout << "Done (rank " << rank << ")" << std::endl;
       
@@ -200,11 +201,11 @@ main (int argc, char **argv)
       					<< rank << ")" << std::endl;
       
       std::cout << "\tgradient (rank " << rank << ")" << std::endl;
-      gradient3 du = bim3c_quadtree_pde_recovered_gradient(tmsh, global_rhs);
+      gradient3 du = bim3c_quadtree_pde_recovered_gradient(tmsh, result);
 
       std::cout << "\tsolution (rank " << rank << ")" << std::endl;
       q2_vec3 u_star = bim3c_quadtree_pde_recovered_solution(tmsh,
-                                                              global_rhs,
+                                                              result,
                                                               du);
       
       // Export reconstructed gradient
@@ -216,8 +217,8 @@ main (int argc, char **argv)
                            + std::to_string(adapt)).c_str(), std::get<2>(du));
       
       // Solution estimator
-      auto estimator = [& u_star, & global_rhs] (tmesh_3d::quadrant_iterator q)
-        { return estimator_sol (q, u_star, global_rhs); };
+      auto estimator = [& u_star, & result] (tmesh_3d::quadrant_iterator q)
+        { return estimator_sol (q, u_star, result); };
       
       std::cout << "\tmetrics (rank " << rank << ")" << std::endl;
       
