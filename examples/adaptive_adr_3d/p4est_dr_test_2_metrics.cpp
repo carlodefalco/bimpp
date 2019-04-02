@@ -73,7 +73,7 @@ main (int argc, char **argv)
   tmesh_3d              tmsh;
   
   using q1_vec          = q1_vec<distributed_vector>;
-  using gradient3       = gradient3<std::vector<double>>;
+  using gradient3       = gradient3<distributed_vector>;
   using idx_t           = tmesh_3d::idx_t;
     
   MPI_Comm_rank (mpicomm, &rank);
@@ -161,11 +161,9 @@ main (int argc, char **argv)
       //
       // advection_diffusion
       bim3a_advection_diffusion (tmsh, alpha, psi, A);
-      A.assemble ();
       //
       // reaction
       bim3a_reaction (tmsh, delta, zeta, A);
-      A.assemble ();
       // rhs
       q1_vec rhs (tmsh.num_owned_nodes (), mpicomm);
       bim3a_solution_with_ghosts (tmsh, rhs);
@@ -178,6 +176,7 @@ main (int argc, char **argv)
         bcs.push_back (std::make_tuple (0, i, u_ex));
       //
       bim3a_dirichlet_bc (tmsh, bcs, A, rhs);
+      rhs.assemble();
       A.assemble ();
 
       // Solve problem.
@@ -209,24 +208,17 @@ main (int argc, char **argv)
       std::cout << "\tcleanup (rank " << rank << ")" << std::endl;
       mumps_solver.cleanup ();
 
-      // Get solution on rank 0...
-      q1_vec result_on_0 = mumps_solver.get_distributed_solution();
+      // Get solution of linear system
+      q1_vec mumps_result = mumps_solver.get_distributed_solution();
 
-      // ...and send it to all ranks
-      unsigned size_result = 0;
-      std::vector<double> result;
-      if (rank == 0)
-        {
-          result = result_on_0.get_owned_data();
-          size_result = result.size();
-        }
-      //
-      MPI_Bcast(&size_result, 1, MPI_UNSIGNED, 0 , mpicomm);
-      //
-      if (rank != 0)
-        result.resize(size_result);
-      //
-      MPI_Bcast(result.data(), size_result, MPI_DOUBLE, 0, mpicomm);
+      q1_vec result (tmsh.num_owned_nodes());
+      bim3a_solution_with_ghosts (tmsh, result);
+
+      for (auto ii = result.get_range_start (); 
+                ii != result.get_range_end (); 
+                ++ii)
+        result[ii] = mumps_result[ii];
+      result.assemble (replace_op);
 
       // Export solution.
       tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_u_")
