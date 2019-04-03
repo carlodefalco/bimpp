@@ -4,6 +4,7 @@
 #include <bim_sparse_distributed.h>
 #include <simple_connectivity_3d.h>
 
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 
@@ -17,8 +18,8 @@ uniform_refinement (tmesh_3d::quadrant_iterator q)
 { return 1; }
 
 // Number of refinement steps 
-constexpr unsigned unif_refine_steps  = 2;  // initial uniform refinement 
-constexpr unsigned adapt_refine_steps = 3;  // adaptive refinement
+constexpr unsigned unif_refine_steps  = 4;  // initial uniform refinement 
+constexpr unsigned adapt_refine_steps = 1;  // adaptive refinement
 
 // Problem parameters
 constexpr double inv_epsilon = 1e11;  // 1 / epsilon
@@ -73,7 +74,7 @@ main (int argc, char **argv)
   tmesh_3d              tmsh;
   
   using q1_vec          = q1_vec<distributed_vector>;
-  using gradient3       = gradient3<distributed_vector>;
+  using gradient3       = gradient3<q1_vec>;
   using idx_t           = tmesh_3d::idx_t;
     
   MPI_Comm_rank (mpicomm, &rank);
@@ -99,7 +100,7 @@ main (int argc, char **argv)
     }
 
   // Export initial mesh
-  tmsh.vtk_export ("p4est_dr_test_2_metrics_initial_mesh");
+  // tmsh.vtk_export ("p4est_dr_test_2_metrics_initial_mesh");
   
   // Adaptive refinement loop
   for (unsigned adapt = 0; adapt < adapt_refine_steps; ++adapt)
@@ -161,69 +162,154 @@ main (int argc, char **argv)
       //
       // advection_diffusion
       bim3a_advection_diffusion (tmsh, alpha, psi, A);
-      //
+
+      /// DEBUG
+#ifdef DEBUG
+      MPI_Barrier (mpicomm);
+      {
+        std::ostringstream ss;
+        ss << "matrix0_" << rank << ".m";
+        std::ofstream ofs (ss.str());
+        ofs << A;
+      }
+      MPI_Barrier (mpicomm);
+#endif
+      
       // reaction
       bim3a_reaction (tmsh, delta, zeta, A);
-      // rhs
-      q1_vec rhs (tmsh.num_owned_nodes (), mpicomm);
-      bim3a_solution_with_ghosts (tmsh, rhs);
-      //
-      bim3a_rhs (tmsh, f, g, rhs);
 
+      /// DEBUG
+#ifdef DEBUG
+      MPI_Barrier (mpicomm);
+      {
+        std::ostringstream ss;
+        ss << "matrix1_" << rank << ".m";
+        std::ofstream ofs (ss.str ());
+        ofs << A;
+      }
+      MPI_Barrier (mpicomm);
+#endif
+      
+      // rhs
+      q1_vec rhs (tmsh.num_owned_nodes (), mpicomm);      
+      bim3a_rhs (tmsh, f, g, rhs);
+      
+      
       // Set boundary conditions.      
       dirichlet_bcs3 bcs;
       for (int i = 0; i < 6; ++i)
         bcs.push_back (std::make_tuple (0, i, u_ex));
       //
       bim3a_dirichlet_bc (tmsh, bcs, A, rhs);
-      rhs.assemble();
+      
       A.assemble ();
+      rhs.assemble ();
+
+      /// DEBUG
+      MPI_Barrier (mpicomm);
+      {
+        std::ostringstream ss;
+        ss << "rhs_" << rank << "_" << adapt << ".m";
+        std::ofstream ofs (ss.str());
+        for (auto ii = rhs.get_range_start (); ii != rhs.get_range_end (); ++ii)
+          ofs << ii << " " << rhs[ii] << std::endl;
+      }
+      MPI_Barrier (mpicomm);
+      
+      /// DEBUG
+#ifdef DEBUG      
+      MPI_Barrier (mpicomm);
+      {
+        std::ostringstream ss;
+        ss << "matrix2_" << rank << ".m";
+        std::ofstream ofs (ss.str());
+        ofs << A;
+      }
+      MPI_Barrier (mpicomm);
+#endif
 
       // Solve problem.
       std::cout << "Solving linear system. (rank " << rank << ")" << std::endl;
       
-      // Initialize MUMPS solver
-      mumps mumps_solver;//(true);
-      
-      // Set distributed structure of lhs
+      mumps mumps_solver;
+
+      mumps_solver.set_rhs_distributed (rhs);
+       
       std::vector<double> vals;
       std::vector<int> irow, jcol;
       
       A.aij (vals, irow, jcol, mumps_solver.get_index_base ());
+
+      /// DEBUG
+      MPI_Barrier (mpicomm);
+      {
+        std::ostringstream ss;
+        ss << "aij_" << rank << "_" << adapt << ".m";
+        std::ofstream ofs (ss.str());
+        for (auto ii : irow)
+          ofs << ii << " ";
+        ofs << std::endl;
+        for (auto ii : jcol)
+          ofs << ii << " ";
+        ofs << std::endl;
+        for (auto ii : vals)
+          ofs << ii << " ";
+        ofs << std::endl;
+      }
+      MPI_Barrier (mpicomm);
       
       mumps_solver.set_lhs_distributed ();
-      mumps_solver.set_distributed_lhs_structure (A.rows (), irow, jcol);
-      mumps_solver.set_distributed_lhs_data (vals);
-      
-      // Set distributed structure of rhs
-      mumps_solver.set_rhs_distributed (rhs);
+      mumps_solver.set_distributed_lhs_structure (tmsh.num_global_nodes (), irow, jcol);
+      std::cout << "irow.size () = " << irow.size () << " " <<  *std::max_element (irow.begin(), irow.end())<<  " " <<  *std::min_element (irow.begin(), irow.end())<< std::endl;
+      std::cout << "jcol.size () = " << jcol.size () << " " <<  *std::max_element (jcol.begin(), jcol.end())<<  " " <<  *std::min_element (jcol.begin(), jcol.end())<< std::endl;
+      std::cout << "vals.size () = " << vals.size () << " " <<  *std::max_element (vals.begin(), vals.end())<<  " " <<  *std::min_element (vals.begin(), vals.end())<< std::endl;
 
+      MPI_Barrier (mpicomm);
       // Solve.
       std::cout << "\tanalyze (rank " << rank << ")" << std::endl;
       mumps_solver.analyze ();
+      MPI_Barrier (mpicomm);
+      
+      std::cout << "\tset lhs data (rank " << rank << ")" << std::endl;
+      mumps_solver.set_distributed_lhs_data (vals);
+      std::cout << "\tset lhs data (rank " << rank << ") done" << std::endl;
+      MPI_Barrier (mpicomm);
+
       std::cout << "\tfactorize (rank " << rank << ")" << std::endl;
-      mumps_solver.factorize ();
-      std::cout << "\tsolve (rank " << rank << ")" << std::endl;
-      mumps_solver.solve ();
-      std::cout << "\tcleanup (rank " << rank << ")" << std::endl;
-      mumps_solver.cleanup ();
+      auto val = mumps_solver.factorize ();
+      std::cout << "\tfactorize (rank " << rank << ") = " << val << std::endl;
+      MPI_Barrier (mpicomm);
+      
+      std::cout << "\tsolve (rank " << rank << ") = "  << std::endl;
+      std::cout << mumps_solver.solve () << std::endl;
+      MPI_Barrier (mpicomm);
+      
+      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_rhs_")
+                           + std::to_string (adapt)).c_str (), rhs);      
+          
 
-      // Get solution of linear system
-      q1_vec mumps_result = mumps_solver.get_distributed_solution();
-
-      q1_vec result (tmsh.num_owned_nodes());
-      bim3a_solution_with_ghosts (tmsh, result);
-
-      for (auto ii = result.get_range_start (); 
-                ii != result.get_range_end (); 
-                ++ii)
+      q1_vec mumps_result = mumps_solver.get_distributed_solution ();
+      q1_vec result (tmsh.num_owned_nodes (), mpicomm);
+      bim3a_solution_with_ghosts (tmsh, result, replace_op);
+      for (auto ii = result.get_range_start (); ii != result.get_range_end (); ++ii)
         result[ii] = mumps_result[ii];
       result.assemble (replace_op);
 
+      /// DEBUG
+      MPI_Barrier (mpicomm);
+      {
+        std::ostringstream ss;
+        ss << "res_" << rank << "_" << adapt << ".m";
+        std::ofstream ofs (ss.str());
+        for (auto ii = result.get_range_start (); ii != result.get_range_end (); ++ii)
+          ofs << ii << " " << result[ii] << std::endl;
+      }
+      MPI_Barrier (mpicomm);
+
       // Export solution.
       tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_u_")
-                           + std::to_string(adapt)).c_str(), result);
-      
+                           + std::to_string (adapt)).c_str (), result);
+
       // Compute exact solution on the mesh
       q1_vec uex (tmsh.num_owned_nodes());
       bim3a_solution_with_ghosts(tmsh,uex);
@@ -236,14 +322,34 @@ main (int argc, char **argv)
             uex[quadrant->gt(i)] = u_ex(quadrant->p(0, i), 
                                         quadrant->p(1, i),
                                         quadrant->p(2, i));
+
+      uex.assemble (replace_op);
       
       // Export exact solution
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_uex_")
-                           + std::to_string(adapt)).c_str(), uex);
+      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_uex_")
+                           + std::to_string (adapt)).c_str (), uex);
+
+      std::cout << "\tcleanup (rank " << rank << ")" << std::endl;
+      mumps_solver.cleanup ();
+
+      
+      /// DEBUG
+#ifdef DEBUG
+      {
+        std::ostringstream ss;
+        ss << "uex_" << rank << ".m";
+        std::ofstream ofs(ss.str());
+        for (unsigned j = 0; j < uex.size(); ++j)
+          ofs << "idx = " << j
+              << " val = " << uex[j]
+              << std::endl;
+      }
+#endif
       
       std::cout << "Done. (rank " << rank << ")" << std::endl;
-      
-      // Compute reconstructed gradient and solution
+
+      /*
+      // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient and estimator.";
       
       // Activation function outside the sphere
@@ -346,18 +452,22 @@ main (int argc, char **argv)
       error.push_back (global_err);
 
       std::cout << " Done. (rank " << rank << ")\n" << std::endl;
+      */
       
       // Break if the number of global nodes is too large
       if (tmsh.num_global_nodes () >= 1e6)
         break;
       
       // Refine.
-      tmsh.set_metrics_marker (estimator, 1e-3, 4);
-      tmsh.metrics_refine (1e3);
+      //tmsh.set_metrics_marker (estimator, 1e-3, 4);
+      //tmsh.metrics_refine (1e3);
+      tmsh.set_refine_marker (uniform_refinement);
+      tmsh.refine (recursive, partforcoarsen);
+      tmsh.refine (recursive, partforcoarsen);
       
       // Export new mesh
-      tmsh.vtk_export ((std::string("p4est_dr_test_2_metrics_newmesh_")
-                        + std::to_string(adapt)).c_str());
+      //tmsh.vtk_export ((std::string("p4est_dr_test_2_metrics_newmesh_")
+      // + std::to_string (adapt)).c_str ());
     }
   
   if (rank == 0)
@@ -369,4 +479,5 @@ main (int argc, char **argv)
   
   MPI_Finalize ();
   return 0;
+
 }
