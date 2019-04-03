@@ -158,7 +158,7 @@ mumps::set_rhs_distributed (distributed_vector &rhs)
 int
 mumps::factorize ()
 {
-  id.icntl[12] = 0;
+  id.icntl[12] = -1;
   id.job = JOB_FACTORIZE;
   dmumps_c (&id);
   return id.info[0];

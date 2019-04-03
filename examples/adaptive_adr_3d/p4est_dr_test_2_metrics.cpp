@@ -19,7 +19,7 @@ uniform_refinement (tmesh_3d::quadrant_iterator q)
 
 // Number of refinement steps 
 constexpr unsigned unif_refine_steps  = 4;  // initial uniform refinement 
-constexpr unsigned adapt_refine_steps = 1;  // adaptive refinement
+constexpr unsigned adapt_refine_steps = 2;  // adaptive refinement
 
 // Problem parameters
 constexpr double inv_epsilon = 1e11;  // 1 / epsilon
@@ -280,7 +280,7 @@ main (int argc, char **argv)
       std::cout << "\tfactorize (rank " << rank << ") = " << val << std::endl;
       MPI_Barrier (mpicomm);
       
-      std::cout << "\tsolve (rank " << rank << ") = "  << std::endl;
+      std::cout << "\tsolve (rank " << rank << ") = ";
       std::cout << mumps_solver.solve () << std::endl;
       MPI_Barrier (mpicomm);
       
@@ -462,7 +462,6 @@ main (int argc, char **argv)
       //tmsh.set_metrics_marker (estimator, 1e-3, 4);
       //tmsh.metrics_refine (1e3);
       tmsh.set_refine_marker (uniform_refinement);
-      tmsh.refine (recursive, partforcoarsen);
       tmsh.refine (recursive, partforcoarsen);
       
       // Export new mesh
