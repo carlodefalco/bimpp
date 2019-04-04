@@ -457,10 +457,8 @@ main (int argc, char **argv)
         break;
       
       // Refine.
-      //tmsh.set_metrics_marker (estimator, 1e-3, 4);
-      //tmsh.metrics_refine (1e3);
-      tmsh.set_refine_marker (uniform_refinement);
-      tmsh.refine (recursive, partforcoarsen);
+      tmsh.set_metrics_marker (estimator, 1e-3, 4);
+      tmsh.metrics_refine (1e3);
       
       // Export new mesh
       tmsh.vtk_export ((std::string("p4est_dr_test_2_metrics_newmesh_")
