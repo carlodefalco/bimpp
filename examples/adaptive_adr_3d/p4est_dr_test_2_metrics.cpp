@@ -100,7 +100,7 @@ main (int argc, char **argv)
     }
 
   // Export initial mesh
-  // tmsh.vtk_export ("p4est_dr_test_2_metrics_initial_mesh");
+  tmsh.vtk_export ("p4est_dr_test_2_metrics_initial_mesh");
   
   // Adaptive refinement loop
   for (unsigned adapt = 0; adapt < adapt_refine_steps; ++adapt)
@@ -348,7 +348,6 @@ main (int argc, char **argv)
       
       std::cout << "Done. (rank " << rank << ")" << std::endl;
 
-      /*
       // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient and estimator.";
       
@@ -452,7 +451,6 @@ main (int argc, char **argv)
       error.push_back (global_err);
 
       std::cout << " Done. (rank " << rank << ")\n" << std::endl;
-      */
       
       // Break if the number of global nodes is too large
       if (tmsh.num_global_nodes () >= 1e6)
@@ -465,8 +463,8 @@ main (int argc, char **argv)
       tmsh.refine (recursive, partforcoarsen);
       
       // Export new mesh
-      //tmsh.vtk_export ((std::string("p4est_dr_test_2_metrics_newmesh_")
-      // + std::to_string (adapt)).c_str ());
+      tmsh.vtk_export ((std::string("p4est_dr_test_2_metrics_newmesh_")
+                        + std::to_string (adapt)).c_str ());
     }
   
   if (rank == 0)
