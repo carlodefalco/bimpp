@@ -2,6 +2,7 @@
 #include <quad_operators_3d.h>
 #include <bim_distributed_vector.h>
 #include <bim_sparse_distributed.h>
+#include <bim_timing.h>
 #include <simple_connectivity_3d.h>
 
 #include <algorithm>
@@ -18,8 +19,8 @@ uniform_refinement (tmesh_3d::quadrant_iterator q)
 { return 1; }
 
 // Number of refinement steps 
-constexpr unsigned unif_refine_steps  = 3;  // initial uniform refinement 
-constexpr unsigned adapt_refine_steps = 4;  // adaptive refinement
+constexpr unsigned unif_refine_steps  = 2;  // initial uniform refinement 
+constexpr unsigned adapt_refine_steps = 5;  // adaptive refinement
 
 // Problem parameters
 constexpr double inv_epsilon = 1e11;  // 1 / epsilon
@@ -106,9 +107,9 @@ main (int argc, char **argv)
   double tol = 1.e-3;
   for (unsigned adapt = 0; adapt < adapt_refine_steps; ++adapt)
     {
-      std::cout << "*** Step "
-                << adapt << " (rank "
-                << rank << ") ***" << std::endl;
+
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { 
+        std::cout << "*** Step "  << adapt << " ***" << std::endl; }
       
       // Compute coefficients   
 
@@ -163,33 +164,9 @@ main (int argc, char **argv)
       //
       // advection_diffusion
       bim3a_advection_diffusion (tmsh, alpha, psi, A);
-
-      /// DEBUG
-#ifdef DEBUG
-      MPI_Barrier (mpicomm);
-      {
-        std::ostringstream ss;
-        ss << "matrix0_" << rank << ".m";
-        std::ofstream ofs (ss.str());
-        ofs << A;
-      }
-      MPI_Barrier (mpicomm);
-#endif
       
       // reaction
       bim3a_reaction (tmsh, delta, zeta, A);
-
-      /// DEBUG
-#ifdef DEBUG
-      MPI_Barrier (mpicomm);
-      {
-        std::ostringstream ss;
-        ss << "matrix1_" << rank << ".m";
-        std::ofstream ofs (ss.str ());
-        ofs << A;
-      }
-      MPI_Barrier (mpicomm);
-#endif
       
       // rhs
       q1_vec rhs (tmsh.num_owned_nodes (), mpicomm);      
@@ -206,36 +183,9 @@ main (int argc, char **argv)
       A.assemble ();
       rhs.assemble ();
 
-      /// DEBUG
-#ifdef DEBUG
-      MPI_Barrier (mpicomm);
-      {
-        std::ostringstream ss;
-        ss << "rhs_" << rank << "_" << adapt << ".m";
-        std::ofstream ofs (ss.str());
-        for (auto ii = rhs.get_range_start (); ii != rhs.get_range_end (); ++ii)
-          ofs << ii << " " << rhs[ii] << std::endl;
-      }
-      MPI_Barrier (mpicomm);
-#endif
-      
-      /// DEBUG
-#ifdef DEBUG      
-      MPI_Barrier (mpicomm);
-      {
-        std::ostringstream ss;
-        ss << "matrix2_" << rank << ".m";
-        std::ofstream ofs (ss.str());
-        ofs << A;
-      }
-      MPI_Barrier (mpicomm);
-#endif
-
       // Solve problem.
-      std::cout << "Solving linear system. (rank " << rank << ")" << std::endl;
-      
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       mumps mumps_solver;
-
       mumps_solver.set_rhs_distributed (rhs);
        
       std::vector<double> vals, vals_tmp;
@@ -243,7 +193,7 @@ main (int argc, char **argv)
       
       A.aij (vals_tmp, irow_tmp, jcol_tmp, mumps_solver.get_index_base ());
       int countzeros = std::count_if (vals_tmp.begin (), vals_tmp.end (), [] (double x) {return std::abs (x) == .0; });
-      std::cout << "countzeros = " << countzeros;
+      std::cout << "countzeros = " << countzeros << std::endl;
       vals.reserve (vals_tmp.size ());
       irow.reserve (irow_tmp.size ());
       jcol.reserve (jcol_tmp.size ());
@@ -254,82 +204,42 @@ main (int argc, char **argv)
             irow.push_back (irow_tmp[ii]);
             jcol.push_back (jcol_tmp[ii]);
           }
-
-      
-      /// DEBUG
-#ifdef DEBUG
-      MPI_Barrier (mpicomm);
-      {
-        std::ostringstream ss;
-        ss << "aij_" << rank << "_" << adapt << ".m";
-        std::ofstream ofs (ss.str());
-        for (auto ii : irow)
-          ofs << ii << " ";
-        ofs << std::endl;
-        for (auto ii : jcol)
-          ofs << ii << " ";
-        ofs << std::endl;
-        for (auto ii : vals)
-          ofs << ii << " ";
-        ofs << std::endl;
-      }
-      MPI_Barrier (mpicomm);
-#endif
-      
       mumps_solver.set_lhs_distributed ();
       mumps_solver.set_distributed_lhs_structure (tmsh.num_global_nodes (), irow, jcol);
-      /// DEBUG
-#ifdef DEBUG      
-      std::cout << "irow.size () = " << irow.size () << " " <<  *std::max_element (irow.begin(), irow.end())<<  " " <<  *std::min_element (irow.begin(), irow.end())<< std::endl;
-      std::cout << "jcol.size () = " << jcol.size () << " " <<  *std::max_element (jcol.begin(), jcol.end())<<  " " <<  *std::min_element (jcol.begin(), jcol.end())<< std::endl;
-      std::cout << "vals.size () = " << vals.size () << " " <<  *std::max_element (vals.begin(), vals.end())<<  " " <<  *std::min_element (vals.begin(), vals.end())<< std::endl;
-#endif
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("prepare solver "); }
+                  
       
-      MPI_Barrier (mpicomm);
       // Solve.
-      std::cout << "\tanalyze (rank " << rank << ")" << std::endl;
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       mumps_solver.analyze ();
-      MPI_Barrier (mpicomm);
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("analyze "); }
       
-      std::cout << "\tset lhs data (rank " << rank << ")" << std::endl;
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       mumps_solver.set_distributed_lhs_data (vals);
-      std::cout << "\tset lhs data (rank " << rank << ") done" << std::endl;
-      MPI_Barrier (mpicomm);
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("set lhs data "); }
 
-      std::cout << "\tfactorize (rank " << rank << ")" << std::endl;
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       auto val = mumps_solver.factorize ();
-      std::cout << "\tfactorize (rank " << rank << ") = " << val << std::endl;
-      MPI_Barrier (mpicomm);
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("factorize "); }
       
-      std::cout << "\tsolve (rank " << rank << ") = ";
-      std::cout << mumps_solver.solve () << std::endl;
-      MPI_Barrier (mpicomm);
-      
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_rhs_")
-                           + std::to_string (adapt)).c_str (), rhs);      
-          
-
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+      mumps_solver.solve ();
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("solve "); }
+                
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       q1_vec result = mumps_solver.get_distributed_solution ();
       bim3a_solution_with_ghosts (tmsh, result, replace_op);
-
-      /// DEBUG
-#ifdef DEBUG      
-      MPI_Barrier (mpicomm);
-      {
-        std::ostringstream ss;
-        ss << "res_" << rank << "_" << adapt << ".m";
-        std::ofstream ofs (ss.str());
-        for (auto ii = result.get_range_start (); ii != result.get_range_end (); ++ii)
-          ofs << ii << " " << result[ii] << std::endl;
-      }
-      MPI_Barrier (mpicomm);
-#endif
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("scatter solution "); }
+      
       
       // Export solution.
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_u_")
                            + std::to_string (adapt)).c_str (), result);
-
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("export solution "); }
+      
       // Compute exact solution on the mesh
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       q1_vec uex (tmsh.num_owned_nodes ());
       bim3a_solution_with_ghosts (tmsh,uex);
       
@@ -347,28 +257,15 @@ main (int argc, char **argv)
       // Export exact solution
       tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_uex_")
                            + std::to_string (adapt)).c_str (), uex);
-
-      std::cout << "\tcleanup (rank " << rank << ")" << std::endl;
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("export exact solution "); }
+      
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       mumps_solver.cleanup ();
-
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("cleanup "); }
       
-      /// DEBUG
-#ifdef DEBUG
-      {
-        std::ostringstream ss;
-        ss << "uex_" << rank << ".m";
-        std::ofstream ofs(ss.str());
-        for (unsigned j = 0; j < uex.size(); ++j)
-          ofs << "idx = " << j
-              << " val = " << uex[j]
-              << std::endl;
-      }
-#endif
-      
-      std::cout << "Done. (rank " << rank << ")" << std::endl;
 
       // Compute reconstructed gradient.
-      std::cout << "Computing reconstructed gradient and estimator.";
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       
       // Activation function outside the sphere
       active_fun3 regionG = [] (tmesh_3d::quadrant_iterator q)
@@ -387,22 +284,27 @@ main (int argc, char **argv)
         };
       
       // Gradient outside the sphere
-      std::cout << "\tgradient (rank " << rank << ")" << std::endl;
+
       gradient3 du0 = bim3c_quadtree_pde_recovered_gradient
         (tmsh, result, regionG);
       // Gradient inside the sphere
       gradient3 du1 = bim3c_quadtree_pde_recovered_gradient
         (tmsh, result,  regionS);
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("gradient recovery "); }
+      
       // Reconstructed solution outside the sphere
-      std::cout << "\tsolution (rank " << rank << ")" << std::endl;
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+      
       q2_vec3 u_star0 = bim3c_quadtree_pde_recovered_solution
         (tmsh, result, du0);
       // Reconstructed solution inside the sphere
       q2_vec3 u_star1 = bim3c_quadtree_pde_recovered_solution
         (tmsh, result, du1);
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("solution recovery "); }
       
       // Export reconstructed gradients:
-      //
+
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       // derivative along x outside the sphere 
       tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du0_x_")
                            + std::to_string(adapt)).c_str(),
@@ -432,21 +334,23 @@ main (int argc, char **argv)
       tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du1_z_")
                            + std::to_string(adapt)).c_str(),
                           std::get<2>(du1));
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("export gradients "); }
       
       // Solution estimator
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       auto estimator = [&u_star0, &u_star1, &result] 
         (tmesh_3d::quadrant_iterator q)
         {
-          if (rho2(q->centroid(0),q->centroid(1),q->centroid(2)) > (R*R))
+          if (rho2(q->centroid(0), q->centroid(1), q->centroid(2)) > (R*R))
             return estimator_sol (q, u_star0, result);
           else
             return estimator_sol (q, u_star1, result);
         };
       
-      std::cout << " Done. (rank " << rank << ")" << std::endl;
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("define estimator "); }
       
       // Compute h and error.
-      std::cout << "\tmetrics (rank " << rank << ")" << std::endl;
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       double  hx = 0, hy = 0, hz = 0,
         h = std::numeric_limits<double>::max (),
         global_h = 0;
@@ -467,16 +371,17 @@ main (int argc, char **argv)
         }
       
       // Global mesh size and global error
-      MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
-      MPI_Reduce(&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      MPI_Reduce (&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
+      MPI_Reduce (&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
       global_err = std::sqrt(global_err);
       
       nnodes.push_back (tmsh.num_global_nodes ());
       h_step.push_back (global_h);
       error.push_back (global_err);
 
-      std::cout << " Done. (rank " << rank << ")\n" << std::endl;
-      
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("Compute h and error "); }
+
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       // Break if the number of global nodes is too large
       if (tmsh.num_global_nodes () >= 2e6)
         break;
@@ -497,6 +402,7 @@ main (int argc, char **argv)
               break;
             }
         }
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("refine "); }
     }
   
   if (rank == 0)
