@@ -18,8 +18,8 @@ uniform_refinement (tmesh_3d::quadrant_iterator q)
 { return 1; }
 
 // Number of refinement steps 
-constexpr unsigned unif_refine_steps  = 4;  // initial uniform refinement 
-constexpr unsigned adapt_refine_steps = 2;  // adaptive refinement
+constexpr unsigned unif_refine_steps  = 3;  // initial uniform refinement 
+constexpr unsigned adapt_refine_steps = 4;  // adaptive refinement
 
 // Problem parameters
 constexpr double inv_epsilon = 1e11;  // 1 / epsilon
@@ -103,6 +103,7 @@ main (int argc, char **argv)
   tmsh.vtk_export ("p4est_dr_test_2_metrics_initial_mesh");
   
   // Adaptive refinement loop
+  double tol = 1.e-3;
   for (unsigned adapt = 0; adapt < adapt_refine_steps; ++adapt)
     {
       std::cout << "*** Step "
@@ -206,6 +207,7 @@ main (int argc, char **argv)
       rhs.assemble ();
 
       /// DEBUG
+#ifdef DEBUG
       MPI_Barrier (mpicomm);
       {
         std::ostringstream ss;
@@ -215,6 +217,7 @@ main (int argc, char **argv)
           ofs << ii << " " << rhs[ii] << std::endl;
       }
       MPI_Barrier (mpicomm);
+#endif
       
       /// DEBUG
 #ifdef DEBUG      
@@ -235,12 +238,26 @@ main (int argc, char **argv)
 
       mumps_solver.set_rhs_distributed (rhs);
        
-      std::vector<double> vals;
-      std::vector<int> irow, jcol;
+      std::vector<double> vals, vals_tmp;
+      std::vector<int> irow, irow_tmp, jcol, jcol_tmp;
       
-      A.aij (vals, irow, jcol, mumps_solver.get_index_base ());
+      A.aij (vals_tmp, irow_tmp, jcol_tmp, mumps_solver.get_index_base ());
+      int countzeros = std::count_if (vals_tmp.begin (), vals_tmp.end (), [] (double x) {return std::abs (x) == .0; });
+      std::cout << "countzeros = " << countzeros;
+      vals.reserve (vals_tmp.size ());
+      irow.reserve (irow_tmp.size ());
+      jcol.reserve (jcol_tmp.size ());
+      for (int ii = 0; ii < vals_tmp.size (); ++ii)
+        if (std::abs (vals_tmp[ii]) > 0)
+          {
+            vals.push_back (vals_tmp[ii]);
+            irow.push_back (irow_tmp[ii]);
+            jcol.push_back (jcol_tmp[ii]);
+          }
 
+      
       /// DEBUG
+#ifdef DEBUG
       MPI_Barrier (mpicomm);
       {
         std::ostringstream ss;
@@ -257,13 +274,17 @@ main (int argc, char **argv)
         ofs << std::endl;
       }
       MPI_Barrier (mpicomm);
+#endif
       
       mumps_solver.set_lhs_distributed ();
       mumps_solver.set_distributed_lhs_structure (tmsh.num_global_nodes (), irow, jcol);
+      /// DEBUG
+#ifdef DEBUG      
       std::cout << "irow.size () = " << irow.size () << " " <<  *std::max_element (irow.begin(), irow.end())<<  " " <<  *std::min_element (irow.begin(), irow.end())<< std::endl;
       std::cout << "jcol.size () = " << jcol.size () << " " <<  *std::max_element (jcol.begin(), jcol.end())<<  " " <<  *std::min_element (jcol.begin(), jcol.end())<< std::endl;
       std::cout << "vals.size () = " << vals.size () << " " <<  *std::max_element (vals.begin(), vals.end())<<  " " <<  *std::min_element (vals.begin(), vals.end())<< std::endl;
-
+#endif
+      
       MPI_Barrier (mpicomm);
       // Solve.
       std::cout << "\tanalyze (rank " << rank << ")" << std::endl;
@@ -288,14 +309,11 @@ main (int argc, char **argv)
                            + std::to_string (adapt)).c_str (), rhs);      
           
 
-      q1_vec mumps_result = mumps_solver.get_distributed_solution ();
-      q1_vec result (tmsh.num_owned_nodes (), mpicomm);
+      q1_vec result = mumps_solver.get_distributed_solution ();
       bim3a_solution_with_ghosts (tmsh, result, replace_op);
-      for (auto ii = result.get_range_start (); ii != result.get_range_end (); ++ii)
-        result[ii] = mumps_result[ii];
-      result.assemble (replace_op);
 
       /// DEBUG
+#ifdef DEBUG      
       MPI_Barrier (mpicomm);
       {
         std::ostringstream ss;
@@ -305,14 +323,15 @@ main (int argc, char **argv)
           ofs << ii << " " << result[ii] << std::endl;
       }
       MPI_Barrier (mpicomm);
-
+#endif
+      
       // Export solution.
       tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_u_")
                            + std::to_string (adapt)).c_str (), result);
 
       // Compute exact solution on the mesh
-      q1_vec uex (tmsh.num_owned_nodes());
-      bim3a_solution_with_ghosts(tmsh,uex);
+      q1_vec uex (tmsh.num_owned_nodes ());
+      bim3a_solution_with_ghosts (tmsh,uex);
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
@@ -354,63 +373,69 @@ main (int argc, char **argv)
       // Activation function outside the sphere
       active_fun3 regionG = [] (tmesh_3d::quadrant_iterator q)
         { 
-          return (rho2(q->centroid(0),q->centroid(1),q->centroid(2)) > (R*R));
+          return (rho2 (q->centroid(0),
+                        q->centroid(1),
+                        q->centroid(2)) > (R*R));
         };
       
       // Activation function inside the sphere
       active_fun3 regionS = [] (tmesh_3d::quadrant_iterator q)
         { 
-          return (rho2(q->centroid(0),q->centroid(1),q->centroid(2)) <= (R*R));
+          return (rho2 (q->centroid(0),
+                        q->centroid(1),
+                        q->centroid(2)) <= (R*R));
         };
       
       // Gradient outside the sphere
       std::cout << "\tgradient (rank " << rank << ")" << std::endl;
-      gradient3 du0 = bim3c_quadtree_pde_recovered_gradient(tmsh, 
-                                                            result, 
-                                                            regionG);
+      gradient3 du0 = bim3c_quadtree_pde_recovered_gradient
+        (tmsh, result, regionG);
       // Gradient inside the sphere
-      gradient3 du1 = bim3c_quadtree_pde_recovered_gradient(tmsh, 
-                                                            result, 
-                                                            regionS);
+      gradient3 du1 = bim3c_quadtree_pde_recovered_gradient
+        (tmsh, result,  regionS);
       // Reconstructed solution outside the sphere
       std::cout << "\tsolution (rank " << rank << ")" << std::endl;
-      q2_vec3 u_star0 = bim3c_quadtree_pde_recovered_solution(tmsh, 
-                                                              result,
-                                                              du0);
+      q2_vec3 u_star0 = bim3c_quadtree_pde_recovered_solution
+        (tmsh, result, du0);
       // Reconstructed solution inside the sphere
-      q2_vec3 u_star1 = bim3c_quadtree_pde_recovered_solution(tmsh, 
-                                                              result, 
-                                                              du1);
+      q2_vec3 u_star1 = bim3c_quadtree_pde_recovered_solution
+        (tmsh, result, du1);
       
       // Export reconstructed gradients:
       //
       // derivative along x outside the sphere 
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du0_x_")
-                           + std::to_string(adapt)).c_str(), std::get<0>(du0));
+      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du0_x_")
+                           + std::to_string(adapt)).c_str(),
+                          std::get<0>(du0));
       //
       // derivative along y outside the sphere 
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du0_y_")
-                           + std::to_string(adapt)).c_str(), std::get<1>(du0));
+      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du0_y_")
+                           + std::to_string(adapt)).c_str(),
+                          std::get<1>(du0));
       //
       // derivative along z outside the sphere 
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du0_z_")
-                           + std::to_string(adapt)).c_str(), std::get<2>(du0));
+      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du0_z_")
+                           + std::to_string(adapt)).c_str(),
+                          std::get<2>(du0));
       //
       // derivative along x inside the sphere 
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du1_x_")
-                           + std::to_string(adapt)).c_str(), std::get<0>(du1));
+      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du1_x_")
+                           + std::to_string(adapt)).c_str(),
+                          std::get<0>(du1));
       //
       // derivative along y inside the sphere 
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du1_y_")
-                           + std::to_string(adapt)).c_str(), std::get<1>(du1));
+      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du1_y_")
+                           + std::to_string(adapt)).c_str(),
+                          std::get<1>(du1));
       //
       // derivative along z inside the sphere 
-      tmsh.octbin_export ((std::string("p4est_dr_test_2_metrics_du1_z_")
-                           + std::to_string(adapt)).c_str(), std::get<2>(du1));
+      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du1_z_")
+                           + std::to_string(adapt)).c_str(),
+                          std::get<2>(du1));
       
       // Solution estimator
       auto estimator = [&u_star0, &u_star1, &result] 
-                                                (tmesh_3d::quadrant_iterator q)
+        (tmesh_3d::quadrant_iterator q)
         {
           if (rho2(q->centroid(0),q->centroid(1),q->centroid(2)) > (R*R))
             return estimator_sol (q, u_star0, result);
@@ -453,16 +478,25 @@ main (int argc, char **argv)
       std::cout << " Done. (rank " << rank << ")\n" << std::endl;
       
       // Break if the number of global nodes is too large
-      if (tmsh.num_global_nodes () >= 1e6)
+      if (tmsh.num_global_nodes () >= 2e6)
         break;
-      
-      // Refine.
-      tmsh.set_metrics_marker (estimator, 1e-3, 4);
-      tmsh.metrics_refine (1e3);
-      
-      // Export new mesh
-      tmsh.vtk_export ((std::string("p4est_dr_test_2_metrics_newmesh_")
-                        + std::to_string (adapt)).c_str ());
+      else if (adapt < (adapt_refine_steps - 1))
+        {
+          // Refine.         
+          tmsh.set_metrics_marker (estimator, .5e-3, 3);
+          tmsh.metrics_refine (1e6);
+          std::cout << "tmsh.num_global_nodes ()= "
+                    << tmsh.num_global_nodes ()
+                    << std::endl;
+          // Export new mesh
+          tmsh.vtk_export ((std::string("p4est_dr_test_2_metrics_newmesh_")
+                            + std::to_string (adapt)).c_str ());
+          if (tmsh.num_global_nodes () >= 2e6)
+            {
+              std::cout << "too many nodes!" << std::endl;
+              break;
+            }
+        }
     }
   
   if (rank == 0)
