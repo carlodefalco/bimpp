@@ -188,11 +188,12 @@ bim3a_advection_diffusion (tmesh_3d& mesh,
                   cols.push_back (quadrant->gparent(pp, j));
               
               for (int r = 0; r < rows.size(); ++r)
-                for (int c = 0; c < cols.size(); ++c)
-                  {
-                    A[rows[r]][cols[c]] += Aloc[i][j] /
-                      (rows.size() * cols.size());
-                  }
+                if (Aloc[i][j] != .0)
+                  for (int c = 0; c < cols.size(); ++c)
+                    {
+                      A[rows[r]][cols[c]] += Aloc[i][j] /
+                        (rows.size() * cols.size());
+                    }
             }
         }
     }
@@ -243,8 +244,9 @@ bim3a_reaction (tmesh_3d& mesh,
               }
           
           for (int r = 0; r < rows.size (); ++r)
-            A[rows[r]][rows[r]] +=
-              (delta[iel] * z_loc * hx * hy * hz / 8) / rows.size ();
+            if (delta[iel] * z_loc != .0 )
+              A[rows[r]][rows[r]] +=
+                (delta[iel] * z_loc * hx * hy * hz / 8) / rows.size ();
         }
     }
 }
@@ -329,6 +331,7 @@ bim3a_solution_with_ghosts (tmesh_3d& mesh,
             }
     }
 
+  v.remap ();
   v.assemble (op);
 }
 
