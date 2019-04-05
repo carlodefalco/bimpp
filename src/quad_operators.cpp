@@ -146,8 +146,9 @@ assemble (tmesh::quadrant_iterator& quadrant,
 
           for (r = 0; r < rows.size (); ++r)
             for (c = 0; c < cols.size (); ++c)
-              A[rows[r]][cols[c]] +=
-                weights_r[r] * weights_c[c] * locmat[i][j];
+              if (locmat[i][j] != 0.0)
+                A[rows[r]][cols[c]] +=
+                  weights_r[r] * weights_c[c] * locmat[i][j];
         }
     }
 }
