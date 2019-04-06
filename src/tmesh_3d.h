@@ -496,47 +496,6 @@ private:
   int metrics_max_depth;
 };
 
-/// TODO : class for distributed arrays
-template<class T, class data_location>
-class
-distributed_array
-{
-
-public :
-
-  p4est_locidx_t
-  num_local_entries ()
-  { return data_location::num_local_entries (the_tmesh); }
-
-  p4est_gloidx_t
-  num_global_entries ()
-  { return data_location::num_global_entries (the_tmesh); }
-
-  T&
-  index_local (p4est_locidx_t);
-
-  const T&
-  index_local (p4est_locidx_t) const;
-
-  T&
-  index_global (p4est_gloidx_t);
-
-  const T&
-  index_global (p4est_gloidx_t) const;
-
-  void
-  synchronize ();
-
-  void
-  all_reduce ();
-
-private :
-
-  tmesh_3d *the_tmesh;
-  // should probably use some sort of smart pointer here
-  T *data;
-};
-
 
 #endif /* TMESH_3D_H */
 
