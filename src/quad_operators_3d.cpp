@@ -283,7 +283,8 @@ void
 bim3a_solution_with_ghosts (tmesh_3d& mesh,
                             distributed_vector& v,
                             const binary_operator &op,
-                            const ordering& ord)
+                            const ordering& ord,
+                            bool ra)
 {
   int node = 0;
   for (auto q = mesh.begin_quadrant_sweep ();
@@ -309,9 +310,11 @@ bim3a_solution_with_ghosts (tmesh_3d& mesh,
                 v[ord(n->gparent(pp,node))] += 0;
             }
     }
-
-  v.remap ();
-  v.assemble (op);
+  if (ra)
+    {
+      v.remap ();
+      v.assemble (op);
+    }
 }
 
 std::vector<double>
