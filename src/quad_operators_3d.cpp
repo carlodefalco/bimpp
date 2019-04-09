@@ -549,7 +549,7 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
 ///          /  |              /  |
 ///         /___|____9________/   |
 ///        |    |             |   5
-///        |    0               |   |
+///        |    0             |   |
 ///        |    |             4   |
 ///        1    |_______10____|___|
 ///        |   /              |   /
@@ -2148,7 +2148,7 @@ estimator_grad (tmesh_3d::quadrant_iterator q,
       }
 
   auto fun =
-    [x, y, z, dudxstar_loc, dudystar_loc, dudzstar_loc, u_loc]
+    [&x, &y, &z, &dudxstar_loc, &dudystar_loc, &dudzstar_loc, &u_loc]
     (double X, double Y, double Z) -> double
     {
       return
@@ -2198,7 +2198,7 @@ estimator_sol (tmesh_3d::quadrant_iterator q,
     }
 
   auto fun =
-    [x, y, z, ustar_loc, u_loc]
+    [&x, &y, &z, &ustar_loc, &u_loc]
     (double X, double Y, double Z) -> double
     {
       return
@@ -2236,7 +2236,7 @@ l2_error (tmesh_3d::quadrant_iterator q,
       }
 
   auto fun =
-    [x, y, z, u_loc, u_ex]
+    [&x, &y, &z, &u_loc, &u_ex]
     (double X, double Y, double Z) -> double
     { return std::pow (q1 (X, Y, Z, x, y, z, u_loc) - u_ex (X, Y, Z), 2); };
 
@@ -2272,7 +2272,7 @@ semih1_error (tmesh_3d::quadrant_iterator q,
       }
 
   auto fun =
-    [x, y, z, dudx_ex, dudy_ex, dudz_ex, u_loc]
+    [&x, &y, &z, &dudx_ex, &dudy_ex, &dudz_ex, &u_loc]
     (double X, double Y, double Z) -> double
     {
       return
@@ -2306,7 +2306,7 @@ l2_star_error (tmesh_3d::quadrant_iterator q,
     ustar_loc[ii] = (ustar[q->get_forest_quad_idx ()])[ii];
 
   auto fun =
-    [x, y, z, ustar_loc, u_ex]
+    [&x, &y, &z, &ustar_loc, &u_ex]
     (double X, double Y, double Z) -> double
     {
       return
@@ -2357,8 +2357,8 @@ semih1_star_error (tmesh_3d::quadrant_iterator q,
       }
 
   auto fun =
-    [x, y, z, dudxstar_loc, dudystar_loc, dudzstar_loc,
-     dudx_ex, dudy_ex, dudz_ex]
+    [&x, &y, &z, &dudxstar_loc, &dudystar_loc, &dudzstar_loc,
+     &dudx_ex, &dudy_ex, &dudz_ex]
     (double X, double Y, double Z) -> double
     {
       return
