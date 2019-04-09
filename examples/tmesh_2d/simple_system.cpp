@@ -128,7 +128,7 @@ main (int argc, char **argv)
   lin_solver->set_lhs_distributed ();
   A.aij (xa, ir, jc, lin_solver->get_index_base ());
   lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
-  std::cout << "lin_solver->analyze () = "<< lin_solver->analyze () << std::endl;
+  std::cout << "lin_solver->analyze () return value = "<< lin_solver->analyze () << std::endl;
   TOC ("solver analysis");
 
 
@@ -142,24 +142,19 @@ main (int argc, char **argv)
   TOC ("set RHS data");
 
   TIC ();  
-  std::cout << "lin_solver->factorize () = " << lin_solver->factorize () << std::endl;
+  std::cout << "lin_solver->factorize () return value = " << lin_solver->factorize () << std::endl;
   TOC ("solver factorize");
 
 
   TIC ();  
-  std::cout << "lin_solver->solve () = " << lin_solver->solve () << std::endl;
+  std::cout << "lin_solver->solve () return value = " << lin_solver->solve () << std::endl;
   TOC ("solver solve");
 
-  // q1_vec result1(ln_nodes * 2);
-  //{
-    q1_vec result = lin_solver->get_distributed_solution ();
-    // for (int ii = result1.get_range_start (); ii < result1.get_range_end (); ++ii)
-    //   result1[ii] = result0[ii];
-    bim2a_solution_with_ghosts (tmsh, result, replace_op, ord0, false);
-    bim2a_solution_with_ghosts (tmsh, result, replace_op, ord1);
-    // }
+  q1_vec result = lin_solver->get_distributed_solution ();
+  bim2a_solution_with_ghosts (tmsh, result, replace_op, ord0, false);
+  bim2a_solution_with_ghosts (tmsh, result, replace_op, ord1);
   
-     tmsh.octbin_export (std::string ("simple_system_u_0").c_str (), result, ord0);
+  tmsh.octbin_export (std::string ("simple_system_u_0").c_str (), result, ord0);
   tmsh.octbin_export (std::string ("simple_system_v_0").c_str (), result, ord1);
 
   MPI_Barrier (MPI_COMM_WORLD);
