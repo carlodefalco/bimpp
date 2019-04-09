@@ -270,6 +270,25 @@ main (int argc, char **argv)
       mumps_solver.cleanup ();
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("cleanup "); }
 
+      // Difference between computed and exact solution
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+      q1_vec diff (tmsh.num_owned_nodes ());
+      bim3a_solution_with_ghosts (tmsh, diff);
+
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep ();
+           ++quadrant)
+        for (int i = 0; i < 8; ++i)
+          if (! quadrant->is_hanging (i))
+            diff[quadrant->gt(i)] = std::abs(uex[quadrant->gt(i)] - 
+                                              result[quadrant->gt(i)]);
+
+      diff.assemble (replace_op);
+
+      // Export difference
+      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_diff_")
+                           + std::to_string (adapt)).c_str (), diff);
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("export difference "); }
 
       // Compute reconstructed gradient.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
@@ -346,6 +365,7 @@ main (int argc, char **argv)
 
       // Solution estimator
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+
       auto estimator = [&u_star0, &u_star1, &result]
         (tmesh_3d::quadrant_iterator q)
         {
