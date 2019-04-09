@@ -21,7 +21,7 @@ uniform_refinement (tmesh_3d::quadrant_iterator q)
 // Number of refinement steps
 constexpr unsigned unif_refine_steps  = 2;  // initial uniform refinement
 constexpr unsigned adapt_refine_steps = 5;  // adaptive refinement
-constexpr double tol = 1.e-3;
+constexpr double tol = .5e-3;
 
 // Problem parameters
 constexpr double inv_epsilon = 1e11;  // 1 / epsilon
@@ -148,10 +148,11 @@ main (int argc, char **argv)
                   g[quadrant->gt (ii)] = load (r2);
                 }
               else
+                for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
                 {
-                  psi[quadrant->gt(ii)] += 0.;
-                  zeta[quadrant->gt(ii)] += 0.;
-                  g[quadrant->gt(ii)] += 0.;
+                  psi[quadrant->gparent (jj, ii)] += 0.;
+                  zeta[quadrant->gparent (jj, ii)] += 0.;
+                  g[quadrant->gparent (jj, ii)] += 0.;
                 }
             }
         }
