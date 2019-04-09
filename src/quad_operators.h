@@ -97,7 +97,8 @@ void
 bim2a_solution_with_ghosts (tmesh& mesh,
                             distributed_vector& rhs,
                             const binary_operator &op = std::plus<double> (),
-                            const ordering& ord = default_ord);
+                            const ordering& ord = default_ord,
+                            bool remap_assemble = true);
 
 template <class T>
 void

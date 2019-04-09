@@ -625,7 +625,8 @@ void
 bim2a_solution_with_ghosts (tmesh& mesh,
                             distributed_vector& v,
                             const binary_operator &op,
-                            const ordering& ord)
+                            const ordering& ord,
+                            bool ra)
 {
   int node = 0;
   for (auto q = mesh.begin_quadrant_sweep ();
@@ -651,8 +652,11 @@ bim2a_solution_with_ghosts (tmesh& mesh,
               v[ord (n->gparent (1, node))] += 0;
             }
     }
-
-  v.assemble (op);
+  if (ra)
+    {
+      v.remap ();
+      v.assemble (op);
+    }
 }
 
 

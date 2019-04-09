@@ -190,7 +190,7 @@ distributed_vector::assemble (const binary_operator & binary_op)
     remap ();
   else
     ghost_csr_update ();
-
+  
   /// 2.3 : Send ghosts data and receive into mirrors
   std::vector<MPI_Request> reqs;
   for (int ii = 0; ii < mpisize; ++ii)
@@ -226,7 +226,7 @@ distributed_vector::assemble (const binary_operator & binary_op)
     (*this)(mirrors.row_ind[ii]) =
       binary_op ((*this)(mirrors.row_ind[ii]),
                  mirrors.a[ii]);
-  
+
   /// Step 4 : Copy owned_data into mirrors 
   for (int ii = 0; ii < mirrors.prc_ptr.back (); ++ii)
     mirrors.a[ii] = (*this)(mirrors.row_ind[ii]);
