@@ -148,10 +148,11 @@ main (int argc, char **argv)
                   g[quadrant->gt (ii)] = load (r2);
                 }
               else
+                for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
                 {
-                  psi[quadrant->gt(ii)] += 0.;
-                  zeta[quadrant->gt(ii)] += 0.;
-                  g[quadrant->gt(ii)] += 0.;
+                  psi[quadrant->gparent (jj, ii)] += 0.;
+                  zeta[quadrant->gparent (jj, ii)] += 0.;
+                  g[quadrant->gparent (jj, ii)] += 0.;
                 }
             }
         }
