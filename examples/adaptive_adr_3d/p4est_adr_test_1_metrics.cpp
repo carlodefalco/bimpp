@@ -15,8 +15,8 @@ uniform_refinement (tmesh_3d::quadrant_iterator q)
 { return 1; }
 
 // Number of refinement steps
-constexpr unsigned unif_refine_steps = 3;   // initial uniform refinement
-constexpr unsigned adapt_refine_steps = 10;  // adaptive refinement
+constexpr unsigned unif_refine_steps = 2;   // initial uniform refinement
+constexpr unsigned adapt_refine_steps = 6;  // adaptive refinement
 
 // Tolerance for refinement
 constexpr double tol = 1e-2;
@@ -41,11 +41,8 @@ main (int argc, char **argv)
   MPI_Comm_size (mpicomm, &size);
   
   // Mesh parameters
-  std::vector<idx_t>    nnodes;         // number of nodes at every step
-  std::vector<double>   h_step;         // mesh size at every step
-
-  // Error at every step
-  std::vector<double> error;
+  std::vector<idx_t>    nnodes (adapt_refine_steps, 0);     // number of nodes
+  std::vector<double>   h_step (adapt_refine_steps, 0.);    // mesh size
 
   // Problem parameters
   constexpr double epsilon = 1e-4;      // diffusion coefficient
@@ -101,10 +98,11 @@ main (int argc, char **argv)
                   g[quadrant->gt(ii)] = 0.;
                 }
               else
-                {
-                  psi[quadrant->gt(ii)] += 0.;
-                  g[quadrant->gt(ii)] += 0.;
-                }
+                for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
+                  {
+                    psi[quadrant->gparent (jj, ii)] += 0.;
+                    g[quadrant->gparent (jj, ii)] += 0.;
+                  }
             }
         }
       psi.assemble(max_op);
@@ -227,13 +225,20 @@ main (int argc, char **argv)
                            + std::to_string(adapt)).c_str(), std::get<2>(du));
       MPI_Barrier (mpicomm); if (rank == 0) { toc ("export gradient "); }
       
-      // Define estimator
+      // Define solution estimator
       auto estimator = [& u_star, & result] (tmesh_3d::quadrant_iterator q)
         { return estimator_sol (q, u_star, result); };
+
+      // Define gradient estimator
+      auto grad_estimator = [& du, & result] (tmesh_3d::quadrant_iterator q)
+        { return estimator_grad (q, du, result); };
       
       // Compute metrics and h.
       MPI_Barrier (mpicomm); if (rank == 0) { tic (); }
       std::vector<double> metrics(tmsh.num_local_quadrants ());
+
+      std::vector<double> est_sol (tmsh.num_local_quadrants ());
+      std::vector<double> est_grad (tmsh.num_local_quadrants ());
       
       double  hx = 0, hy = 0, hz = 0,
               h = std::numeric_limits<double>::max (),
@@ -246,6 +251,9 @@ main (int argc, char **argv)
           metrics[quadrant->get_forest_quad_idx ()] =
             (estimator (quadrant) * std::sqrt (tmsh.num_global_quadrants ()) 
             / tol);
+
+          est_sol[quadrant->get_forest_quad_idx ()] = estimator(quadrant);
+          est_grad[quadrant->get_forest_quad_idx ()] = grad_estimator(quadrant);
           
           hx = quadrant->p(0, 7) - quadrant->p(0, 0);
           hy = quadrant->p(1, 7) - quadrant->p(1, 0);
@@ -257,12 +265,17 @@ main (int argc, char **argv)
       // Export metrics
       tmsh.octbin_export_quadrant ((std::string("p4est_adr_test_1_metrics_hx_")
                                     + std::to_string(adapt)).c_str(), metrics);
+
+      tmsh.octbin_export_quadrant ((std::string("p4est_adr_test_1_metrics_est_sol_")
+                                    + std::to_string(adapt)).c_str(), est_sol);
+      tmsh.octbin_export_quadrant ((std::string("p4est_adr_test_1_metrics_est_grad_")
+                                    + std::to_string(adapt)).c_str(), est_grad);
       
       // Compute global mesh size
       MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
       
-      nnodes.push_back (tmsh.num_global_nodes ());
-      h_step.push_back (global_h);
+      nnodes[adapt] = tmsh.num_global_nodes ();
+      h_step[adapt] = global_h;
 
       MPI_Barrier (mpicomm); if (rank == 0) { toc ("compute h and metrics "); }
       
@@ -275,7 +288,7 @@ main (int argc, char **argv)
       else if (adapt < (adapt_refine_steps - 1))
         {
           // Set marker for refinement
-          tmsh.set_metrics_marker (estimator, 1e-2*std::pow (.9, adapt),25);
+          tmsh.set_metrics_marker (estimator, tol*std::pow (.9, adapt),3);
           
           // Refine.
           tmsh.metrics_refine (1e3);
