@@ -171,5 +171,9 @@ public:
   
 };
 
+/// Compute matrix-vector product.
+distributed_vector
+operator* (sparse_matrix& M, const distributed_vector& x);
+
 #endif
 
