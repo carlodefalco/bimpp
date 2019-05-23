@@ -122,17 +122,3 @@ operator * (sparse_matrix& M, const std::vector<double>& x)
 
   return y;
 }
-
-distributed_vector
-operator * (sparse_matrix& M, const distributed_vector& x)
-{
-  distributed_vector y (x.get_range_start (), x.get_range_end ());
-  sparse_matrix::col_iterator j;
-  for (unsigned int i = 0; i < M.size (); ++i)
-    if (M[i].size ())
-      for (j = M[i].begin (); j != M[i].end (); ++j)
-        if (M.col_val (j) != 0)
-          y[i] += M.col_val (j) * x[M.col_idx (j)];
-
-  return y;
-}
