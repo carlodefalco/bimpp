@@ -21,11 +21,11 @@ uniform_refinement (tmesh_3d::quadrant_iterator q)
 // Number of refinement steps
 constexpr unsigned unif_refine_steps  = 2;  // initial uniform refinement
 constexpr unsigned adapt_refine_steps = 5;  // adaptive refinement
-constexpr double tol = 1.e-3;
+constexpr double tol = 1.e-3;               // tolerance for refinement
 
 // Problem parameters
 constexpr double inv_epsilon = 1e11;  // 1 / epsilon
-constexpr double R = 0.3;            // radius of the internal sphere
+constexpr double R = 0.3;             // radius of the internal sphere
 constexpr double kS = 1.;             // diffusion coefficient in the sphere
 constexpr double kG = 1.;             // diffusion coefficient outside
 
@@ -116,10 +116,14 @@ main (int argc, char **argv)
   std::vector<double> h_step (adapt_refine_steps, 0.);  // mesh size
 
   // Error at every step
-  std::vector<double> error (adapt_refine_steps,0.);
-  std::vector<double> errorH1 (adapt_refine_steps,0.);
-  std::vector<double> errorStar (adapt_refine_steps,0.);
-  std::vector<double> errorH1Star (adapt_refine_steps,0.);
+  std::vector<double> error (adapt_refine_steps,0.);  // ||u - u_ex||_L^2(q)
+  std::vector<double> errorH1 (adapt_refine_steps,0.);  // |u - u_ex|_H^1(q)
+  std::vector<double> errorStar (adapt_refine_steps,0.);  // ||u_star - u_ex||_L^2(q)
+  std::vector<double> errorH1Star (adapt_refine_steps,0.); // ||du_star - grad(u_ex)||_L^2(q)
+
+  // Estimators at every step
+  std::vector<double> estSol (adapt_refine_steps,0.);  // ||u^* - u||_L^2(q)
+  std::vector<double> estGrad (adapt_refine_steps,0.); // ||grad^* u - grad u||_L^2(q)
 
   // Mesh generation
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
@@ -139,7 +143,6 @@ main (int argc, char **argv)
   // Adaptive refinement loop
   for (unsigned adapt = 0; adapt < adapt_refine_steps; ++adapt)
     {
-
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) {
         std::cout << "*** Step "  << adapt << " ***" << std::endl; }
 
@@ -514,17 +517,18 @@ main (int argc, char **argv)
         { toc ("define gradient estimator "); }
 
 
-      // Compute h, error and estimators
+      // Compute h, errors and estimators
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       double  hx = 0, hy = 0, hz = 0,
-        h = std::numeric_limits<double>::max (),
-        global_h = 0;
-      double err = 0, global_err = 0;
-      double errH1 = 0, global_errH1 = 0;
-      double errstar = 0, global_errstar = 0;
-      double errH1star = 0, global_errH1star = 0;
+        h = std::numeric_limits<double>::max ();
 
-      std::vector<double> metrics (tmsh.num_local_quadrants());
+      double err = 0;
+      double errH1 = 0;
+      double errstar = 0;
+      double errH1star = 0;
+      double estsol = 0;
+      double estgrad = 0;
+
       std::vector<double> sol_est (tmsh.num_local_quadrants());
       std::vector<double> grad_est (tmsh.num_local_quadrants());
 
@@ -532,12 +536,13 @@ main (int argc, char **argv)
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
         {
-          metrics[quadrant->get_forest_quad_idx ()] =
-            (estimator (quadrant) * std::sqrt (tmsh.num_global_quadrants ()) 
-            / tol);
-
+          // ||u^* - u||_L^2(q)
           sol_est[quadrant->get_forest_quad_idx ()] = estimator(quadrant);
+          estsol += std::pow(sol_est[quadrant->get_forest_quad_idx ()], 2);
+
+          // ||grad^* u - grad u||_L^2(q)
           grad_est[quadrant->get_forest_quad_idx ()] = grad_estimator(quadrant);
+          estgrad += std::pow(grad_est[quadrant->get_forest_quad_idx ()], 2);
 
           hx = quadrant->p(0, 1) - quadrant->p(0, 0);
           hy = quadrant->p(1, 7) - quadrant->p(1, 0);
@@ -563,16 +568,14 @@ main (int argc, char **argv)
             }
           else
             {
+              // ||u_star - u_ex||_L^2(q)
               errstar += std::pow(l2_star_error(quadrant, u_ex, u_star1), 2);
+              // ||du_star - grad(u_ex)||_L^2(q)
               errH1star += std::pow(semih1_star_error (quadrant, du_x_ex,
                                                       du_y_ex, du_z_ex,
                                                       du1), 2);
             }
         }
-
-      // Export metrics
-      tmsh.octbin_export_quadrant ((std::string("p4est_dr_test_2_metrics_hx_")
-                                    + std::to_string(adapt)).c_str(), metrics);
 
       // Export estimators
       tmsh.octbin_export_quadrant ((std::string ("p4est_dr_test_2_metrics_sol_est_")
@@ -581,34 +584,41 @@ main (int argc, char **argv)
                            + std::to_string(adapt)).c_str(), grad_est);
 
       // Global mesh size
-      MPI_Reduce (&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
+      MPI_Reduce (&h, &h_step[adapt], 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
 
       // Global errors
       //
       // ||u - u_ex||_L^2(q)
-      MPI_Reduce (&err, &global_err, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
-      global_err = std::sqrt(global_err);
+      MPI_Reduce (&err, &error[adapt], 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      error[adapt] = std::sqrt(error[adapt]);
       //
       // |u - u_ex|_H^1(q)
-      MPI_Reduce (&errH1, &global_errH1, 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
-      global_errH1 = std::sqrt(global_errH1);
+      MPI_Reduce (&errH1, &errorH1[adapt], 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      errorH1[adapt] = std::sqrt(errorH1[adapt]);
       //
       // ||u_star - u_ex||_L^2(q)
-      MPI_Reduce (&errstar, &global_errstar, 1, MPI_DOUBLE, MPI_SUM, 
+      MPI_Reduce (&errstar, &errorStar[adapt], 1, MPI_DOUBLE, MPI_SUM, 
                   0, mpicomm);
-      global_errstar = std::sqrt(global_errstar);
+      errorStar[adapt] = std::sqrt(errorStar[adapt]);
       //
       // ||du_star - grad(u_ex)||_L^2(q)
-      MPI_Reduce (&errH1star, &global_errH1star, 1, MPI_DOUBLE, MPI_SUM, 
+      MPI_Reduce (&errH1star, &errorH1Star[adapt], 1, MPI_DOUBLE, MPI_SUM, 
                   0, mpicomm);
-      global_errH1star = std::sqrt(global_errH1star);
+      errorH1Star[adapt] = std::sqrt(errorH1Star[adapt]);
 
+      // Global estimators
+      //
+      // ||u^* - u||_L^2(q)
+      MPI_Reduce (&estsol, &estSol[adapt], 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      estSol[adapt] = std::sqrt(estSol[adapt]);
+      //
+      // ||grad^* u - grad u||_L^2(q)
+      MPI_Reduce (&estgrad, &estGrad[adapt], 1, MPI_DOUBLE, MPI_SUM, 0, 
+                  mpicomm);
+      estGrad[adapt] = std::sqrt(estGrad[adapt]);
+
+      // Number of mesh nodes at current step
       nnodes[adapt] = tmsh.num_global_nodes ();
-      h_step[adapt] = global_h;
-      error[adapt] = global_err;
-      errorH1[adapt] = global_errH1;
-      errorStar[adapt] = global_errstar;
-      errorH1Star[adapt] = global_errH1star;
 
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("Compute h and error "); }
 
@@ -645,7 +655,9 @@ main (int argc, char **argv)
         std::cout << "\tL2 norm = " << error[step] 
                   << "\n\tH1 seminorm = " << errorH1[step] 
                   << "\n\tL2* norm = " << errorStar[step] 
-                  << "\n\tL2* norm (gradient) = " << errorH1Star[step] 
+                  << "\n\tL2* norm (gradient) = " << errorH1Star[step]
+                  << "\n\tSolution estimator = " << estSol[step]
+                  << "\n\tGradient estimator = " << estGrad[step]
                   << std::endl;
         std::cout << std::endl;
       }
