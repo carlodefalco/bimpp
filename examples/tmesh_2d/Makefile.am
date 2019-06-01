@@ -9,7 +9,7 @@ AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
 bin_PROGRAMS = p4est_refine_segment_test p4est_ref_test p4est_ref_lnodes_test p4est_palla_2d \
-               p4est_palla_2d_flow simple_newton lis_csr_example simple simple_system
+               p4est_palla_2d_flow simple_newton lis_csr_example simple simple_system cahn_hilliard cahn_hilliard_system
 CLEANFILES =
 
 p4est_refine_segment_test_SOURCES =  p4est_refine_segment_test.cpp
@@ -52,6 +52,18 @@ simple_system_SOURCES =  simple_system.cpp
 simple_system_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
 simple_system_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 simple_system_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+CLEANFILES += 
+
+cahn_hilliard_SOURCES =  cahn_hilliard.cpp
+cahn_hilliard_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+cahn_hilliard_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+cahn_hilliard_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+CLEANFILES += 
+
+cahn_hilliard_system_SOURCES =  cahn_hilliard_system.cpp
+cahn_hilliard_system_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
+cahn_hilliard_system_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+cahn_hilliard_system_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
 CLEANFILES += 
 
 simple_SOURCES =  simple.cpp
