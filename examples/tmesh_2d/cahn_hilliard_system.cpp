@@ -207,7 +207,7 @@ main (int argc, char **argv)
     A.reset ();
     
     sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
-    sol.assemble (replace_op));
+    sol.assemble (replace_op);
   
     TOC("Resetting");
 

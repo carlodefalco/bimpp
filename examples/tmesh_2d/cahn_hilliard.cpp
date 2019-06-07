@@ -7,6 +7,7 @@
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#include <cstdio>
 
 #include <bim_distributed_vector.h>
 #include <bim_sparse_distributed.h>
@@ -131,6 +132,7 @@ main (int argc, char **argv)
             }
         }
     }
+  ncoeff.assemble (replace_op);
   bim2a_solution_with_ghosts (tmsh, uold, replace_op);
   TOC ("compute coefficient");
 
@@ -145,11 +147,16 @@ main (int argc, char **argv)
   TIC ();
   bim2a_laplacian(tmsh, ecoeff, A, ord0, ord0);
   bim2a_laplacian(tmsh, ecoeff, A, ord1, ord1);
-      
-  bim2a_reaction(tmsh, ecoeff, ncoeff, A, ord0, ord0);
   bim2a_reaction(tmsh, ecoeff, ncoeff, A, ord0, ord1);
-  bim2a_reaction(tmsh, ecoeff, ncoeff, A, ord1, ord0);      
+  bim2a_reaction(tmsh, ecoeff, ncoeff, A, ord1, ord0);
+  A.assemble ();
   TOC ("assemble LHS");
+
+  TIC();
+  bim2a_rhs (tmsh, ecoeff, ncoeff, u, ord0);
+  bim2a_rhs (tmsh, ecoeff, ncoeff, u, ord1);
+  u.assemble ();
+  TOC ("assemble RHS");
       
   // Solver analysis
   TIC ();
@@ -159,7 +166,7 @@ main (int argc, char **argv)
   std::cout << "lin_solver->analyze () = "<< lin_solver->analyze () << std::endl;
   TOC ("solver analysis");
       
-  for( int count=1; count <= T/DELTAT; count++){
+  for (int count=1; count <= T/DELTAT; count++){
 
      // Print curent time
      if(rank==0)
@@ -168,6 +175,7 @@ main (int argc, char **argv)
      // Reset current time -> must be improved
      TIC();
      A.reset ();
+     
      u.get_owned_data ().assign (u.get_owned_data ().size (), 0.0);
      u.assemble (replace_op);
      TOC("Resetting")
@@ -218,6 +226,7 @@ main (int argc, char **argv)
 
       // Communicate matrix and RHS
       TIC ();
+      A.remap ();
       A.assemble ();
       u.assemble ();
       TOC ("communicate A and b");
@@ -255,7 +264,7 @@ main (int argc, char **argv)
 
 
       TIC()
-      uold=result;
+      uold = result;
       TOC("Updating solution")
     }
 
