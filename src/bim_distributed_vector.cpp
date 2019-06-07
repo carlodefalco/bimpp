@@ -1,11 +1,12 @@
 /*
-  Copyright (C) 2018 Carlo de Falco
+  Copyright (C) 2018,2019 Carlo de Falco
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
 
 
 #include <bim_distributed_vector.h>
+#include <mpi_alltoallv2.h>
 
 #include <cassert>
 #include <iostream>
@@ -151,34 +152,21 @@ distributed_vector::remap ()
   mirrors.a.resize (mirrors.prc_ptr.back ());
 
   /// 2.2 : Send ghost indices and receive mirror indices    
-  std::vector<MPI_Request> reqs;
+  void * sendbuf[mpisize];
+  int sendcnts[mpisize];
+  void * recvbuf[mpisize];
+  int recvcnts[mpisize];
+
   for (int ii = 0; ii < mpisize; ++ii)
     {
-
-      if (ii == mpirank) continue; // No communication to self!
-        
-      if (mirrors.rank_nnz[ii] > 0) // we must receive something from rank ii
-        {
-          int recv_tag = ii   + mpisize * mpirank;
-          reqs.resize (reqs.size () + 1);
-          MPI_Irecv (&(mirrors.row_ind[mirrors.prc_ptr[ii]]),
-                     mirrors.rank_nnz[ii], MPI_INT, ii, recv_tag,
-                     comm, &(reqs.back ()));
-        }
-
-      if (ghosts.rank_nnz[ii] > 0) // we must send something to rank ii
-        {
-          int send_tag = mpirank + mpisize * ii;
-          reqs.resize (reqs.size () + 1);
-          MPI_Isend (&(ghosts.row_ind[ghosts.prc_ptr[ii]]),
-                     ghosts.rank_nnz[ii], MPI_INT, ii, send_tag,
-                     comm, &(reqs.back ()));
-        }
-        
+      recvbuf[ii]  = &(mirrors.row_ind[mirrors.prc_ptr[ii]]);
+      recvcnts[ii] =   mirrors.rank_nnz[ii];
+      sendbuf[ii]  = &(ghosts.row_ind[ghosts.prc_ptr[ii]]);
+      sendcnts[ii] =   ghosts.rank_nnz[ii];
     }
-  
-  MPI_Waitall (reqs.size (), &(reqs[0]), MPI_STATUSES_IGNORE);
-  reqs.clear ();
+
+  MPI_Alltoallv2 (sendbuf, sendcnts, MPI_INT,
+                  recvbuf, recvcnts, MPI_INT, comm);
 
   mapped = true;
 }
@@ -192,34 +180,21 @@ distributed_vector::assemble (const binary_operator & binary_op)
     ghost_csr_update ();
   
   /// 2.3 : Send ghosts data and receive into mirrors
-  std::vector<MPI_Request> reqs;
+  void * sendbuf[mpisize];
+  int sendcnts[mpisize];
+  void * recvbuf[mpisize];
+  int recvcnts[mpisize];
+
   for (int ii = 0; ii < mpisize; ++ii)
     {
-
-      if (ii == mpirank) continue; // No communication to self!
-        
-      if (mirrors.rank_nnz[ii] > 0) // we must receive something from rank ii
-        {
-          int recv_tag = ii   + mpisize * mpirank;
-          reqs.resize (reqs.size () + 1);
-          MPI_Irecv (&(mirrors.a[mirrors.prc_ptr[ii]]),
-                     mirrors.rank_nnz[ii], MPI_DOUBLE, ii,
-                     recv_tag, comm, &(reqs.back ()));
-        }
-
-      if (ghosts.rank_nnz[ii] > 0) // we must send something to rank ii
-        {
-          int send_tag = mpirank + mpisize * ii;
-          reqs.resize (reqs.size () + 1);
-          MPI_Isend (&(ghosts.a[ghosts.prc_ptr[ii]]),
-                     ghosts.rank_nnz[ii], MPI_DOUBLE, ii,
-                     send_tag, comm, &(reqs.back ()));
-        }
-        
+      recvbuf[ii]  = &(mirrors.a[mirrors.prc_ptr[ii]]);
+      recvcnts[ii] =   mirrors.rank_nnz[ii];
+      sendbuf[ii]  = &(ghosts.a[ghosts.prc_ptr[ii]]);
+      sendcnts[ii] =   ghosts.rank_nnz[ii];
     }
-  
-  MPI_Waitall (reqs.size (), &(reqs[0]), MPI_STATUSES_IGNORE);
-  reqs.clear ();
+
+  MPI_Alltoallv2 (sendbuf, sendcnts, MPI_DOUBLE,
+                  recvbuf, recvcnts, MPI_DOUBLE, comm);
 
   /// Step 3 : Add mirrors into owned_data
   for (int ii = 0; ii < mirrors.prc_ptr.back (); ++ii)
@@ -234,32 +209,15 @@ distributed_vector::assemble (const binary_operator & binary_op)
   /// Step 5 : Send mirrors data and receive into ghosts
   for (int ii = 0; ii < mpisize; ++ii)
     {
-
-      if (ii == mpirank) continue; // No communication to self!
-        
-      if (ghosts.rank_nnz[ii] > 0) // we must receive something from rank ii
-        {
-          int recv_tag = ii   + mpisize * mpirank;
-          reqs.resize (reqs.size () + 1);
-          MPI_Irecv (&(ghosts.a[ghosts.prc_ptr[ii]]),
-                     ghosts.rank_nnz[ii], MPI_DOUBLE, ii,
-                     recv_tag, comm, &(reqs.back ()));
-        }
-
-      if (mirrors.rank_nnz[ii] > 0) // we must send something to rank ii
-        {
-          int send_tag = mpirank + mpisize * ii;
-          reqs.resize (reqs.size () + 1);
-          MPI_Isend (&(mirrors.a[mirrors.prc_ptr[ii]]),
-                     mirrors.rank_nnz[ii], MPI_DOUBLE, ii,
-                     send_tag, comm, &(reqs.back ()));
-        }
-        
+      recvbuf[ii]  = &(ghosts.a[ghosts.prc_ptr[ii]]);
+      recvcnts[ii] =   ghosts.rank_nnz[ii];
+      sendbuf[ii]  = &(mirrors.a[mirrors.prc_ptr[ii]]);
+      sendcnts[ii] =   mirrors.rank_nnz[ii];
     }
   
-  MPI_Waitall (reqs.size (), &(reqs[0]), MPI_STATUSES_IGNORE);
-  reqs.clear ();
-
+  MPI_Alltoallv2 (sendbuf, sendcnts, MPI_DOUBLE,
+                  recvbuf, recvcnts, MPI_DOUBLE, comm);
+  
   /// Step 6 : Copy ghosts data into non_local_data
   for (int ii = 0; ii < ghosts.prc_ptr.back (); ++ii)
     (*this)(ghosts.row_ind[ii]) = ghosts.a[ii];
