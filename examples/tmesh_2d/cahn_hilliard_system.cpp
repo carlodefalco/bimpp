@@ -18,6 +18,7 @@
 #include <tmesh.h>
 #include <quad_operators.h>
 
+
 // Setting parameters
 constexpr int NUM_REFINEMENTS = 5;
 constexpr double DELTAT = 0.005;
@@ -41,45 +42,47 @@ const double simple_conn_p[simple_conn_num_vertices*2] =
 const p4est_topidx_t simple_conn_t[simple_conn_num_trees*5] =
   {1, 2, 3, 4, 1};
 
+
 // Refinement rule
 static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return NUM_REFINEMENTS; }
 
+
 // Define tic and toc
 #define TIC() MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
 #define TOC(S) MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc (S); }
+
+
 
 int
 main (int argc, char **argv)
 {
 
+
   using q1_vec  = q1_vec<distributed_vector>;                                       // Typedef for distributed vector
 
-// Manegement of solutions ordering
+  // Manegement of solutions ordering
   ordering
     ord0 = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<4, 0> (gt); },
     ord1 = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<4, 1> (gt); },
     ord2 = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<4, 2> (gt); },
     ord3 = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<4, 3> (gt); };
 
-// Linearization techniques
+
+  // Linearization techniques
   auto linc = [] (double x) -> double { return -1.5*x*x+0.5; };
   auto linf = [] (double x) -> double { return 0.5*x*(x*x+1); };
 
 
-
-// Initialize MPI
-
+  // Initialize MPI
   MPI_Init (&argc, &argv);
-
   int rank, size;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
 
-
-  /// Generate the mesh in 2d
+  // Generate the mesh in 2d
   tmesh tmsh;
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
@@ -93,23 +96,23 @@ main (int argc, char **argv)
   tmesh::idx_t ln_elements = tmsh.num_local_quadrants ();
 
 
-
   // Allocate linear solver
   mumps *lin_solver = new mumps ();
+
 
   // Allocate initial data container
   q1_vec sold (ln_nodes * 4);
   sold.get_owned_data ().assign (sold.get_owned_data ().size (), 0.0);
 
-
   q1_vec sol (ln_nodes * 4);
 
 
-  // Allocation of vector to use sparse matrix
+  // Allocation of vectors to use sparse matrix
   std::vector<double> xa;
   std::vector<int> ir, jc;
 
-  // Allocation of container for system coefficients
+
+  // Allocation of containers for system coefficients
   std::vector<double> lapcoeffu (ln_elements);
   q1_vec              reazuu (ln_nodes);
   std::vector<double> ones (ln_elements);
@@ -130,18 +133,19 @@ main (int argc, char **argv)
 
   q1_vec              ncoeff (ln_nodes);
 
+
   // Buffer for export filename
   char filename[255]="";
+
 
   // Squared epsilon parameters
   double epsu2=EPSU*EPSU;
   double epsv2=EPSV*EPSV;
 
+
   // Initialize random number generator
   std::default_random_engine generator(1+rank*10*clock());
   std::uniform_real_distribution<double> distribution(-0.5,0.5);
-
-
 
 
   // Initialize constant (in time) parameters and initial data
@@ -191,34 +195,31 @@ main (int argc, char **argv)
   sprintf(filename, "cahn_hilliard_v_0000");
   tmsh.octbin_export (filename, sold, ord2);
 
+
+  // Declare system matrix
   distributed_sparse_matrix A;
   A.set_ranges (ln_nodes * 4);
 
 
-  // Matrix construction
+  // Matrix and RHS construction
   TIC ();
   bim2a_laplacian(tmsh, ones, A, ord0, ord0);
   bim2a_reaction(tmsh, ones, ncoeff, A, ord0, ord0);
   bim2a_reaction(tmsh, ones, ncoeff, A, ord0, ord1); //reazuwu
   bim2a_reaction(tmsh, ones, ncoeff, A, ord0, ord2);
 
-
   bim2a_laplacian(tmsh, ones, A, ord1, ord1);            //lapcoeffwu
   bim2a_reaction(tmsh, ones, ncoeff, A, ord1, ord0);
-
 
   bim2a_laplacian(tmsh, ones, A, ord2, ord2);
   bim2a_reaction(tmsh, ones, ncoeff, A, ord2, ord0);
   bim2a_reaction(tmsh, ones, ncoeff, A, ord2, ord2);
   bim2a_reaction(tmsh, ones, ncoeff, A, ord2, ord3); //reazvwv
 
-
   bim2a_laplacian(tmsh, ones, A, ord3, ord3);          //lapcoeffwv
   bim2a_reaction(tmsh, ones, ncoeff, A, ord3, ord2);
   A.assemble();
   TOC ("assemble LHS");
-
-
 
   TIC();
   bim2a_rhs (tmsh, ones, ncoeff, sol, ord0);
@@ -237,24 +238,25 @@ main (int argc, char **argv)
   std::cout << "lin_solver->analyze () = "<< lin_solver->analyze () << std::endl;
   TOC ("solver analysis");
 
+
   int count = 0;
 
   // Time cycle
   for( double time = DELTAT; time <= T; time += DELTAT){
     count++;
+
+
     // Print current time
     if(rank==0)
-    std::cout<<"TIME= "<<count*DELTAT<<std::endl;
+    std::cout<<"TIME= "<<time<<std::endl;
 
 
-
-    // Reset containers for linear solver -> must be improved
+    // Reset containers
     TIC();
     A.reset ();
 
     sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
     sol.assemble (replace_op);
-
     TOC("Resetting");
 
 
@@ -294,15 +296,17 @@ main (int argc, char **argv)
                }
           }
 
-          // Is it necessary ?
           reazuu.assemble (replace_op);
           reazuv.assemble(replace_op);
+          reazvv.assemble(replace_op);
+
           fu.assemble(replace_op);
           fwu.assemble(replace_op);
-          reazvv.assemble(replace_op);
+
           fv.assemble(replace_op);
           fwv.assemble(replace_op);
           TOC("Update coefficients");
+
 
           // Matrix construction
           TIC ();
@@ -311,23 +315,20 @@ main (int argc, char **argv)
           bim2a_reaction(tmsh, ones, ncoeff, A, ord0, ord1); //reazuwu
           bim2a_reaction(tmsh, ones, reazuv, A, ord0, ord2);
 
-
           bim2a_laplacian(tmsh, times, A, ord1, ord1);            //lapcoeffwu
           bim2a_reaction(tmsh, reazwuu, ncoeff, A, ord1, ord0);
-
 
           bim2a_laplacian(tmsh, lapcoeffv, A, ord2, ord2);
           bim2a_reaction(tmsh, reazvu, ncoeff, A, ord2, ord0);
           bim2a_reaction(tmsh, ones, reazvv, A, ord2, ord2);
           bim2a_reaction(tmsh, ones, ncoeff, A, ord2, ord3); //reazvwv
 
-
           bim2a_laplacian(tmsh, times, A, ord3, ord3);          //lapcoeffwv
           bim2a_reaction(tmsh, reazwvv, ncoeff, A, ord3, ord2);
           TOC ("assemble LHS");
 
 
-
+          //RHS construction
           TIC();
           bim2a_rhs (tmsh, ones, fu, sol, ord0);
           bim2a_rhs (tmsh, ones, fwu, sol, ord1);
@@ -344,23 +345,23 @@ main (int argc, char **argv)
           TOC ("communicate A and b");
 
 
-          // Set LHS data
+          // Matrix update
           TIC ();
           A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
           lin_solver->set_distributed_lhs_data (xa);
           TOC ("set LHS data");
 
 
-          // Set RHS data
-          TIC ();
-          lin_solver->set_rhs_distributed (sol);
-          TOC ("set RHS data");
-
-
           // Factorization
           TIC ();
           std::cout << "lin_solver->factorize () = " << lin_solver->factorize () << std::endl;
           TOC ("solver factorize");
+
+
+          // Set RHS data
+          TIC ();
+          lin_solver->set_rhs_distributed (sol);
+          TOC ("set RHS data");
 
 
           // Solution
@@ -392,16 +393,20 @@ main (int argc, char **argv)
           TIC();
           sold=result;
           TOC("Updating solution");
-}
+        }
+
 
   // Close MPI and print report
   MPI_Barrier (MPI_COMM_WORLD);
   if (rank == 0) { print_timing_report (); }
 
+
   // Clean linear solver
   lin_solver->cleanup ();
 
+
   MPI_Finalize ();
+
 
   return 0;
 }
