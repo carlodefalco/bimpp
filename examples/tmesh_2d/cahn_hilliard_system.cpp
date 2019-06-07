@@ -190,7 +190,9 @@ main (int argc, char **argv)
   sprintf(filename, "cahn_hilliard_v_0000");
   tmsh.octbin_export (filename, sold, ord2);
 
-
+  distributed_sparse_matrix A;
+  A.set_ranges (ln_nodes * 4);
+  
   // Time cycle
   for( int count=1; count <= T/DELTAT; count++){
 
