@@ -131,7 +131,7 @@ main (int argc, char **argv)
             }
         }
     }
-  bim2a_solution_with_ghosts (tmsh, ncoeff, replace_op);
+  bim2a_solution_with_ghosts (tmsh, uold, replace_op);
   TOC ("compute coefficient");
 
   // Save initial conditions
@@ -143,12 +143,12 @@ main (int argc, char **argv)
 
   // Matrix construction
   TIC ();
-  bim2a_laplacian(tmsh, lapcoeffu, A, ord0, ord0);
-  bim2a_laplacian(tmsh, lapcoeffw, A, ord1, ord1);
+  bim2a_laplacian(tmsh, ncoeff, A, ord0, ord0);
+  bim2a_laplacian(tmsh, ncoeff, A, ord1, ord1);
       
-  bim2a_reaction(tmsh, ecoeff, reazuu, A, ord0, ord0);
-  bim2a_reaction(tmsh, reazuw, ncoeff, A, ord0, ord1);
-  bim2a_reaction(tmsh, reazwu, ncoeff, A, ord1, ord0);      
+  bim2a_reaction(tmsh, uold, ncoeff, A, ord0, ord0);
+  bim2a_reaction(tmsh, uold, ncoeff, A, ord0, ord1);
+  bim2a_reaction(tmsh, uold, ncoeff, A, ord1, ord0);      
   TOC ("assemble LHS");
       
   // Solver analysis
@@ -195,7 +195,7 @@ main (int argc, char **argv)
              }
            }
       }
-      // Is it necessary ? RE: only if you want to export the coefficients to VTK.
+      // Is it necessary ? 
       reazuu.assemble (replace_op);
       fu.assemble (replace_op);
       fw.assemble (replace_op);
