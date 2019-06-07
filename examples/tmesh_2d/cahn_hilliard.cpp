@@ -143,12 +143,12 @@ main (int argc, char **argv)
 
   // Matrix construction
   TIC ();
-  bim2a_laplacian(tmsh, ncoeff, A, ord0, ord0);
-  bim2a_laplacian(tmsh, ncoeff, A, ord1, ord1);
+  bim2a_laplacian(tmsh, ecoeff, A, ord0, ord0);
+  bim2a_laplacian(tmsh, ecoeff, A, ord1, ord1);
       
-  bim2a_reaction(tmsh, uold, ncoeff, A, ord0, ord0);
-  bim2a_reaction(tmsh, uold, ncoeff, A, ord0, ord1);
-  bim2a_reaction(tmsh, uold, ncoeff, A, ord1, ord0);      
+  bim2a_reaction(tmsh, ecoeff, ncoeff, A, ord0, ord0);
+  bim2a_reaction(tmsh, ecoeff, ncoeff, A, ord0, ord1);
+  bim2a_reaction(tmsh, ecoeff, ncoeff, A, ord1, ord0);      
   TOC ("assemble LHS");
       
   // Solver analysis
