@@ -157,7 +157,7 @@ main (int argc, char **argv)
   bim2a_rhs (tmsh, ecoeff, ncoeff, u, ord1);
   u.assemble ();
   TOC ("assemble RHS");
-      
+
   // Solver analysis
   TIC ();
   lin_solver->set_lhs_distributed ();
@@ -165,9 +165,13 @@ main (int argc, char **argv)
   lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
   std::cout << "lin_solver->analyze () = "<< lin_solver->analyze () << std::endl;
   TOC ("solver analysis");
-      
-  for (int count=1; count <= T/DELTAT; count++){
 
+
+  int count = 0;
+
+  // Time cycle
+  for( double time = DELTAT; time <= T; time += DELTAT){
+     count++;
      // Print curent time
      if(rank==0)
      std::cout<<"TIME= "<<count*DELTAT<<std::endl;
@@ -175,7 +179,7 @@ main (int argc, char **argv)
      // Reset current time -> must be improved
      TIC();
      A.reset ();
-     
+
      u.get_owned_data ().assign (u.get_owned_data ().size (), 0.0);
      u.assemble (replace_op);
      TOC("Resetting")
@@ -203,7 +207,7 @@ main (int argc, char **argv)
              }
            }
       }
-      // Is it necessary ? 
+      // Is it necessary ?
       reazuu.assemble (replace_op);
       fu.assemble (replace_op);
       fw.assemble (replace_op);
@@ -213,10 +217,10 @@ main (int argc, char **argv)
       TIC ();
       bim2a_laplacian(tmsh, lapcoeffu, A, ord0, ord0);
       bim2a_laplacian(tmsh, lapcoeffw, A, ord1, ord1);
-      
+
       bim2a_reaction(tmsh, ecoeff, reazuu, A, ord0, ord0);
       bim2a_reaction(tmsh, reazuw, ncoeff, A, ord0, ord1);
-      bim2a_reaction(tmsh, reazwu, ncoeff, A, ord1, ord0);      
+      bim2a_reaction(tmsh, reazwu, ncoeff, A, ord1, ord0);
       TOC ("assemble LHS");
 
       TIC();
@@ -243,7 +247,7 @@ main (int argc, char **argv)
       TIC ();
       lin_solver->set_rhs_distributed (u);
       TOC ("set RHS data");
-      
+
       TIC ();
       std::cout << "lin_solver->solve () = " << lin_solver->solve () << std::endl;
       TOC ("solver solve");
@@ -252,8 +256,8 @@ main (int argc, char **argv)
       // Copy solution
       TIC();
       q1_vec result = lin_solver->get_distributed_solution ();
-      bim2a_solution_with_ghosts (tmsh, result, replace_op, ord0, false); 
-      bim2a_solution_with_ghosts (tmsh, result, replace_op, ord1);        
+      bim2a_solution_with_ghosts (tmsh, result, replace_op, ord0, false);
+      bim2a_solution_with_ghosts (tmsh, result, replace_op, ord1);
       TOC("Obtaining solution");
 
       // Save solution

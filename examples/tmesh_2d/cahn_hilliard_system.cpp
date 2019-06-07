@@ -19,9 +19,9 @@
 #include <quad_operators.h>
 
 // Setting parameters
-constexpr int NUM_REFINEMENTS = 4;
+constexpr int NUM_REFINEMENTS = 5;
 constexpr double DELTAT = 0.005;
-constexpr double T = 10;
+constexpr double T = 3;
 constexpr double EPSU = 0.05;
 constexpr double EPSV = 0.05;
 constexpr double TAUU = 1;
@@ -180,7 +180,8 @@ main (int argc, char **argv)
         }
     }
 
-  bim2a_solution_with_ghosts (tmsh, ncoeff, replace_op);
+  ncoeff.assemble(replace_op);
+  bim2a_solution_with_ghosts (tmsh, sold, replace_op);
   TOC ("compute coefficient");
 
 
@@ -192,10 +193,55 @@ main (int argc, char **argv)
 
   distributed_sparse_matrix A;
   A.set_ranges (ln_nodes * 4);
-  
-  // Time cycle
-  for( int count=1; count <= T/DELTAT; count++){
 
+
+  // Matrix construction
+  TIC ();
+  bim2a_laplacian(tmsh, ones, A, ord0, ord0);
+  bim2a_reaction(tmsh, ones, ncoeff, A, ord0, ord0);
+  bim2a_reaction(tmsh, ones, ncoeff, A, ord0, ord1); //reazuwu
+  bim2a_reaction(tmsh, ones, ncoeff, A, ord0, ord2);
+
+
+  bim2a_laplacian(tmsh, ones, A, ord1, ord1);            //lapcoeffwu
+  bim2a_reaction(tmsh, ones, ncoeff, A, ord1, ord0);
+
+
+  bim2a_laplacian(tmsh, ones, A, ord2, ord2);
+  bim2a_reaction(tmsh, ones, ncoeff, A, ord2, ord0);
+  bim2a_reaction(tmsh, ones, ncoeff, A, ord2, ord2);
+  bim2a_reaction(tmsh, ones, ncoeff, A, ord2, ord3); //reazvwv
+
+
+  bim2a_laplacian(tmsh, ones, A, ord3, ord3);          //lapcoeffwv
+  bim2a_reaction(tmsh, ones, ncoeff, A, ord3, ord2);
+  A.assemble();
+  TOC ("assemble LHS");
+
+
+
+  TIC();
+  bim2a_rhs (tmsh, ones, ncoeff, sol, ord0);
+  bim2a_rhs (tmsh, ones, ncoeff, sol, ord1);
+  bim2a_rhs (tmsh, ones, ncoeff, sol, ord2);
+  bim2a_rhs (tmsh, ones, ncoeff, sol, ord3);
+  sol.assemble();
+  TOC ("assemble RHS");
+
+
+  // Solver analysis
+  TIC ();
+  lin_solver->set_lhs_distributed ();
+  A.aij (xa, ir, jc, lin_solver->get_index_base ());
+  lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
+  std::cout << "lin_solver->analyze () = "<< lin_solver->analyze () << std::endl;
+  TOC ("solver analysis");
+
+  int count = 0;
+
+  // Time cycle
+  for( double time = DELTAT; time <= T; time += DELTAT){
+    count++;
     // Print current time
     if(rank==0)
     std::cout<<"TIME= "<<count*DELTAT<<std::endl;
@@ -203,12 +249,12 @@ main (int argc, char **argv)
 
 
     // Reset containers for linear solver -> must be improved
-    TIC();   
+    TIC();
     A.reset ();
-    
+
     sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
     sol.assemble (replace_op);
-  
+
     TOC("Resetting");
 
 
@@ -249,13 +295,13 @@ main (int argc, char **argv)
           }
 
           // Is it necessary ?
-          bim2a_solution_with_ghosts (tmsh, reazuu, replace_op);
-          bim2a_solution_with_ghosts (tmsh, reazuv, replace_op);
-          bim2a_solution_with_ghosts (tmsh, fu, replace_op);
-          bim2a_solution_with_ghosts (tmsh, fwu, replace_op);
-          bim2a_solution_with_ghosts (tmsh, reazvv, replace_op);
-          bim2a_solution_with_ghosts (tmsh, fv, replace_op);
-          bim2a_solution_with_ghosts (tmsh, fwv, replace_op);
+          reazuu.assemble (replace_op);
+          reazuv.assemble(replace_op);
+          fu.assemble(replace_op);
+          fwu.assemble(replace_op);
+          reazvv.assemble(replace_op);
+          fv.assemble(replace_op);
+          fwv.assemble(replace_op);
           TOC("Update coefficients");
 
           // Matrix construction
@@ -292,18 +338,10 @@ main (int argc, char **argv)
 
           // Communicate matrix and RHS
           TIC ();
+          A.remap();
           A.assemble ();
           sol.assemble ();
           TOC ("communicate A and b");
-
-
-          // Solver analysis
-          TIC ();
-          lin_solver->set_lhs_distributed ();
-          A.aij (xa, ir, jc, lin_solver->get_index_base ());
-          lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
-          std::cout << "lin_solver->analyze () = "<< lin_solver->analyze () << std::endl;
-          TOC ("solver analysis");
 
 
           // Set LHS data
