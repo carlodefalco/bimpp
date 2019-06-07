@@ -12,6 +12,8 @@
 #include <vector>
 #include <functional>
 
+#include <bim_sparse_distributed.h>
+
 /// Binary operator: function of (mirror value, local value).
 using binary_operator =
   std::function<double (const double&, const double&)>;
