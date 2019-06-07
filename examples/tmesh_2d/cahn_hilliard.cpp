@@ -51,8 +51,6 @@ main (int argc, char **argv)
 
 
   // Initialize MPI
-
-
   MPI_Init (&argc, &argv);
 
   int rank, size;
@@ -79,14 +77,10 @@ main (int argc, char **argv)
   q1_vec uold (ln_nodes * 2);
   uold.get_owned_data ().assign (uold.get_owned_data ().size (), 0.0);
 
-
   q1_vec u (ln_nodes * 2);
-
-
 
   std::vector<double> xa;
   std::vector<int> ir, jc;
-
 
   std::vector<double> lapcoeffu (ln_elements);
   std::vector<double> lapcoeffw (ln_elements);
@@ -144,6 +138,9 @@ main (int argc, char **argv)
   sprintf(filename, "cahn_hilliard_u_0000");
   tmsh.octbin_export (filename, uold, ord0);
 
+  distributed_sparse_matrix A;
+  A.set_ranges (ln_nodes * 2);
+     
   for( int count=1; count <= T/DELTAT; count++){
 
      // Print curent time
@@ -151,12 +148,10 @@ main (int argc, char **argv)
      std::cout<<"TIME= "<<count*DELTAT<<std::endl;
 
      // Reset current time -> must be improved
-     TIC()
-     distributed_sparse_matrix A;
-     A.set_ranges (ln_nodes * 2);
-
+     TIC();
+     A.reset ();
      u.get_owned_data ().assign (u.get_owned_data ().size (), 0.0);
-     u.clear_non_local();
+     u.assemble (replace_op);
      TOC("Resetting")
 
 

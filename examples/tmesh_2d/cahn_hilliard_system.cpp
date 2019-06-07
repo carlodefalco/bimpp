@@ -201,14 +201,12 @@ main (int argc, char **argv)
 
 
     // Reset containers for linear solver -> must be improved
-    TIC();
-
-    distributed_sparse_matrix A;
-    A.set_ranges (ln_nodes * 4);
-
-    //A.reset();
+    TIC();   
+    A.reset ();
+    
     sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
-    sol.clear_non_local();
+    sol.assemble (replace_op));
+  
     TOC("Resetting");
 
 
