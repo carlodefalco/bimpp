@@ -140,7 +140,25 @@ main (int argc, char **argv)
 
   distributed_sparse_matrix A;
   A.set_ranges (ln_nodes * 2);
-     
+
+  // Matrix construction
+  TIC ();
+  bim2a_laplacian(tmsh, lapcoeffu, A, ord0, ord0);
+  bim2a_laplacian(tmsh, lapcoeffw, A, ord1, ord1);
+      
+  bim2a_reaction(tmsh, ecoeff, reazuu, A, ord0, ord0);
+  bim2a_reaction(tmsh, reazuw, ncoeff, A, ord0, ord1);
+  bim2a_reaction(tmsh, reazwu, ncoeff, A, ord1, ord0);      
+  TOC ("assemble LHS");
+      
+  // Solver analysis
+  TIC ();
+  lin_solver->set_lhs_distributed ();
+  A.aij (xa, ir, jc, lin_solver->get_index_base ());
+  lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
+  std::cout << "lin_solver->analyze () = "<< lin_solver->analyze () << std::endl;
+  TOC ("solver analysis");
+      
   for( int count=1; count <= T/DELTAT; count++){
 
      // Print curent time
@@ -153,10 +171,6 @@ main (int argc, char **argv)
      u.get_owned_data ().assign (u.get_owned_data ().size (), 0.0);
      u.assemble (replace_op);
      TOC("Resetting")
-
-
-
-
 
       // Initialize non constant (in time) parameters
       TIC ();
@@ -181,28 +195,21 @@ main (int argc, char **argv)
              }
            }
       }
-      // Is it necessary ?
-
-      bim2a_solution_with_ghosts (tmsh, reazuu, replace_op);
-      bim2a_solution_with_ghosts (tmsh, fu, replace_op);
-      bim2a_solution_with_ghosts (tmsh, fw, replace_op);
+      // Is it necessary ? RE: only if you want to export the coefficients to VTK.
+      reazuu.assemble (replace_op);
+      fu.assemble (replace_op);
+      fw.assemble (replace_op);
       TOC("Update coefficients");
-
-
-
 
       // Matrix construction
       TIC ();
       bim2a_laplacian(tmsh, lapcoeffu, A, ord0, ord0);
       bim2a_laplacian(tmsh, lapcoeffw, A, ord1, ord1);
-
+      
       bim2a_reaction(tmsh, ecoeff, reazuu, A, ord0, ord0);
-
       bim2a_reaction(tmsh, reazuw, ncoeff, A, ord0, ord1);
-      bim2a_reaction(tmsh, reazwu, ncoeff, A, ord1, ord0);
+      bim2a_reaction(tmsh, reazwu, ncoeff, A, ord1, ord0);      
       TOC ("assemble LHS");
-
-
 
       TIC();
       bim2a_rhs (tmsh, ecoeff, fu, u, ord0);
@@ -215,36 +222,19 @@ main (int argc, char **argv)
       u.assemble ();
       TOC ("communicate A and b");
 
-
-      // Solver analysis
-      TIC ();
-      lin_solver->set_lhs_distributed ();
-      A.aij (xa, ir, jc, lin_solver->get_index_base ());
-      lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
-      std::cout << "lin_solver->analyze () = "<< lin_solver->analyze () << std::endl;
-      TOC ("solver analysis");
-
-
-
       TIC ();
       A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
       lin_solver->set_distributed_lhs_data (xa);
       TOC ("set LHS data");
 
-
-
-      TIC ();
-      lin_solver->set_rhs_distributed (u);
-      TOC ("set RHS data");
-
-
-
       TIC ();
       std::cout << "lin_solver->factorize () = " << lin_solver->factorize () << std::endl;
       TOC ("solver factorize");
 
-
-
+      TIC ();
+      lin_solver->set_rhs_distributed (u);
+      TOC ("set RHS data");
+      
       TIC ();
       std::cout << "lin_solver->solve () = " << lin_solver->solve () << std::endl;
       TOC ("solver solve");
@@ -253,8 +243,8 @@ main (int argc, char **argv)
       // Copy solution
       TIC();
       q1_vec result = lin_solver->get_distributed_solution ();
-      bim2a_solution_with_ghosts (tmsh, result, replace_op, ord0, false);
-      bim2a_solution_with_ghosts (tmsh, result, replace_op, ord1);
+      bim2a_solution_with_ghosts (tmsh, result, replace_op, ord0, false); 
+      bim2a_solution_with_ghosts (tmsh, result, replace_op, ord1);        
       TOC("Obtaining solution");
 
       // Save solution
