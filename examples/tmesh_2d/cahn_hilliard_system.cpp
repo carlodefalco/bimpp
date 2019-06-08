@@ -71,8 +71,18 @@ main (int argc, char **argv)
 
 
   // Linearization techniques
+  //OD2
   auto linc = [] (double x) -> double { return -1.5*x*x+0.5; };
   auto linf = [] (double x) -> double { return 0.5*x*(x*x+1); };
+
+  //Eyre -> TO DO: add parameter tuning linc = -beta || linf = -x^3 + (beta+1)x
+  //auto linc = [] (double x) -> double { return -2; };
+  //auto linf = [] (double x) -> double { return (-x*(x*x - 3)); };
+
+   //Linear splitting -> works with small time step
+  // auto linc = [] (double x) -> double { return (1-x*x); };
+  // auto linf = [] (double x) -> double { return 0; };
+
 
 
   // Initialize MPI
