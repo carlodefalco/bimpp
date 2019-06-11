@@ -271,7 +271,7 @@ main (int argc, char **argv)
 
       // Communicate matrix and RHS
       TIC ();
-      A.remap ();
+      //A.remap ();
       A.assemble ();
       sol.assemble ();
       TOC ("communicate A and b");
