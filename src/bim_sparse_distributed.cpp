@@ -116,7 +116,7 @@ distributed_sparse_matrix::remap ()
   int sendcnts[mpisize];
   void * recvbuf[mpisize];
   int recvcnts[mpisize];
-  
+
   /// 1) communicate row_ptr
   for (int ii = 0; ii < mpisize; ++ii)
     {
@@ -142,7 +142,7 @@ distributed_sparse_matrix::remap ()
 
   MPI_Alltoallv2 (sendbuf, sendcnts, MPI_INT,
                   recvbuf, recvcnts, MPI_INT, comm);
-  
+
   mapped = true;
 }
 
@@ -153,6 +153,13 @@ distributed_sparse_matrix::assemble ()
 
   if (! mapped)
     remap ();
+  else
+    {
+      non_local.a.resize (non_local.row_ind.size ());
+      for (int j = 0; j < non_local.col_ind.size (); ++j)
+        non_local.a[j] =
+          (*this)[non_local.row_ind[j]][non_local.col_ind[j]];
+    }
 
   /// 3) communicate values
   void * sendbuf[mpisize];
@@ -160,7 +167,7 @@ distributed_sparse_matrix::assemble ()
   void * recvbuf[mpisize];
   int recvcnts[mpisize];
 
-   for (int ii = 0; ii < mpisize; ++ii)
+  for (int ii = 0; ii < mpisize; ++ii)
     {
       recvbuf[ii]  = &(val_buffers[ii][0]);
       recvcnts[ii] =   val_buffers[ii].size ();
@@ -251,7 +258,7 @@ distributed_sparse_matrix::csr_update
       auto nj = col_ind.size ();
       a.resize (nj);
       int idx = 0;
-  
+
       for (auto in = 0; in < ni - 1; ++in)
         for (auto jn = row_ptr[in] - base;
              jn < row_ptr[in+1] - base; ++jn)
