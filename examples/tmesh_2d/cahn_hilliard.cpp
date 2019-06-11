@@ -20,7 +20,7 @@
 
 
 // Setting parameters
-constexpr int NUM_REFINEMENTS = 5;
+constexpr int NUM_REFINEMENTS = 7;
 constexpr double EPS = 0.05;
 constexpr double DELTAT = 0.005;
 constexpr double T = 5;
@@ -103,7 +103,8 @@ main (int argc, char **argv)
   sold.get_owned_data ().assign (sold.get_owned_data ().size (), 0.0);
 
   q1_vec sol (ln_nodes * 2);
-
+  sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
+  
   // Allocation of vectors to use sparse matrix
   std::vector<double> xa;
   std::vector<int> ir, jc;
@@ -148,6 +149,7 @@ main (int argc, char **argv)
             double xx=quadrant->p(0,ii);
             double yy=quadrant->p(1,ii);
             sold[ord0(quadrant->gt (ii))] = std::sin(10*xx*yy);
+            sol[ord0(quadrant->gt (ii))] = std::sin(10*xx*yy);
           }
 
           else
@@ -156,12 +158,15 @@ main (int argc, char **argv)
               ncoeff[quadrant->gparent (1, ii)] += 0.;
               sold[ord0(quadrant->gparent(0,ii))] +=0.;
               sold[ord0(quadrant->gparent(1,ii))] +=0.;
+              sol[ord0(quadrant->gparent(0,ii))] +=0.;
+              sol[ord0(quadrant->gparent(1,ii))] +=0.;
             }
         }
     }
   ncoeff.assemble (replace_op);
-  bim2a_solution_with_ghosts (tmsh, sold, replace_op);
-  TOC ("compute coefficient");
+  bim2a_solution_with_ghosts (tmsh, sold, replace_op, ord0, false);
+  bim2a_solution_with_ghosts (tmsh, sold, replace_op, ord1);
+  TOC ("compute constant coefficients and initial condition");
 
 
   // Save initial conditions
@@ -271,7 +276,6 @@ main (int argc, char **argv)
 
       // Communicate matrix and RHS
       TIC ();
-      //A.remap ();
       A.assemble ();
       sol.assemble ();
       TOC ("communicate A and b");
@@ -304,24 +308,19 @@ main (int argc, char **argv)
       // Copy solution
       TIC();
       q1_vec result = lin_solver->get_distributed_solution ();
-      bim2a_solution_with_ghosts (tmsh, result, replace_op, ord0, false);
-      bim2a_solution_with_ghosts (tmsh, result, replace_op, ord1);
+      for (int idx = sold.get_range_start (); idx < sold.get_range_end (); ++idx)
+        sold (idx) = result (idx);
+      sold.assemble (replace_op);
       TOC("Obtaining solution");
 
 
       // Save solution
       TIC();
       sprintf(filename, "cahn_hilliard_u_%4.4d",count);
-      tmsh.octbin_export (filename, result, ord0);
+      tmsh.octbin_export (filename, sold, ord0);
       sprintf(filename, "cahn_hilliard_v_%4.4d",count);
-      tmsh.octbin_export (filename, result, ord1);      
+      tmsh.octbin_export (filename, sold, ord1);      
       TOC("Exporting solution");
-
-
-      // Update old solution
-      TIC()
-      sold = result;
-      TOC("Updating solution")
     }
 
 
