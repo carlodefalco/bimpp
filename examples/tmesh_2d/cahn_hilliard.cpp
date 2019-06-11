@@ -313,6 +313,8 @@ main (int argc, char **argv)
       TIC();
       sprintf(filename, "cahn_hilliard_u_%4.4d",count);
       tmsh.octbin_export (filename, result, ord0);
+      sprintf(filename, "cahn_hilliard_v_%4.4d",count);
+      tmsh.octbin_export (filename, result, ord1);      
       TOC("Exporting solution");
 
 
