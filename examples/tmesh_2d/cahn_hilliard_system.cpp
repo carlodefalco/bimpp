@@ -22,7 +22,7 @@
 // Setting parameters
 constexpr int NUM_REFINEMENTS = 5;
 constexpr double DELTAT = 0.005;
-constexpr double T = 3;
+constexpr double T = 5;
 constexpr double EPSU = 0.05;
 constexpr double EPSV = 0.05;
 constexpr double TAUU = 1;
@@ -115,6 +115,8 @@ main (int argc, char **argv)
   sold.get_owned_data ().assign (sold.get_owned_data ().size (), 0.0);
 
   q1_vec sol (ln_nodes * 4);
+  sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
+
 
 
   // Allocation of vectors to use sparse matrix
@@ -180,6 +182,8 @@ main (int argc, char **argv)
             double yy=quadrant->p(1,ii);
             sold[ord0(quadrant->gt (ii))] = std::sin(10*xx*yy);//distribution(generator);
             sold[ord2(quadrant->gt (ii))] = std::cos(10*(xx-yy))*xx*yy; //distribution(generator);
+            sol[ord0(quadrant->gt (ii))] = std::sin(10*xx*yy);
+            sol[ord2(quadrant->gt (ii))] = std::sin(10*xx*yy);
           }
 
           else
@@ -190,13 +194,22 @@ main (int argc, char **argv)
               sold[ord0(quadrant->gparent(1,ii))] +=0.;
               sold[ord2(quadrant->gparent(0,ii))] +=0.;
               sold[ord2(quadrant->gparent(1,ii))] +=0.;
+              sol[ord0(quadrant->gparent(0,ii))] +=0.;
+              sol[ord0(quadrant->gparent(1,ii))] +=0.;
+              sol[ord2(quadrant->gparent(0,ii))] +=0.;
+              sol[ord2(quadrant->gparent(1,ii))] +=0.;
+
             }
         }
     }
 
   ncoeff.assemble(replace_op);
-  bim2a_solution_with_ghosts (tmsh, sold, replace_op);
-  TOC ("compute coefficient");
+  bim2a_solution_with_ghosts (tmsh, sold, replace_op, ord0, false);
+  bim2a_solution_with_ghosts (tmsh, sold, replace_op, ord1, false);
+  bim2a_solution_with_ghosts (tmsh, sold, replace_op, ord2, false);
+  bim2a_solution_with_ghosts (tmsh, sold, replace_op, ord3);
+
+  TOC ("compute constant coefficients and initial conditions");
 
 
   // Save initial conditions
@@ -349,7 +362,6 @@ main (int argc, char **argv)
 
           // Communicate matrix and RHS
           TIC ();
-          A.remap();
           A.assemble ();
           sol.assemble ();
           TOC ("communicate A and b");
@@ -383,26 +395,19 @@ main (int argc, char **argv)
           // Copy solution
           TIC();
           q1_vec result = lin_solver->get_distributed_solution ();
-          bim2a_solution_with_ghosts (tmsh, result, replace_op, ord0, false);
-          bim2a_solution_with_ghosts (tmsh, result, replace_op, ord2);
-          bim2a_solution_with_ghosts (tmsh, result, replace_op, ord1);
-          bim2a_solution_with_ghosts (tmsh, result, replace_op, ord3);
+          for (int idx = sold.get_range_start (); idx < sold.get_range_end (); ++idx)
+            sold (idx) = result (idx);
+          sold.assemble (replace_op);
           TOC("Obtaining solution");
 
 
           // Save solution
           TIC();
           sprintf(filename, "cahn_hilliard_u_%4.4d",count);
-          tmsh.octbin_export (filename, result, ord0);
+          tmsh.octbin_export (filename, sold, ord0);
           sprintf(filename, "cahn_hilliard_v_%4.4d",count);
-          tmsh.octbin_export (filename, result, ord2);
+          tmsh.octbin_export (filename, sold, ord2);
           TOC("Exporting solution");
-
-
-          // Update old solution
-          TIC();
-          sold=result;
-          TOC("Updating solution");
         }
 
 
