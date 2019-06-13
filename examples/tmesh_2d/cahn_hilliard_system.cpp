@@ -20,7 +20,7 @@
 
 
 // Setting parameters
-constexpr int NUM_REFINEMENTS = 5;
+constexpr int NUM_REFINEMENTS = 7;
 constexpr double DELTAT = 0.005;
 constexpr double T = 5;
 constexpr double EPSU = 0.05;
