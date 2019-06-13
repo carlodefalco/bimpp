@@ -2,7 +2,13 @@ function export_tmesh_data (msh_basename,
                             nodedata_basenames, nodedata_names,
                             celldata_basenames, celldata_names,
                             out_name = "out",
-                            steps = 0:10, nprocs = 1)
+                            steps = 0:10, nprocs = 1, raw = true)
+
+  if (raw)
+    backend = @(a, b, c, d) fpl_vtk_write_field_octree_binary (a, b, c, d);
+  else
+    backend = @(a, b, c, d) fpl_vtk_write_field_octree (a, b, c, d, 1);
+  endif
 
   nnodefields = numel (nodedata_names);
   ncellfields = numel (celldata_names);
@@ -62,9 +68,9 @@ function export_tmesh_data (msh_basename,
       delete ([filename_out ".vtu"]);
     endif
 
-    fpl_vtk_write_field_octree (filename_out, msh,
+    fpl_vtk_write_field_octree_binary (filename_out, msh,
                                 [n; nodedata_names].',
-                                [c; celldata_names].', 1);
+                                [c; celldata_names].');
 
     fprintf("\n");
   endfor
