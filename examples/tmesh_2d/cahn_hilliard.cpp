@@ -20,10 +20,10 @@
 
 
 // Setting parameters
-constexpr int NUM_REFINEMENTS = 7;
+constexpr int NUM_REFINEMENTS = 9;
 constexpr double EPS = 0.05;
 constexpr double DELTAT = 0.005;
-constexpr double T = 5;
+constexpr double T = 2;
 
 
 // Connectivity of local element
