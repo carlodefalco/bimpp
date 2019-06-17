@@ -376,10 +376,10 @@ bim3a_dirichlet_bc_loc (sparse_matrix& A,
         (A[row].begin (),
          A[row].end (),
          0.0,
-         [] (double value,
+         [] (double sum,
              const std::map<int, double>::value_type & p)
          {
-           return (value + std::abs (p.second));
+           return (sum + std::abs (p.second));
          }
          );
     }
@@ -388,7 +388,7 @@ bim3a_dirichlet_bc_loc (sparse_matrix& A,
     A[row][row] *= 1e16;
 
   // Multiply rhs by the diagonal entry
-  rhs[row] *= A[row][row];
+  rhs[row] = A[row][row] * value;
 }
 
 template <class T>
@@ -438,6 +438,56 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                               quadrant->p (2, i));
 
                     bim3a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
+/*
+                    // Impose boundary condition at rhs by
+                    // evaluating it at the current node.
+                    rhs[row] =
+                        (std::get<2> (bcs[bc]))
+                        (quadrant->p (0, i),
+                         quadrant->p (1, i),
+                         quadrant->p (2, i));
+  
+                    // Move non-diagonal entries
+                    // from column "row" to rhs.
+                    if (A[row].size ())
+                      for (auto j = A[row].begin ();
+                           j != A[row].end (); ++j)
+                        {
+                            col = A.col_idx (j);
+
+                            if (row != col)
+                              {
+                                A[row][col] = 0.0;
+  
+                                // If row "col" is owned by current process.
+                                if (A[col].size ())
+                                  {
+                                    rhs[col] -= A[col][row] * rhs[row];
+                                    A[col][row] = 0.0;
+                                  }
+                              }
+                        }
+  
+                      if (std::abs (A[row][row])
+                          < std::numeric_limits<double>::epsilon ())
+                        {
+                          A[row][row] = std::accumulate
+                            (A[row].begin (),
+                             A[row].end (),
+                             0.0,
+                             [] (double value,
+                                 const std::map<int, double>::value_type & p)
+                             {
+                               return (value + std::abs (p.second));
+                             }
+                             );
+                        }
+  
+                      A[row][row] *= 1e16;
+  
+                      // Multiply rhs by the diagonal entry.
+                      rhs[row] *= A[row][row];
+*/                      
                   }
             }
         }
@@ -489,6 +539,54 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
                       (std::get<2> (bcs[bc])) (quadrant, i);
 
                     bim3a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
+/*
+                    // Impose boundary condition at rhs by
+                    // evaluating it at the current node.
+                    rhs[row] =
+                        (std::get<2> (bcs[bc]))
+                        (quadrant, i);
+  
+                    // Move non-diagonal entries
+                    // from column "row" to rhs.
+                    if (A[row].size ())
+                      for (auto j = A[row].begin ();
+                           j != A[row].end (); ++j)
+                        {
+                            col = A.col_idx (j);
+
+                            if (row != col)
+                              {
+                                A[row][col] = 0.0;
+  
+                                // If row "col" is owned by current process.
+                                if (A[col].size ())
+                                  {
+                                    rhs[col] -= A[col][row] * rhs[row];
+                                    A[col][row] = 0.0;
+                                  }
+                              }
+                        }
+  
+                      if (std::abs (A[row][row])
+                          < std::numeric_limits<double>::epsilon ())
+                        {
+                          A[row][row] = std::accumulate
+                            (A[row].begin (),
+                             A[row].end (),
+                             0.0,
+                             [] (double value,
+                                 const std::map<int, double>::value_type & p)
+                             {
+                               return (value + std::abs (p.second));
+                             }
+                             );
+                        }
+  
+                      A[row][row] *= 1e16;
+  
+                      // Multiply rhs by the diagonal entry.
+                      rhs[row] *= A[row][row]; 
+*/                                         
                   }
             }
         }
