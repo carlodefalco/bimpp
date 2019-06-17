@@ -12,6 +12,8 @@
 #include <cassert>
 #include <limits>
 
+constexpr bool EXPORT_ALL = true;
+
 // uniform_refinement:
 //    returns 1 ----> all quadrants are refined
 static int
@@ -20,7 +22,7 @@ uniform_refinement (tmesh_3d::quadrant_iterator q)
 
 // Number of refinement steps
 constexpr unsigned unif_refine_steps  = 2;  // initial uniform refinement
-constexpr unsigned adapt_refine_steps = 5;  // adaptive refinement
+constexpr unsigned adapt_refine_steps = 10;  // adaptive refinement
 constexpr double tol = 1.e-3;               // tolerance for refinement
 
 // Problem parameters
@@ -115,7 +117,7 @@ main (int argc, char **argv)
   std::vector<idx_t> nnodes (adapt_refine_steps, 0);    // number of nodes
   std::vector<double> h_step (adapt_refine_steps, 0.);  // mesh size
 
-  // Error at every step
+  // Errors at every step
   std::vector<double> error (adapt_refine_steps,0.);  // ||u - u_ex||_L^2(q)
   std::vector<double> errorH1 (adapt_refine_steps,0.);  // |u - u_ex|_H^1(q)
   std::vector<double> errorStar (adapt_refine_steps,0.);  // ||u_star - u_ex||_L^2(q)
@@ -197,7 +199,7 @@ main (int argc, char **argv)
       // Assemble system matrix and right-hand side.
       distributed_sparse_matrix A;
       A.set_ranges(tmsh.num_owned_nodes());
-      //
+
       // advection_diffusion
       bim3a_advection_diffusion (tmsh, alpha, psi, A);
 
@@ -364,126 +366,139 @@ main (int argc, char **argv)
         (tmsh, result, du1);
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("solution recovery inside"); }
 
-      // Export reconstructed gradients:
+      if (EXPORT_ALL)
+        {
+          // Export reconstructed gradients:
 
-      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
-      // derivative along x outside the sphere
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du0_x_")
-                           + std::to_string(adapt)).c_str(),
-                          std::get<0>(du0));
-      //
-      // derivative along y outside the sphere
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du0_y_")
-                           + std::to_string(adapt)).c_str(),
-                          std::get<1>(du0));
-      //
-      // derivative along z outside the sphere
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du0_z_")
-                           + std::to_string(adapt)).c_str(),
-                          std::get<2>(du0));
-      //
-      // derivative along x inside the sphere
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du1_x_")
-                           + std::to_string(adapt)).c_str(),
-                          std::get<0>(du1));
-      //
-      // derivative along y inside the sphere
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du1_y_")
-                           + std::to_string(adapt)).c_str(),
-                          std::get<1>(du1));
-      //
-      // derivative along z inside the sphere
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du1_z_")
-                           + std::to_string(adapt)).c_str(),
-                          std::get<2>(du1));
-      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("export gradients "); }
+          MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+          // derivative along x outside the sphere
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du0_x_")
+                               + std::to_string(adapt)).c_str(),
+                              std::get<0>(du0));
+          //
+          // derivative along y outside the sphere
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du0_y_")
+                               + std::to_string(adapt)).c_str(),
+                              std::get<1>(du0));
+          //
+          // derivative along z outside the sphere
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du0_z_")
+                               + std::to_string(adapt)).c_str(),
+                              std::get<2>(du0));
+          //
+          // derivative along x inside the sphere
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du1_x_")
+                               + std::to_string(adapt)).c_str(),
+                              std::get<0>(du1));
+          //
+          // derivative along y inside the sphere
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du1_y_")
+                               + std::to_string(adapt)).c_str(),
+                              std::get<1>(du1));
+          //
+          // derivative along z inside the sphere
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du1_z_")
+                               + std::to_string(adapt)).c_str(),
+                              std::get<2>(du1));
+          MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("export gradients "); }
 
+          // Compute exact derivatives on the mesh and differences between 
+          // exact and numerical derivatives
+          MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
+          //
+          // derivative along x
+          q1_vec duxex (tmsh.num_owned_nodes ());
+          q1_vec diff_x_0 (tmsh.num_owned_nodes ());
+          q1_vec diff_x_1 (tmsh.num_owned_nodes ());
+          //
+          // derivative along y
+          q1_vec duyex (tmsh.num_owned_nodes ());
+          q1_vec diff_y_0 (tmsh.num_owned_nodes ());
+          q1_vec diff_y_1 (tmsh.num_owned_nodes ());
+          //
+          // derivative along z
+          q1_vec duzex (tmsh.num_owned_nodes ());
+          q1_vec diff_z_0 (tmsh.num_owned_nodes ());
+          q1_vec diff_z_1 (tmsh.num_owned_nodes ());
 
-      // Compute exact derivatives on the mesh and differences between 
-      // exact and numerical derivatives
-      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
-      //
-      // derivative along x
-      q1_vec duxex (tmsh.num_owned_nodes ());
-      q1_vec diff_x_0 (tmsh.num_owned_nodes ());
-      q1_vec diff_x_1 (tmsh.num_owned_nodes ());
-      //
-      // derivative along y
-      q1_vec duyex (tmsh.num_owned_nodes ());
-      q1_vec diff_y_0 (tmsh.num_owned_nodes ());
-      q1_vec diff_y_1 (tmsh.num_owned_nodes ());
-      //
-      // derivative along z
-      q1_vec duzex (tmsh.num_owned_nodes ());
-      q1_vec diff_z_0 (tmsh.num_owned_nodes ());
-      q1_vec diff_z_1 (tmsh.num_owned_nodes ());
+          for (auto quadrant = tmsh.begin_quadrant_sweep ();
+               quadrant != tmsh.end_quadrant_sweep ();
+               ++quadrant)
+            for (int i = 0; i < 8; ++i)
+              if (! quadrant->is_hanging (i))
+                {
+                  duxex[quadrant->gt(i)] = du_x_ex(quadrant->p(0, i),
+                                                    quadrant->p(1, i),
+                                                    quadrant->p(2, i));
+                  duyex[quadrant->gt(i)] = du_y_ex(quadrant->p(0, i),
+                                                    quadrant->p(1, i),
+                                                    quadrant->p(2, i));
+                  duzex[quadrant->gt(i)] = du_z_ex(quadrant->p(0, i),
+                                                    quadrant->p(1, i),
+                                                    quadrant->p(2, i));
+                  diff_x_0[quadrant->gt(i)] = std::abs(duxex[quadrant->gt(i)] - 
+                                                std::get<0>(du0)[quadrant->gt(i)]);
+                  diff_x_1[quadrant->gt(i)] = std::abs(duxex[quadrant->gt(i)] - 
+                                                std::get<0>(du1)[quadrant->gt(i)]);
+                  diff_y_0[quadrant->gt(i)] = std::abs(duyex[quadrant->gt(i)] - 
+                                                std::get<1>(du0)[quadrant->gt(i)]);
+                  diff_y_1[quadrant->gt(i)] = std::abs(duyex[quadrant->gt(i)] - 
+                                                std::get<1>(du1)[quadrant->gt(i)]);
+                  diff_z_0[quadrant->gt(i)] = std::abs(duzex[quadrant->gt(i)] - 
+                                                std::get<2>(du0)[quadrant->gt(i)]);
+                  diff_z_1[quadrant->gt(i)] = std::abs(duzex[quadrant->gt(i)] - 
+                                                std::get<2>(du1)[quadrant->gt(i)]);
+                }
+              else
+                {
+                  duxex[quadrant->gt(i)] += 0.0;
+                  duyex[quadrant->gt(i)] += 0.0;
+                  duzex[quadrant->gt(i)] += 0.0;
+                  diff_x_0[quadrant->gt(i)] += 0.0;
+                  diff_x_1[quadrant->gt(i)] += 0.0;
+                  diff_y_0[quadrant->gt(i)] += 0.0;
+                  diff_y_1[quadrant->gt(i)] += 0.0;
+                  diff_z_0[quadrant->gt(i)] += 0.0;
+                  diff_z_1[quadrant->gt(i)] += 0.0;
+                }
+          duxex.assemble (replace_op);
+          duyex.assemble (replace_op);
+          duzex.assemble (replace_op);
+          diff_x_0.assemble (replace_op);
+          diff_x_1.assemble (replace_op);
+          diff_y_0.assemble (replace_op);
+          diff_y_1.assemble (replace_op);
+          diff_z_0.assemble (replace_op);
+          diff_z_1.assemble (replace_op);
 
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-           quadrant != tmsh.end_quadrant_sweep ();
-           ++quadrant)
-        for (int i = 0; i < 8; ++i)
-          if (! quadrant->is_hanging (i))
-            {
-              duxex[quadrant->gt(i)] = du_x_ex(quadrant->p(0, i),
-                                                quadrant->p(1, i),
-                                                quadrant->p(2, i));
-              duyex[quadrant->gt(i)] = du_y_ex(quadrant->p(0, i),
-                                                quadrant->p(1, i),
-                                                quadrant->p(2, i));
-              duzex[quadrant->gt(i)] = du_z_ex(quadrant->p(0, i),
-                                                quadrant->p(1, i),
-                                                quadrant->p(2, i));
-              diff_x_0[quadrant->gt(i)] = std::abs(duxex[quadrant->gt(i)] - 
-                                            std::get<0>(du0)[quadrant->gt(i)]);
-              diff_x_1[quadrant->gt(i)] = std::abs(duxex[quadrant->gt(i)] - 
-                                            std::get<0>(du1)[quadrant->gt(i)]);
-              diff_y_0[quadrant->gt(i)] = std::abs(duyex[quadrant->gt(i)] - 
-                                            std::get<1>(du0)[quadrant->gt(i)]);
-              diff_y_1[quadrant->gt(i)] = std::abs(duyex[quadrant->gt(i)] - 
-                                            std::get<1>(du1)[quadrant->gt(i)]);
-              diff_z_0[quadrant->gt(i)] = std::abs(duzex[quadrant->gt(i)] - 
-                                            std::get<2>(du0)[quadrant->gt(i)]);
-              diff_z_1[quadrant->gt(i)] = std::abs(duzex[quadrant->gt(i)] - 
-                                            std::get<2>(du1)[quadrant->gt(i)]);
-            }
-      duxex.assemble (replace_op);
-      duyex.assemble (replace_op);
-      duzex.assemble (replace_op);
-      diff_x_0.assemble (replace_op);
-      diff_x_1.assemble (replace_op);
-      diff_y_0.assemble (replace_op);
-      diff_y_1.assemble (replace_op);
-      diff_z_0.assemble (replace_op);
-      diff_z_1.assemble (replace_op);
-
-      // Export exact derivatives
-      //
-      // derivative along x
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du_x_ex_")
-                           + std::to_string(adapt)).c_str(), duxex);
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_diff0_x_")
-                           + std::to_string(adapt)).c_str(), diff_x_0);
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_diff1_x_")
-                           + std::to_string(adapt)).c_str(), diff_x_1);
-      //
-      // derivative along y
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du_y_ex_")
-                           + std::to_string(adapt)).c_str(), duyex);
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_diff0_y_")
-                           + std::to_string(adapt)).c_str(), diff_y_0);
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_diff1_y_")
-                           + std::to_string(adapt)).c_str(), diff_y_1);
-      //
-      // derivative along z
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du_z_ex_")
-                           + std::to_string(adapt)).c_str(), duzex);
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_diff0_z_")
-                           + std::to_string(adapt)).c_str(), diff_z_0);
-      tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_diff1_z_")
-                           + std::to_string(adapt)).c_str(), diff_z_1);
-      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) 
-        { toc ("export exact derivatives and differences "); }
-
+          // Export exact derivatives
+          //
+          // derivative along x
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du_x_ex_")
+                               + std::to_string(adapt)).c_str(), duxex);
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_diff0_x_")
+                               + std::to_string(adapt)).c_str(), diff_x_0);
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_diff1_x_")
+                               + std::to_string(adapt)).c_str(), diff_x_1);
+          //
+          // derivative along y
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du_y_ex_")
+                               + std::to_string(adapt)).c_str(), duyex);
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_diff0_y_")
+                               + std::to_string(adapt)).c_str(), diff_y_0);
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_diff1_y_")
+                               + std::to_string(adapt)).c_str(), diff_y_1);
+          //
+          // derivative along z
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_du_z_ex_")
+                               + std::to_string(adapt)).c_str(), duzex);
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_diff0_z_")
+                               + std::to_string(adapt)).c_str(), diff_z_0);
+          tmsh.octbin_export ((std::string ("p4est_dr_test_2_metrics_diff1_z_")
+                               + std::to_string(adapt)).c_str(), diff_z_1);
+          MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) 
+            { toc ("export exact derivatives and differences "); }
+        }
 
       // Solution estimator
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
@@ -522,12 +537,12 @@ main (int argc, char **argv)
       double  hx = 0, hy = 0, hz = 0,
         h = std::numeric_limits<double>::max ();
 
-      double err = 0;
-      double errH1 = 0;
-      double errstar = 0;
-      double errH1star = 0;
-      double estsol = 0;
-      double estgrad = 0;
+      double err = 0.0;
+      double errH1 = 0.0;
+      double errstar = 0.0;
+      double errH1star = 0.0;
+      double estsol = 0.0;
+      double estgrad = 0.0;
 
       std::vector<double> sol_est (tmsh.num_local_quadrants());
       std::vector<double> grad_est (tmsh.num_local_quadrants());
