@@ -5,10 +5,6 @@
 #include <bim_timing.h>
 #include <simple_connectivity_3d.h>
 
-#include <algorithm>
-#include <fstream>
-#include <sstream>
-
 #include <cassert>
 #include <limits>
 
