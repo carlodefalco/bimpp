@@ -364,6 +364,35 @@ bim3a_boundary_mass (tmesh_3d & mesh,
 
 template <class T>
 void
+bim3a_dirichlet_bc_loc (sparse_matrix& A,
+                        T& rhs,
+                        const unsigned int& row,
+                        const double& value,
+                        const bool& only_rhs)
+{
+  if (std::abs (A[row][row]) < std::numeric_limits<double>::epsilon())
+    {
+      A[row][row] = std::accumulate
+        (A[row].begin (),
+         A[row].end (),
+         0.0,
+         [] (double sum,
+             const std::map<int, double>::value_type & p)
+         {
+           return (sum + std::abs (p.second));
+         }
+         );
+    }
+
+  if (! only_rhs)
+    A[row][row] *= 1e16;
+
+  // Multiply rhs by the diagonal entry
+  rhs[row] = A[row][row] * value;
+}
+
+template <class T>
+void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                     sparse_matrix& A, T& rhs,
                     const ordering& ord,
@@ -373,6 +402,8 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
   unsigned int row, col;
 
   std::set<unsigned int> marked;
+
+  double value;
 
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
@@ -400,54 +431,63 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                     // Mark current node so to avoid duplicate operations.
                     marked.insert (row);
 
+                    // Evaluate bc at current node
+                    value = (std::get<2> (bcs[bc]))
+                            (quadrant->p (0, i),
+                              quadrant->p (1, i),
+                              quadrant->p (2, i));
+
+                    bim3a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
+/*
                     // Impose boundary condition at rhs by
                     // evaluating it at the current node.
                     rhs[row] =
-                      (std::get<2> (bcs[bc]))
-                      (quadrant->p (0, i),
-                       quadrant->p (1, i),
-                       quadrant->p (2, i));
-
+                        (std::get<2> (bcs[bc]))
+                        (quadrant->p (0, i),
+                         quadrant->p (1, i),
+                         quadrant->p (2, i));
+  
                     // Move non-diagonal entries
                     // from column "row" to rhs.
                     if (A[row].size ())
                       for (auto j = A[row].begin ();
                            j != A[row].end (); ++j)
                         {
-                          col = A.col_idx (j);
+                            col = A.col_idx (j);
 
-                          if (row != col)
-                            {
-                              A[row][col] = 0.0;
-
-                              // If row "col" is owned by current process.
-                              if (A[col].size ())
-                                {
-                                  rhs[col] -= A[col][row] * rhs[row];
-                                  A[col][row] = 0.0;
-                                }
-                            }
+                            if (row != col)
+                              {
+                                A[row][col] = 0.0;
+  
+                                // If row "col" is owned by current process.
+                                if (A[col].size ())
+                                  {
+                                    rhs[col] -= A[col][row] * rhs[row];
+                                    A[col][row] = 0.0;
+                                  }
+                              }
                         }
-
-                    if (std::abs (A[row][row])
-                        < std::numeric_limits<double>::epsilon ())
-                      {
-                        A[row][row] = std::accumulate
-                          (A[row].begin (),
-                           A[row].end (),
-                           0.0,
-                           [] (double value,
-                               const std::map<int, double>::value_type & p)
-                           {
-                             return (value + std::abs (p.second));
-                           }
-                           );
-                      }
-
-                    A[row][row] *= 1e16;
-
-                    // Multiply rhs by the diagonal entry.
-                    rhs[row] *= A[row][row];
+  
+                      if (std::abs (A[row][row])
+                          < std::numeric_limits<double>::epsilon ())
+                        {
+                          A[row][row] = std::accumulate
+                            (A[row].begin (),
+                             A[row].end (),
+                             0.0,
+                             [] (double value,
+                                 const std::map<int, double>::value_type & p)
+                             {
+                               return (value + std::abs (p.second));
+                             }
+                             );
+                        }
+  
+                      A[row][row] *= 1e16;
+  
+                      // Multiply rhs by the diagonal entry.
+                      rhs[row] *= A[row][row];
+*/                      
                   }
             }
         }
@@ -466,6 +506,8 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
 
   std::set<unsigned int> marked;
 
+  double value;
+
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
@@ -492,58 +534,65 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
                     // Mark current node so to avoid duplicate operations.
                     marked.insert (row);
 
+                    // Evaluate bc at current node
+                    value =
+                      (std::get<2> (bcs[bc])) (quadrant, i);
+
+                    bim3a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
+/*
                     // Impose boundary condition at rhs by
                     // evaluating it at the current node.
                     rhs[row] =
-                      (std::get<2> (bcs[bc])) (quadrant, i);
-
+                        (std::get<2> (bcs[bc]))
+                        (quadrant, i);
+  
                     // Move non-diagonal entries
                     // from column "row" to rhs.
                     if (A[row].size ())
                       for (auto j = A[row].begin ();
                            j != A[row].end (); ++j)
                         {
-                          col = A.col_idx (j);
+                            col = A.col_idx (j);
 
-                          if (row != col)
-                            {
-                              A[row][col] = 0.0;
-
-                              // If row "col" is owned by current process.
-                              if (A[col].size ())
-                                {
-                                  rhs[col] -= A[col][row] * rhs[row];
-                                  A[col][row] = 0.0;
-                                }
-                            }
+                            if (row != col)
+                              {
+                                A[row][col] = 0.0;
+  
+                                // If row "col" is owned by current process.
+                                if (A[col].size ())
+                                  {
+                                    rhs[col] -= A[col][row] * rhs[row];
+                                    A[col][row] = 0.0;
+                                  }
+                              }
                         }
-
-                    if (std::abs (A[row][row])
-                        < std::numeric_limits<double>::epsilon ())
-                      {
-                        A[row][row] = std::accumulate
-                          (A[row].begin (),
-                           A[row].end (),
-                           0.0,
-                           [] (double value,
-                               const std::map<int, double>::value_type & p)
-                           {
-                             return (value + std::abs (p.second));
-                           }
-                           );
-                      }
-
-                    A[row][row] *= 1e16;
-
-                    // Multiply rhs by the diagonal entry.
-                    rhs[row] *= A[row][row];
+  
+                      if (std::abs (A[row][row])
+                          < std::numeric_limits<double>::epsilon ())
+                        {
+                          A[row][row] = std::accumulate
+                            (A[row].begin (),
+                             A[row].end (),
+                             0.0,
+                             [] (double value,
+                                 const std::map<int, double>::value_type & p)
+                             {
+                               return (value + std::abs (p.second));
+                             }
+                             );
+                        }
+  
+                      A[row][row] *= 1e16;
+  
+                      // Multiply rhs by the diagonal entry.
+                      rhs[row] *= A[row][row]; 
+*/                                         
                   }
             }
         }
     }
 }
 
-/* CCI: BEGIN ADDED */
 
 /// Edge ordering:
 ///
@@ -1901,7 +1950,6 @@ bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
   return u_star;
 }
 
-/* CCI: END ADDED */
 
 // 4-points Gauss quadature nodes and weights (in [0, 1]).
 static constexpr double gn[4] =
@@ -1921,7 +1969,6 @@ static inline double
 xformw (const double *x, const double w)
 { return (w * (x[1] - x[0])); }
 
-/* CCI: BEGIN ADDED */
 
 // Approximate integral of fun on [x[0], x[1]] x [y[0], y[1]] x [z[0], z[1]].
 static double
@@ -2566,5 +2613,3 @@ semih1_star_error (tmesh_3d::quadrant_iterator,
                    const func3 &,
                    const func3 &,
                    const gradient3<distributed_vector> &);
-
-/* CCI: END ADDED */

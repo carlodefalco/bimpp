@@ -19,7 +19,7 @@ constexpr unsigned unif_refine_steps = 2;   // initial uniform refinement
 constexpr unsigned adapt_refine_steps = 6;  // adaptive refinement
 
 // Tolerance for refinement
-constexpr double tol = 1e-2;
+constexpr double tol = 1e-3;
 
 // main:
 //
@@ -39,14 +39,18 @@ main (int argc, char **argv)
 
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
+
+  // Problem parameters
+  constexpr double epsilon = 1e-4;      // diffusion coefficient
+  double n_coeff = 1/std::sqrt(3.0);    // normalization coefficient
   
   // Mesh parameters
   std::vector<idx_t>    nnodes (adapt_refine_steps, 0);     // number of nodes
   std::vector<double>   h_step (adapt_refine_steps, 0.);    // mesh size
 
-  // Problem parameters
-  constexpr double epsilon = 1e-4;      // diffusion coefficient
-  double n_coeff = 1/std::sqrt(3.0);    // normalization coefficient
+  // Estimators at every step
+  std::vector<double> estSol (adapt_refine_steps,0.);  // ||u^* - u||_L^2(q)
+  std::vector<double> estGrad (adapt_refine_steps,0.); // ||grad^* u - grad u||_L^2(q)
 
   // Mesh generation
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
@@ -71,15 +75,15 @@ main (int argc, char **argv)
         std::cout << "*** Step "  << adapt << " ***" << std::endl;
       
       // Compute coefficients
-      //
+
       // diffusion
       std::vector<double> alpha(tmsh.num_local_quadrants (), epsilon);
       q1_vec psi(tmsh.num_owned_nodes ());
-      //
+
       // rhs
       std::vector<double> f(tmsh.num_local_quadrants (), 0);
       q1_vec g(tmsh.num_owned_nodes ());
-      //
+
       double x = .0, y = .0, z = .0;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
@@ -92,9 +96,8 @@ main (int argc, char **argv)
                   x = quadrant->p(0, ii);
                   y = quadrant->p(1, ii);
                   z = quadrant->p(2, ii);
-                  
-                  // CCI: divisione per epsilon --> matrice singolare (?)
-                  psi[quadrant->gt(ii)] = (x + y - z) * n_coeff * 100;/// epsilon;
+
+                  psi[quadrant->gt(ii)] = (x + y - z) * n_coeff / epsilon;
                   g[quadrant->gt(ii)] = 0.;
                 }
               else
@@ -111,10 +114,10 @@ main (int argc, char **argv)
       // Assemble matrix.
       distributed_sparse_matrix A;
       A.set_ranges(tmsh.num_owned_nodes());
-      //
+
       // advection_diffusion
       bim3a_advection_diffusion (tmsh, alpha, psi, A);
-      
+
       // Assemble right-hand side.
       q1_vec rhs(tmsh.num_owned_nodes ());
       bim3a_rhs (tmsh, f, g, rhs);
@@ -225,13 +228,18 @@ main (int argc, char **argv)
                            + std::to_string(adapt)).c_str(), std::get<2>(du));
       MPI_Barrier (mpicomm); if (rank == 0) { toc ("export gradient "); }
       
-      // Define solution estimator
+      // Define estimators
+      MPI_Barrier (mpicomm); if (rank == 0) { tic (); }
+
+      // solution estimator
       auto estimator = [& u_star, & result] (tmesh_3d::quadrant_iterator q)
         { return estimator_sol (q, u_star, result); };
 
-      // Define gradient estimator
+      // gradient estimator
       auto grad_estimator = [& du, & result] (tmesh_3d::quadrant_iterator q)
         { return estimator_grad (q, du, result); };
+
+      MPI_Barrier (mpicomm); if (rank == 0) { toc ("define estimators "); }
       
       // Compute metrics and h.
       MPI_Barrier (mpicomm); if (rank == 0) { tic (); }
@@ -241,8 +249,10 @@ main (int argc, char **argv)
       std::vector<double> est_grad (tmsh.num_local_quadrants ());
       
       double  hx = 0, hy = 0, hz = 0,
-              h = std::numeric_limits<double>::max (),
-              global_h = 0;
+              h = std::numeric_limits<double>::max ();
+
+      double estsol = 0.0;
+      double estgrad = 0.0;
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
@@ -252,8 +262,13 @@ main (int argc, char **argv)
             (estimator (quadrant) * std::sqrt (tmsh.num_global_quadrants ()) 
             / tol);
 
+          // ||u^* - u||_L^2(q)
           est_sol[quadrant->get_forest_quad_idx ()] = estimator(quadrant);
+          estsol += std::pow(est_sol[quadrant->get_forest_quad_idx ()], 2);
+
+          // ||grad^* u - grad u||_L^2(q)          
           est_grad[quadrant->get_forest_quad_idx ()] = grad_estimator(quadrant);
+          estgrad += std::pow(est_grad[quadrant->get_forest_quad_idx ()], 2);
           
           hx = quadrant->p(0, 7) - quadrant->p(0, 0);
           hy = quadrant->p(1, 7) - quadrant->p(1, 0);
@@ -266,16 +281,28 @@ main (int argc, char **argv)
       tmsh.octbin_export_quadrant ((std::string("p4est_adr_test_1_metrics_hx_")
                                     + std::to_string(adapt)).c_str(), metrics);
 
+      // Export estimators
       tmsh.octbin_export_quadrant ((std::string("p4est_adr_test_1_metrics_est_sol_")
                                     + std::to_string(adapt)).c_str(), est_sol);
       tmsh.octbin_export_quadrant ((std::string("p4est_adr_test_1_metrics_est_grad_")
                                     + std::to_string(adapt)).c_str(), est_grad);
       
       // Compute global mesh size
-      MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
+      MPI_Reduce(&h, &h_step[adapt], 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
+
+      // Compute global errors
+      //
+      // ||u^* - u||_L^2(q)
+      MPI_Reduce (&estsol, &estSol[adapt], 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      estSol[adapt] = std::sqrt(estSol[adapt]);
+      //
+      // ||grad^* u - grad u||_L^2(q)
+      MPI_Reduce (&estgrad, &estGrad[adapt], 1, MPI_DOUBLE, MPI_SUM, 0, 
+                  mpicomm);
+      estGrad[adapt] = std::sqrt(estGrad[adapt]);
       
+      // Number of mesh nodes at current step
       nnodes[adapt] = tmsh.num_global_nodes ();
-      h_step[adapt] = global_h;
 
       MPI_Barrier (mpicomm); if (rank == 0) { toc ("compute h and metrics "); }
       
@@ -283,7 +310,7 @@ main (int argc, char **argv)
       MPI_Barrier (mpicomm); if (rank == 0) { tic (); }
 
       // Break if the number of global nodes is too large
-      if (tmsh.num_global_nodes () >= 5e6)
+      if (tmsh.num_global_nodes () >= 10e7)
         break;
       else if (adapt < (adapt_refine_steps - 1))
         {
@@ -302,7 +329,7 @@ main (int argc, char **argv)
                             + std::to_string(adapt)).c_str());
 
           // Break if the number of global nodes is too large
-          if (tmsh.num_global_nodes () >= 5e6)
+          if (tmsh.num_global_nodes () >= 10e7)
             {
               std::cout << "too many nodes!" << std::endl;
               break;
@@ -313,9 +340,15 @@ main (int argc, char **argv)
   
   if (rank == 0)
     for (unsigned step = 0; step < nnodes.size(); ++step)
-      std::cout << "Step " << step << ", #nodes: "
-                << nnodes[step] << ", h: "
-                << h_step[step] << std::endl;
+      {
+        std::cout << "Step " << step << ", #nodes: "
+                  << nnodes[step] << ", h: "
+                  << h_step[step] << std::endl;
+        std::cout << "\n\tSolution estimator = " << estSol[step]
+                  << "\n\tGradient estimator = " << estGrad[step]
+                  << std::endl;
+        std::cout << std::endl;                  
+      }
   
   MPI_Finalize ();
   
