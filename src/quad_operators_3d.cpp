@@ -2215,6 +2215,17 @@ estimator_grad (tmesh_3d::quadrant_iterator q,
 }
 
 
+template <class T>
+int
+zz_marker_grad (tmesh_3d::quadrant_iterator q,
+                const gradient3<T>& du_star,
+                const T& u,
+                double limit)
+{
+  return estimator_grad (q, du_star, u) > limit ? 1 : 0;
+}
+
+
 // Compute ||u^* - u||_L^2(q).
 template <class T>
 double
@@ -2258,6 +2269,17 @@ estimator_sol (tmesh_3d::quadrant_iterator q,
     };
 
   return std::sqrt (quad_integral (x, y, z, fun));
+}
+
+
+template <class T>
+int
+zz_marker_sol (tmesh_3d::quadrant_iterator q,
+               const q2_vec3& ustar,
+               const T& u,
+               double limit)
+{
+  return estimator_sol (q, ustar, u) > limit ? 1 : 0;
 }
 
 
