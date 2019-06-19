@@ -560,44 +560,45 @@ tmesh_3d::vtk_export (const char *filename)
   assert (flag == 0);
 };
 
+template<class T>
 void
-tmesh_3d::octbin_export (const char * basename,
-                         const std::vector<double> & f)
+octbin_export_tmpl (tmesh_3d *THIS, const char* basename, const T& f,
+                    const ordering& ord)
 {
-  assert (f.size () == num_global_nodes ());
+  //  assert (f.size () == num_global_nodes ());
 
-  std::vector<double> p (3 * num_owned_nodes ());
-  std::vector<double> f_loc (num_owned_nodes ());
+  std::vector<double> p (3 * THIS->num_owned_nodes ());
+  std::vector<double> f_loc (THIS->num_owned_nodes ());
 
   Array<octave_idx_type>
-    oct_t (dim_vector (8, num_local_quadrants ()), 0);
+    oct_t (dim_vector (8, THIS->num_local_quadrants ()), 0);
   octave_idx_type *t = oct_t.fortran_vec ();
 
   octave_idx_type ij = 0;
-  for (auto quadrant = begin_quadrant_sweep ();
-       quadrant != end_quadrant_sweep ();
+  for (auto quadrant = THIS->begin_quadrant_sweep ();
+       quadrant != THIS->end_quadrant_sweep ();
        ++quadrant)
     {
       ij = 0;
       for (int ii = 0; ii < 8; ++ii)
         {
           if (! quadrant->is_hanging (ii))
-            if (quadrant->t (ii) < num_owned_nodes ())
-              {
-                for (int jj = 0; jj < 3; ++jj)
+            if (quadrant->t (ii) < THIS->num_owned_nodes ())
+	            {
+	              for (int jj = 0; jj < 3; ++jj)
                   p[3 * quadrant->t (ii) + jj] = quadrant->p (jj, ii);
-                f_loc[quadrant->t (ii)] = f[quadrant->gt (ii)];
+                f_loc[quadrant->t (ii)] = f[ord(quadrant->gt (ii))];
                 t[8 * quadrant->get_forest_quad_idx () + (ij++)] =
                   quadrant->t (ii);
-              }
-            else
-              {
-                for (int jj = 0; jj < 3; ++jj)
+	            }
+          	else
+	            {
+	              for (int jj = 0; jj < 3; ++jj)
                   p.push_back (quadrant->p (jj, ii));
-                f_loc.push_back (f[quadrant->gt (ii)]);
+                f_loc.push_back (f[ord(quadrant->gt (ii))]);
                 t[8 * quadrant->get_forest_quad_idx () + (ij++)] =
                   f_loc.size () - 1;
-              }
+	            }
           else
             {
               for (int jj = 0; jj < 3; ++jj)
@@ -605,15 +606,14 @@ tmesh_3d::octbin_export (const char * basename,
               int pp;
               double fbuff = 0;
               for (pp = 0; pp < quadrant->num_parents (ii); ++pp)
-                fbuff += f [quadrant->gparent (pp, ii)];
+                fbuff += f [ord(quadrant->gparent (pp, ii))];
               f_loc.push_back (fbuff / pp);
               t[8 * quadrant->get_forest_quad_idx () + (ij++)] =
                 f_loc.size () - 1;
             }
         }
     }
-
-
+ 
   Matrix oct_p (3, p.size () / 3, 0.0);
   ColumnVector oct_f (f_loc.size (), 0.0);
 
@@ -629,7 +629,7 @@ tmesh_3d::octbin_export (const char * basename,
 
   // Define filename.
   char filename[255] = "";
-  sprintf (filename, "%s_%4.4d.octbin.gz", basename, rank);
+  sprintf (filename, "%s_%4.4d.octbin.gz", basename, THIS->rank);
 
   // Save to filename.
   int flag_open = octave_io_open (filename, m, &m);
@@ -640,7 +640,24 @@ tmesh_3d::octbin_export (const char * basename,
 
   int flag_close = octave_io_close ();
   assert (flag_close == 0);
+  
 };
+
+void
+tmesh_3d::octbin_export (const char * filename,
+               const distributed_vector & f, 
+               const ordering& ord)
+{
+	octbin_export_tmpl (this, filename, f, ord);
+};
+
+void
+tmesh_3d::octbin_export (const char * filename,
+                         const std::vector<double> & f,
+                         const ordering& ord)
+{
+	octbin_export_tmpl (this, filename, f, ord);
+}	
 
 void
 tmesh_3d::octbin_export_quadrant (const char * basename,
@@ -743,7 +760,8 @@ tmesh_3d::set_metrics_marker
                             std::ceil (hxhat_hx)),
                   double (max_depth));
 
-      std::cout << quadrant->the_quadrant->p.user_int << std::endl;
+      //std::cout << hxhat_hx << " ";
+      //std::cout << quadrant->the_quadrant->p.user_int << std::endl;
     }
 
   return;

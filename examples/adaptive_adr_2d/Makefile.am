@@ -15,7 +15,7 @@ bin_PROGRAMS = p4est_operator_segment_test \
                p4est_operator_test_2 p4est_operator_test_3 \
                p4est_estimator_test_1 p4est_estimator_test_1_uniform \
                p4est_adr_test_1_marker p4est_adr_test_1_metrics p4est_adr_test_1_uniform \
-               p4est_adr_test_2_marker p4est_adr_test_2_metrics p4est_adr_test_2_isogeo \
+               p4est_adr_test_2_marker p4est_adr_test_2_metrics p4est_adr_test_2_isogeo p4est_adr_test_2_distributed\
                p4est_metrics_test_1 \
                p4est_dr_test_1_marker p4est_dr_test_1_metrics p4est_dr_test_1_uniform \
                p4est_dr_test_2_marker p4est_dr_test_2_metrics \
@@ -95,6 +95,12 @@ p4est_adr_test_2_isogeo_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
 p4est_adr_test_2_isogeo_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 p4est_adr_test_2_isogeo_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
 CLEANFILES += p4est_adr_test_2_isogeo*.octbin.gz p4est_adr_test_2_isogeo*.pvtu p4est_adr_test_2_isogeo*.visit p4est_adr_test_2_isogeo*.vtu
+
+p4est_adr_test_2_distributed_SOURCES =  p4est_adr_test_2_distributed.cpp 
+p4est_adr_test_2_distributed_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
+p4est_adr_test_2_distributed_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+p4est_adr_test_2_distributed_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
+CLEANFILES += p4est_adr_test_2_distributed*.octbin.gz p4est_adr_test_2_distributed*.pvtu p4est_adr_test_2_distributed*.visit p4est_adr_test_2_distributed*.vtu
 
 p4est_metrics_test_1_SOURCES =  p4est_metrics_test_1.cpp 
 p4est_metrics_test_1_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
