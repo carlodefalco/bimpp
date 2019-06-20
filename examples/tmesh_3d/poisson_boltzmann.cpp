@@ -14,10 +14,10 @@
 
 #include <p8est.h>
 
-constexpr double ll = -.3e-9;
-constexpr double rr =  .3e-9;
-constexpr double bb = -.3e-9;
-constexpr double tt =  .3e-9;
+constexpr double ll = -12;
+constexpr double rr =  30;
+constexpr double bb = -12;
+constexpr double tt =  30;
 
 constexpr p4est_topidx_t simple_conn_num_vertices = 8;
 constexpr p4est_topidx_t simple_conn_num_trees = 1;
@@ -29,8 +29,8 @@ const p4est_topidx_t simple_conn_t[simple_conn_num_trees*9] =
 
 
 static constexpr double stern_size  = rr / 1.e-2 ;
-static constexpr int maxlevel       = 10;
-static constexpr int minlevel       = 7;
+static constexpr int maxlevel       =  10;
+static constexpr int minlevel       =  2;
 static constexpr double decay       = -3.0;
 static char filename[255];
 
@@ -68,71 +68,6 @@ static int
 uniform_refinement (tmesh_3d::quadrant_iterator quadrant)
 { return 1; }
 
-
-
-static double
-refinement (tmesh_3d::quadrant_iterator quadrant)
-{
-
-  int currentlevel = static_cast<int> (quadrant->the_quadrant->level);
-  double xcoord, ycoord, zcoord;
-  int retval = 0;
-  marker m = exterior, m0 = exterior;
-  
-  for (int ii = 0; ii < 8; ++ii)
-    {
-
-      m = mark_region (quadrant->p(0, ii),
-                       quadrant->p(1, ii),
-                       quadrant->p(2, ii));
-      if (ii == 0)
-        m0 = m;
-      
-      if ((m == stern)
-          || (m != m0))
-        {
-          retval = maxlevel - currentlevel;
-          break;
-        }
-    }
-
-  if (currentlevel >= maxlevel)
-    retval = 0;
-      
-  return (retval);
-}
-
-static int
-coarsening (tmesh_3d::quadrant_iterator quadrant)
-{
-  int currentlevel = static_cast<int> (quadrant->the_quadrant->level);
-  double xcoord, ycoord, zcoord;
-  int retval = currentlevel - minlevel;
-  marker m = exterior;
-  
-  for (int ii = 0; ii < 8; ++ii)
-    {
-
-      m = mark_region (quadrant->p(0, ii),
-                       quadrant->p(1, ii),
-                       quadrant->p(2, ii));
-
-
-      if ((m != exterior)
-          && (m != interior))
-        {
-          retval = 0;
-          break;
-        }
-    }
-
-  if (currentlevel <= minlevel)
-    retval = 0;
-  
-  return (retval);
-}
-
-
 int
 main (int argc, char **argv)
 {
@@ -148,19 +83,7 @@ main (int argc, char **argv)
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
 
-
-  ions.push_back (ion ({ 1.390000000000000e-10,  0.000000000000000e+00, 0.000000000000000e+00}, 7.000000000000001e-11));
-  ions.push_back (ion ({ 6.950000000000002e-11,  1.203775311260370e-10, 0.000000000000000e+00}, 7.000000000000001e-11));
-  ions.push_back (ion ({-6.949999999999998e-11,  1.203775311260370e-10, 0.000000000000000e+00}, 7.000000000000001e-11));
-  ions.push_back (ion ({-1.390000000000000e-10,  0.000000000000000e+00, 0.000000000000000e+00}, 7.000000000000001e-11));
-  ions.push_back (ion ({-6.950000000000007e-11, -1.203775311260369e-10, 0.000000000000000e+00}, 7.000000000000001e-11));
-  ions.push_back (ion ({ 6.949999999999990e-11, -1.203775311260370e-10, 0.000000000000000e+00}, 7.000000000000001e-11));
-  ions.push_back (ion ({ 2.480000000000000e-10,  0.000000000000000e+00, 0.000000000000000e+00}, 2.500000000000001e-11));
-  ions.push_back (ion ({ 1.240000000000000e-10,  2.147743001385408e-10, 0.000000000000000e+00}, 2.500000000000001e-11));
-  ions.push_back (ion ({-1.240000000000000e-10,  2.147743001385408e-10, 0.000000000000000e+00}, 2.500000000000001e-11));
-  ions.push_back (ion ({-2.480000000000000e-10,  0.000000000000000e+00, 0.000000000000000e+00}, 2.500000000000001e-11));
-  ions.push_back (ion ({-1.240000000000001e-10, -2.147743001385407e-10, 0.000000000000000e+00}, 2.500000000000001e-11));
-  ions.push_back (ion ({ 1.239999999999998e-10, -2.147743001385409e-10, 0.000000000000000e+00}, 2.500000000000001e-11));
+#include "crambina.h"
   
   TIC ();
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
@@ -184,56 +107,166 @@ main (int argc, char **argv)
   TIC ();
   sprintf (filename, "poisson_boltzmann_initial_mesh");
   tmsh.vtk_export (filename);
-  TOC ("i/o");
-  
-  TIC ();
-  distributed_vector rcoeff (tmsh.num_owned_nodes ());
-  
-  for (auto quadrant = tmsh.begin_quadrant_sweep ();
-       quadrant != tmsh.end_quadrant_sweep ();
-       ++quadrant)
+  TOC ("save initial mesh");
+
+
+  for (int kk = 0; kk < (maxlevel - minlevel); ++kk)
     {
 
-      for (int ii = 0; ii < 8; ++ii)
-        {
-          if (! quadrant->is_hanging (ii))
-            rcoeff[quadrant->gt (ii)] = levelsetfun (quadrant->p (0, ii),
-                                                     quadrant->p (1, ii),
-                                                     quadrant->p (2, ii));
-        }
+      {
+        TIC();
+        distributed_vector rcoeff (tmsh.num_owned_nodes ());
+  
+        for (auto quadrant = tmsh.begin_quadrant_sweep ();
+             quadrant != tmsh.end_quadrant_sweep ();
+             ++quadrant)
+          {
+
+            for (int ii = 0; ii < 8; ++ii)
+              {
+                if (! quadrant->is_hanging (ii))
+                  rcoeff[quadrant->gt (ii)] = levelsetfun (quadrant->p (0, ii),
+                                                           quadrant->p (1, ii),
+                                                           quadrant->p (2, ii));
+              }
+          }
+        bim3a_solution_with_ghosts (tmsh, rcoeff, replace_op);
+        TOC ("compute coefficient");
+
+  
+        TIC(); 
+        auto refinement = [&rcoeff]
+          (tmesh_3d::quadrant_iterator q) -> int
+          {
+            int currentlevel = static_cast<int> (q->the_quadrant->level);
+            int retval = 0;
+            double min = 100.0 * ions.size ();
+            double max = 0.0;
+            double tmp = 0.0;
+
+            if (currentlevel >= maxlevel)
+              retval = 0;
+            else
+              {
+                for (int ii = 0; ii < 8; ++ii)
+                  {
+
+                    if (! q->is_hanging (ii))
+                      tmp = rcoeff[q->gt (ii)];
+
+                    if (tmp > max) max = tmp;
+                    if (tmp < min) min = tmp;
+     
+                  }
+                if (max >= 1.0 && min <= 1.0)
+                  retval = maxlevel - currentlevel;
+              }
+
+            return (retval);
+          };
+
+        tmsh.set_refine_marker (refinement);
+        recursive = 0; partforcoarsen = 1; balance = 0;
+        tmsh.refine (recursive, partforcoarsen);      
+        TOC ("refinement");
+      }
+
+      {
+        TIC();
+        distributed_vector rcoeff (tmsh.num_owned_nodes ());
+  
+        for (auto quadrant = tmsh.begin_quadrant_sweep ();
+             quadrant != tmsh.end_quadrant_sweep ();
+             ++quadrant)
+          {
+
+            for (int ii = 0; ii < 8; ++ii)
+              {
+                if (! quadrant->is_hanging (ii))
+                  rcoeff[quadrant->gt (ii)] = levelsetfun (quadrant->p(0, ii),
+                                                           quadrant->p(1, ii),
+                                                           quadrant->p(2, ii));
+                else
+                  for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
+                    rcoeff[quadrant->gparent (jj, ii)] += 0;
+              }
+          }
+        bim3a_solution_with_ghosts (tmsh, rcoeff, replace_op);
+        TOC ("compute coefficient");
+
+        TIC ();
+        sprintf (filename, "poisson_boltzmann_mesh_marked_%4.4d", kk);
+        tmsh.octbin_export (filename, rcoeff);
+        TOC ("save marker");
+
+        TIC(); 
+        auto coarsening = [&rcoeff]
+          (tmesh_3d::quadrant_iterator q) -> int
+          {
+            int currentlevel = static_cast<int> (q->the_quadrant->level);
+            int retval = 0;
+            double min = 100.0 * ions.size ();
+            double max = 0.0;
+            double tmp = 0.0;
+
+            if (currentlevel <= minlevel)
+              retval = 0;
+            else
+              {
+                for (int ii = 0; ii < 8; ++ii)
+                  {
+
+                    if (! q->is_hanging (ii))
+                      tmp = rcoeff[q->gt (ii)];
+
+                    if (tmp > max) max = tmp;
+                    if (tmp < min) min = tmp;
+     
+                  }
+                if (max < 1.0 || min > 1.0)
+                  retval = currentlevel - minlevel;
+              }
+
+            return (retval);
+          };
+
+        
+        tmsh.set_coarsen_marker (coarsening);
+        recursive = 0; partforcoarsen = 1;
+        tmsh.coarsen (recursive, partforcoarsen);      
+        TOC ("coarsening");
+       
+      }
     }
-  bim3a_solution_with_ghosts (tmsh, rcoeff, replace_op);
-  TOC ("compute coefficient");
 
+  {
+    TIC();
+    distributed_vector rcoeff (tmsh.num_owned_nodes ());
   
-  TIC (); 
-  auto estimator = [&rcoeff]
-        (tmesh_3d::quadrant_iterator q)
-        {
-          if (rho2(q->centroid(0), q->centroid(1), q->centroid(2)) > (R*R))
-            return estimator_sol (q, u_star0, result);
-          else
-            return estimator_sol (q, u_star1, result);
-        };
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
+      {
+            
+        for (int ii = 0; ii < 8; ++ii)
+          {
+            if (! quadrant->is_hanging (ii))
+              rcoeff[quadrant->gt (ii)] = levelsetfun (quadrant->p(0, ii),
+                                                       quadrant->p(1, ii),
+                                                       quadrant->p(2, ii));
+            else
+              for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
+                rcoeff[quadrant->gparent (jj, ii)] += 0.;
+          }
+      }
+    bim3a_solution_with_ghosts (tmsh, rcoeff, replace_op);
+    TOC ("compute coefficient");
 
-  TOC ("refinement"); 
-
-  /*
-  TIC (); 
-  recursive = 1;  partforcoarsen = 1;  
-  tmsh.set_coarsen_marker (coarsening);
-  tmsh.coarsen (recursive, partforcoarsen);
-  TOC ("coarsening"); 
-  
-  TIC (); 
-  sprintf (filename, "poisson_boltzmann_adapted_mesh");
-  tmsh.vtk_export (filename);
-  TOC ("i/o");
-  */
-
-  TIC (); 
-  tmsh.octbin_export ("poisson_boltzmann_mesh_marked_0000", rcoeff);
-  TOC ("i/o");
+    TIC ();
+    sprintf (filename, "poisson_boltzmann_mesh_marked_%4.4d", (maxlevel - minlevel));
+    tmsh.octbin_export (filename, rcoeff);
+    TOC ("save marker");
+  }
   
   if (rank == 0) {print_timing_report();}
   
