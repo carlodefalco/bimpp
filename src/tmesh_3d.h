@@ -386,8 +386,10 @@ public:
 
         val = fun (q);
         if (val)
-          data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
+          {
+            data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
             data->refine_count = std::abs (val);
+          }
       }
   };
 
@@ -407,8 +409,10 @@ public:
 
         val = fun (q);
         if (val)
-          data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
+          {
+            data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
             data->refine_count = -std::abs (val);
+          }
       }
   };
 

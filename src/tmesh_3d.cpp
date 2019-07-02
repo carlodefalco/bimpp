@@ -518,7 +518,7 @@ tmesh_3d::read_connectivity (const char *filename, int source)
     octbingz2connectivity (filename, &conn);
 
   conn = p8est_connectivity_bcast (conn, source, comm);
-  p8est = p8est_new (comm, conn, 0, NULL, this);
+  p8est = p8est_new (comm, conn, sizeof (tmesh_3d::data_t), nullptr, this);
 };
 
 void
@@ -533,7 +533,7 @@ tmesh_3d::read_connectivity (const double *p,
                          t, num_trees, &conn);
 
   conn = p8est_connectivity_bcast (conn, source, comm);
-  p8est = p8est_new (comm, conn, 0, NULL, this);
+  p8est = p8est_new (comm, conn, sizeof (tmesh_3d::data_t), nullptr, this);
 };
 
 void
@@ -542,7 +542,8 @@ tmesh_3d::save (const char *filename)
 
 void
 tmesh_3d::load (const char *filename)
-{ p8est = p8est_load (filename, comm, 0, 0, this, &conn); };
+{ p8est = p8est_load (filename, comm, sizeof (tmesh_3d::data_t), 0, 
+                      this, &conn); };
 
 void
 tmesh_3d::vtk_export (const char *filename)
@@ -786,7 +787,8 @@ tmesh_3d::refine (int recursive, int partforcoarsen, int balance)
                       nullptr, replace_callback);
 
   if (balance)
-    p8est_balance (p8est, P8EST_CONNECT_EDGE, nullptr);
+    p8est_balance_ext (p8est, P8EST_CONNECT_EDGE, nullptr, replace_callback);
+    //p8est_balance (p8est, P8EST_CONNECT_EDGE, nullptr);
 
   p8est_partition (p8est, partforcoarsen, nullptr);
 
@@ -816,7 +818,7 @@ tmesh_3d::metrics_refine (idx_t max_elems)
         refine (recursive, partforcoarsen, balance);
     }
 
-  p8est_balance_ext (p8est, P8EST_CONNECT_FACE, nullptr, replace_callback);
+  p8est_balance_ext (p8est, P8EST_CONNECT_EDGE, nullptr, replace_callback);
 }
 
 void
@@ -829,7 +831,8 @@ tmesh_3d::coarsen (int recursive, int partforcoarsen, int balance)
                        nullptr, replace_callback);
 
   if (balance)
-    p8est_balance (p8est, P8EST_CONNECT_EDGE, nullptr);
+    p8est_balance_ext (p8est, P8EST_CONNECT_EDGE, nullptr, replace_callback);
+    //p8est_balance (p8est, P8EST_CONNECT_EDGE, nullptr);
 
   p8est_partition (p8est, partforcoarsen, nullptr);
 
@@ -1154,7 +1157,7 @@ tmesh_3d::user_data_replace (std::vector<tmesh_3d::data_t *> old_user_data)
       for (int row = 0; row < 8; ++row)
         {
           // If coarsening, then (due to balancing)
-          // the four parent indices have a "1" entry.
+          // the parent indices have a "1" entry.
           for (int col = 0; col < 8; ++col)
             {
               if (old_user_data[row]->interp_coeff[row][col] == 1)
@@ -1250,7 +1253,7 @@ tmesh_3d::set_interpolation_matrix (tmesh_3d::quadrant_iterator & q)
   
   data->interp_idx = {0};
   data->interp_coeff = {0};
-  
+
   int col = 0;
   for (auto map_el = interp_map.begin ();
        map_el != interp_map.end ();
