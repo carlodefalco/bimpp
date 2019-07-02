@@ -8,7 +8,7 @@ AM_CPPFLAGS      =  -I$(top_srcdir)/src -I$(top_srcdir)/test -I$(top_builddir)/s
 AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
-bin_PROGRAMS = p4est_palla_3d p4est_palla_3d_flow test_gradient_3d p4est_refine_box
+bin_PROGRAMS = p4est_palla_3d p4est_palla_3d_flow test_gradient_3d p4est_refine_box poisson_boltzmann 
 CLEANFILES = 
 
 p4est_palla_3d_SOURCES =  p4est_palla_3d.cpp
@@ -34,3 +34,11 @@ p4est_refine_box_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
 p4est_refine_box_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 p4est_refine_box_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
 CLEANFILES += p4est_refine_box_*.pvtu p4est_refine_box_*.visit p4est_refine_box_*.vtu
+
+poisson_boltzmann_SOURCES =  poisson_boltzmann.cpp pb_class.cpp
+poisson_boltzmann_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
+poisson_boltzmann_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+poisson_boltzmann_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+CLEANFILES += 
+
+
