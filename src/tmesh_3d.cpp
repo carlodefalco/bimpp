@@ -742,26 +742,32 @@ tmesh_3d::begin_quadrant_sweep ()
 
 void
 tmesh_3d::set_metrics_marker
-(std::function<double (tmesh_3d::quadrant_iterator)> estim,
- double tol, int max_depth)
+(std::function<double (tmesh_3d::quadrant_iterator)> estimator,
+ double tol, int max_depth, int n_refine, int n_coarsen)
 {
   this->metrics_max_depth = max_depth;
 
-  double hxhat_hx = 0;
+  tmesh_3d::data_t * data;
+  int hxhat_hx = 0;
 
   for (auto quadrant = this->begin_quadrant_sweep ();
        quadrant != this->end_quadrant_sweep (); ++quadrant)
     {
-      hxhat_hx = std::log2 (estim (quadrant)
-                            * std::sqrt (this->num_global_quadrants ()) / tol);
+      set_interpolation_matrix (quadrant);
 
-      quadrant->the_quadrant->p.user_int =
-        std::min (std::max (-double (max_depth),
-                            std::ceil (hxhat_hx)),
-                  double (max_depth));
+      hxhat_hx = static_cast<int> (std::round(std::log2 (estimator (quadrant)
+                          * std::sqrt (this->num_global_quadrants ()) / tol)));
 
-      //std::cout << hxhat_hx << " ";
-      //std::cout << quadrant->the_quadrant->p.user_int << std::endl;
+      if (hxhat_hx >= 0)
+        hxhat_hx = std::max(0, hxhat_hx - n_refine);
+      else
+        hxhat_hx = std::min(0, hxhat_hx - n_coarsen);
+
+      data = 
+        static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
+      
+      data->refine_count = 
+        std::min (std::max (-max_depth, hxhat_hx), max_depth);
     }
 
   return;
@@ -799,19 +805,18 @@ tmesh_3d::metrics_refine (idx_t max_elems)
 {
   int recursive = 0;
   int partforcoarsen = 1;
+  int balance = 0;
 
-  for (int i = 0; i < metrics_max_depth - 1; ++i)
+  for (int i = 0; i < metrics_max_depth; ++i)
     {
-      coarsen (recursive, partforcoarsen, 0);
-      refine (recursive, partforcoarsen, 0);
+      coarsen (recursive, partforcoarsen, balance);
 
       // Prevent large meshes.
-      if (max_elems > 0 && this->num_global_quadrants () >= max_elems)
-        break;
+      if (max_elems <= 0 || this->num_global_quadrants () < max_elems)
+        refine (recursive, partforcoarsen, balance);
     }
 
-  coarsen (recursive, partforcoarsen, 0);
-  refine (recursive, partforcoarsen, 1);
+  p8est_balance_ext (p8est, P8EST_CONNECT_FACE, nullptr, replace_callback);
 }
 
 void
@@ -991,25 +996,205 @@ tmesh_3d::userint_replace (std::vector<int> old_userint)
   return new_userint;
 }
 
+std::vector<tmesh_3d::data_t>
+tmesh_3d::user_data_replace (std::vector<tmesh_3d::data_t *> old_user_data)
+{
+  std::vector<tmesh_3d::data_t> new_user_data;
+
+  // Refinement.
+  if (old_user_data.size () == 1)
+    {
+      new_user_data.resize (8);
+
+      for (size_t i = 0; i < new_user_data.size (); ++i)
+        {
+          // Decrease refine_count.
+          new_user_data[i].refine_count =
+            old_user_data[0]->refine_count - 1;
+
+          // Determine interpolation indices.
+          new_user_data[i].interp_idx =
+            old_user_data[0]->interp_idx;
+          
+          // Compute local interpolation matrix.
+          std::array<std::array<double, 8>, 8> loc_interp;
+          
+          if (i == 0)
+            loc_interp =
+              {
+                1,     0,     0,     0,     0,     0,     0,     0,
+                0.5,   0.5,   0,     0,     0,     0,     0,     0,
+                0.5,   0,     0.5,   0,     0,     0,     0,     0,
+                0.25,  0.25,  0.25,  0.25,  0,     0,     0,     0,
+                0.5,   0,     0,     0,     0.5,   0,     0,     0,
+                0.25,  0.25,  0,     0,     0.25,  0.25,  0,     0,
+                0.25,  0,     0.25,  0,     0.25,  0,     0.25,  0,
+                0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125
+              };
+          else if (i == 1)
+            loc_interp =
+              {
+                0.5,   0.5,   0,     0,     0,     0,     0,     0,
+                0,     1,     0,     0,     0,     0,     0,     0,
+                0.25,  0.25,  0.25,  0.25,  0,     0,     0,     0,
+                0,     0.5,   0,     0.5,   0,     0,     0,     0,
+                0.25,  0.25,  0,     0,     0.25,  0.25,  0,     0,
+                0,     0.5,   0,     0,     0,     0.5,   0,     0,
+                0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+                0,     0.25,  0,     0.25,  0,     0.25,  0,     0.25
+              };
+          else if (i == 2)
+            loc_interp =
+              {
+                0.5,   0,     0.5,   0,     0,     0,     0,     0,
+                0.25,  0.25,  0.25,  0.25,  0,     0,     0,     0,
+                0,     0,     1,     0,     0,     0,     0,     0,
+                0,     0,     0.5,   0.5,   0,     0,     0,     0,
+                0.25,  0,     0.25,  0,     0.25,  0,     0.25,  0,
+                0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+                0,     0,     0.5,   0,     0,     0,     0.5,   0,
+                0,     0,     0.25,  0.25,  0,     0,     0.25,  0.25
+              };
+          else if (i == 3)
+            loc_interp =
+              {
+                0.25,  0.25,  0.25,  0.25,  0,     0,     0,     0,
+                0,     0.5,   0,     0.5,   0,     0,     0,     0,
+                0,     0,     0.5,   0.5,   0,     0,     0,     0,
+                0,     0,     0,     1,     0,     0,     0,     0,
+                0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+                0,     0.25,  0,     0.25,  0,     0.25,  0,     0.25,
+                0,     0,     0.25,  0.25,  0,     0,     0.25,  0.25,
+                0,     0,     0,     0.5,   0,     0,     0,     0.5
+              };
+          else if (i == 4)
+            loc_interp =
+              {
+                0.5,   0,     0,     0,     0.5,   0,     0,     0,
+                0.25,  0.25,  0,     0,     0.25,  0.25,  0,     0,
+                0.25,  0,     0.25,  0,     0.25,  0,     0.25,  0,
+                0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+                0,     0,     0,     0,     1,     0,     0,     0,
+                0,     0,     0,     0,     0.5,   0.5,   0,     0,
+                0,     0,     0,     0,     0.5,   0,     0.5,   0,
+                0,     0,     0,     0,     0.25,  0.25,  0.25,  0.25
+              };
+          else if (i == 5)
+            loc_interp =
+              {
+                0.25,  0.25,  0,     0,     0.25,  0.25,  0,     0,
+                0,     0.5,   0,     0,     0,     0.5,   0,     0,
+                0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+                0,     0.25,  0,     0.25,  0,     0.25,  0,     0.25,
+                0,     0,     0,     0,     0.5,   0.5,   0,     0,
+                0,     0,     0,     0,     0,     1,     0,     0,
+                0,     0,     0,     0,     0.25,  0.25,  0.25,  0.25,
+                0,     0,     0,     0,     0,     0.5,   0,     0.5
+              };
+          else if (i == 6)
+            loc_interp =
+              {
+                0.25,  0,     0.25,  0,     0.25,  0,     0.25,  0,
+                0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+                0,     0,     0.5,   0,     0,     0,     0.5,   0,
+                0,     0,     0.25,  0.25,  0,     0,     0.25,  0.25,
+                0,     0,     0,     0,     0.5,   0,     0.5,   0,
+                0,     0,     0,     0,     0.25,  0.25,  0.25,  0.25,
+                0,     0,     0,     0,     0,     0,     1,     0,
+                0,     0,     0,     0,     0,     0,     0.5,   0.5
+              };
+          else if (i == 7)
+            loc_interp =
+              {
+                0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+                0,     0.25,  0,     0.25,  0,     0.25,  0,     0.25,
+                0,     0,     0.25,  0.25,  0,     0,     0.25,  0.25,
+                0,     0,     0,     0.5,   0,     0,     0,     0.5,
+                0,     0,     0,     0,     0.25,  0.25,  0.25,  0.25,
+                0,     0,     0,     0,     0,     0.5,   0,     0.5,                
+                0,     0,     0,     0,     0,     0,     0.5,   0.5,
+                0,     0,     0,     0,     0,     0,     0,     1
+              };
+          
+          // Multiply by parent interpolation matrix.
+          new_user_data[i].interp_coeff = {0};
+          
+          for (int row = 0; row < 8; ++row)
+            for (int col = 0; col < 8; ++col)
+              for (int k = 0; k < 8; ++k)
+                new_user_data[i].interp_coeff[row][col] +=
+                  loc_interp[row][k] * old_user_data[0]->interp_coeff[k][col];
+        }
+    }
+  // Coarsening.
+  else if (old_user_data.size () == 8)
+    {
+      new_user_data.resize (1);
+
+      // Increase refine_count.
+      std::array<int, 8> ref_counts =
+        {
+          old_user_data[0]->refine_count,
+          old_user_data[1]->refine_count,
+          old_user_data[2]->refine_count,
+          old_user_data[3]->refine_count,
+          old_user_data[4]->refine_count,
+          old_user_data[5]->refine_count,
+          old_user_data[6]->refine_count,
+          old_user_data[7]->refine_count
+        };
+      
+      new_user_data[0].refine_count =
+        *std::max_element (ref_counts.begin (),
+                           ref_counts.end ()) + 1;
+
+      // Replace interpolation matrix.
+      new_user_data[0].interp_coeff = {0};
+      
+      for (int row = 0; row < 8; ++row)
+        {
+          // If coarsening, then (due to balancing)
+          // the four parent indices have a "1" entry.
+          for (int col = 0; col < 8; ++col)
+            {
+              if (old_user_data[row]->interp_coeff[row][col] == 1)
+                {
+                  new_user_data[0].interp_idx[row] = 
+                    old_user_data[row]->interp_idx[col];
+                  
+                  // Insert diagonal entry.
+                  new_user_data[0].interp_coeff[row][row] = 1;
+                  break;
+                }
+            }
+        }
+    }
+  
+  return new_user_data;
+}
+
 int
 tmesh_3d::refine_callback (p8est_t* p8, p4est_topidx_t tt,
                            p8est_quadrant_t* qq)
 {
-  return (qq->p.user_int > 0);
+  tmesh_3d::data_t * data =
+    static_cast<tmesh_3d::data_t *> (qq->p.user_data);
+
+  return (data->refine_count > 0);
 };
 
 int
 tmesh_3d::coarsen_callback (p8est_t* p8, p4est_topidx_t tt,
                             p8est_quadrant_t* qq [])
 {
-  return (qq[0]->p.user_int < 0 &&
-          qq[1]->p.user_int < 0 &&
-          qq[2]->p.user_int < 0 &&
-          qq[3]->p.user_int < 0 &&
-          qq[4]->p.user_int < 0 &&
-          qq[5]->p.user_int < 0 &&
-          qq[6]->p.user_int < 0 &&
-          qq[7]->p.user_int < 0);
+  return (static_cast<tmesh_3d::data_t *> (qq[0]->p.user_data)->refine_count < 0 
+      && static_cast<tmesh_3d::data_t *> (qq[1]->p.user_data)->refine_count < 0
+      && static_cast<tmesh_3d::data_t *> (qq[2]->p.user_data)->refine_count < 0
+      && static_cast<tmesh_3d::data_t *> (qq[3]->p.user_data)->refine_count < 0
+      && static_cast<tmesh_3d::data_t *> (qq[4]->p.user_data)->refine_count < 0
+      && static_cast<tmesh_3d::data_t *> (qq[5]->p.user_data)->refine_count < 0
+      && static_cast<tmesh_3d::data_t *> (qq[6]->p.user_data)->refine_count < 0
+      && static_cast<tmesh_3d::data_t *> (qq[7]->p.user_data)->refine_count < 0);
 };
 
 void
@@ -1022,15 +1207,59 @@ tmesh_3d::replace_callback (p8est_t * p8,
 {
   tmesh_3d *tm = reinterpret_cast<tmesh_3d*> (p8->user_pointer);
 
-  std::vector<int> old_userint (num_outgoing);
+  std::vector<tmesh_3d::data_t *> old_user_data (num_outgoing);
 
   for (size_t i = 0; i < num_outgoing; ++i)
-    old_userint[i] = outgoing[i]->p.user_int;
+    old_user_data[i] = 
+      static_cast<tmesh_3d::data_t *> (outgoing[i]->p.user_data);
 
-  std::vector<int> new_userint = tm->replace_fun (old_userint);
+  std::vector<tmesh_3d::data_t> new_user_data =
+    tm->replace_fun (old_user_data);
 
   for (size_t i = 0; i < num_incoming; ++i)
-    incoming[i]->p.user_int = new_userint[i];
+    *(static_cast<tmesh_3d::data_t *> (incoming[i]->p.user_data)) =
+      new_user_data[i];
 
   return;
+};
+
+void
+tmesh_3d::set_interpolation_matrix (tmesh_3d::quadrant_iterator & q)
+{
+  // Create interpolation map.
+  std::map<idx_t,
+           std::vector<std::pair<int, double>>> interp_map;
+  
+  for (int node = 0; node < 8; ++node)
+    {
+      if (! q->is_hanging (node))
+        interp_map[q->gt (node)].push_back
+          (std::make_pair(node, 1));
+      else
+        {
+          int np = q->num_parents(node);
+          for (int pp = 0; pp < np; ++pp)
+            interp_map[q->gparent (pp, node)].push_back
+              (std::make_pair(node, 1/np));
+        }
+    }
+  
+  // Copy interp_map into user_data.
+  tmesh_3d::data_t * data =
+    static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
+  
+  data->interp_idx = {0};
+  data->interp_coeff = {0};
+  
+  int col = 0;
+  for (auto map_el = interp_map.begin ();
+       map_el != interp_map.end ();
+       ++col, ++map_el)
+    {
+      data->interp_idx[col] =
+        map_el->first;
+      
+      for (auto vec_entry : map_el->second)
+        data->interp_coeff[vec_entry.first][col] = vec_entry.second;
+    }
 };

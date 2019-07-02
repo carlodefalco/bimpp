@@ -274,6 +274,21 @@ public:
                            -1,-1,-1,-1, -1,-1,-1,-1};
   };
 
+  /// Struct for p8est user_data.
+  struct data_t
+  {
+    /// Number of refinement steps to be performed.
+    /// A negative number is used to mark for coarsening.
+    int refine_count;
+
+    /// Interpolation indices, i.e. the indices
+    /// associated to interp_coeff columns.
+    std::array<tmesh_3d::idx_t, 8> interp_idx;
+
+    /// Interpolation coefficients at the eight vertices.
+    std::array<std::array<double, 8>, 8> interp_coeff;
+  };  
+
   /// Default constructor, set all pointers to nullptr.
   tmesh_3d (MPI_Comm _comm = MPI_COMM_WORLD)
     : p8est (nullptr), conn (nullptr),
@@ -281,7 +296,7 @@ public:
       lnodes (nullptr), mesh (nullptr), ghost (nullptr),
       mirror_data (nullptr), ghost_data (nullptr),
       comm (_comm), rank (0), size (1),
-      replace_fun (userint_replace)
+      replace_fun (user_data_replace)
   {
     MPI_Comm_rank (comm, &rank);
     MPI_Comm_size (comm, &size);
@@ -360,15 +375,19 @@ public:
   set_refine_marker
   (std::function<int (quadrant_iterator)> fun)
   {
+    tmesh_3d::data_t * data;
     int val = 0;
 
     for (auto q = this->begin_quadrant_sweep ();
          q != this->end_quadrant_sweep ();
          ++q)
       {
+        set_interpolation_matrix (q);
+
         val = fun (q);
         if (val)
-          q->the_quadrant->p.user_int = std::abs (val);
+          data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
+            data->refine_count = std::abs (val);
       }
   };
 
@@ -377,28 +396,34 @@ public:
   set_coarsen_marker
   (std::function<int (quadrant_iterator)> fun)
   {
+    tmesh_3d::data_t * data;
     int val = 0;
 
     for (auto q = this->begin_quadrant_sweep ();
          q != this->end_quadrant_sweep ();
          ++q)
       {
+        set_interpolation_matrix (q);
+
         val = fun (q);
         if (val)
-          q->the_quadrant->p.user_int = -std::abs (val);
+          data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
+            data->refine_count = -std::abs (val);
       }
   };
 
   /// Mark quadrants for refinement based on metrics.
   void
   set_metrics_marker (std::function<double (quadrant_iterator)>,
-                      double, int max_depth = 5);
+                      double, int max_depth = 5,
+                      int n_refine = 0,
+                      int n_coarsen = 0);
 
   /// Set functor to replace quadrants while being
   /// refined or coarsened.
   void
   set_replace_fun
-  (std::function<std::vector<int> (std::vector<int>)> fun)
+  (std::function<std::vector<tmesh_3d::data_t> (std::vector<tmesh_3d::data_t *>)> fun)
   { replace_fun = fun; };
 
   /// Refine marked quadrants, balance the octree and
@@ -471,6 +496,10 @@ public:
   static std::vector<int>
   userint_replace (std::vector<int>);
 
+  /// Replace fun based on quadrant user_data.
+  static std::vector<tmesh_3d::data_t>
+  user_data_replace (std::vector<tmesh_3d::data_t *>);
+
   /// P8EST pointers describing the tmesh,
   /// temporarily public until the API is stable.
   p8est_t              *p8est;
@@ -488,8 +517,7 @@ public:
   int      size;
 
 private:
-
-  std::function<std::vector<int> (std::vector<int>)> replace_fun;
+  std::function<std::vector<tmesh_3d::data_t> (std::vector<tmesh_3d::data_t *>)> replace_fun;
 
   static int
   refine_callback (p8est_t*, p4est_topidx_t, p8est_quadrant_t*);
@@ -501,6 +529,9 @@ private:
   replace_callback (p8est_t*, p4est_topidx_t,
                     int, p8est_quadrant_t* [],
                     int, p8est_quadrant_t* []);
+
+  void
+  set_interpolation_matrix (tmesh_3d::quadrant_iterator &);
 
   int metrics_max_depth;
 };
