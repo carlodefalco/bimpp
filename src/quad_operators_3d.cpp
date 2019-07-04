@@ -878,19 +878,13 @@ bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
               break;
             }
 
-          for (node_n = 0; node_n < 8; ++node_n)
-            if (neighbor->gt (node_n) ==
-                quadrant->gt (node_side))
-              break;
-
-          // If not, or if node_n is hanging,
-          // switch to the next neighbor.
-          if (node_n == 8 || neighbor->is_hanging (node_n))
+          if (neighbor->gt (node) != quadrant->gt (node_side) ||
+              neighbor->is_hanging (node))
             continue;
 
           hx = neighbor->p (0, 1) - neighbor->p (0, 0);
 
-          switch (node_n)
+          switch (node)
             {
             case 0:
               if (node_side == 1)
@@ -980,19 +974,13 @@ bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
               break;
             }
 
-          for (node_n = 0; node_n < 8; ++node_n)
-            if (neighbor->gt (node_n) ==
-                quadrant->gt (node_side))
-              break;
-
-          // If not, or if node_n is hanging,
-          // switch to the next neighbor.
-          if (node_n == 8 || neighbor->is_hanging (node_n))
+          if (neighbor->gt (node) != quadrant->gt (node_side) ||
+              neighbor->is_hanging (node))
             continue;
 
           hy = neighbor->p (1, 2) - neighbor->p (1, 0);
 
-          switch (node_n)
+          switch (node)
             {
             case 0:
               if (node_side == 2)
@@ -1082,19 +1070,13 @@ bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
               break;
             }
 
-          for (node_n = 0; node_n < 8; ++node_n)
-            if (neighbor->gt (node_n) ==
-                quadrant->gt (node_side))
-              break;
-
-          // If not, or if node_n is hanging,
-          // switch to the next neighbor.
-          if (node_n == 8 || neighbor->is_hanging (node_n))
+          if (neighbor->gt (node) != quadrant->gt (node_side) ||
+              neighbor->is_hanging (node))
             continue;
 
           hz = neighbor->p (2, 4) - neighbor->p (2, 0);
 
-          switch (node_n)
+          switch (node)
             {
             case 0:
               if (node_side == 4)
