@@ -16,7 +16,7 @@ uniform_refinement (tmesh_3d::quadrant_iterator q)
 
 // Number of refinement steps
 constexpr unsigned unif_refine_steps = 2;   // initial uniform refinement
-constexpr unsigned adapt_refine_steps = 6;  // adaptive refinement
+constexpr unsigned adapt_refine_steps = 10;  // adaptive refinement
 
 // Tolerance for refinement
 constexpr double tol = 1e-3;
@@ -41,7 +41,7 @@ main (int argc, char **argv)
   MPI_Comm_size (mpicomm, &size);
 
   // Problem parameters
-  constexpr double epsilon = 1e-4;      // diffusion coefficient
+  constexpr double epsilon = 1e-10;     // diffusion coefficient
   double n_coeff = 1/std::sqrt(3.0);    // normalization coefficient
   
   // Mesh parameters
@@ -55,13 +55,13 @@ main (int argc, char **argv)
   // Mesh generation
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
-  
+
   // Initial uniform refinement
   recursive = 0; partforcoarsen = 1;
   for (int cycle = 0; cycle < unif_refine_steps; ++cycle)
     {
       tmsh.refine (recursive, partforcoarsen);
-      tmsh.set_refine_marker (uniform_refinement);  
+      tmsh.set_refine_marker (uniform_refinement);
     }
   
   // Export initial mesh
@@ -108,7 +108,7 @@ main (int argc, char **argv)
                   }
             }
         }
-      psi.assemble(max_op);
+      psi.assemble(replace_op);
       g.assemble(replace_op);
 
       // Assemble matrix.
@@ -213,20 +213,26 @@ main (int argc, char **argv)
       gradient3 du = bim3c_quadtree_pde_recovered_gradient(tmsh, result);
       MPI_Barrier (mpicomm); if (rank == 0) { toc ("gradient recovery "); }
 
+      // Export reconstructed gradient
+      MPI_Barrier (mpicomm); if (rank == 0) { tic (); }
+      // 
+      // derivative along x
+      tmsh.octbin_export ((std::string ("p4est_adr_test_1_metrics_dudx_")
+                          + std::to_string(adapt)).c_str(), std::get<0>(du));
+      // 
+      // derivative along y
+      tmsh.octbin_export ((std::string ("p4est_adr_test_1_metrics_dudy_")
+                          + std::to_string(adapt)).c_str(), std::get<1>(du));
+      // 
+      // derivative along z
+      tmsh.octbin_export ((std::string ("p4est_adr_test_1_metrics_dudz_")
+                          + std::to_string(adapt)).c_str(), std::get<2>(du));
+      MPI_Barrier (mpicomm); if (rank == 0) { toc ("export gradient "); }
+
       // Compute reconstructed solution
       MPI_Barrier (mpicomm); if (rank == 0) { tic (); }
       q2_vec3 u_star = bim3c_quadtree_pde_recovered_solution(tmsh, result, du);
       MPI_Barrier (mpicomm); if (rank == 0) { toc ("solution recovery "); }
-      
-      // Export reconstructed gradient
-      MPI_Barrier (mpicomm); if (rank == 0) { tic (); }
-      tmsh.octbin_export ((std::string("p4est_adr_test_1_metrics_du_x_")
-                           + std::to_string(adapt)).c_str(), std::get<0>(du));
-      tmsh.octbin_export ((std::string("p4est_adr_test_1_metrics_du_y_")
-                           + std::to_string(adapt)).c_str(), std::get<1>(du));
-      tmsh.octbin_export ((std::string("p4est_adr_test_1_metrics_du_z_")
-                           + std::to_string(adapt)).c_str(), std::get<2>(du));
-      MPI_Barrier (mpicomm); if (rank == 0) { toc ("export gradient "); }
       
       // Define estimators
       MPI_Barrier (mpicomm); if (rank == 0) { tic (); }
@@ -241,7 +247,7 @@ main (int argc, char **argv)
 
       MPI_Barrier (mpicomm); if (rank == 0) { toc ("define estimators "); }
       
-      // Compute metrics and h.
+      // Compute metrics, mesh size and estimators
       MPI_Barrier (mpicomm); if (rank == 0) { tic (); }
       std::vector<double> metrics(tmsh.num_local_quadrants ());
 
@@ -251,8 +257,7 @@ main (int argc, char **argv)
       double  hx = 0, hy = 0, hz = 0,
               h = std::numeric_limits<double>::max ();
 
-      double estsol = 0.0;
-      double estgrad = 0.0;
+      double estsol = 0.0, estgrad = 0.0;
       
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
@@ -313,13 +318,12 @@ main (int argc, char **argv)
       if (tmsh.num_global_nodes () >= 10e7)
         break;
       else if (adapt < (adapt_refine_steps - 1))
-        {
+        {   
           // Set marker for refinement
-          tmsh.set_metrics_marker (estimator, tol*std::pow (.9, adapt),3);
+          tmsh.set_metrics_marker (estimator, tol*std::pow (.9, adapt),3,1,1);
           
           // Refine.
-          tmsh.metrics_refine (1e3);
-
+          tmsh.metrics_refine (1e5);
           std::cout << "tmsh.num_global_nodes ()= "
                     << tmsh.num_global_nodes ()
                     << std::endl;
@@ -341,7 +345,7 @@ main (int argc, char **argv)
   if (rank == 0)
     for (unsigned step = 0; step < nnodes.size(); ++step)
       {
-        std::cout << "Step " << step << ", #nodes: "
+        std::cout << "\nStep " << step << ", #nodes: "
                   << nnodes[step] << ", h: "
                   << h_step[step] << std::endl;
         std::cout << "\n\tSolution estimator = " << estSol[step]

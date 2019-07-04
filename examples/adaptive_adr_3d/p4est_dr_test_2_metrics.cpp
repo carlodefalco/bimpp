@@ -5,10 +5,12 @@
 #include <bim_timing.h>
 #include <simple_connectivity_3d.h>
 
+#include <algorithm>
+
 #include <cassert>
 #include <limits>
 
-constexpr bool EXPORT_ALL = true;
+constexpr bool EXPORT_ALL = false;
 
 // uniform_refinement:
 //    returns 1 ----> all quadrants are refined
@@ -18,8 +20,10 @@ uniform_refinement (tmesh_3d::quadrant_iterator q)
 
 // Number of refinement steps
 constexpr unsigned unif_refine_steps  = 2;  // initial uniform refinement
-constexpr unsigned adapt_refine_steps = 10;  // adaptive refinement
-constexpr double tol = 1.e-3;               // tolerance for refinement
+constexpr unsigned adapt_refine_steps = 7;  // adaptive refinement
+
+// Tolerance for refinement
+constexpr double tol = 1.e-3;
 
 // Problem parameters
 constexpr double inv_epsilon = 1e11;  // 1 / epsilon
@@ -92,6 +96,8 @@ static inline double
 reaction (double r2)
 { return (r2 > R*R ? 0.0 : inv_epsilon); }
 
+// main:
+//
 int
 main (int argc, char **argv)
 {
@@ -530,8 +536,7 @@ main (int argc, char **argv)
 
       // Compute h, errors and estimators
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
-      double  hx = 0, hy = 0, hz = 0,
-        h = std::numeric_limits<double>::max ();
+      double  hx = 0, hy = 0, hz = 0, h = 0;
 
       double err = 0.0;
       double errH1 = 0.0;
@@ -559,7 +564,7 @@ main (int argc, char **argv)
           hy = quadrant->p(1, 7) - quadrant->p(1, 0);
           hy = quadrant->p(2, 7) - quadrant->p(2, 0);
 
-          h = std::min(h, std::sqrt(hx*hx + hy*hy + hz*hz));
+          h = std::max(h, std::sqrt(hx*hx + hy*hy + hz*hz));
 
           // ||u - u_ex||_L^2(q)
           err += std::pow(l2_error(quadrant, u_ex, result), 2);
@@ -595,7 +600,7 @@ main (int argc, char **argv)
                            + std::to_string(adapt)).c_str(), grad_est);
 
       // Global mesh size
-      MPI_Reduce (&h, &h_step[adapt], 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
+      MPI_Reduce (&h, &h_step[adapt], 1, MPI_DOUBLE, MPI_MAX, 0, mpicomm);
 
       // Global errors
       //
@@ -640,8 +645,8 @@ main (int argc, char **argv)
       else if (adapt < (adapt_refine_steps - 1))
         {
           // Refine.
-          tmsh.set_metrics_marker (estimator, tol*std::pow (.9, adapt), 3);
-          tmsh.metrics_refine (1e3);
+          tmsh.set_metrics_marker (estimator, tol*std::pow (.9, adapt), 3, 2, 2);
+          tmsh.metrics_refine (1e5);
           std::cout << "tmsh.num_global_nodes ()= "
                     << tmsh.num_global_nodes ()
                     << std::endl;
@@ -660,7 +665,7 @@ main (int argc, char **argv)
   if (rank == 0)
     for (unsigned step = 0; step < nnodes.size(); ++step)
       {
-        std::cout << "Step " << step << ", #nodes: "
+        std::cout << "\nStep " << step << ", #nodes: "
                   << nnodes[step] << ", h: "
                   << h_step[step] << std::endl;
         std::cout << "\tL2 norm = " << error[step] 
