@@ -21,6 +21,8 @@
 
 // Setting parameters
 constexpr int NUM_REFINEMENTS = 5;
+constexpr int NUM_ADAPT = 40;
+constexpr int NUM_NON_ADAPT = 10;
 constexpr double EPS = 0.05;
 constexpr double DELTAT = 0.005;
 constexpr double T = 2;
@@ -50,6 +52,8 @@ uniform_refinement (tmesh::quadrant_iterator q)
 int
 main (int argc, char **argv)
 {
+
+  ////////////////INITIAL SETTING//////////////////////////////////////////////
 
   // Typedef for distributed vector
   using q1_vec  = q1_vec<distributed_vector>;
@@ -89,27 +93,81 @@ main (int argc, char **argv)
   tmsh.set_refine_marker (uniform_refinement);
   tmsh.refine (recursive);
 
+  // Allocate linear solver
+  mumps *lin_solver = new mumps ();
+
+  // Buffer for export filename
+  char filename[255]="";
+
+
+  // Squared epsilon parameter
+  double eps2=EPS*EPS;
+
+
+  int count = 0;
+
+  std::vector<tmesh::idx_t> nnodes;
+  std::vector<double> h_step;
+  std::vector<double> estim;
+
+
+///////////////////////////////FIRST TIME STEP/////////////////////////////////
+
+  count++;
+
+  // Print curent time
+  if(rank==0)
+  std::cout<<"TIME= "<<DELTAT*count<<std::endl;
+
   tmesh::idx_t gn_nodes = tmsh.num_global_nodes ();
   tmesh::idx_t ln_nodes = tmsh.num_owned_nodes ();
   tmesh::idx_t ln_elements = tmsh.num_local_quadrants ();
 
 
-  // Allocate linear solver
-  mumps *lin_solver = new mumps ();
-
-
-  // Allocate initial data container
+  // Initial data
   q1_vec sold (ln_nodes * 2);
   sold.get_owned_data ().assign (sold.get_owned_data ().size (), 0.0);
 
   q1_vec sol (ln_nodes * 2);
   sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
 
-  // Allocation of vectors to use sparse matrix
+
+  TIC ();
+  for (auto quadrant = tmsh.begin_quadrant_sweep ();
+       quadrant != tmsh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      for (int ii = 0; ii < 4; ++ii)
+        {
+          if (! quadrant->is_hanging (ii)){
+            double xx=quadrant->p(0,ii);
+            double yy=quadrant->p(1,ii);
+            sold[ord0(quadrant->gt (ii))] = std::sin(10*xx*yy);
+            sol[ord0(quadrant->gt (ii))] = 0;
+          }
+
+          else
+            {
+              sold[ord0(quadrant->gparent(0,ii))] +=0.;
+              sold[ord0(quadrant->gparent(1,ii))] +=0.;
+              sol[ord0(quadrant->gparent(0,ii))] +=0.;
+              sol[ord0(quadrant->gparent(1,ii))] +=0.;
+            }
+        }
+    }
+  bim2a_solution_with_ghosts (tmsh, sold, replace_op, ord0, false);
+  bim2a_solution_with_ghosts (tmsh, sold, replace_op, ord1);
+  TOC ("compute initial condition");
+
+  // Save initial conditions
+  sprintf(filename, "cahn_hilliard_u_0000");
+  tmsh.octbin_export (filename, sold, ord0);
+
+
+  // Containers construction
   std::vector<double> xa;
   std::vector<int> ir, jc;
 
-  // Allocation of containers for system coefficients
   std::vector<double> lapcoeffu (ln_elements);
   std::vector<double> lapcoeffw (ln_elements);
   std::vector<double> reazuw (ln_elements);
@@ -121,16 +179,11 @@ main (int argc, char **argv)
   q1_vec              fu (ln_nodes);
   q1_vec              fw (ln_nodes);
 
-
-  // Buffer for export filename
-  char filename[255]="";
-
-
-  // Squared epsilon parameter
-  double eps2=EPS*EPS;
+  distributed_sparse_matrix A;
+  A.set_ranges (ln_nodes * 2);
 
 
-  // Initialize constant (in time) parameters and initial data
+  // Initialize parameters
   TIC ();
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep ();
@@ -146,53 +199,48 @@ main (int argc, char **argv)
         {
           if (! quadrant->is_hanging (ii)){
             ncoeff[quadrant->gt (ii)] = 1.0;
-            double xx=quadrant->p(0,ii);
-            double yy=quadrant->p(1,ii);
-            sold[ord0(quadrant->gt (ii))] = std::sin(10*xx*yy);
-            sol[ord0(quadrant->gt (ii))] = std::sin(10*xx*yy);
+            reazuu[quadrant->gt (ii)] = -linc(sold[ord0(quadrant->gt (ii))]);
+            fu[quadrant->gt (ii)] = linf(sold[ord0(quadrant->gt (ii))]);
+            fw[quadrant->gt (ii)] = -sold[ord0(quadrant->gt (ii))];
           }
 
           else
             {
               ncoeff[quadrant->gparent (0, ii)] += 0.;
               ncoeff[quadrant->gparent (1, ii)] += 0.;
-              sold[ord0(quadrant->gparent(0,ii))] +=0.;
-              sold[ord0(quadrant->gparent(1,ii))] +=0.;
-              sol[ord0(quadrant->gparent(0,ii))] +=0.;
-              sol[ord0(quadrant->gparent(1,ii))] +=0.;
+              reazuu[quadrant->gparent (0, ii)] += 0.;
+              reazuu[quadrant->gparent (1, ii)] += 0.;
+              fu[quadrant->gparent (0, ii)] += 0.;
+              fu[quadrant->gparent (1, ii)] += 0.;
+              fw[quadrant->gparent (0, ii)] += 0.;
+              fw[quadrant->gparent (1, ii)] += 0.;
             }
         }
     }
   ncoeff.assemble (replace_op);
-  bim2a_solution_with_ghosts (tmsh, sold, replace_op, ord0, false);
-  bim2a_solution_with_ghosts (tmsh, sold, replace_op, ord1);
-  TOC ("compute constant coefficients and initial condition");
+  reazuu.assemble (replace_op);
+  fu.assemble (replace_op);
+  fw.assemble (replace_op);
+  TOC ("compute coefficients");
 
 
-  // Save initial conditions
-  sprintf(filename, "cahn_hilliard_u_0000");
-  tmsh.octbin_export (filename, sold, ord0);
-
-
-  // Declare system matrix
-  distributed_sparse_matrix A;
-  A.set_ranges (ln_nodes * 2);
-
-
-  // Matrix and RHS construction
+  // Matrix construction
   TIC ();
-  bim2a_laplacian(tmsh, ecoeff, A, ord0, ord0);
-  bim2a_laplacian(tmsh, ecoeff, A, ord1, ord1);
+  bim2a_laplacian(tmsh, lapcoeffu, A, ord0, ord0);
+  bim2a_laplacian(tmsh, lapcoeffw, A, ord1, ord1);
 
-  bim2a_reaction(tmsh, ecoeff, ncoeff, A, ord0, ord1);
-  bim2a_reaction(tmsh, ecoeff, ncoeff, A, ord1, ord0);
-  A.assemble ();
+  bim2a_reaction(tmsh, ecoeff, reazuu, A, ord0, ord0);
+  bim2a_reaction(tmsh, reazuw, ncoeff, A, ord0, ord1);
+  bim2a_reaction(tmsh, reazwu, ncoeff, A, ord1, ord0);
+  A.assemble();
   TOC ("assemble LHS");
 
+
+  // RHS construction
   TIC();
-  bim2a_rhs (tmsh, ecoeff, ncoeff, sol, ord0);
-  bim2a_rhs (tmsh, ecoeff, ncoeff, sol, ord1);
-  sol.assemble ();
+  bim2a_rhs (tmsh, ecoeff, fu, sol, ord0);
+  bim2a_rhs (tmsh, ecoeff, fw, sol, ord1);
+  sol.assemble();
   TOC ("assemble RHS");
 
 
@@ -205,198 +253,363 @@ main (int argc, char **argv)
   TOC ("solver analysis");
 
 
-  int count = 0;
-
-  std::vector<tmesh::idx_t> nnodes;
-  std::vector<double> h_step;
-  std::vector<double> estim;
-
-
-  // Time cycle
-  for( double time = DELTAT; time <= T; time += DELTAT){
-     count++;
+  // Matrix update
+  TIC ();
+  A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
+  lin_solver->set_distributed_lhs_data (xa);
+  TOC ("set LHS data");
 
 
-     // Print curent time
-     if(rank==0)
-     std::cout<<"TIME= "<<time<<std::endl;
-
-     // Reset containers
-     TIC();
-     A.reset ();
-
-     sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
-     sol.assemble (replace_op);
-     TOC("Resetting")
+  // Factorization
+  TIC ();
+  std::cout << "lin_solver->factorize () = " << lin_solver->factorize () << std::endl;
+  TOC ("solver factorize");
 
 
-      // Initialize non constant (in time) parameters
-      TIC();
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep ();
-         ++quadrant){
-           for (int ii = 0; ii < 4; ++ii)
-           {
-             if (! quadrant->is_hanging (ii)){
-               reazuu[quadrant->gt (ii)] = -linc(sold[ord0(quadrant->gt (ii))]);
-               fu[quadrant->gt (ii)] = linf(sold[ord0(quadrant->gt (ii))]);
-               fw[quadrant->gt (ii)] = -sold[ord0(quadrant->gt (ii))];
-             }
-             else
+  // Set RHS data
+  TIC ();
+  lin_solver->set_rhs_distributed (sol);
+  TOC ("set RHS data");
+
+
+  // Solution
+  TIC ();
+  std::cout << "lin_solver->solve () = " << lin_solver->solve () << std::endl;
+  TOC ("solver solve");
+
+
+  // Copy solution
+  TIC();
+  q1_vec result = lin_solver->get_distributed_solution ();
+  for (int idx = sold.get_range_start (); idx < sold.get_range_end (); ++idx)
+    sold (idx) = result (idx);
+  sold.assemble (replace_op);
+  TOC("Obtaining solution");
+
+
+  // Save solution
+  TIC();
+  sprintf(filename, "cahn_hilliard_u_%4.4d",count);
+  tmsh.octbin_export (filename, sold, ord0);
+  TOC("Exporting solution");
+
+  lin_solver->cleanup ();
+
+
+  /*
+  PROBLEMI:
+
+  Sono commentate le righe
+  519
+  520
+  521
+  598-602
+
+  Sono le uniche righe dove, dopo il raffinamento, si accede a sold.
+  Il problema è quindi che sold non "parla" con la nuova mesh.
+  Ho provato a ridichiararla da 0 sulla nuova mesh ma non compila.
+  Se invece si toglie il raffinamento va tutto.
+  */
+
+
+
+////////////////////////////////////////TIME CICLE//////////////////////////////
+
+  for( int i=0 ; i< NUM_ADAPT ; i++){
+
+    //////////////////////////////ESTIMATOR////////////////////////////////////////
+
+
+        TIC();
+        q1_vec only_u(gn_nodes);
+        for (int idx = 0; idx < gn_nodes; ++idx)
+          only_u(idx)=result(ord0(idx));
+        only_u.assemble(replace_op);
+        TOC("copy only u");
+
+
+
+        TIC();
+         double tol = 1e-4;
+         gradient<q1_vec> du = bim2c_quadtree_pde_recovered_gradient(tmsh, only_u);
+         q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, only_u, du);
+        TOC("gradient and ustar");
+
+         sprintf(filename, "du_x_%4.4d",i+1);
+         tmsh.octbin_export (filename, du.first);
+
+         sprintf(filename, "du_y_%4.4d",i+1);
+         tmsh.octbin_export (filename, du.second);
+
+
+         auto estimator = [& u_star, & only_u] (tmesh::quadrant_iterator q)
+           { return estimator_sol (q, u_star, only_u); };
+
+
+         tmsh.set_metrics_marker (estimator, tol, 4, 2, 2);
+
+
+         // Compute metrics and h.
+         std::vector<double> metrics(ln_elements);
+
+         double hx = 0, hy = 0,
+         h = std::numeric_limits<double>::max (),
+         global_h = 0;
+         double est = 0, global_est = 0;
+
+         for (auto quadrant = tmsh.begin_quadrant_sweep ();
+             quadrant != tmsh.end_quadrant_sweep ();
+               ++quadrant)
              {
-               reazuu[quadrant->gparent (0, ii)] += 0.;
-               reazuu[quadrant->gparent (1, ii)] += 0.;
-               fu[quadrant->gparent (0, ii)] += 0.;
-               fu[quadrant->gparent (1, ii)] += 0.;
-               fw[quadrant->gparent (0, ii)] += 0.;
-               fw[quadrant->gparent (1, ii)] += 0.;
+               metrics[quadrant->get_forest_quad_idx ()] =
+             estimator(quadrant)* std::sqrt (tmsh.num_global_quadrants ())
+               / tol;
+
+               hx = quadrant->p(0, 1) - quadrant->p(0, 0);
+               hy = quadrant->p(1, 2) - quadrant->p(1, 0);
+
+               h = std::min(h, std::sqrt(hx*hx + hy*hy));
+
+               est += std::pow(estimator(quadrant), 2);
              }
-           }
-      }
 
-      reazuu.assemble (replace_op);
-      fu.assemble (replace_op);
-      fw.assemble (replace_op);
-      TOC("Update coefficients");
+             sprintf(filename, "metrics_hx_%4.4d",i+1);
+             tmsh.octbin_export_quadrant (filename, metrics);
 
+             MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+             MPI_Reduce(&est, &global_est, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+             global_est = std::sqrt(global_est);
 
-      // Matrix construction
-      TIC ();
-      bim2a_laplacian(tmsh, lapcoeffu, A, ord0, ord0);
-      bim2a_laplacian(tmsh, lapcoeffw, A, ord1, ord1);
+             nnodes.push_back (tmsh.num_global_nodes ());
+             h_step.push_back (global_h);
+             estim.push_back (global_est);
 
-      bim2a_reaction(tmsh, ecoeff, reazuu, A, ord0, ord0);
-      bim2a_reaction(tmsh, reazuw, ncoeff, A, ord0, ord1);
-      bim2a_reaction(tmsh, reazwu, ncoeff, A, ord1, ord0);
-      TOC ("assemble LHS");
-
-      // RHS construction
-      TIC();
-      bim2a_rhs (tmsh, ecoeff, fu, sol, ord0);
-      bim2a_rhs (tmsh, ecoeff, fw, sol, ord1);
-      TOC ("assemble RHS");
+           TIC();
+              tmsh.metrics_refine (1e5);  // RAFFINAMENTO
+          TOC("refine");
 
 
-      // Communicate matrix and RHS
-      TIC ();
-      A.assemble ();
-      sol.assemble ();
-      TOC ("communicate A and b");
+    //////////////////////////////////////////////////////////////////////////////
 
-      // Matrix update
-      TIC ();
-      A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
-      lin_solver->set_distributed_lhs_data (xa);
-      TOC ("set LHS data");
+            // MI PREPARO A FARE 10 PASSI TEMPORALI
 
+            mumps *lin_solver = new mumps ();
 
-      // Factorization
-      TIC ();
-      std::cout << "lin_solver->factorize () = " << lin_solver->factorize () << std::endl;
-      TOC ("solver factorize");
+            // Ottengo i parametri della mesh corrente
+            TIC();
+            gn_nodes = tmsh.num_global_nodes ();
+            ln_nodes = tmsh.num_owned_nodes ();
+            ln_elements = tmsh.num_local_quadrants ();
+            TOC("Obtaining new parameters");
 
 
-      // Set RHS data
-      TIC ();
-      lin_solver->set_rhs_distributed (sol);
-      TOC ("set RHS data");
+            // Interpolo sold sulla nuova mesh
+            TIC();
+            q1_vec new_result(gn_nodes*2);
+            interpolate_vector (tmsh, result, new_result, ord0);
+            q1_vec sold(ln_nodes*2);
+            sold.get_owned_data ().assign (sold.get_owned_data ().size (), 0.0);
+            for (int idx = sold.get_range_start (); idx < sold.get_range_end (); ++idx)
+              sold (idx) = new_result (idx);
+            sold.assemble (replace_op);
+            TOC("Interpolation");
 
 
-      // Solution
-      TIC ();
-      std::cout << "lin_solver->solve () = " << lin_solver->solve () << std::endl;
-      TOC ("solver solve");
+            TIC();
+            distributed_sparse_matrix A;
+            A.set_ranges (ln_nodes * 2);
 
+            q1_vec sol (ln_nodes * 2);
+            sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
 
-      // Copy solution
-      TIC();
-      q1_vec result = lin_solver->get_distributed_solution ();
-      for (int idx = sold.get_range_start (); idx < sold.get_range_end (); ++idx)
-        sold (idx) = result (idx);
-      sold.assemble (replace_op);
-      TOC("Obtaining solution");
+            std::vector<double> xa;
+            std::vector<int> ir, jc;
 
+            std::vector<double> lapcoeffu (ln_elements);
+            std::vector<double> lapcoeffw (ln_elements);
+            std::vector<double> reazuw (ln_elements);
+            std::vector<double> reazwu (ln_elements);
+            std::vector<double> ecoeff (ln_elements);
 
-      // Save solution
-      TIC();
-      sprintf(filename, "cahn_hilliard_u_%4.4d",count);
-      tmsh.octbin_export (filename, sold, ord0);
-      sprintf(filename, "cahn_hilliard_v_%4.4d",count);
-      tmsh.octbin_export (filename, sold, ord1);
-      TOC("Exporting solution");
+            q1_vec              ncoeff (ln_nodes);
+            q1_vec              reazuu (ln_nodes);
+            q1_vec              fu (ln_nodes);
+            q1_vec              fw (ln_nodes);
+            TOC("Containers recontruction")
 
-      //////////////////////////////ESTIMATOR////////////////////////////////////////
-
-      // Rem: in this first implementation we are calculating the estimator and hx at each step without refining the mesh.
-
-           // Obtain global u
-
-           q1_vec only_u(gn_nodes);
-
-           for (int idx = 0; idx < gn_nodes; ++idx)
-             only_u[idx] = result[ord0(idx)]; // o sold?
-
-           only_u.assemble(replace_op);
-
-           double tol = 1e-4;
-
-           gradient<q1_vec> du = bim2c_quadtree_pde_recovered_gradient(tmsh, only_u);
-           q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, only_u, du);
-
-
-           sprintf(filename, "du_x_%4.4d",count);
-           tmsh.octbin_export (filename, du.first);
-
-           sprintf(filename, "du_y_%4.4d",count);
-           tmsh.octbin_export (filename, du.second);
-
-
-           auto estimator = [& u_star, & only_u] (tmesh::quadrant_iterator q)
-             { return estimator_sol (q, u_star, only_u); };
-
-
-           tmsh.set_metrics_marker (estimator, tol, 4, 2, 2);
-
-
-           // Compute metrics and h.
-           std::vector<double> metrics(ln_elements);
-
-           double hx = 0, hy = 0,
-           h = std::numeric_limits<double>::max (),
-           global_h = 0;
-           double est = 0, global_est = 0;
-
-           for (auto quadrant = tmsh.begin_quadrant_sweep ();
-               quadrant != tmsh.end_quadrant_sweep ();
+            // Compute constant (in time ) coeffficients
+            TIC ();
+            for (auto quadrant = tmsh.begin_quadrant_sweep ();
+                 quadrant != tmsh.end_quadrant_sweep ();
                  ++quadrant)
-               {
-                 metrics[quadrant->get_forest_quad_idx ()] =
-               estimator(quadrant)* std::sqrt (tmsh.num_global_quadrants ())
-                 / tol;
+              {
+                lapcoeffu[quadrant->get_forest_quad_idx ()] = eps2;
+                lapcoeffw[quadrant->get_forest_quad_idx ()] = DELTAT;
+                reazuw[quadrant->get_forest_quad_idx ()] = 1.0;
+                reazwu[quadrant->get_forest_quad_idx ()] = -1.0;
+                ecoeff[quadrant->get_forest_quad_idx ()] = 1.0;
 
-                 hx = quadrant->p(0, 1) - quadrant->p(0, 0);
-                 hy = quadrant->p(1, 2) - quadrant->p(1, 0);
+                for (int ii = 0; ii < 4; ++ii)
+                  {
+                    if (! quadrant->is_hanging (ii)){
+                      ncoeff[quadrant->gt (ii)] = 1.0;
+                    }
 
-                 h = std::min(h, std::sqrt(hx*hx + hy*hy));
+                    else
+                      {
+                        ncoeff[quadrant->gparent (0, ii)] += 0.;
+                        ncoeff[quadrant->gparent (1, ii)] += 0.;
+                      }
+                  }
+              }
+            ncoeff.assemble (replace_op);
+            TOC ("compute coefficients");
 
-                 est += std::pow(estimator(quadrant), 2);
-               }
 
-               sprintf(filename, "metrics_hx_%4.4d",count);
-               tmsh.octbin_export_quadrant (filename, metrics);
+            // Matrix and RHS construction (fake, just to set solver)
+            TIC ();
+            bim2a_laplacian(tmsh, ecoeff, A, ord0, ord0);
+            bim2a_laplacian(tmsh, ecoeff, A, ord1, ord1);
 
-               MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
-               MPI_Reduce(&est, &global_est, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-               global_est = std::sqrt(global_est);
+            bim2a_reaction(tmsh, ecoeff, ncoeff, A, ord0, ord1);
+            bim2a_reaction(tmsh, ecoeff, ncoeff, A, ord1, ord0);
+            A.assemble ();
+            TOC ("assemble LHS");
 
-               nnodes.push_back (tmsh.num_global_nodes ());
-               h_step.push_back (global_h);
-               estim.push_back (global_est);
+            TIC();
+            bim2a_rhs (tmsh, ecoeff, ncoeff, sol, ord0);
+            bim2a_rhs (tmsh, ecoeff, ncoeff, sol, ord1);
+            sol.assemble ();
+            TOC ("assemble RHS");
 
-      //////////////////////////////////////////////////////////////////////////////
 
+            // Solver analysis
+            TIC ();
+            lin_solver->set_lhs_distributed ();
+            A.aij (xa, ir, jc, lin_solver->get_index_base ());
+            lin_solver->set_distributed_lhs_structure (A.rows (), ir, jc);
+            std::cout << "lin_solver->analyze () = "<< lin_solver->analyze () << std::endl;
+            TOC ("solver analysis");
+
+
+
+            for (int j =0 ; j< NUM_NON_ADAPT; j++){
+              count++;
+
+              // Print curent time
+              if(rank==0)
+              std::cout<<"TIME= "<<DELTAT*count<<std::endl;
+
+
+             // Reset containers
+             TIC();
+             A.reset ();
+             sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
+             sol.assemble (replace_op);
+             TOC("Resetting")
+
+
+              // Initialize non constant (in time) parameters
+              TIC();
+              for (auto quadrant = tmsh.begin_quadrant_sweep ();
+                 quadrant != tmsh.end_quadrant_sweep ();
+                 ++quadrant){
+                   for (int ii = 0; ii < 4; ++ii)
+                   {
+                     if (! quadrant->is_hanging (ii)){
+                       ncoeff[quadrant->gt (ii)] = 1.0;
+                       reazuu[quadrant->gt (ii)] = -linc(sold[ord0(quadrant->gt (ii))]);
+                       fu[quadrant->gt (ii)] = linf(sold[ord0(quadrant->gt (ii))]);
+                       fw[quadrant->gt (ii)] = -sold[ord0(quadrant->gt (ii))];
+                     }
+                     else
+                     {
+                       reazuu[quadrant->gparent (0, ii)] += 0.;
+                       reazuu[quadrant->gparent (1, ii)] += 0.;
+                       fu[quadrant->gparent (0, ii)] += 0.;
+                       fu[quadrant->gparent (1, ii)] += 0.;
+                       fw[quadrant->gparent (0, ii)] += 0.;
+                       fw[quadrant->gparent (1, ii)] += 0.;
+                     }
+                   }
+              }
+              reazuu.assemble (replace_op);
+              fu.assemble (replace_op);
+              fw.assemble (replace_op);
+              TOC("Update coefficients");
+
+
+              // Matrix construction
+              TIC ();
+              bim2a_laplacian(tmsh, lapcoeffu, A, ord0, ord0);
+              bim2a_laplacian(tmsh, lapcoeffw, A, ord1, ord1);
+
+              bim2a_reaction(tmsh, ecoeff, reazuu, A, ord0, ord0);
+              bim2a_reaction(tmsh, reazuw, ncoeff, A, ord0, ord1);
+              bim2a_reaction(tmsh, reazwu, ncoeff, A, ord1, ord0);
+              TOC ("assemble LHS");
+
+              // RHS construction
+              TIC();
+              bim2a_rhs (tmsh, ecoeff, fu, sol, ord0);
+              bim2a_rhs (tmsh, ecoeff, fw, sol, ord1);
+              TOC ("assemble RHS");
+
+
+              // Communicate matrix and RHS
+              TIC ();
+              A.assemble ();
+              sol.assemble ();
+              TOC ("communicate A and b");
+
+
+              // Matrix update
+              TIC ();
+              A.aij_update (xa, ir, jc, lin_solver->get_index_base ());
+              lin_solver->set_distributed_lhs_data (xa);
+              TOC ("set LHS data");
+
+
+              // Factorization
+              TIC ();
+              std::cout << "lin_solver->factorize () = " << lin_solver->factorize () << std::endl;
+              TOC ("solver factorize");
+
+
+              // Set RHS data
+              TIC ();
+              lin_solver->set_rhs_distributed (sol);
+              TOC ("set RHS data");
+
+
+              // Solution
+              TIC ();
+              std::cout << "lin_solver->solve () = " << lin_solver->solve () << std::endl;
+              TOC ("solver solve");
+
+
+              // Copy solution
+              TIC();
+              result = lin_solver->get_distributed_solution ();
+              for (int idx = sold.get_range_start (); idx < sold.get_range_end (); ++idx)
+                sold (idx) = result (idx);
+              bim2a_solution_with_ghosts (tmsh, sold, replace_op, ord0, false);
+              bim2a_solution_with_ghosts (tmsh, sold, replace_op, ord1);
+              TOC("Obtaining solution");
+
+
+              TIC();
+              sprintf(filename, "cahn_hilliard_u_%4.4d",count);
+              tmsh.octbin_export (filename, sold, ord0);
+              TOC("Exporting solution");
+            }
+            lin_solver->cleanup ();
 
     }
+
+
+
+
     // Print number of nodes and hx
     if (rank == 0)
       for (unsigned step = 0; step < nnodes.size(); ++step)
@@ -409,11 +622,6 @@ main (int argc, char **argv)
   // Close MPI and print report
   MPI_Barrier (MPI_COMM_WORLD);
   if (rank == 0) { print_timing_report (); }
-
-
-  // Clean linear solver
-  lin_solver->cleanup ();
-
 
   MPI_Finalize ();
 
