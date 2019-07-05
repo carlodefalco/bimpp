@@ -170,9 +170,8 @@ main (int argc, char **argv)
 
   std::vector<double> lapcoeffu (ln_elements);
   std::vector<double> lapcoeffw (ln_elements);
-  std::vector<double> reazuw (ln_elements);
+  std::vector<double> ones (ln_elements);
   std::vector<double> reazwu (ln_elements);
-  std::vector<double> ecoeff (ln_elements);
 
   q1_vec              ncoeff (ln_nodes);
   q1_vec              reazuu (ln_nodes);
@@ -191,9 +190,8 @@ main (int argc, char **argv)
     {
       lapcoeffu[quadrant->get_forest_quad_idx ()] = eps2;
       lapcoeffw[quadrant->get_forest_quad_idx ()] = DELTAT;
-      reazuw[quadrant->get_forest_quad_idx ()] = 1.0;
       reazwu[quadrant->get_forest_quad_idx ()] = -1.0;
-      ecoeff[quadrant->get_forest_quad_idx ()] = 1.0;
+      ones[quadrant->get_forest_quad_idx ()] = 1.0;
 
       for (int ii = 0; ii < 4; ++ii)
         {
@@ -229,8 +227,8 @@ main (int argc, char **argv)
   bim2a_laplacian(tmsh, lapcoeffu, A, ord0, ord0);
   bim2a_laplacian(tmsh, lapcoeffw, A, ord1, ord1);
 
-  bim2a_reaction(tmsh, ecoeff, reazuu, A, ord0, ord0);
-  bim2a_reaction(tmsh, reazuw, ncoeff, A, ord0, ord1);
+  bim2a_reaction(tmsh, ones, reazuu, A, ord0, ord0);
+  bim2a_reaction(tmsh, ones, ncoeff, A, ord0, ord1);
   bim2a_reaction(tmsh, reazwu, ncoeff, A, ord1, ord0);
   A.assemble();
   TOC ("assemble LHS");
@@ -238,8 +236,8 @@ main (int argc, char **argv)
 
   // RHS construction
   TIC();
-  bim2a_rhs (tmsh, ecoeff, fu, sol, ord0);
-  bim2a_rhs (tmsh, ecoeff, fw, sol, ord1);
+  bim2a_rhs (tmsh, ones, fu, sol, ord0);
+  bim2a_rhs (tmsh, ones, fw, sol, ord1);
   sol.assemble();
   TOC ("assemble RHS");
 
@@ -314,27 +312,26 @@ main (int argc, char **argv)
 
 
         TIC();
-         double tol = 1e-4;
-         gradient<q1_vec> du = bim2c_quadtree_pde_recovered_gradient(tmsh, only_u);
-         q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, only_u, du);
+        double tol = 1e-4;
+        gradient<q1_vec> du = bim2c_quadtree_pde_recovered_gradient(tmsh, only_u);
+        q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, only_u, du);
+
+        sprintf(filename, "du_x_%4.4d",i+1);
+        tmsh.octbin_export (filename, du.first);
+
+        sprintf(filename, "du_y_%4.4d",i+1);
+        tmsh.octbin_export (filename, du.second);
         TOC("gradient and ustar");
 
-         sprintf(filename, "du_x_%4.4d",i+1);
-         tmsh.octbin_export (filename, du.first);
-
-         sprintf(filename, "du_y_%4.4d",i+1);
-         tmsh.octbin_export (filename, du.second);
-
-
-         auto estimator = [& u_star, & only_u] (tmesh::quadrant_iterator q)
+        TIC();
+        auto estimator = [& u_star, & only_u] (tmesh::quadrant_iterator q)
            { return estimator_sol (q, u_star, only_u); };
+        tmsh.set_metrics_marker (estimator, tol, 4, 2, 2);
+        TOC("Computing estimator");
 
-
-         tmsh.set_metrics_marker (estimator, tol, 4, 2, 2);
-
-
-         // Compute metrics and h.
-         std::vector<double> metrics(ln_elements);
+        TIC();
+        // Compute metrics and h.
+        std::vector<double> metrics(ln_elements);
 
          double hx = 0, hy = 0,
          h = std::numeric_limits<double>::max (),
@@ -357,19 +354,20 @@ main (int argc, char **argv)
                est += std::pow(estimator(quadrant), 2);
              }
 
-             sprintf(filename, "metrics_hx_%4.4d",i+1);
-             tmsh.octbin_export_quadrant (filename, metrics);
+          sprintf(filename, "metrics_hx_%4.4d",i+1);
+          tmsh.octbin_export_quadrant (filename, metrics);
 
-             MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
-             MPI_Reduce(&est, &global_est, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-             global_est = std::sqrt(global_est);
+          MPI_Reduce(&h, &global_h, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+          MPI_Reduce(&est, &global_est, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+          global_est = std::sqrt(global_est);
 
-             nnodes.push_back (tmsh.num_global_nodes ());
-             h_step.push_back (global_h);
-             estim.push_back (global_est);
+          nnodes.push_back (tmsh.num_global_nodes ());
+          h_step.push_back (global_h);
+          estim.push_back (global_est);
+          TOC("Compute metrics and h")
 
-           TIC();
-              tmsh.metrics_refine (1e5);  // RAFFINAMENTO
+          TIC();
+          tmsh.metrics_refine (1e5);  // RAFFINAMENTO
           TOC("refine");
 
 
@@ -377,61 +375,60 @@ main (int argc, char **argv)
 
             // MI PREPARO A FARE 10 PASSI TEMPORALI
 
-            mumps *lin_solver = new mumps ();
+           mumps *lin_solver = new mumps ();
 
             // Ottengo i parametri della mesh corrente
-            TIC();
-            gn_nodes = tmsh.num_global_nodes ();
-            ln_nodes = tmsh.num_owned_nodes ();
-            ln_elements = tmsh.num_local_quadrants ();
-            TOC("Obtaining new parameters");
+           TIC();
+           gn_nodes = tmsh.num_global_nodes ();
+           ln_nodes = tmsh.num_owned_nodes ();
+           ln_elements = tmsh.num_local_quadrants ();
+           TOC("Obtaining new parameters");
 
 
-            // Interpolo sold sulla nuova mesh
-            TIC();
-            q1_vec new_result(gn_nodes*2);
-            interpolate_vector (tmsh, result, new_result, ord0);
-            q1_vec sold(ln_nodes*2);
-            sold.get_owned_data ().assign (sold.get_owned_data ().size (), 0.0);
-            for (int idx = sold.get_range_start (); idx < sold.get_range_end (); ++idx)
-              sold (idx) = new_result (idx);
-            sold.assemble (replace_op);
-            TOC("Interpolation");
+           // Interpolo sold sulla nuova mesh
+           TIC();
+           q1_vec new_result(gn_nodes*2);
+           interpolate_vector (tmsh, result, new_result, ord0);
+           q1_vec sold(ln_nodes*2);
+           sold.get_owned_data ().assign (sold.get_owned_data ().size (), 0.0);
+           for (int idx = sold.get_range_start (); idx < sold.get_range_end (); ++idx)
+             sold (idx) = new_result (idx);
+           sold.assemble (replace_op);
+           TOC("Interpolation");
 
 
-            TIC();
-            distributed_sparse_matrix A;
-            A.set_ranges (ln_nodes * 2);
+           TIC();
+           distributed_sparse_matrix A;
+           A.set_ranges (ln_nodes * 2);
 
-            q1_vec sol (ln_nodes * 2);
-            sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
+           q1_vec sol (ln_nodes * 2);
+           sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
 
-            std::vector<double> xa;
-            std::vector<int> ir, jc;
+           xa.clear();
+           ir.clear();
+           jc.clear();
 
-            std::vector<double> lapcoeffu (ln_elements);
-            std::vector<double> lapcoeffw (ln_elements);
-            std::vector<double> reazuw (ln_elements);
-            std::vector<double> reazwu (ln_elements);
-            std::vector<double> ecoeff (ln_elements);
+           std::vector<double> lapcoeffu (ln_elements);
+           std::vector<double> lapcoeffw (ln_elements);
+           std::vector<double> ones (ln_elements);
+           std::vector<double> reazwu (ln_elements);
 
-            q1_vec              ncoeff (ln_nodes);
-            q1_vec              reazuu (ln_nodes);
-            q1_vec              fu (ln_nodes);
-            q1_vec              fw (ln_nodes);
-            TOC("Containers recontruction")
+           q1_vec              ncoeff (ln_nodes);
+           q1_vec              reazuu (ln_nodes);
+           q1_vec              fu (ln_nodes);
+           q1_vec              fw (ln_nodes);
+           TOC("Containers recontruction")
 
-            // Compute constant (in time ) coeffficients
-            TIC ();
-            for (auto quadrant = tmsh.begin_quadrant_sweep ();
-                 quadrant != tmsh.end_quadrant_sweep ();
-                 ++quadrant)
+           // Compute constant (in time ) coeffficients
+           TIC ();
+           for (auto quadrant = tmsh.begin_quadrant_sweep ();
+                quadrant != tmsh.end_quadrant_sweep ();
+                ++quadrant)
               {
                 lapcoeffu[quadrant->get_forest_quad_idx ()] = eps2;
                 lapcoeffw[quadrant->get_forest_quad_idx ()] = DELTAT;
-                reazuw[quadrant->get_forest_quad_idx ()] = 1.0;
+                ones[quadrant->get_forest_quad_idx ()] = 1.0;
                 reazwu[quadrant->get_forest_quad_idx ()] = -1.0;
-                ecoeff[quadrant->get_forest_quad_idx ()] = 1.0;
 
                 for (int ii = 0; ii < 4; ++ii)
                   {
@@ -452,17 +449,17 @@ main (int argc, char **argv)
 
             // Matrix and RHS construction (fake, just to set solver)
             TIC ();
-            bim2a_laplacian(tmsh, ecoeff, A, ord0, ord0);
-            bim2a_laplacian(tmsh, ecoeff, A, ord1, ord1);
+            bim2a_laplacian(tmsh, ones, A, ord0, ord0);
+            bim2a_laplacian(tmsh, ones, A, ord1, ord1);
 
-            bim2a_reaction(tmsh, ecoeff, ncoeff, A, ord0, ord1);
-            bim2a_reaction(tmsh, ecoeff, ncoeff, A, ord1, ord0);
+            bim2a_reaction(tmsh, ones, ncoeff, A, ord0, ord1);
+            bim2a_reaction(tmsh, ones, ncoeff, A, ord1, ord0);
             A.assemble ();
             TOC ("assemble LHS");
 
             TIC();
-            bim2a_rhs (tmsh, ecoeff, ncoeff, sol, ord0);
-            bim2a_rhs (tmsh, ecoeff, ncoeff, sol, ord1);
+            bim2a_rhs (tmsh, ones, ncoeff, sol, ord0);
+            bim2a_rhs (tmsh, ones, ncoeff, sol, ord1);
             sol.assemble ();
             TOC ("assemble RHS");
 
@@ -485,12 +482,12 @@ main (int argc, char **argv)
               std::cout<<"TIME= "<<DELTAT*count<<std::endl;
 
 
-             // Reset containers
-             TIC();
-             A.reset ();
-             sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
-             sol.assemble (replace_op);
-             TOC("Resetting")
+              // Reset containers
+              TIC();
+              A.reset ();
+              sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
+              sol.assemble (replace_op);
+              TOC("Resetting")
 
 
               // Initialize non constant (in time) parameters
@@ -528,15 +525,15 @@ main (int argc, char **argv)
               bim2a_laplacian(tmsh, lapcoeffu, A, ord0, ord0);
               bim2a_laplacian(tmsh, lapcoeffw, A, ord1, ord1);
 
-              bim2a_reaction(tmsh, ecoeff, reazuu, A, ord0, ord0);
-              bim2a_reaction(tmsh, reazuw, ncoeff, A, ord0, ord1);
+              bim2a_reaction(tmsh, ones, reazuu, A, ord0, ord0);
+              bim2a_reaction(tmsh, ones, ncoeff, A, ord0, ord1);
               bim2a_reaction(tmsh, reazwu, ncoeff, A, ord1, ord0);
               TOC ("assemble LHS");
 
               // RHS construction
               TIC();
-              bim2a_rhs (tmsh, ecoeff, fu, sol, ord0);
-              bim2a_rhs (tmsh, ecoeff, fw, sol, ord1);
+              bim2a_rhs (tmsh, ones, fu, sol, ord0);
+              bim2a_rhs (tmsh, ones, fw, sol, ord1);
               TOC ("assemble RHS");
 
 
