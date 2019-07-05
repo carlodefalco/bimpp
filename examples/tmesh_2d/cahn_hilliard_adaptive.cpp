@@ -296,22 +296,6 @@ main (int argc, char **argv)
   lin_solver->cleanup ();
 
 
-  /*
-  PROBLEMI:
-
-  Sono commentate le righe
-  519
-  520
-  521
-  598-602
-
-  Sono le uniche righe dove, dopo il raffinamento, si accede a sold.
-  Il problema è quindi che sold non "parla" con la nuova mesh.
-  Ho provato a ridichiararla da 0 sulla nuova mesh ma non compila.
-  Se invece si toglie il raffinamento va tutto.
-  */
-
-
 
 ////////////////////////////////////////TIME CICLE//////////////////////////////
 
