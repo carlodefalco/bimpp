@@ -21,8 +21,8 @@
 
 // Setting parameters
 constexpr int NUM_REFINEMENTS = 5;
-constexpr int NUM_ADAPT = 40;
-constexpr int NUM_NON_ADAPT = 10;
+constexpr int NUM_ADAPT = 200;
+constexpr int NUM_NON_ADAPT = 2;
 constexpr double EPS = 0.05;
 constexpr double DELTAT = 0.005;
 constexpr double T = 2;
@@ -312,7 +312,7 @@ main (int argc, char **argv)
 
 
         TIC();
-        double tol = 1e-4;
+        double tol = 1e-5;
         gradient<q1_vec> du = bim2c_quadtree_pde_recovered_gradient(tmsh, only_u);
         q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh, only_u, du);
 
@@ -326,7 +326,7 @@ main (int argc, char **argv)
         TIC();
         auto estimator = [& u_star, & only_u] (tmesh::quadrant_iterator q)
            { return estimator_sol (q, u_star, only_u); };
-        tmsh.set_metrics_marker (estimator, tol, 4, 2, 2);
+        tmsh.set_metrics_marker (estimator, tol, 4, 2, 0);
         TOC("Computing estimator");
 
         TIC();
@@ -367,7 +367,7 @@ main (int argc, char **argv)
           TOC("Compute metrics and h")
 
           TIC();
-          tmsh.metrics_refine (1e5);  // RAFFINAMENTO
+          tmsh.metrics_refine (5e4);  // RAFFINAMENTO
           TOC("refine");
 
 
