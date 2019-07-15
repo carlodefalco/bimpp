@@ -69,6 +69,14 @@ bim2a_advection_diffusion (tmesh & mesh,
 
 template <class T>
 void
+bim2a_advection_upwind (tmesh & mesh,
+                        const T& psi,
+                        sparse_matrix& A,
+                        const ordering& ordr = default_ord,
+                        const ordering& ordc = default_ord);
+
+template <class T>
+void
 bim2a_advection_eafe_diffusion (tmesh & mesh,
                                 const T& alpha,
                                 const T& psi,

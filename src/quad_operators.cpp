@@ -400,6 +400,53 @@ bim2a_advection_diffusion_loc (tmesh::quadrant_iterator& quadrant,
 
 }
 
+inline void
+upwind (const double in, double& bp, double& bm)
+{
+  bp = std::max (- in, 0.0);
+  bm = std::max (in, 0.0);
+}
+
+bim2a_advection_upwind_loc
+(tmesh::quadrant_iterator& quadrant,
+ const std::array<double, 4>& psi,
+ std::array<std::array<double,4>,4>& locmat)
+{
+  double psi01 = 0;
+  double psi13 = 0;
+  double psi32 = 0;
+  double psi20 = 0;
+
+  double bp01 = 0, bm01 = 0;
+  double bp13 = 0, bm13 = 0;
+  double bp32 = 0, bm32 = 0;
+  double bp20 = 0, bm20 = 0;
+
+  double
+    hx = quadrant->p (0, 1) - quadrant->p (0, 0),
+    hy = quadrant->p (1, 2) - quadrant->p (1, 0);
+
+  double
+    hxby2hy = .5 * hx / hy,
+    hyby2hx = .5 * hy / hx;
+
+  psi01 = psi[1] - psi[0];
+  psi13 = psi[3] - psi[1];
+  psi32 = psi[2] - psi[3];
+  psi20 = psi[0] - psi[2];
+
+  upwind (psi01, bp01, bm01);
+  upwind (psi13, bp13, bm13);
+  upwind (psi32, bp32, bm32);
+  upwind (psi20, bp20, bm20);
+
+  locmat[0] = { bm01+bp20, -bp01,      -bm20,       0        };
+  locmat[1] = {-bm01,       bp01+bm13,  0,         -bp13     };
+  locmat[2] = {-bp20,       0,          bp32+bm20, -bm32     };
+  locmat[3] = { 0,         -bm13,      -bp32,       bm32+bp13};
+
+}
+
 template <class T>
 void
 bim2a_advection_diffusion (tmesh& mesh,
@@ -434,6 +481,39 @@ bim2a_advection_diffusion (tmesh& mesh,
       bim2a_advection_diffusion_loc (quadrant, alpha_loc, psi_loc, Aloc);
       assemble (quadrant, Aloc, A, ordr, ordc,
                 symmetric ? nullptr : &psi);
+    }
+}
+
+template <class T>
+void
+bim2a_advection_upwind
+(tmesh& mesh,
+ const T& psi,
+ sparse_matrix& A,
+ const ordering& ordr,
+ const ordering& ordc)
+{
+  for (auto row : Aloc)
+    row.fill (0.0);
+
+  double alpha_loc = 0;
+  std::array<double, 4> psi_loc;
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      for (int n = 0; n < 4; ++n)
+        {
+          if (! quadrant->is_hanging (n))
+            psi_loc[n] = psi[quadrant->gt (n)];
+          else
+            psi_loc[n] = 0.5 * (psi[quadrant->gparent (0, n)] +
+                                psi[quadrant->gparent (1, n)]);
+        }
+
+      bim2a_advection_upwind_loc (quadrant, psi_loc, Aloc);
+      assemble (quadrant, Aloc, A, ordr, ordc, &psi);
     }
 }
 
@@ -1989,6 +2069,23 @@ bim2a_advection_diffusion (tmesh&,
                            bool,
                            const ordering&,
                            const ordering&);
+
+/* ---- */
+template
+void
+bim2a_advection_upwind (tmesh&,
+                        const std::vector<double>&,
+                        sparse_matrix&,
+                        const ordering&,
+                        const ordering&);
+
+template
+void
+bim2a_advection_upwind (tmesh&,
+                        const distributed_vector&,
+                        sparse_matrix&,
+                        const ordering&,
+                        const ordering&);
 
 /* ---- */
 template
