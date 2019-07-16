@@ -3,13 +3,14 @@ BIMLISLIB   = ../../src/libbimlis.la @LIS_LIB@ @MUMPS_EXTRA_LIBS@
 BIMP4ESTLIB = ../../src/libbimp4est.la @P4EST_LIB@
 BIMIOLIB    = ../../src/libbimio.la @OCTAVE_LINK_FLAGS@ @OCTAVE_LINK_ADD@
 BIMLIB           = ../../src/libbim.la
+BIMCHLIB    = ../../src/libbimsystemsolver.la
 
-AM_CPPFLAGS      =  -I$(top_srcdir)/src -I$(top_srcdir)/test -I$(top_builddir)/src @MUMPS_CPPFLAGS@ @LIS_CPPFLAGS@ @OCTAVE_COMPILE_FLAGS@ @OCTAVE_LINK_FLAGS@ 
+AM_CPPFLAGS      =  -I$(top_srcdir)/src -I$(top_srcdir)/test -I$(top_builddir)/src @MUMPS_CPPFLAGS@ @LIS_CPPFLAGS@ @OCTAVE_COMPILE_FLAGS@ @OCTAVE_LINK_FLAGS@
 AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
 bin_PROGRAMS = p4est_refine_segment_test p4est_ref_test p4est_ref_lnodes_test p4est_palla_2d \
-               p4est_palla_2d_flow simple_newton lis_csr_example simple simple_system cahn_hilliard cahn_hilliard_system cahn_hilliard_adaptive cahn_hilliard_system_adaptive
+               p4est_palla_2d_flow simple_newton lis_csr_example simple simple_system cahn_hilliard cahn_hilliard_system cahn_hilliard_adaptive cahn_hilliard_system_adaptive test_system_solver
 CLEANFILES =
 
 p4est_refine_segment_test_SOURCES =  p4est_refine_segment_test.cpp
@@ -46,47 +47,53 @@ simple_newton_SOURCES =  simple_newton.cpp
 simple_newton_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
 simple_newton_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 simple_newton_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-CLEANFILES += 
+CLEANFILES +=
 
 simple_system_SOURCES =  simple_system.cpp
 simple_system_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
 simple_system_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 simple_system_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-CLEANFILES += 
+CLEANFILES +=
 
 cahn_hilliard_SOURCES =  cahn_hilliard.cpp
 cahn_hilliard_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
 cahn_hilliard_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 cahn_hilliard_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-CLEANFILES += 
+CLEANFILES +=
 
 cahn_hilliard_adaptive_SOURCES =  cahn_hilliard_adaptive.cpp
 cahn_hilliard_adaptive_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
 cahn_hilliard_adaptive_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 cahn_hilliard_adaptive_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-CLEANFILES += 
+CLEANFILES +=
 
 cahn_hilliard_system_SOURCES =  cahn_hilliard_system.cpp
 cahn_hilliard_system_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
 cahn_hilliard_system_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 cahn_hilliard_system_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-CLEANFILES += 
+CLEANFILES +=
 
 cahn_hilliard_system_adaptive_SOURCES =  cahn_hilliard_system_adaptive.cpp
 cahn_hilliard_system_adaptive_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
 cahn_hilliard_system_adaptive_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 cahn_hilliard_system_adaptive_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-CLEANFILES += 
+CLEANFILES +=
 
 simple_SOURCES =  simple.cpp
 simple_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ -DBIM_TIMING
 simple_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 simple_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
-CLEANFILES += 
+CLEANFILES +=
 
 
 lis_csr_example_SOURCES =  lis_csr_example.cpp lis_csr_example_helper.cpp
 lis_csr_example_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
 lis_csr_example_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 lis_csr_example_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMLISLIB) @P4EST_LIB@
-CLEANFILES += 
+CLEANFILES +=
+
+test_system_solver_SOURCES = test_system_solver.cpp
+test_system_solver_CPPFLAGS = $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ @MUMPS_CPPFLAGS@
+test_system_solver_LDFLAGS = $(AM_LDFLAGS) @P4EST_LDFLAGS@ @MUMPS_LDFLAGS@
+test_system_solver_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMLISLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMCHLIB)
+CLEANFILES +=
