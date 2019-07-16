@@ -407,6 +407,7 @@ upwind (const double in, double& bp, double& bm)
   bm = std::max (in, 0.0);
 }
 
+void
 bim2a_advection_upwind_loc
 (tmesh::quadrant_iterator& quadrant,
  const std::array<double, 4>& psi,
@@ -719,7 +720,7 @@ bim2a_solution_with_ghosts (tmesh& mesh,
             v[ord (q->gt (node))] += 0;
         }
 
-              
+
       for (auto n = q->begin_neighbor_sweep ();
            n != q->end_neighbor_sweep ();
            ++n)
