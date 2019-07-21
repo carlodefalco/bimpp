@@ -1,0 +1,80 @@
+[system]
+
+  [./solver_settings]
+    NUM_EQUATIONS = 4
+    NUM_NON_ADAPT = 4
+    NUM_ADAPT = 6
+    REFINE_ITER = 2
+    TOL_EST = 1e-4
+    TOL_METRICS = 1e5
+    PRINT_SOL = 0
+    PRINT_GRAD = 0
+    PRINT_ESTIMATOR = 0
+    PRINT_PROGRESSIVE = 1
+    DELTAT = 0.005
+  [../]
+
+
+  [./param]
+    #N*N coefficients
+    [./lapcoeff]
+      D01 = 1
+      D10 = 0.0025
+      D23 = 1
+      D32 = 0.0025
+    [../]
+
+    #N*N coefficients
+    [./advcoeff]
+      #MU11 = 
+    [../]
+
+    #N coefficients
+    [./timecoeff]
+      A0 = -1
+      A2 = -100
+    [../]
+  [../]
+
+  [./functions]
+
+    #N*N functions: R^N -> R
+    [./advection]
+      #P11 =
+    [../]
+
+    #N*N functions: R^N -> R
+    [./lin_f_angular]
+      L10 = 1.5*x0^2-0.5
+      L11 = 1
+      L22 = -100
+      L12 = 0.04-0.9*x2
+      L30 = 0.04
+      L32 = 1.5*x2^2-2*0.9*x0-0.5
+      L33 = 1
+    [../]
+
+    #N functions: R^N -> R
+    [./lin_f_intercept]
+      B1 = -0.5*x0^3-0.5*x0
+      B3 = -0.5*x2^3-0.5*x2
+    [../]
+
+    #N functions: R x R^2 -> R
+    [./forcing]
+      S2 = -100*0.0114559
+    [../]
+
+    #N functions: R^2 -> R
+    [./initial_cond]
+      U0 = sin(10*x0*x1)
+      U2 = cos(10*(x0-x1))*x0*x1
+    [../]
+
+    #1 function: R^N x R^N -> R
+    [./fun_estimator]
+      F = x0
+    [../]
+  [../]
+
+[../]

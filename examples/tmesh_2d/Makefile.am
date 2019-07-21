@@ -3,9 +3,10 @@ BIMLISLIB   = ../../src/libbimlis.la @LIS_LIB@ @MUMPS_EXTRA_LIBS@
 BIMP4ESTLIB = ../../src/libbimp4est.la @P4EST_LIB@
 BIMIOLIB    = ../../src/libbimio.la @OCTAVE_LINK_FLAGS@ @OCTAVE_LINK_ADD@
 BIMLIB           = ../../src/libbim.la
-BIMCHLIB    = ../../src/libbimsystemsolver.la
+BIMCHLIB    = ../../src/libbimsystemsolver.la @MUPARSER_LIB@
 
-AM_CPPFLAGS      =  -I$(top_srcdir)/src -I$(top_srcdir)/test -I$(top_builddir)/src @MUMPS_CPPFLAGS@ @LIS_CPPFLAGS@ @OCTAVE_COMPILE_FLAGS@ @OCTAVE_LINK_FLAGS@
+
+AM_CPPFLAGS      =  -I$(top_srcdir)/src -I$(top_srcdir)/test -I$(top_builddir)/src @MUMPS_CPPFLAGS@ @LIS_CPPFLAGS@ -I/usr/local/include @OCTAVE_COMPILE_FLAGS@ @OCTAVE_LINK_FLAGS@
 AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
@@ -93,7 +94,7 @@ lis_csr_example_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMLISLIB) @P4EST_LIB@
 CLEANFILES +=
 
 test_system_solver_SOURCES = test_system_solver.cpp
-test_system_solver_CPPFLAGS = $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ @MUMPS_CPPFLAGS@
-test_system_solver_LDFLAGS = $(AM_LDFLAGS) @P4EST_LDFLAGS@ @MUMPS_LDFLAGS@
-test_system_solver_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMLISLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMCHLIB)
+test_system_solver_CPPFLAGS = $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ @MUMPS_CPPFLAGS@ @MUPARSER_CPPFLAGS@
+test_system_solver_LDFLAGS = $(AM_LDFLAGS) @P4EST_LDFLAGS@ @MUMPS_LDFLAGS@ @MUPARSER_LDFLAGS@
+test_system_solver_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMLISLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMCHLIB) @MUPARSER_LIB@
 CLEANFILES +=

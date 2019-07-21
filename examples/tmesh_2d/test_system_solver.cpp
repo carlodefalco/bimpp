@@ -5,24 +5,23 @@ int
 main (int argc, char **argv)
 {
   MPI_Init (&argc, &argv);
-  int rank, size;
-  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
-  MPI_Comm_size (MPI_COMM_WORLD, &size);
 
-  std::vector<std::function<double(double x, double y)>> initcond;
-  initcond.push_back([&] (double x, double y) { return std::sin(10*x*y); });
-  initcond.push_back([&] (double x, double y) { return 0.0; });
-  initcond.push_back([&] (double x, double y) { return std::cos(10*(x-y))*x*y; });
-  initcond.push_back([&] (double x, double y) { return 0.0; });
+  std::string file = "cahn_hilliard.txt";
+  //std::string file = "cahn_hilliard_system.txt";
 
-  std::vector<std::function<double(double x)>> lineariz;
-  lineariz.push_back([&] (double x) { return -1.5*x*x+0.5; });
-  lineariz.push_back([&] (double x) { return 0.5*x*(x*x+1);});
-
-
-
-  system_solver sys(rank, initcond, lineariz, 4, 50, 4, 2, 1e-4, 1e5, 0.005, 5, 0.05, 0.05, 1, 100, 0.04, -0.9, 0.0114559, 100,1,0,0,0);
+  // Reading from file example
+  system_solver sys(file);
   sys.solve();
+
+  // Reading a system_setting object example
+  //system_settings problem(4,2,2,1,1e-4,1e5,0.005,5,1,0,0,0,file);
+  //system_solver sys;
+  //system_solver.set_problem(problem);
+
+
+  // Reading partially from file
+  //system_solver sys(4,6,2,1,1e-4,1e5,0.005,5,1,0,0,0,file);
+  //sys.solve();
 
   MPI_Finalize ();
 

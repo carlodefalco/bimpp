@@ -1,0 +1,69 @@
+[system]
+
+  [./solver_settings]
+    NUM_EQUATIONS = 2
+    NUM_NON_ADAPT = 6
+    NUM_ADAPT = 50
+    REFINE_ITER = 2
+    TOL_EST = 1e-4
+    TOL_METRICS = 1e5
+    PRINT_SOL = 0
+    PRINT_GRAD = 0
+    PRINT_ESTIMATOR = 0
+    PRINT_PROGRESSIVE = 1
+    DELTAT = 0.005
+  [../]
+
+
+  [./param]
+    #N*N coefficients
+    [./lapcoeff]
+      D10 = 0.0025
+      D01 = 1
+    [../]
+
+    #N*N coefficients
+    [./advcoeff]
+      #MU11 = 123.55
+    [../]
+
+    #N coefficients
+    [./timecoeff]
+      A0 = -1
+    [../]
+  [../]
+
+  [./functions]
+
+    #N*N functions: R^N -> R
+    [./advection]
+      #P11 =
+    [../]
+
+    #N*N functions: R^N -> R
+    [./lin_f_angular]
+      L10 = 1.5*x0^2-0.5
+      L11 = 1
+    [../]
+
+    #N functions: R^N -> R
+    [./lin_f_intercept]
+      B1 = -0.5*x0^3-0.5*x0
+    [../]
+
+    #N functions: R x R^2 -> R
+    [./forcing]
+    [../]
+
+    #N functions: R^2 -> R
+    [./initial_cond]
+      U0 = sin(10*x0*x1)
+    [../]
+
+    #1 function: R^N x R^N -> R
+    [./fun_estimator]
+      F = x0
+    [../]
+  [../]
+
+[../]

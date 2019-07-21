@@ -35,11 +35,11 @@ AC_ARG_WITH([blas-lapack],
             [BLAS_LIB=$withval],
             dnl look in /usr/lib/atlas
             [
-                AC_MSG_NOTICE([searching for atlas in /usr/lib/atlas-base]); 
+                AC_MSG_NOTICE([searching for atlas in /usr/lib/atlas-base]);
                 save_LDFLAGS=$LDFLAGS; LDFLAGS="-L/usr/lib/atlas-base $LDFLAGS";
                 AC_CHECK_LIB([f77blas],[daxpy_],[BLAS_LIB="-L/usr/lib/atlas-base -lf77blas -llapack_atlas -latlas"],
                 dnl look in /usr/lib64/atlas
-                [                                                          
+                [
                         AC_MSG_NOTICE([searching for atlas in /usr/lib64/atlas]);
                         LDFLAGS=$save_LDFLAGS; LDFLAGS="-L/usr/lib64/atlas $LDFLAGS";
                         AC_CHECK_LIB([f77blas],[daxpy_],[BLAS_LIB="-L/usr/lib64/atlas -lf77blas -llapack_atlas -latlas"],
@@ -68,7 +68,7 @@ AS_IF([test "x$with_p4estlibrary" != xno],
         [Select the directory where p4est is installed.])],
         [P4EST_HOME=$withval],
         [P4EST_HOME=/usr/local])
-      
+
         P4EST_CPPFLAGS="-DUSE_MPI -I$P4EST_HOME/include"
         P4EST_LDFLAGS="-L$P4EST_HOME/lib"
         P4EST_LIB="-lp4est -lsc"
@@ -138,6 +138,47 @@ LIBS=$save_LIBS
 CPPFLAGS=$save_CPPFLAGS
 LDFLAGS=$save_LDFLAGS
 
+AC_ARG_WITH([muparserlibrary],
+	    [AS_HELP_STRING([--without-muparserlibrary],
+            [Disable muparser library])],
+            [],
+	    [with_muparserlibrary=yes])
+
+AS_IF([test "x$with_muparserlibrary" != xno],
+      [
+       AC_ARG_WITH([muparser-home],
+       [AS_HELP_STRING([--with-muparser-home=DIR],
+       [Select the directory where MUPARSER is installed.])],
+       [MUPARSER_HOME=$withval],
+       [MUPARSER_HOME=/usr/local])
+
+       MUPARSER_CPPFLAGS="-I$MUPARSER_HOME/include"
+       MUPARSER_LDFLAGS="-L$MUPARSER_HOME/lib"
+       MUPARSER_LIB="-lmuparser"
+       save_CPPFLAGS=$CPPFLAGS
+       CPPFLAGS="$MUPARSER_CPPFLAGS $CPPFLAGS"
+
+       AC_CHECK_HEADER(muParser.h, ,AC_MSG_ERROR([muParser.h not found. I cowardly refuse to continue.]))
+
+       save_LIBS=$LIBS
+       save_LDFLAGS=$LDFLAGS
+       LDFLAGS="$MUPARSER_LDFLAGS $LDFLAGS"
+       LIBS="$MUPARSER_LIB $LIBS"
+       AC_CHECK_LIB([m],[acos],
+       [AC_SUBST(MUPARSER_CPPFLAGS, "$MUPARSER_CPPFLAGS")
+       AC_SUBST(MUPARSER_LDFLAGS, "$MUPARSER_LDFLAGS")
+       AC_SUBST(MUPARSER_LIB, "$MUPARSER_LIB")
+       AC_DEFINE([HAVE_MUPARSER],[1],[Define if you have muparser library])
+       AC_MSG_NOTICE([It seems I am able to link MUPARSER properly. Yuppee!!.])
+      ],
+     [AC_MSG_ERROR([It seems I am not able to link MUPARSER properly, --without-muparserlibrary to disable.])])])
+
+AM_CONDITIONAL([HAVE_MUPARSER],test x$with_muparserlibrary = xyes)
+
+LIBS=$save_LIBS
+CPPFLAGS=$save_CPPFLAGS
+LDFLAGS=$save_LDFLAGS
+
 AC_ARG_WITH([mumps-home],
             [AS_HELP_STRING([--with-mumps-home=DIR],
             [Select the directory where MUMPS is installed.])],
@@ -165,7 +206,7 @@ save_LIBS=$LIBS
 save_LDFLAGS=$LDFLAGS
 LDFLAGS="$MUMPS_LDFLAGS $LDFLAGS"
 LIBS="$MUMPS_EXTRA_LIBS $LIBS"
- 
+
 AC_CHECK_LIB([dmumps], [dmumps_c], [AC_MSG_NOTICE([It seems I am able to link MUMPS properly. Yuppee!!.])],[AC_MSG_ERROR([It seems I am not able to link MUMPS properly. I cowardly refuse to continue.])],[-lmumps_common -lpord $MUMPS_EXTRA_LIBS])
 
 LIBS=$save_LIBS
@@ -180,6 +221,9 @@ AC_SUBST(BLAS_LIB, "$BLAS_LIB")
 #AC_SUBST(LIS_CPPFLAGS, "$LIS_CPPFLAGS")
 #AC_SUBST(LIS_LDFLAGS, "$LIS_LDFLAGS")
 #AC_SUBST(LIS_LIB, "$LIS_LIB")
+AC_SUBST(MUPARSER_CPPFLAGS, "$MUPARSER_CPPFLAGS")
+AC_SUBST(MUPARSER_LDFLAGS, "$MUPARSER_LDFLAGS")
+AC_SUBST(MUPARSER_LIB, "$MUPARSER_LIB")
 
 AC_LANG_POP([C++])
 
@@ -240,4 +284,3 @@ AC_CONFIG_FILES([src/bim_config_pre.h
                  examples/tmesh_2d/Makefile
                  examples/tmesh_3d/Makefile])
 AC_OUTPUT
-
