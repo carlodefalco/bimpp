@@ -6,34 +6,11 @@
 #include <algorithm>
 #include <cmath>
 
-char name[255];
 char step[255];
 
 static int
 uniform_refinement (tmesh_3d::quadrant_iterator quadrant)
 { return 1; }
-
-static int
-rectangle_list_refinement (tmesh_3d::quadrant_iterator quadrant,
-                           double L, double h)
-{
-  double x0 = quadrant->p (0, 0);
-  double y0 = quadrant->p (1, 0);
-  double z0 = quadrant->p (2, 0);
-
-  double x1 = quadrant->p (0, 7);
-  double y1 = quadrant->p (1, 7);
-  double z1 = quadrant->p (2, 7);
-
-  double l = .5 * (L - 3. * h);
-  
-  if (x0>h & x1<h+l
-      & y0>h & y1<h+l
-      & z0>h & z1<h+l)
-    return true;
-  else
-    return false;
-}
 
 
 /// main
@@ -77,12 +54,7 @@ int main(int argc, char ** argv)
   
   tmsh.read_connectivity (&(p[0]), 8, &(t[0]), 1);
 
-  double L = 1., h = 1./5.;
-  
-  // Define function for rectangle refinement.
-  std::function<int (tmesh_3d::quadrant_iterator)> box_refinement =
-    [L,h] (tmesh_3d::quadrant_iterator qi)
-    { return rectangle_list_refinement(qi, L, h); };
+  double L = 1.;
 
   if (rank == 0) { toc ("*** Initialization ***"); }
 
@@ -112,7 +84,7 @@ int main(int argc, char ** argv)
 
       // Export refined mesh.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
-      tmsh.vtk_export ((std::string("p4est_refine_box_interp_initial_mesh_")
+      tmsh.vtk_export ((std::string("test_interpolation_3d_initial_mesh_")
                           + std::to_string(cycle)).c_str());
       if (rank == 0) { toc ("*** Export initial mesh ***"); }
     }
@@ -137,7 +109,7 @@ int main(int argc, char ** argv)
       u_vec.assemble(replace_op);
 
       // Export solution.
-      tmsh.octbin_export((std::string("p4est_refine_box_interp_u_") 
+      tmsh.octbin_export((std::string("test_interpolation_3d_u_") 
                           + std::to_string(cycle)).c_str(), 
                           u_vec);
 
@@ -156,7 +128,7 @@ int main(int argc, char ** argv)
 
       // Export refined mesh.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
-      tmsh.vtk_export ((std::string("p4est_refine_box_interp_mesh_")
+      tmsh.vtk_export ((std::string("test_interpolation_3d_mesh_")
                           + std::to_string(cycle)).c_str());
       if (rank == 0) { toc ("*** Export ***"); }
 
@@ -165,7 +137,7 @@ int main(int argc, char ** argv)
       bim3a_solution_with_ghosts (tmsh, u_vec_intp, replace_op);
       interpolate_vector (tmsh, u_vec, u_vec_intp);
 
-      tmsh.octbin_export((std::string("p4est_refine_box_interp_u_intp_")
+      tmsh.octbin_export((std::string("test_interpolation_3d_u_intp_")
                           + std::to_string(cycle)).c_str(), 
                           u_vec_intp);
 
@@ -212,12 +184,12 @@ int main(int argc, char ** argv)
       print_timing_report ();
 
       // mesh size, errors and estimators
-      for (unsigned step = 0; step < nnodes.size(); ++step)
+      for (unsigned cycle = 0; cycle < nnodes.size(); ++cycle)
         {
-          std::cout << "\nStep " << step << ", #nodes: "
-                    << nnodes[step] << ", h: "
-                    << h_step[step] << std::endl;
-          std::cout << "\n\tL2 norm (intp) = " << error_intp[step] 
+          std::cout << "\nStep " << cycle << ", #nodes: "
+                    << nnodes[cycle] << ", h: "
+                    << h_step[cycle] << std::endl;
+          std::cout << "\n\tL2 norm (intp) = " << error_intp[cycle] 
                     << std::endl;
           std::cout << std::endl;
         }
