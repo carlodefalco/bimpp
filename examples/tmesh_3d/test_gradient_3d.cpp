@@ -5,13 +5,8 @@
 
 #include <quad_operators_3d.h>
 
-#include <array>
-#include <cassert>
-#include <cstdio>
-#include <string>
-
-static const int nref =  1;
-static char filename[255] = "\0";
+static constexpr unsigned nref_uniform =  2;
+static constexpr unsigned nref_firstquad =  3;
 
 // uniform_refinement:
 //
@@ -20,88 +15,55 @@ static int
 uniform_refinement (tmesh_3d::quadrant_iterator quadrant)
 { return 1; }
 
-// my_refinement:
+// firstquad_refinement:
 //
-// returns 1 if the global index of node 0 is equal to 0 ----> only the first 
-// quadrant is refined
+// returns 1 if the global index of node 0 is equal to 0
+// ----> only the first quadrant is refined
 static int
-my_refinement (tmesh_3d::quadrant_iterator quadrant)
+firstquad_refinement (tmesh_3d::quadrant_iterator quadrant)
 {
   bool is_zero = false;
-  if (quadrant->gt(7) == 26) 
+  if (quadrant->gt(0) == 0) 
     is_zero = true;
   return is_zero;
 }
 
-// my_u:
+// f_uex:
 //
-// implements the function u
-static double
-my_u (double x, double y, double z)
+// implements the function u(x,y,z)
+static inline double
+f_uex (double x, double y, double z)
 {
-  return (5 * x + 4 * y + 2 * z);
+  return (x + y + z +
+          x*y + x*z + y*z +
+          x*y*z);
 }
 
-// print_mesh_info:
+// f_dudx_ex:
 //
-// it prints the number of nodes and quadrants of the mesh; it scans all the 
-// quadrants and prints all the information about the nodes (: local index,
-// global index, coordinates)
-static void
-print_mesh_info (tmesh_3d& tmsh, const std::string& str)
+// implements the derivative along x dudx(x,y,z)
+static inline double
+f_dudx_ex (double x, double y, double z)
 {
-  std::cout << "**************** mesh info " << str << " ****************" 
-            << std::endl;
-  std::cout << "num owned nodes " << tmsh.num_owned_nodes() << std::endl;
-  std::cout << "num local nodes " << tmsh.num_local_nodes() << std::endl;
-  std::cout << "num global nodes " << tmsh.num_global_nodes() << std::endl;
-  std::cout << "num local quads " << tmsh.num_local_quadrants() 
-            << std::endl;
-  std::cout << "num global quads " << tmsh.num_global_quadrants() 
-            << std::endl;
-	  unsigned nq = 0;
-  for (auto q = tmsh.begin_quadrant_sweep();
-            q != tmsh.end_quadrant_sweep();
-            ++q)
-    {
-      std::cout << "quadrant " << nq << std::endl;	
-      for (int nn = 0; nn < 8; ++nn)
-        {
-          double x = q->p(0,nn);
-          double y = q->p(1,nn);
-          double z = q->p(2,nn);
-          unsigned gidx = q->gt(nn);
-          std::cout << "\tnode: " << nn 
-          			 << " x: " << x
-          			 << " y: " << y
-          			 << " z: " << z
-          			 << " gt: " << gidx 
-                 << " h: " << q->is_hanging(nn) << std::endl;
-        }  
-      std::cout << std::endl; 
-      ++nq; 
-    }
+  return (1 + y + z + y*z);
 }
 
-// print:
+// f_dudy_ex:
 //
-// prints on std::cout an object of type TT (a vector or an array of doubles) 
-template <typename TT>
-void print (const TT& vec, const std::string& str)
+// implements the derivative along y dudy(x,y,z)
+static inline double
+f_dudy_ex (double x, double y, double z)
 {
-  std::cout << "\n***** " << str << ": " << std::endl;
-  for (int j=0; j<vec.size(); ++j)
-    std::cout << vec[j] << " ";
-  std::cout << std::endl << std::endl;
+  return (1 + x + z + x*z);
 }
 
-template <>
-void print (const distributed_vector& vec, const std::string& str)
+// f_dudz_ex:
+//
+// implements the derivative along z dudz(x,y,z)
+static inline double
+f_dudz_ex (double x, double y, double z)
 {
-  std::cout << "\n***** " << str << ": " << std::endl;
-  for (int j=vec.get_range_start(); j<vec.get_range_end(); ++j)
-    std::cout << vec[j] << " ";
-  std::cout << std::endl << std::endl;
+  return (1 + x + y + x*y);
 }
 
 
@@ -110,7 +72,6 @@ void print (const distributed_vector& vec, const std::string& str)
 int
 main (int argc, char **argv)
 {
-
   MPI_Init (&argc, &argv);
   
   int                   recursive, partforcoarsen, balance;
@@ -125,10 +86,29 @@ main (int argc, char **argv)
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
 
-  // set to true if you want the information about the mesh to be printed 
-  // after any refinement
-  bool print_mesh = false;
+  // Errors at every step
+  //
+  // ||u - f_uex||_L^2(q)
+  std::vector<double> error (nref_uniform+nref_firstquad,0.);
+  // |u - f_uex|_H^1(q)
+  std::vector<double> errorH1 (nref_uniform+nref_firstquad,0.);
+  // ||u_star - f_uex||_L^2(q)
+  std::vector<double> errorStar (nref_uniform+nref_firstquad,0.);
+  // ||du_star - grad(f_uex)||_L^2(q)
+  std::vector<double> errorH1Star (nref_uniform+nref_firstquad,0.);
 
+  // Estimators at every step
+  //
+  // ||u^* - u||_L^2(q)
+  std::vector<double> estSol (nref_uniform+nref_firstquad,0.);
+  // ||grad^* u - grad u||_L^2(q)
+  std::vector<double> estGrad (nref_uniform+nref_firstquad,0.);
+
+  // Maximum differences at every step
+  std::vector<double> diff_u (nref_uniform+nref_firstquad,0.);
+  std::vector<double> diff_dudx (nref_uniform+nref_firstquad,0.);
+  std::vector<double> diff_dudy (nref_uniform+nref_firstquad,0.);
+  std::vector<double> diff_dudz (nref_uniform+nref_firstquad,0.);
 
   /************************ initialization of the mesh ***********************/
 
@@ -139,40 +119,10 @@ main (int argc, char **argv)
   if (rank == 0) { toc ("read connectivity"); }
   MPI_Barrier (mpicomm);
 
-  // definition of u (initial mesh)
-  q1_vec u_vec(tmsh.num_owned_nodes());
-  bim3a_solution_with_ghosts(tmsh,u_vec);
-  for (auto q = tmsh.begin_quadrant_sweep();
-            q != tmsh.end_quadrant_sweep();
-            ++q)
-    {
-      for (int nn = 0; nn < 8; ++nn)
-        {
-          // assemble non-hanging nodes
-          if (! q->is_hanging(nn))
-            {
-              double x = q->p(0,nn);
-              double y = q->p(1,nn);
-              double z = q->p(2,nn);
-              double uu = my_u(x,y,z);
-              u_vec[q->gt(nn)] = uu;
-            }
-        }  
-    }
-  u_vec.assemble(replace_op);
-
-  // print u (initial mesh)
-  MPI_Barrier (mpicomm);
-  if (rank == 0)
-    print(u_vec,"u");   
-
-
-
-  /*********************** first mesh uniform refinement *********************/
+  /**************************** uniform refinement ***************************/
  
-  for (auto i = 0; i < nref; ++i)
+  for (unsigned iter = 0; iter < nref_uniform; ++iter)
     {
-
       MPI_Barrier (mpicomm);
       if (rank == 0) { tic (); }
 
@@ -180,214 +130,327 @@ main (int argc, char **argv)
       recursive = 0; partforcoarsen = 1;
       tmsh.refine (recursive, partforcoarsen);
 
+      // Export refined mesh.
+      tmsh.vtk_export ((std::string("test_gradient_3d_uniform_refinement_")
+                          + std::to_string(iter)).c_str());
+
       if (rank == 0) { toc ("uniform refinement"); }
       MPI_Barrier (mpicomm);
 
-      sprintf (filename, "test_grad_3d_initial_mesh_%5.5d", i);
-      tmsh.vtk_export (filename);
-    }
+      // update of u and exact derivatives (uniform refinement)
+      q1_vec uex_ur(tmsh.num_owned_nodes());
+      bim3a_solution_with_ghosts(tmsh,uex_ur);
 
-  // mesh info (intermediate mesh - uniform refinement)
-  if (print_mesh)
-	{  
-	  MPI_Barrier (mpicomm);
-	  if (rank == 0)
-	  	print_mesh_info(tmsh,"after uniform refinement");  
-	}	  
-
-  // update of u (intermediate mesh - uniform refinement)
-  q1_vec u_vec_2(tmsh.num_owned_nodes());
-  bim3a_solution_with_ghosts(tmsh,u_vec_2);
-  for (auto q = tmsh.begin_quadrant_sweep();
+      for (auto q = tmsh.begin_quadrant_sweep();
             q != tmsh.end_quadrant_sweep();
             ++q)
-    {
-      for (int nn = 0; nn < 8; ++nn)
         {
-          // assemble non-hanging nodes
-          if (! q->is_hanging(nn))
+          for (int nn = 0; nn < 8; ++nn)
             {
-              double x = q->p(0,nn);
-              double y = q->p(1,nn);
-              double z = q->p(2,nn);
-              double uu = my_u(x,y,z);
-              u_vec_2[q->gt(nn)] = uu;
+              // assemble non-hanging nodes
+              if (! q->is_hanging(nn))
+                {
+                  double x = q->p(0,nn);
+                  double y = q->p(1,nn);
+                  double z = q->p(2,nn);
+                  uex_ur[q->gt(nn)] = f_uex(x,y,z);
+                }
             }
-        }  
+        }
+      uex_ur.assemble(replace_op);
+
+      // computation of the recovered gradient (uniform refinement)
+      gradient3 grad_ur = bim3c_quadtree_pde_recovered_gradient (tmsh,uex_ur);
+      q1_vec dudx_ur = std::get<0>(grad_ur);
+      q1_vec dudy_ur = std::get<1>(grad_ur);
+      q1_vec dudz_ur = std::get<2>(grad_ur);
+
+      // computation of the recovered solution (uniform refinement)
+      q2_vec3 ustar_ur = bim3c_quadtree_pde_recovered_solution (tmsh,uex_ur,
+                                                                grad_ur);
+
+      // computation of errors, estimators and differences 
+      // (firstquad_refinement)
+      double err = 0.0, errH1 = 0.0, errstar = 0.0, errH1star = 0.0;
+      double estgrad = 0.0, estsol = 0.0;
+      double diffu = 0.0, diffdudx = 0.0, diffdudy = 0.0, diffdudz = 0.0;
+      for (auto q = tmsh.begin_quadrant_sweep();
+                q != tmsh.end_quadrant_sweep();
+                ++q)
+        {
+          // Errors
+          //
+          // ||u - f_uex||_L^2(q)
+          err += std::pow(l2_error(q, f_uex, uex_ur), 2);
+          // |u - f_uex|_H^1(q)
+          errH1 += std::pow(semih1_error (q, f_dudx_ex, f_dudy_ex, 
+                                          f_dudz_ex, uex_ur), 2);
+          // ||u_star - f_uex||_L^2(q)
+          errstar += std::pow(l2_star_error(q, f_uex, ustar_ur), 2);
+          // ||du_star - grad(f_uex)||_L^2(q)
+          errH1star += std::pow(semih1_star_error (q, f_dudx_ex, 
+                                                   f_dudy_ex, f_dudz_ex,
+                                                   grad_ur), 2);
+
+          // Estimators
+          //
+          // ||grad^* u - grad u||_L^2(q)
+          estgrad += std::pow(estimator_grad(q, grad_ur, uex_ur),2);
+          // ||u^* - u||_L^2(q)
+          estsol += std::pow(estimator_sol(q, ustar_ur, uex_ur),2);
+
+          // Differences
+          //
+          for (int nn = 0; nn < 8; ++nn)
+            {
+              if (! q->is_hanging(nn))
+                {
+                  double x = q->p(0,nn);
+                  double y = q->p(1,nn);
+                  double z = q->p(2,nn);
+
+                  double dudx = f_dudx_ex(x,y,z);
+                  double dudy = f_dudy_ex(x,y,z);
+                  double dudz = f_dudz_ex(x,y,z);
+
+                  diffu = std::max(std::abs(ustar_ur[q->get_forest_quad_idx ()]
+                                                    [q->gt(nn)] - 
+                                            uex_ur[q->gt(nn)]),
+                                    diffu);
+
+                  diffdudx = std::max(std::abs(dudx - dudx_ur[q->gt(nn)]), 
+                                      diffdudx);
+                  diffdudy = std::max(std::abs(dudy - dudy_ur[q->gt(nn)]), 
+                                      diffdudy);
+                  diffdudz = std::max(std::abs(dudz - dudz_ur[q->gt(nn)]), 
+                                      diffdudz);
+                }
+            }
+        }
+
+      // Global errors
+      //
+      // ||u - f_uex||_L^2(q)
+      MPI_Reduce (&err, &error[iter], 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      error[iter] = std::sqrt(error[iter]);
+      //
+      // |u - f_uex|_H^1(q)
+      MPI_Reduce (&errH1, &errorH1[iter], 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      errorH1[iter] = std::sqrt(errorH1[iter]);
+      //
+      // ||u_star - f_uex||_L^2(q)
+      MPI_Reduce (&errstar, &errorStar[iter], 1, MPI_DOUBLE, MPI_SUM, 
+                  0, mpicomm);
+      errorStar[iter] = std::sqrt(errorStar[iter]);
+      //
+      // ||du_star - grad(f_uex)||_L^2(q)
+      MPI_Reduce (&errH1star, &errorH1Star[iter], 1, MPI_DOUBLE, MPI_SUM, 
+                  0, mpicomm);
+      errorH1Star[iter] = std::sqrt(errorH1Star[iter]);
+
+      // Global estimators
+      //
+      // ||u^* - u||_L^2(q)
+      MPI_Reduce (&estsol, &estSol[iter], 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      estSol[iter] = std::sqrt(estSol[iter]);
+      //
+      // ||grad^* u - grad u||_L^2(q)
+      MPI_Reduce (&estgrad, &estGrad[iter], 1, MPI_DOUBLE, MPI_SUM, 0, 
+                  mpicomm);
+      estGrad[iter] = std::sqrt(estGrad[iter]);
+
+      // Global differences
+      MPI_Reduce (&diffdudx, &diff_dudx[iter], 1, MPI_DOUBLE, MPI_MAX, 0, 
+                  mpicomm);
+      //
+      MPI_Reduce (&diffdudy, &diff_dudy[iter], 1, MPI_DOUBLE, MPI_MAX, 0, 
+                  mpicomm);
+      //
+      MPI_Reduce (&diffdudz, &diff_dudz[iter], 1, MPI_DOUBLE, MPI_MAX, 0, 
+                  mpicomm);
     }
-  u_vec_2.assemble(replace_op);
-
-  // print u (intermediate mesh - uniform refinement)
-  MPI_Barrier (mpicomm);  
-  if (rank == 0)
-    print(u_vec_2,"u");
-
-  // computation of the gradient (intermediate mesh - uniform refinement)
-  gradient3 grad_vec_2 = bim3c_quadtree_pde_recovered_gradient(tmsh,u_vec_2);
-  q1_vec dudx_2 = std::get<0>(grad_vec_2);
-  q1_vec dudy_2 = std::get<1>(grad_vec_2);  
-  q1_vec dudz_2 = std::get<2>(grad_vec_2);
-/*  
-  tmsh.octbin_export ("dudx",dudx_2);
-  tmsh.octbin_export ("dudy",dudy_2);
-  tmsh.octbin_export ("dudz",dudz_2);
-*/
-  // print the gradient (intermediate mesh - uniform refinement)
-  MPI_Barrier (mpicomm);
-  if (rank == 0)
-    {
-      print(dudx_2,"dudx_2");
-      print(dudy_2,"dudy_2");
-      print(dudz_2,"dudz_2");
-    }
-
-  // estimator gradient (intermediate mesh - uniform refinement)
-  std::vector<double> est_grad_2;
-  for (auto q = tmsh.begin_quadrant_sweep();
-            q != tmsh.end_quadrant_sweep();
-            ++q)
-    est_grad_2.push_back(estimator_grad(q, grad_vec_2, u_vec_2));
-
-  // print estimator gradient (intermediate mesh - uniform refinement)
-  MPI_Barrier (mpicomm);
-  if (rank == 0)
-    print(est_grad_2,"estimator grad _2");
-
-  // recovered solution (intermediate mesh - uniform refinement)
-  q2_vec3 u_rec_2 = bim3c_quadtree_pde_recovered_solution (tmsh,u_vec_2,
-  														                              grad_vec_2);  
-
-  // print recovered solution (intermediate mesh - uniform refinement)
-  MPI_Barrier (mpicomm);
-  if (rank == 0)
-  	{
-  	  std::cout << "\n***** recovered solution _2:" << std::endl;
-  	  for (const auto& arr : u_rec_2)
-  	  	print(arr,"");	
-  	}
-
-  // estimator solution (intermediate mesh - uniform refinement)
-  std::vector<double> est_sol_2;
-  for (auto q = tmsh.begin_quadrant_sweep();
-            q != tmsh.end_quadrant_sweep();
-            ++q)
-  	est_sol_2.push_back(estimator_sol(q, u_rec_2, u_vec_2));
-
-  // print estimator solution (intermediate mesh - uniform refinement)  
-  MPI_Barrier (mpicomm);
-  if (rank == 0)
-    print(est_sol_2,"estimator sol _2");
 
 
+  /*************************** firstquad refinement **************************/
 
-
-  /************************** second mesh refinement *************************/
-
-  for (auto i = 0; i < nref; ++i)
+  for (unsigned iter = 0; iter < nref_firstquad; ++iter)
     {
       MPI_Barrier (mpicomm);
       if (rank == 0) { tic (); }
 
-      tmsh.set_refine_marker (my_refinement);
+      tmsh.set_refine_marker (firstquad_refinement);
       recursive = 1; partforcoarsen = 1;
       tmsh.refine (recursive, partforcoarsen);
 
-      if (rank == 0) { toc ("my refinement"); }
+      // Export refined mesh.
+      tmsh.vtk_export ((std::string("test_gradient_3d_firstquad_refinement_")
+                          + std::to_string(iter)).c_str());
+
+      if (rank == 0) { toc ("firstquad refinement"); }
       MPI_Barrier (mpicomm);
 
-      sprintf (filename, "test_grad_3d_%5.5d", i);
-      tmsh.vtk_export (filename);
-    } 
-
-  // mesh info (final mesh - my_refinement)
-  if (print_mesh)
-	 {
-  	  MPI_Barrier (mpicomm);
-  	  if (rank == 0)
-  	    print_mesh_info(tmsh,"after my_refinement");
-    } 
-
-  // update of u (final mesh - my_refinement)
-  q1_vec u_vec_3(tmsh.num_owned_nodes());
-  bim3a_solution_with_ghosts(tmsh,u_vec_3);
-  for (auto q = tmsh.begin_quadrant_sweep();
-            q != tmsh.end_quadrant_sweep();
-            ++q)
-    {
-      for (int nn = 0; nn < 8; ++nn)
+      // update of u (firstquad_refinement)
+      q1_vec uex_fqr(tmsh.num_owned_nodes());
+      bim3a_solution_with_ghosts(tmsh,uex_fqr);
+      for (auto q = tmsh.begin_quadrant_sweep();
+                q != tmsh.end_quadrant_sweep();
+                ++q)
         {
-          // assemble non-hanging nodes
-          if (! q->is_hanging(nn))
+          for (int nn = 0; nn < 8; ++nn)
             {
-              double x = q->p(0,nn);
-              double y = q->p(1,nn);
-              double z = q->p(2,nn);
-              double uu = my_u(x,y,z);
-              u_vec_3[q->gt(nn)] = uu;
+              // assemble non-hanging nodes
+              if (! q->is_hanging(nn))
+                {
+                  double x = q->p(0,nn);
+                  double y = q->p(1,nn);
+                  double z = q->p(2,nn);
+                  uex_fqr[q->gt(nn)] = f_uex(x,y,z);
+                }
+            }  
+        }
+      uex_fqr.assemble(replace_op);     
+
+      // computation of the recovered gradient (firstquad_refinement)
+      gradient3 grad_fqr = bim3c_quadtree_pde_recovered_gradient(tmsh,uex_fqr);
+      q1_vec dudx_fqr = std::get<0>(grad_fqr);
+      q1_vec dudy_fqr = std::get<1>(grad_fqr);
+      q1_vec dudz_fqr = std::get<2>(grad_fqr);
+
+      // computation of the recovered solution (firstquad_refinement)
+      q2_vec3 ustar_fqr = bim3c_quadtree_pde_recovered_solution (tmsh,uex_fqr,
+                                                                 grad_fqr);
+
+      // computation of errors, estimators and differences 
+      // (firstquad_refinement)
+      double err = 0.0, errH1 = 0.0, errstar = 0.0, errH1star = 0.0;
+      double estgrad = 0.0, estsol = 0.0;
+      double diffu = 0.0, diffdudx = 0.0, diffdudy = 0.0, diffdudz = 0.0;
+      for (auto q = tmsh.begin_quadrant_sweep();
+                q != tmsh.end_quadrant_sweep();
+                ++q)
+        {
+          // Errors
+          //
+          // ||u - f_uex||_L^2(q)
+          err += std::pow(l2_error(q, f_uex, uex_fqr), 2);
+          // |u - f_uex|_H^1(q)
+          errH1 += std::pow(semih1_error (q, f_dudx_ex, f_dudy_ex, 
+                                          f_dudz_ex, uex_fqr), 2);
+          // ||u_star - f_uex||_L^2(q)
+          errstar += std::pow(l2_star_error(q, f_uex, ustar_fqr), 2);
+          // ||du_star - grad(f_uex)||_L^2(q)
+          errH1star += std::pow(semih1_star_error (q, f_dudx_ex, 
+                                                   f_dudy_ex, f_dudz_ex,
+                                                   grad_fqr), 2);
+
+          // Estimators
+          //
+          // ||grad^* u - grad u||_L^2(q)
+          estgrad += std::pow(estimator_grad(q, grad_fqr, uex_fqr),2);
+          // ||u^* - u||_L^2(q)
+          estsol += std::pow(estimator_sol(q, ustar_fqr, uex_fqr),2);
+
+          // Differences
+          //
+          for (int nn = 0; nn < 8; ++nn)
+            {
+              if (! q->is_hanging(nn))
+                {
+                  double x = q->p(0,nn);
+                  double y = q->p(1,nn);
+                  double z = q->p(2,nn);
+
+                  double dudx = f_dudx_ex(x,y,z);
+                  double dudy = f_dudy_ex(x,y,z);
+                  double dudz = f_dudz_ex(x,y,z);
+
+                  diffu = std::max(std::abs(ustar_fqr[q->get_forest_quad_idx()]
+                                                     [q->gt(nn)] - 
+                                            uex_fqr[q->gt(nn)]),
+                                    diffu);
+
+                  diffdudx = std::max(std::abs(dudx - dudx_fqr[q->gt(nn)]), 
+                                      diffdudx);
+                  diffdudy = std::max(std::abs(dudy - dudy_fqr[q->gt(nn)]), 
+                                      diffdudy);
+                  diffdudz = std::max(std::abs(dudz - dudz_fqr[q->gt(nn)]), 
+                                      diffdudz);
+                }
             }
-        }  
+        }
+
+      unsigned iter2 = iter + nref_uniform;
+
+      // Global errors
+      //
+      // ||u - f_uex||_L^2(q)
+      MPI_Reduce (&err, &error[iter2], 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      error[iter2] = std::sqrt(error[iter2]);
+      //
+      // |u - f_uex|_H^1(q)
+      MPI_Reduce (&errH1, &errorH1[iter2], 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      errorH1[iter2] = std::sqrt(errorH1[iter2]);
+      //
+      // ||u_star - f_uex||_L^2(q)
+      MPI_Reduce (&errstar, &errorStar[iter2], 1, MPI_DOUBLE, MPI_SUM, 0, 
+                  mpicomm);
+      errorStar[iter2] = std::sqrt(errorStar[iter2]);
+      //
+      // ||du_star - grad(f_uex)||_L^2(q)
+      MPI_Reduce (&errH1star, &errorH1Star[iter2], 1, MPI_DOUBLE, MPI_SUM, 0, 
+                  mpicomm);
+      errorH1Star[iter2] = std::sqrt(errorH1Star[iter2]);
+
+      // Global estimators
+      //
+      // ||u^* - u||_L^2(q)
+      MPI_Reduce (&estsol, &estSol[iter2], 1, MPI_DOUBLE, MPI_SUM, 0, mpicomm);
+      estSol[iter2] = std::sqrt(estSol[iter2]);
+      //
+      // ||grad^* u - grad u||_L^2(q)
+      MPI_Reduce (&estgrad, &estGrad[iter2], 1, MPI_DOUBLE, MPI_SUM, 0, 
+                  mpicomm);
+      estGrad[iter2] = std::sqrt(estGrad[iter2]);
+
+      // Global differences
+      MPI_Reduce (&diffdudx, &diff_dudx[iter2], 1, MPI_DOUBLE, MPI_MAX, 0, 
+                  mpicomm);
+      //
+      MPI_Reduce (&diffdudy, &diff_dudy[iter2], 1, MPI_DOUBLE, MPI_MAX, 0, 
+                  mpicomm);
+      //
+      MPI_Reduce (&diffdudz, &diff_dudz[iter2], 1, MPI_DOUBLE, MPI_MAX, 0, 
+                  mpicomm);
     }
-  u_vec_3.assemble(replace_op);
- 
-  // print u (final mesh - my_refinement)
-  MPI_Barrier (mpicomm);
-  if (rank == 0)
-    print(u_vec_3,"u");  
-
-  // computation of the gradient (final mesh - my_refinement)
-  gradient3 grad_vec_3 = bim3c_quadtree_pde_recovered_gradient(tmsh,u_vec_3);
-  q1_vec dudx_3 = std::get<0>(grad_vec_3);
-  q1_vec dudy_3 = std::get<1>(grad_vec_3);  
-  q1_vec dudz_3 = std::get<2>(grad_vec_3);
-  
-  // print the gradient (final mesh - my_refinement)
-  MPI_Barrier (mpicomm);
-  if (rank == 0)
-    {
-      print(dudx_3,"dudx_3");
-      print(dudy_3,"dudy_3");
-      print(dudz_3,"dudz_3");
-    }
-
-  // estimator gradient (final mesh - my_refinement)
-  std::vector<double> est_grad_3;
-  for (auto q = tmsh.begin_quadrant_sweep();
-            q != tmsh.end_quadrant_sweep();
-            ++q)
-      est_grad_3.push_back(estimator_grad(q, grad_vec_3, u_vec_3));
-
-  // print estimator gradient (final mesh - my_refinement)
-  MPI_Barrier (mpicomm);
-  if (rank == 0)
-    print(est_grad_3,"estimator grad _3");  
-
-  // recovered solution (final mesh - my_refinement)
-  q2_vec3 u_rec_3 = bim3c_quadtree_pde_recovered_solution (tmsh,u_vec_3,
-  														                              grad_vec_3);  
-
-  // print recovered solution (final mesh - my_refinement)
-  MPI_Barrier (mpicomm);
-  if (rank == 0)
-  	{
-  	  std::cout << "\n***** recovered solution _3:" << std::endl;
-  	  for (const auto& arr : u_rec_3)
-  	  	print(arr,"");	
-  	}
-
-  // estimator solution (final mesh - my_refinement)
-  std::vector<double> est_sol_3;
-  for (auto q = tmsh.begin_quadrant_sweep();
-            q != tmsh.end_quadrant_sweep();
-            ++q)
-  	est_sol_3.push_back(estimator_sol(q, u_rec_3, u_vec_3));
-
-  // print estimator solution (final mesh - my_refinement) 
-  MPI_Barrier (mpicomm);
-  if (rank == 0)
-    print(est_sol_3,"estimator sol _3");
 
   if (rank == 0) {print_timing_report();}
   MPI_Barrier (mpicomm);
+
+  /************************* print errors & estimators ***********************/
+
+  if (rank == 0)
+    {
+      std::cout << "### Uniform Refinement" << std::endl;
+      for (unsigned step = 0; step < error.size(); ++step)
+        {
+          if (step == nref_uniform)
+            std::cout << "### Firstquad Refinement" << std::endl;
+          std::cout << "Step " << step << std::endl;
+          std::cout << "\tL2 norm = " << error[step] 
+                    << "\n\tH1 seminorm = " << errorH1[step] 
+                    << "\n\tL2* norm = " << errorStar[step] 
+                    << "\n\tL2* norm (gradient) = " << errorH1Star[step]
+                    << "\n\tSolution estimator = " << estSol[step]
+                    << "\n\tGradient estimator = " << estGrad[step]
+                    << "\n\tMaximum differences: "
+                    << "\n\t\tu: " << diff_u[step]
+                    << "\n\t\tdudx: " << diff_dudx[step]
+                    << "\n\t\tdudy: " << diff_dudy[step]
+                    << "\n\t\tdudz: " << diff_dudz[step]
+                    << std::endl;
+          std::cout << std::endl;
+        }
+    }
   
   MPI_Finalize ();
   return 0;
