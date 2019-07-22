@@ -438,56 +438,6 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                               quadrant->p (2, i));
 
                     bim3a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
-/*
-                    // Impose boundary condition at rhs by
-                    // evaluating it at the current node.
-                    rhs[row] =
-                        (std::get<2> (bcs[bc]))
-                        (quadrant->p (0, i),
-                         quadrant->p (1, i),
-                         quadrant->p (2, i));
-  
-                    // Move non-diagonal entries
-                    // from column "row" to rhs.
-                    if (A[row].size ())
-                      for (auto j = A[row].begin ();
-                           j != A[row].end (); ++j)
-                        {
-                            col = A.col_idx (j);
-
-                            if (row != col)
-                              {
-                                A[row][col] = 0.0;
-  
-                                // If row "col" is owned by current process.
-                                if (A[col].size ())
-                                  {
-                                    rhs[col] -= A[col][row] * rhs[row];
-                                    A[col][row] = 0.0;
-                                  }
-                              }
-                        }
-  
-                      if (std::abs (A[row][row])
-                          < std::numeric_limits<double>::epsilon ())
-                        {
-                          A[row][row] = std::accumulate
-                            (A[row].begin (),
-                             A[row].end (),
-                             0.0,
-                             [] (double value,
-                                 const std::map<int, double>::value_type & p)
-                             {
-                               return (value + std::abs (p.second));
-                             }
-                             );
-                        }
-  
-                      A[row][row] *= 1e16;
-  
-                      // Multiply rhs by the diagonal entry.
-                      rhs[row] *= A[row][row];
-*/                      
                   }
             }
         }
@@ -538,61 +488,109 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
                     value =
                       (std::get<2> (bcs[bc])) (quadrant, i);
 
-                    bim3a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
-/*
-                    // Impose boundary condition at rhs by
-                    // evaluating it at the current node.
-                    rhs[row] =
-                        (std::get<2> (bcs[bc]))
-                        (quadrant, i);
-  
-                    // Move non-diagonal entries
-                    // from column "row" to rhs.
-                    if (A[row].size ())
-                      for (auto j = A[row].begin ();
-                           j != A[row].end (); ++j)
-                        {
-                            col = A.col_idx (j);
-
-                            if (row != col)
-                              {
-                                A[row][col] = 0.0;
-  
-                                // If row "col" is owned by current process.
-                                if (A[col].size ())
-                                  {
-                                    rhs[col] -= A[col][row] * rhs[row];
-                                    A[col][row] = 0.0;
-                                  }
-                              }
-                        }
-  
-                      if (std::abs (A[row][row])
-                          < std::numeric_limits<double>::epsilon ())
-                        {
-                          A[row][row] = std::accumulate
-                            (A[row].begin (),
-                             A[row].end (),
-                             0.0,
-                             [] (double value,
-                                 const std::map<int, double>::value_type & p)
-                             {
-                               return (value + std::abs (p.second));
-                             }
-                             );
-                        }
-  
-                      A[row][row] *= 1e16;
-  
-                      // Multiply rhs by the diagonal entry.
-                      rhs[row] *= A[row][row]; 
-*/                                         
+                    bim3a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);                    
                   }
             }
         }
     }
 }
 
+// Specialization.
+template <>
+void
+interpolate_vector (tmesh_3d & mesh,
+                    std::vector<double> & vec_in,
+                    std::vector<double> & vec_out,
+                    const ordering & ord)
+{
+  tmesh_3d::data_t * data;
+
+  size_t start = mesh.lnodes->global_offset;
+  size_t end = start + mesh.num_owned_nodes ();
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      data = static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
+
+      for (int node = 0; node < 8; ++node)
+        {
+          // If current node is owned.
+          if (! quadrant->is_hanging (node) &&
+              vec_out[ord (quadrant->gt (node))] == 0 &&
+              quadrant->gt (node) >= start && quadrant->gt (node) < end)
+            {
+              // Multiply by interpolation matrix.
+              for (int i = 0; i < 8; ++i)
+                vec_out[ord (quadrant->gt (node))] +=
+                  data->interp_coeff[node][i] *
+                  vec_in[ord (data->interp_idx[i])];
+            }
+        }
+    }
+}
+
+// Specialization.
+template <>
+void
+interpolate_vector (tmesh_3d & mesh,
+                    distributed_vector & vec_in,
+                    distributed_vector & vec_out,
+                    const ordering & ord)
+{
+  tmesh_3d::data_t * data;
+
+  // Assemble indices related to interpolation matrices.
+  vec_in.clear_non_local ();
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      data = static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
+
+      for (int node = 0; node < 8; ++node)
+        {
+          if (! quadrant->is_hanging (node))
+            {
+              // Multiply by interpolation matrix.
+              for (int i = 0; i < 8; ++i)
+                vec_in[ord (data->interp_idx[i])] += 0;
+            }
+        }
+    }
+
+  vec_in.assemble (replace_op);
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      data = static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
+
+      for (int node = 0; node < 8; ++node)
+        {
+          if (! quadrant->is_hanging (node))
+            {
+              if (vec_out[ord (quadrant->gt (node))] == 0)
+                {
+                  // Multiply by interpolation matrix.
+                  for (int i = 0; i < 8; ++i)
+                    vec_out[ord (quadrant->gt (node))] +=
+                      data->interp_coeff[node][i] *
+                      vec_in[ord (data->interp_idx[i])];
+                }
+            }
+          // Assemble parents.
+          else
+            {
+              for (int pp = 0; pp < quadrant->num_parents(node); ++pp)
+                vec_out[ord (quadrant->gparent (pp, node))] += 0;
+            }
+        }
+    }
+}
 
 /// Edge ordering:
 ///
