@@ -780,15 +780,11 @@ tmesh_3d::refine (int recursive, int partforcoarsen, int balance)
   quadrant_iterator qi (&current_quadrant);
   qi.reset ();
 
-  if (replace_fun == nullptr)
-    p8est_refine (p8est, recursive, refine_callback, nullptr);
-  else
-    p8est_refine_ext (p8est, recursive, -1, refine_callback,
-                      nullptr, replace_callback);
+  p8est_refine_ext (p8est, recursive, -1, refine_callback,
+                    nullptr, replace_callback);
 
   if (balance)
     p8est_balance_ext (p8est, P8EST_CONNECT_EDGE, nullptr, replace_callback);
-    //p8est_balance (p8est, P8EST_CONNECT_EDGE, nullptr);
 
   p8est_partition (p8est, partforcoarsen, nullptr);
 
@@ -824,15 +820,11 @@ tmesh_3d::metrics_refine (idx_t max_elems)
 void
 tmesh_3d::coarsen (int recursive, int partforcoarsen, int balance)
 {
-  if (replace_fun == nullptr)
-    p8est_coarsen (p8est, recursive, coarsen_callback, nullptr);
-  else
-    p8est_coarsen_ext (p8est, recursive, 0, coarsen_callback,
-                       nullptr, replace_callback);
+  p8est_coarsen_ext (p8est, recursive, 0, coarsen_callback,
+                      nullptr, replace_callback);
 
   if (balance)
     p8est_balance_ext (p8est, P8EST_CONNECT_EDGE, nullptr, replace_callback);
-    //p8est_balance (p8est, P8EST_CONNECT_EDGE, nullptr);
 
   p8est_partition (p8est, partforcoarsen, nullptr);
 
