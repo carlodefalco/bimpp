@@ -223,7 +223,7 @@ l2_star_error (tmesh_3d::quadrant_iterator q,
                const func3 & u_ex,
                const q2_vec3 & ustar);
 
-/// Compute |du_star - grad(u_ex)|_H^1(q).
+/// Compute ||du_star - grad(u_ex)||_L^2(q).
 template <class T>
 double
 semih1_star_error (tmesh_3d::quadrant_iterator q,
