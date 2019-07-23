@@ -6,7 +6,7 @@
 #include <quad_operators_3d.h>
 
 static constexpr unsigned nref_uniform =  2;
-static constexpr unsigned nref_firstquad =  3;
+static constexpr unsigned nref_firstquad =  2;
 
 // uniform_refinement:
 //
@@ -135,9 +135,8 @@ main (int argc, char **argv)
                           + std::to_string(iter)).c_str());
 
       if (rank == 0) { toc ("uniform refinement"); }
-      MPI_Barrier (mpicomm);
 
-      // update of u and exact derivatives (uniform refinement)
+      // update of u (uniform refinement)
       q1_vec uex_ur(tmsh.num_owned_nodes());
       bim3a_solution_with_ghosts(tmsh,uex_ur);
 
@@ -170,7 +169,7 @@ main (int argc, char **argv)
                                                                 grad_ur);
 
       // computation of errors, estimators and differences 
-      // (firstquad_refinement)
+      // (uniform_refinement)
       double err = 0.0, errH1 = 0.0, errstar = 0.0, errH1star = 0.0;
       double estgrad = 0.0, estsol = 0.0;
       double diffu = 0.0, diffdudx = 0.0, diffdudy = 0.0, diffdudz = 0.0;
@@ -287,7 +286,6 @@ main (int argc, char **argv)
                           + std::to_string(iter)).c_str());
 
       if (rank == 0) { toc ("firstquad refinement"); }
-      MPI_Barrier (mpicomm);
 
       // update of u (firstquad_refinement)
       q1_vec uex_fqr(tmsh.num_owned_nodes());
