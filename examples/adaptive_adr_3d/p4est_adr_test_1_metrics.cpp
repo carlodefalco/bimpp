@@ -15,8 +15,8 @@ uniform_refinement (tmesh_3d::quadrant_iterator q)
 { return 1; }
 
 // Number of refinement steps
-constexpr unsigned unif_refine_steps = 2;   // initial uniform refinement
-constexpr unsigned adapt_refine_steps = 10;  // adaptive refinement
+constexpr unsigned unif_refine_steps = 2;    // initial uniform refinement
+constexpr unsigned adapt_refine_steps = 6;  // adaptive refinement
 
 // Tolerance for refinement
 constexpr double tol = 1e-3;
@@ -41,12 +41,13 @@ main (int argc, char **argv)
   MPI_Comm_size (mpicomm, &size);
 
   // Problem parameters
-  constexpr double epsilon = 1e-10;     // diffusion coefficient
+  constexpr double epsilon = 1e-6;      // diffusion coefficient
   double n_coeff = 1/std::sqrt(3.0);    // normalization coefficient
   
   // Mesh parameters
   std::vector<idx_t>    nnodes (adapt_refine_steps, 0);     // number of nodes
-  std::vector<double>   h_step (adapt_refine_steps, 0.);    // mesh size
+  std::vector<double>   h_step (adapt_refine_steps, 0.);    // min mesh size
+  std::vector<double>   H_step (adapt_refine_steps, 0.);    // max mesh size
 
   // Estimators at every step
   std::vector<double> estSol (adapt_refine_steps,0.);  // ||u^* - u||_L^2(q)
@@ -179,7 +180,8 @@ main (int argc, char **argv)
 
       // Solve
       MPI_Barrier (mpicomm); if (rank == 0) { tic (); }
-			mumps_solver.solve ();
+      int solve_status = mumps_solver.solve ();
+      std::cerr << "solve_status: " << solve_status << std::endl;      
       MPI_Barrier (mpicomm); if (rank == 0) { toc ("solve "); }
 
       // Get solution of linear system
@@ -254,7 +256,7 @@ main (int argc, char **argv)
       std::vector<double> est_sol (tmsh.num_local_quadrants ());
       std::vector<double> est_grad (tmsh.num_local_quadrants ());
       
-      double  hx = 0, hy = 0, hz = 0,
+      double  hx = 0, hy = 0, hz = 0, H = 0,
               h = std::numeric_limits<double>::max ();
 
       double estsol = 0.0, estgrad = 0.0;
@@ -280,6 +282,7 @@ main (int argc, char **argv)
           hz = quadrant->p(2, 7) - quadrant->p(2, 0);
           
           h = std::min(h, std::sqrt(hx*hx + hy*hy + hz*hz));
+          H = std::max(H, std::sqrt(hx*hx + hy*hy + hz*hz));
         }
       
       // Export metrics
@@ -294,6 +297,7 @@ main (int argc, char **argv)
       
       // Compute global mesh size
       MPI_Reduce(&h, &h_step[adapt], 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
+      MPI_Reduce(&H, &H_step[adapt], 1, MPI_DOUBLE, MPI_MAX, 0, mpicomm);
 
       // Compute global errors
       //
@@ -315,15 +319,15 @@ main (int argc, char **argv)
       MPI_Barrier (mpicomm); if (rank == 0) { tic (); }
 
       // Break if the number of global nodes is too large
-      if (tmsh.num_global_nodes () >= 10e7)
+      if (tmsh.num_global_nodes () >= 1e7)
         break;
       else if (adapt < (adapt_refine_steps - 1))
         {   
           // Set marker for refinement
-          tmsh.set_metrics_marker (estimator, tol*std::pow (.9, adapt),3,1,1);
+          tmsh.set_metrics_marker (grad_estimator, tol,3,3,3);
           
           // Refine.
-          tmsh.metrics_refine (1e5);
+          tmsh.metrics_refine (1e6);
           std::cout << "tmsh.num_global_nodes ()= "
                     << tmsh.num_global_nodes ()
                     << std::endl;
@@ -333,7 +337,7 @@ main (int argc, char **argv)
                             + std::to_string(adapt)).c_str());
 
           // Break if the number of global nodes is too large
-          if (tmsh.num_global_nodes () >= 10e7)
+          if (tmsh.num_global_nodes () >= 1e7)
             {
               std::cout << "too many nodes!" << std::endl;
               break;
@@ -346,8 +350,9 @@ main (int argc, char **argv)
     for (unsigned step = 0; step < nnodes.size(); ++step)
       {
         std::cout << "\nStep " << step << ", #nodes: "
-                  << nnodes[step] << ", h: "
-                  << h_step[step] << std::endl;
+                  << nnodes[step] << ", h min: "
+                  << h_step[step] << ", h max: "
+                  << H_step[step] << std::endl;
         std::cout << "\n\tSolution estimator = " << estSol[step]
                   << "\n\tGradient estimator = " << estGrad[step]
                   << std::endl;

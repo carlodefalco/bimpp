@@ -23,7 +23,7 @@ constexpr unsigned unif_refine_steps  = 2;  // initial uniform refinement
 constexpr unsigned adapt_refine_steps = 7;  // adaptive refinement
 
 // Tolerance for refinement
-constexpr double tol = 1.e-3;
+constexpr double tol = 1.e-4;
 
 // Problem parameters
 constexpr double inv_epsilon = 1e11;  // 1 / epsilon
@@ -117,7 +117,8 @@ main (int argc, char **argv)
 
   // Mesh parameters
   std::vector<idx_t> nnodes (adapt_refine_steps, 0);    // number of nodes
-  std::vector<double> h_step (adapt_refine_steps, 0.);  // mesh size
+  std::vector<double> h_step (adapt_refine_steps, 0.);  // min mesh size
+  std::vector<double> H_step (adapt_refine_steps, 0.);  // max mesh size
 
   // Errors at every step
   std::vector<double> error (adapt_refine_steps,0.);  // ||u - u_ex||_L^2(q)
@@ -264,7 +265,8 @@ main (int argc, char **argv)
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("factorize "); }
 
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
-      mumps_solver.solve ();
+      int solve_status = mumps_solver.solve ();
+      std::cerr << "solve_status: " << solve_status << std::endl;
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("solve "); }
 
 
@@ -536,7 +538,8 @@ main (int argc, char **argv)
 
       // Compute h, errors and estimators
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
-      double  hx = 0, hy = 0, hz = 0, h = 0;
+      double  hx = 0, hy = 0, hz = 0, H = 0,
+              h = std::numeric_limits<double>::max ();
 
       double err = 0.0;
       double errH1 = 0.0;
@@ -564,7 +567,8 @@ main (int argc, char **argv)
           hy = quadrant->p(1, 7) - quadrant->p(1, 0);
           hy = quadrant->p(2, 7) - quadrant->p(2, 0);
 
-          h = std::max(h, std::sqrt(hx*hx + hy*hy + hz*hz));
+          h = std::min(h, std::sqrt(hx*hx + hy*hy + hz*hz));
+          H = std::max(H, std::sqrt(hx*hx + hy*hy + hz*hz));
 
           // ||u - u_ex||_L^2(q)
           err += std::pow(l2_error(quadrant, u_ex, result), 2);
@@ -600,7 +604,8 @@ main (int argc, char **argv)
                            + std::to_string(adapt)).c_str(), grad_est);
 
       // Global mesh size
-      MPI_Reduce (&h, &h_step[adapt], 1, MPI_DOUBLE, MPI_MAX, 0, mpicomm);
+      MPI_Reduce (&h, &h_step[adapt], 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
+      MPI_Reduce (&H, &H_step[adapt], 1, MPI_DOUBLE, MPI_MAX, 0, mpicomm);
 
       // Global errors
       //
@@ -640,20 +645,20 @@ main (int argc, char **argv)
 
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       // Break if the number of global nodes is too large
-      if (tmsh.num_global_nodes () >= 10e6)
+      if (tmsh.num_global_nodes () >= 1e7)
         break;
       else if (adapt < (adapt_refine_steps - 1))
         {
           // Refine.
-          tmsh.set_metrics_marker (estimator, tol*std::pow (.9, adapt), 3, 2, 2);
-          tmsh.metrics_refine (1e5);
+          tmsh.set_metrics_marker (grad_estimator, tol, 3, 2, 2);
+          tmsh.metrics_refine (1e6);
           std::cout << "tmsh.num_global_nodes ()= "
                     << tmsh.num_global_nodes ()
                     << std::endl;
           // Export new mesh
           tmsh.vtk_export ((std::string("p4est_dr_test_2_metrics_newmesh_")
                             + std::to_string (adapt)).c_str ());
-          if (tmsh.num_global_nodes () >= 10e6)
+          if (tmsh.num_global_nodes () >= 1e7)
             {
               std::cout << "too many nodes!" << std::endl;
               break;
@@ -666,8 +671,9 @@ main (int argc, char **argv)
     for (unsigned step = 0; step < nnodes.size(); ++step)
       {
         std::cout << "\nStep " << step << ", #nodes: "
-                  << nnodes[step] << ", h: "
-                  << h_step[step] << std::endl;
+                  << nnodes[step] << ", h min: "
+                  << h_step[step] << ", h max: "
+                  << H_step[step] << std::endl;
         std::cout << "\tL2 norm = " << error[step] 
                   << "\n\tH1 seminorm = " << errorH1[step] 
                   << "\n\tL2* norm = " << errorStar[step] 
