@@ -8,6 +8,21 @@
 
 #include <tmesh_3d.h>
 
+#define dgemm dgemm_
+#define DGEMM dgemm_
+
+extern "C"
+{
+  void
+  dgemm (const char *TRANSA, const char *TRANSB, const int *M,
+         const int *N, const int *K, const double *ALPHA,
+         const double *A, const int *LDA, const double *B,
+         const int *LDB, const double *BETA, double *C,
+         const int *LDC);
+}
+
+
+
 double
 tmesh_3d::quadrant_t::p (tmesh_3d::idx_t ii, tmesh_3d::idx_t jj)
 {
@@ -1093,13 +1108,27 @@ tmesh_3d::user_data_replace (std::vector<tmesh_3d::data_t *> old_user_data,
           // Compute local interpolation matrix and
           // multiply by parent interpolation matrix.
           new_user_data[i].interp_coeff = {0};
+          
+          const int eight = 8;
+          const double one = 1.0;
+          const double zero = .0;
+          dgemm ("N", "N", &eight, &eight, &eight, &one,
+                 &(loc_interp[i][0][0]),
+                 &eight, &(old_user_data[0]->interp_coeff[0][0]),
+                 &eight, &zero, &(new_user_data[i].interp_coeff[0][0]),
+                 &eight);
 
-          for (row = 0; row < 8; ++row)
-            for (col = 0; col < 8; ++col)
-              for (k = 0; k < 8; ++k)
-                if (loc_interp[i][row][k] != 0)
-                  new_user_data[i].interp_coeff[row][col] +=
-                    loc_interp[i][row][k] * old_user_data[0]->interp_coeff[k][col];
+          // Alternatively use the following if
+          // lapack does not work
+          //
+          //std::array<std::array<double, 8>, 8> tmp = {0};          
+          // for (row = 0; row < 8; ++row)
+          //   for (col = 0; col < 8; ++col)
+          //     for (k = 0; k < 8; ++k)
+          //       new_user_data[i].interp_coeff[row][col] +=
+          //         loc_interp[i][row][k] * old_user_data[0]->interp_coeff[k][col];
+
+
         }
     }
   // Coarsening.
