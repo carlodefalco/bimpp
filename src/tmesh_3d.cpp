@@ -170,7 +170,12 @@ tmesh_3d::neighbor_iterator::operator++ ()
     }
   else
     {
+      delete data;
       data = nullptr;
+
+      delete face_neighbor;
+      face_neighbor = nullptr;
+
       this->face_idx = -1;
     }
 };
