@@ -54,8 +54,9 @@ int main(int argc, char ** argv)
   unsigned nref_2 = 4;                // number of iterative refinements
 
   // Mesh parameters
-  std::vector<idx_t> nnodes (nref_2, 0);      // number of nodes
-  std::vector<double> h_step (nref_2, 0.);    // mesh size
+  std::vector<idx_t> nnodes (nref_2, 0);         // number of nodes
+  std::vector<double> hmax_step (nref_2, 0.);    // maximum mesh size
+  std::vector<double> hmin_step (nref_2, 0.);    // minimum mesh size
 
   // Errors at every step
   std::vector<double> error (nref_2,0.);      // ||u - u_ex||_L^2(q)
@@ -203,7 +204,8 @@ int main(int argc, char ** argv)
       // Compute mesh size, errors and estimators.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
 
-      double  hx = 0, hy = 0, hz = 0, h = 0;
+      double  hx = 0, hy = 0, hz = 0, hmax = 0,
+              hmin = std::numeric_limits<double>::max();
       double err = 0.0;
       double errH1 = 0.0;
       double errstar = 0.0;
@@ -222,7 +224,8 @@ int main(int argc, char ** argv)
           double hx = q->p(0, 7) - q->p(0, 0);
           double hy = q->p(1, 7) - q->p(1, 0);
           double hz = q->p(2, 7) - q->p(2, 0);
-          h = std::max(h, std::sqrt(hx*hx + hy*hy + hz*hz));
+          hmax = std::max(hmax, std::sqrt(hx*hx + hy*hy + hz*hz));
+          hmin = std::min(hmin, std::sqrt(hx*hx + hy*hy + hz*hz));
 
           // ||u - u_ex||_L^2(q)
           err += std::pow(l2_error(q, u_ex, u_vec), 2);
@@ -260,7 +263,8 @@ int main(int argc, char ** argv)
                                       grad_est);
 
       // Global mesh size.
-      MPI_Reduce(&h, &h_step[cycle], 1, MPI_DOUBLE, MPI_MAX, 0, mpicomm);
+      MPI_Reduce(&hmax, &hmax_step[cycle], 1, MPI_DOUBLE, MPI_MAX, 0, mpicomm);
+      MPI_Reduce(&hmin, &hmin_step[cycle], 1, MPI_DOUBLE, MPI_MIN, 0, mpicomm);
 
       // Global errors
       //
@@ -306,8 +310,9 @@ int main(int argc, char ** argv)
       for (unsigned step = 0; step < nnodes.size(); ++step)
         {
           std::cout << "\nStep " << step << ", #nodes: "
-                    << nnodes[step] << ", h: "
-                    << h_step[step] << std::endl;
+                    << nnodes[step] << ", h_min: "
+                    << hmin_step[step] << ", h_max: "
+                    << hmax_step[step] << std::endl;
           std::cout << "\tL2 norm = " << error[step]
                     << "\n\tH1 seminorm = " << errorH1[step]
                     << "\n\tL2* norm = " << errorStar[step]
