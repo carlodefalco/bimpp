@@ -6,10 +6,7 @@
 #include <iostream>
 #include <octave_file_io.h>
 
-
 #include <tmesh_3d.h>
-
-
 
 double
 tmesh_3d::quadrant_t::p (tmesh_3d::idx_t ii, tmesh_3d::idx_t jj)
@@ -499,7 +496,7 @@ octbingz2connectivity
 
   int flag_load = octave_load ("msh", tmp);
   assert (flag_load == 0);
-  
+
   Matrix p_matrix =
     tmp.scalar_map_value ().contents ("p").matrix_value ();
 
@@ -547,7 +544,7 @@ tmesh_3d::save (const char *filename)
 
 void
 tmesh_3d::load (const char *filename)
-{ p8est = p8est_load (filename, comm, sizeof (tmesh_3d::data_t), 0, 
+{ p8est = p8est_load (filename, comm, sizeof (tmesh_3d::data_t), 0,
                       this, &conn); };
 
 void
@@ -590,21 +587,21 @@ octbin_export_tmpl (tmesh_3d *THIS, const char* basename, const T& f,
         {
           if (! quadrant->is_hanging (ii))
             if (quadrant->t (ii) < THIS->num_owned_nodes ())
-	            {
-	              for (int jj = 0; jj < 3; ++jj)
+              {
+                for (int jj = 0; jj < 3; ++jj)
                   p[3 * quadrant->t (ii) + jj] = quadrant->p (jj, ii);
                 f_loc[quadrant->t (ii)] = f[ord(quadrant->gt (ii))];
                 t[8 * quadrant->get_forest_quad_idx () + (ij++)] =
                   quadrant->t (ii);
-	            }
-          	else
-	            {
-	              for (int jj = 0; jj < 3; ++jj)
+              }
+            else
+              {
+                for (int jj = 0; jj < 3; ++jj)
                   p.push_back (quadrant->p (jj, ii));
                 f_loc.push_back (f[ord(quadrant->gt (ii))]);
                 t[8 * quadrant->get_forest_quad_idx () + (ij++)] =
                   f_loc.size () - 1;
-	            }
+              }
           else
             {
               for (int jj = 0; jj < 3; ++jj)
@@ -619,7 +616,7 @@ octbin_export_tmpl (tmesh_3d *THIS, const char* basename, const T& f,
             }
         }
     }
- 
+
   Matrix oct_p (3, p.size () / 3, 0.0);
   ColumnVector oct_f (f_loc.size (), 0.0);
 
@@ -640,21 +637,21 @@ octbin_export_tmpl (tmesh_3d *THIS, const char* basename, const T& f,
   // Save to filename.
   int flag_open = octave_io_open (filename, m, &m);
   assert (flag_open == 0);
-  
+
   int flag_save = octave_save ("msh", octave_value (the_map));
   assert (flag_save == 0);
 
   int flag_close = octave_io_close ();
   assert (flag_close == 0);
-  
+
 };
 
 void
 tmesh_3d::octbin_export (const char * filename,
-               const distributed_vector & f, 
-               const ordering& ord)
+                         const distributed_vector & f,
+                         const ordering& ord)
 {
-	octbin_export_tmpl (this, filename, f, ord);
+  octbin_export_tmpl (this, filename, f, ord);
 };
 
 void
@@ -662,8 +659,8 @@ tmesh_3d::octbin_export (const char * filename,
                          const std::vector<double> & f,
                          const ordering& ord)
 {
-	octbin_export_tmpl (this, filename, f, ord);
-}	
+  octbin_export_tmpl (this, filename, f, ord);
+}
 
 void
 tmesh_3d::octbin_export_quadrant (const char * basename,
@@ -677,7 +674,7 @@ tmesh_3d::octbin_export_quadrant (const char * basename,
 
   octave_scalar_map the_map;
   the_map.assign ("f", oct_f);
-  
+
   octave_io_mode m = gz_write_mode;
 
   // Define filename.
@@ -687,7 +684,7 @@ tmesh_3d::octbin_export_quadrant (const char * basename,
   // Save to filename.
   int flag_open = octave_io_open (filename, m, &m);
   assert (flag_open == 0);
-  
+
   int flag_save = octave_save ("msh", octave_value (the_map));
   assert (flag_save == 0);
 
@@ -762,17 +759,17 @@ tmesh_3d::set_metrics_marker
       set_interpolation_matrix (quadrant);
 
       hxhat_hx = static_cast<int> (std::round(std::log2 (estimator (quadrant)
-                          * std::sqrt (this->num_global_quadrants ()) / tol)));
+                                                         * std::sqrt (this->num_global_quadrants ()) / tol)));
 
       if (hxhat_hx >= 0)
         hxhat_hx = std::max(0, hxhat_hx - n_refine);
       else
         hxhat_hx = std::min(0, hxhat_hx - n_coarsen);
 
-      data = 
+      data =
         static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
-      
-      data->refine_count = 
+
+      data->refine_count =
         std::min (std::max (-max_depth, hxhat_hx), max_depth);
     }
 
@@ -826,7 +823,7 @@ void
 tmesh_3d::coarsen (int recursive, int partforcoarsen, int balance)
 {
   p8est_coarsen_ext (p8est, recursive, 0, coarsen_callback,
-                      nullptr, replace_callback);
+                     nullptr, replace_callback);
 
   if (balance)
     p8est_balance_ext (p8est, P8EST_CONNECT_EDGE, nullptr, replace_callback);
@@ -861,7 +858,7 @@ tmesh_3d::update_ghosts ()
     delete[] this->mirror_data;
   if (! (this->ghost_data  == nullptr))
     delete[] this->ghost_data;
-  
+
   // Send mirror data.
   constexpr p4est_locidx_t chunk_len = 40;
   constexpr size_t data_size = sizeof (p4est_gloidx_t);
@@ -1067,15 +1064,16 @@ loc_interp =
     0,     0,     0.25,  0.25,  0,     0,     0.25,  0.25,
     0,     0,     0,     0.5,   0,     0,     0,     0.5,
     0,     0,     0,     0,     0.25,  0.25,  0.25,  0.25,
-    0,     0,     0,     0,     0,     0.5,   0,     0.5,                
+    0,     0,     0,     0,     0,     0.5,   0,     0.5,
     0,     0,     0,     0,     0,     0,     0.5,   0.5,
     0,     0,     0,     0,     0,     0,     0,     1
   };
 
-std::vector<tmesh_3d::data_t>
-tmesh_3d::user_data_replace (std::vector<tmesh_3d::data_t *> old_user_data)
+void
+tmesh_3d::user_data_replace (std::vector<tmesh_3d::data_t *> old_user_data,
+                             std::vector<tmesh_3d::data_t>&  new_user_data)
 {
-  std::vector<tmesh_3d::data_t> new_user_data;
+  int row, col, k;
 
   // Refinement.
   if (old_user_data.size () == 1)
@@ -1091,16 +1089,17 @@ tmesh_3d::user_data_replace (std::vector<tmesh_3d::data_t *> old_user_data)
           // Determine interpolation indices.
           new_user_data[i].interp_idx =
             old_user_data[0]->interp_idx;
-          
+
           // Compute local interpolation matrix and
           // multiply by parent interpolation matrix.
           new_user_data[i].interp_coeff = {0};
-          
-          for (int row = 0; row < 8; ++row)
-            for (int col = 0; col < 8; ++col)
-              for (int k = 0; k < 8; ++k)
-                new_user_data[i].interp_coeff[row][col] +=
-                  loc_interp[i][row][k] * old_user_data[0]->interp_coeff[k][col];
+
+          for (row = 0; row < 8; ++row)
+            for (col = 0; col < 8; ++col)
+              for (k = 0; k < 8; ++k)
+                if (loc_interp[i][row][k] != 0)
+                  new_user_data[i].interp_coeff[row][col] +=
+                    loc_interp[i][row][k] * old_user_data[0]->interp_coeff[k][col];
         }
     }
   // Coarsening.
@@ -1111,34 +1110,30 @@ tmesh_3d::user_data_replace (std::vector<tmesh_3d::data_t *> old_user_data)
       // Increase refine_count.
       auto comp = [] (tmesh_3d::data_t *d0, tmesh_3d::data_t *d1)
         { return (d0->refine_count < d1->refine_count); };
-      
+
       new_user_data[0].refine_count =
         (*std::max_element (old_user_data.begin (),
                             old_user_data.end (), comp))->refine_count + 1;
 
       // Replace interpolation matrix.
       new_user_data[0].interp_coeff = {0};
-      
-      for (int row = 0; row < 8; ++row)
-        {
-          // If coarsening, then (due to balancing)
-          // the parent indices have a "1" entry.
-          for (int col = 0; col < 8; ++col)
+
+      for (row = 0; row < 8; ++row)
+        // If coarsening, then (due to balancing)
+        // the parent indices have a "1" entry.
+        for (col = 0; col < 8; ++col)
+          if (old_user_data[row]->interp_coeff[row][col] == 1)
             {
-              if (old_user_data[row]->interp_coeff[row][col] == 1)
-                {
-                  new_user_data[0].interp_idx[row] = 
-                    old_user_data[row]->interp_idx[col];
-                  
-                  // Insert diagonal entry.
-                  new_user_data[0].interp_coeff[row][row] = 1;
-                  break;
-                }
+              new_user_data[0].interp_idx[row] =
+                old_user_data[row]->interp_idx[col];
+
+              // Insert diagonal entry.
+              new_user_data[0].interp_coeff[row][row] = 1;
+              break;
             }
-        }
+
     }
-  
-  return new_user_data;
+
 }
 
 int
@@ -1164,6 +1159,8 @@ tmesh_3d::coarsen_callback (p8est_t* p8, p4est_topidx_t tt,
   return (result);
 };
 
+static std::vector<tmesh_3d::data_t> new_user_data;
+static std::vector<tmesh_3d::data_t *> old_user_data;
 void
 tmesh_3d::replace_callback (p8est_t * p8,
                             p4est_topidx_t tt,
@@ -1174,14 +1171,15 @@ tmesh_3d::replace_callback (p8est_t * p8,
 {
   tmesh_3d *tm = reinterpret_cast<tmesh_3d*> (p8->user_pointer);
 
-  std::vector<tmesh_3d::data_t *> old_user_data (num_outgoing);
+  old_user_data.reserve (8);
+  old_user_data.resize (num_outgoing);
 
   for (size_t i = 0; i < num_outgoing; ++i)
-    old_user_data[i] = 
+    old_user_data[i] =
       static_cast<tmesh_3d::data_t *> (outgoing[i]->p.user_data);
 
-  std::vector<tmesh_3d::data_t> new_user_data =
-    tm->replace_fun (old_user_data);
+  new_user_data.reserve (8);
+  tm->replace_fun (old_user_data, new_user_data);
 
   for (size_t i = 0; i < num_incoming; ++i)
     *(static_cast<tmesh_3d::data_t *> (incoming[i]->p.user_data)) =
@@ -1196,7 +1194,7 @@ tmesh_3d::set_interpolation_matrix (tmesh_3d::quadrant_iterator & q)
   // Create interpolation map.
   std::map<idx_t,
            std::vector<std::pair<int, double>>> interp_map;
-  
+
   for (int node = 0; node < 8; ++node)
     {
       if (! q->is_hanging (node))
@@ -1210,11 +1208,11 @@ tmesh_3d::set_interpolation_matrix (tmesh_3d::quadrant_iterator & q)
               (std::make_pair(node, 1/np));
         }
     }
-  
+
   // Copy interp_map into user_data.
   tmesh_3d::data_t * data =
     static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
-  
+
   data->interp_idx = {0};
   data->interp_coeff = {0};
 
@@ -1225,7 +1223,7 @@ tmesh_3d::set_interpolation_matrix (tmesh_3d::quadrant_iterator & q)
     {
       data->interp_idx[col] =
         map_el->first;
-      
+
       for (auto vec_entry : map_el->second)
         data->interp_coeff[vec_entry.first][col] = vec_entry.second;
     }

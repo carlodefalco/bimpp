@@ -112,7 +112,7 @@ public:
     {
       if (data != nullptr)
         delete data;
-      
+
       if (face_neighbor != nullptr)
         delete face_neighbor;
     }
@@ -287,7 +287,7 @@ public:
 
     /// Interpolation coefficients at the eight vertices.
     std::array<std::array<double, 8>, 8> interp_coeff;
-  };  
+  };
 
   /// Default constructor, set all pointers to nullptr.
   tmesh_3d (MPI_Comm _comm = MPI_COMM_WORLD)
@@ -353,7 +353,7 @@ public:
   /// Export nodal field f to a octbin.gz file for visualization.
   void
   octbin_export (const char * filename,
-                 const distributed_vector & f, 
+                 const distributed_vector & f,
                  const ordering& ord = default_ord);
 
   /// Export quadrant field f to a octbin.gz file for visualization.
@@ -427,7 +427,7 @@ public:
   /// refined or coarsened.
   void
   set_replace_fun
-  (std::function<std::vector<tmesh_3d::data_t> (std::vector<tmesh_3d::data_t *>)> fun)
+  (std::function<void (std::vector<tmesh_3d::data_t *>, std::vector<tmesh_3d::data_t>&)> fun)
   { replace_fun = fun; };
 
   /// Refine marked quadrants, balance the octree and
@@ -501,8 +501,8 @@ public:
   userint_replace (std::vector<int>);
 
   /// Replace fun based on quadrant user_data.
-  static std::vector<tmesh_3d::data_t>
-  user_data_replace (std::vector<tmesh_3d::data_t *>);
+  static void
+  user_data_replace (std::vector<tmesh_3d::data_t *>, std::vector<tmesh_3d::data_t>&);
 
   /// P8EST pointers describing the tmesh,
   /// temporarily public until the API is stable.
@@ -521,7 +521,8 @@ public:
   int      size;
 
 private:
-  std::function<std::vector<tmesh_3d::data_t> (std::vector<tmesh_3d::data_t *>)> replace_fun;
+  std::function<void (std::vector<tmesh_3d::data_t *>,
+                      std::vector<tmesh_3d::data_t>&)> replace_fun;
 
   static int
   refine_callback (p8est_t*, p4est_topidx_t, p8est_quadrant_t*);
