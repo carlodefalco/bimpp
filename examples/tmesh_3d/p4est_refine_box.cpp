@@ -51,7 +51,7 @@ int main(int argc, char ** argv)
   using idx_t     = tmesh_3d::idx_t;
 
   unsigned nref_1 = 1;                // number of initial uniform refinements
-  unsigned nref_2 = 4;                // number of iterative refinements
+  unsigned nref_2 = 5;                // number of iterative refinements
 
   // Mesh parameters
   std::vector<idx_t> nnodes (nref_2, 0);      // number of nodes
@@ -129,18 +129,18 @@ int main(int argc, char ** argv)
       // Refine mesh.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       tmsh.set_refine_marker (uniform_refinement);
-      tmsh.refine(recursive, partforcoarsen);
+      tmsh.refine (recursive, partforcoarsen);
       if (rank == 0)
         {
           sprintf (step, "*** Refinement and balancing %3.3d ***",
-                    cycle);
+                   cycle);
           toc (step);
         }
 
       // Export refined mesh.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       tmsh.vtk_export ((std::string("p4est_refine_box_inital_mesh_")
-                          + std::to_string(cycle)).c_str());
+                        + std::to_string(cycle)).c_str());
       if (rank == 0) { toc ("*** Export initial mesh ***"); }
     }
 
@@ -158,25 +158,25 @@ int main(int argc, char ** argv)
       if (rank == 0)
         {
           sprintf (step, "*** Refinement and balancing %3.3d ***",
-                    (cycle+nref_1));
+                   (cycle+nref_1));
           toc (step);
         }
 
       // Export refined mesh.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       tmsh.vtk_export ((std::string("p4est_refine_box_mesh_")
-                          + std::to_string(cycle)).c_str());
+                        + std::to_string(cycle)).c_str());
       if (rank == 0) { toc ("*** Export ***"); }
 
       // Compute number of nodes.
-      nnodes[cycle] = tmsh.num_global_nodes();
+      nnodes[cycle] = tmsh.num_global_nodes ();
 
       // Definition of u.
       q1_vec u_vec (tmsh.num_owned_nodes());
       bim3a_solution_with_ghosts (tmsh,u_vec);
       for (auto q = tmsh.begin_quadrant_sweep();
-                q != tmsh.end_quadrant_sweep();
-                ++q)
+           q != tmsh.end_quadrant_sweep();
+           ++q)
         {
           for (int nn = 0; nn < 8; ++nn)
             {
@@ -189,16 +189,16 @@ int main(int argc, char ** argv)
 
       // Compute recovered gradient.
       gradient3 grad_star = bim3c_quadtree_pde_recovered_gradient (tmsh,
-                                                                    u_vec);
+                                                                   u_vec);
 
       // Compute recovered solution.
       q2_vec3 u_star = bim3c_quadtree_pde_recovered_solution(tmsh,u_vec,
-                                                              grad_star);
+                                                             grad_star);
 
       // Export solution.
       tmsh.octbin_export((std::string("p4est_refine_box_u_")
                           + std::to_string(cycle)).c_str(),
-                          u_vec);
+                         u_vec);
 
       // Compute mesh size, errors and estimators.
       MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
@@ -215,14 +215,15 @@ int main(int argc, char ** argv)
       std::vector<double> grad_est (tmsh.num_local_quadrants());
 
       for (auto q = tmsh.begin_quadrant_sweep();
-          q != tmsh.end_quadrant_sweep();
-          ++q)
+           q != tmsh.end_quadrant_sweep();
+           ++q)
         {
           // mesh size
           double hx = q->p(0, 7) - q->p(0, 0);
           double hy = q->p(1, 7) - q->p(1, 0);
           double hz = q->p(2, 7) - q->p(2, 0);
           h = std::max(h, std::sqrt(hx*hx + hy*hy + hz*hz));
+
 
           // ||u - u_ex||_L^2(q)
           err += std::pow(l2_error(q, u_ex, u_vec), 2);
@@ -232,11 +233,11 @@ int main(int argc, char ** argv)
 
           // |u - u_ex|_H^1(q)
           errH1 += std::pow(semih1_error(q, du_x_ex, du_y_ex, du_z_ex,
-                                          u_vec), 2);
+                                         u_vec), 2);
 
           // ||du_star - grad(u_ex)||_L^2(q)
           errH1star = std::pow(semih1_star_error(q, du_x_ex,du_y_ex,du_z_ex,
-                                                  grad_star), 2);
+                                                 grad_star), 2);
 
           double temp_est = 0.;
 
@@ -249,19 +250,24 @@ int main(int argc, char ** argv)
           temp_est = std::pow(estimator_grad(q, grad_star, u_vec), 2);
           estgrad += temp_est;
           grad_est[q->get_forest_quad_idx ()] = temp_est;
-        }
 
+        }
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("Compute h and error"); }
+
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       // Export estimators.
       tmsh.octbin_export_quadrant ((std::string("p4est_refine_box_err_")
-                                      + std::to_string(cycle)).c_str(),
-                                      sol_est);
+                                    + std::to_string(cycle)).c_str(),
+                                   sol_est);
       tmsh.octbin_export_quadrant ((std::string("p4est_refine_box_err_")
-                                      + std::to_string(cycle)).c_str(),
-                                      grad_est);
+                                    + std::to_string(cycle)).c_str(),
+                                   grad_est);
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("export error plots"); }
 
       // Global mesh size.
       MPI_Reduce(&h, &h_step[cycle], 1, MPI_DOUBLE, MPI_MAX, 0, mpicomm);
 
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
       // Global errors
       //
       // ||u - u_ex||_L^2(q)
@@ -292,8 +298,8 @@ int main(int argc, char ** argv)
       MPI_Reduce (&estgrad, &estGrad[cycle], 1, MPI_DOUBLE, MPI_SUM, 0,
                   mpicomm);
       estGrad[cycle] = std::sqrt(estGrad[cycle]);
+      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("reduce global values"); }
 
-      MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc ("Compute h and error"); }
     }
 
   MPI_Barrier (MPI_COMM_WORLD);
@@ -303,7 +309,7 @@ int main(int argc, char ** argv)
       print_timing_report ();
 
       // mesh size, errors and estimators
-      for (unsigned step = 0; step < nnodes.size(); ++step)
+      for (unsigned step = 0; step < nnodes.size (); ++step)
         {
           std::cout << "\nStep " << step << ", #nodes: "
                     << nnodes[step] << ", h: "
