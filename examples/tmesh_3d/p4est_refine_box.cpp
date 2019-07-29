@@ -224,23 +224,20 @@ int main(int argc, char ** argv)
           double hx = q->p(0, 7) - q->p(0, 0);
           double hy = q->p(1, 7) - q->p(1, 0);
           double hz = q->p(2, 7) - q->p(2, 0);
-          hmax = std::max(hmax, std::sqrt(hx*hx + hy*hy + hz*hz));
-          hmin = std::min(hmin, std::sqrt(hx*hx + hy*hy + hz*hz));
+          hmax = std::max (hmax, std::sqrt (hx*hx + hy*hy + hz*hz));
+          hmin = std::min (hmin, std::sqrt (hx*hx + hy*hy + hz*hz));
 
 
           // ||u - u_ex||_L^2(q)
-          err += std::pow(l2_error(q, u_ex, u_vec), 2);
-
+          err += std::pow (l2_error (q, u_ex, u_vec), 2);
           // ||u_star - u_ex||_L^2(q)
-          errstar += std::pow(l2_star_error(q, u_ex, u_star), 2);
-
+          errstar += std::pow (l2_star_error (q, u_ex, u_star), 2);
           // |u - u_ex|_H^1(q)
-          errH1 += std::pow(semih1_error(q, du_x_ex, du_y_ex, du_z_ex,
-                                         u_vec), 2);
-
+          errH1 += std::pow (semih1_error (q, du_x_ex, du_y_ex, du_z_ex,
+                                           u_vec), 2);
           // ||du_star - grad(u_ex)||_L^2(q)
-          errH1star = std::pow(semih1_star_error(q, du_x_ex,du_y_ex,du_z_ex,
-                                                 grad_star), 2);
+          errH1star = std::pow (semih1_star_error (q, du_x_ex,du_y_ex,du_z_ex,
+                                                   grad_star), 2);
 
           double temp_est = 0.;
 
