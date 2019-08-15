@@ -38,7 +38,7 @@ CLEANFILES += p4est_refine_box_*.pvtu p4est_refine_box_*.visit p4est_refine_box_
 poisson_boltzmann_SOURCES =  poisson_boltzmann.cpp pb_class.cpp
 poisson_boltzmann_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
 poisson_boltzmann_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-poisson_boltzmann_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) @P4EST_LIB@
+poisson_boltzmann_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) @P4EST_LIB@
 CLEANFILES += 
 
 test_interpolation_3d_SOURCES =  test_interpolation_3d.cpp

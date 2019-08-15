@@ -31,11 +31,23 @@ main (int argc, char **argv)
   TIC ();
   pb.refine_surface ();
   TOC ("refine surface");
+
+  TIC ();
+  pb.create_markers ();
+  TOC ("create element markers");
   
+  TIC ();
+  pb.export_ls_tmesh ();
+  TOC ("export ls tmesh");
+
   TIC ();
   pb.export_marked_tmesh ();
   TOC ("export marked tmesh");
 
+  TIC ();
+  pb.compute_electric_potential ();
+  TOC ("compute electric potential");
+  
   TIC ();
   pb.export_p4est ();
   TOC ("export p4est");
