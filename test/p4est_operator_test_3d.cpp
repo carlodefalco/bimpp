@@ -2,6 +2,7 @@
 #include <mumps_class.h>
 #include <quad_operators_3d.h>
 #include <tmesh_3d.h>
+#include <octave_file_io.h>
 
 #include <vector>
 #include <cassert>
