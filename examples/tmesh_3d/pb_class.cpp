@@ -119,6 +119,7 @@ poisson_boltzmann::parse_options (int argc, char **argv)
   decay    = g ("decay", decay);
   e_in     = g ("e_in", e_in);
   e_out    = g ("e_out", e_out);
+  k2       = g ("k2", k2);
 }
 
 void
@@ -423,7 +424,7 @@ poisson_boltzmann::compute_electric_potential ()
 
   bim3a_rhs (tmsh, rho_fixed, ones, rhs);
   tmsh.octbin_export ("rhs_0", rhs);
-  
+
   mumps mumps_solver;
 
   std::vector<double> vals;
