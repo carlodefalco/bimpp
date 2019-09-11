@@ -319,7 +319,10 @@ poisson_boltzmann::create_markers ()
       for (const ion& i : ions)
         if (is_in (i, quadrant))
           {
-            this->rho_fixed[quadrant->get_forest_quad_idx ()] = 1.0e11;
+            double volume = quadrant->p(0, 7) - quadrant->p(0, 0) *
+              quadrant->p(1, 7) - quadrant->p(1, 0) *
+              quadrant->p(2, 7) - quadrant->p(2, 0);
+            this->rho_fixed[quadrant->get_forest_quad_idx ()] = i.charge / volume;
             break;
           }
 
