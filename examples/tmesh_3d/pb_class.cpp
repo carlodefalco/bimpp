@@ -402,7 +402,7 @@ poisson_boltzmann::compute_electric_potential ()
        rp != reaction.end () || mp != marker.end ();
        ++rp, ++mp)
     if ((*mp) != 0.0)
-      (*rp) = 1.22e-06;
+      (*rp) = k2;
 
   tmsh.octbin_export_quadrant ("epsilon_0", epsilon);
   tmsh.octbin_export_quadrant ("rho_0", rho_fixed);
