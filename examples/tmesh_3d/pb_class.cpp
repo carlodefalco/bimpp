@@ -408,7 +408,9 @@ poisson_boltzmann::compute_electric_potential ()
   tmsh.octbin_export_quadrant ("rho_0", rho_fixed);
   tmsh.octbin_export_quadrant ("reaction_0", reaction);
 
-  sparse_matrix A;
+  distributed_sparse_matrix A;
+  A.set_ranges (tmsh.num_owned_nodes ());
+  
   A.resize (tmsh.num_global_nodes ());
   distributed_vector  rhs (tmsh.num_global_nodes ());
 
@@ -420,7 +422,7 @@ poisson_boltzmann::compute_electric_potential ()
   bim3a_solution_with_ghosts (tmsh, ones, replace_op);
   bim3a_advection_diffusion (tmsh, epsilon, psi, A);
   bim3a_reaction (tmsh, reaction, ones, A);
-
+  A.assemble ();
 
   bim3a_rhs (tmsh, rho_fixed, ones, rhs);
   tmsh.octbin_export ("rhs_0", rhs);
