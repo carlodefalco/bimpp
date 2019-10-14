@@ -1,4 +1,5 @@
 #include "quad_operators_3d.h"
+#include <bim_timing.h>
 
 #include <cmath>
 #include <numeric>
@@ -363,6 +364,35 @@ bim3a_boundary_mass (tmesh_3d & mesh,
 
 template <class T>
 void
+bim3a_dirichlet_bc_loc (sparse_matrix& A,
+                        T& rhs,
+                        const unsigned int& row,
+                        const double& value,
+                        const bool& only_rhs)
+{
+  if (std::abs (A[row][row]) < std::numeric_limits<double>::epsilon())
+    {
+      A[row][row] = std::accumulate
+        (A[row].begin (),
+         A[row].end (),
+         0.0,
+         [] (double sum,
+             const std::map<int, double>::value_type & p)
+         {
+           return (sum + std::abs (p.second));
+         }
+         );
+    }
+
+  if (! only_rhs)
+    A[row][row] *= 1e16;
+
+  // Multiply rhs by the diagonal entry
+  rhs[row] = A[row][row] * value;
+}
+
+template <class T>
+void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                     sparse_matrix& A, T& rhs,
                     const ordering& ord,
@@ -372,6 +402,8 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
   unsigned int row, col;
 
   std::set<unsigned int> marked;
+
+  double value;
 
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
@@ -399,54 +431,13 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                     // Mark current node so to avoid duplicate operations.
                     marked.insert (row);
 
-                    // Impose boundary condition at rhs by
-                    // evaluating it at the current node.
-                    rhs[row] =
-                      (std::get<2> (bcs[bc]))
-                      (quadrant->p (0, i),
-                       quadrant->p (1, i),
-                       quadrant->p (2, i));
+                    // Evaluate bc at current node
+                    value = (std::get<2> (bcs[bc]))
+                            (quadrant->p (0, i),
+                              quadrant->p (1, i),
+                              quadrant->p (2, i));
 
-                    // Move non-diagonal entries
-                    // from column "row" to rhs.
-                    if (A[row].size ())
-                      for (auto j = A[row].begin ();
-                           j != A[row].end (); ++j)
-                        {
-                          col = A.col_idx (j);
-
-                          if (row != col)
-                            {
-                              A[row][col] = 0.0;
-
-                              // If row "col" is owned by current process.
-                              if (A[col].size ())
-                                {
-                                  rhs[col] -= A[col][row] * rhs[row];
-                                  A[col][row] = 0.0;
-                                }
-                            }
-                        }
-
-                    if (std::abs (A[row][row])
-                        < std::numeric_limits<double>::epsilon ())
-                      {
-                        A[row][row] = std::accumulate
-                          (A[row].begin (),
-                           A[row].end (),
-                           0.0,
-                           [] (double value,
-                               const std::map<int, double>::value_type & p)
-                           {
-                             return (value + std::abs (p.second));
-                           }
-                           );
-                      }
-
-                    A[row][row] *= 1e16;
-
-                    // Multiply rhs by the diagonal entry.
-                    rhs[row] *= A[row][row];
+                    bim3a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
                   }
             }
         }
@@ -465,6 +456,8 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
 
   std::set<unsigned int> marked;
 
+  double value;
+
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
@@ -491,58 +484,113 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
                     // Mark current node so to avoid duplicate operations.
                     marked.insert (row);
 
-                    // Impose boundary condition at rhs by
-                    // evaluating it at the current node.
-                    rhs[row] =
+                    // Evaluate bc at current node
+                    value =
                       (std::get<2> (bcs[bc])) (quadrant, i);
 
-                    // Move non-diagonal entries
-                    // from column "row" to rhs.
-                    if (A[row].size ())
-                      for (auto j = A[row].begin ();
-                           j != A[row].end (); ++j)
-                        {
-                          col = A.col_idx (j);
-
-                          if (row != col)
-                            {
-                              A[row][col] = 0.0;
-
-                              // If row "col" is owned by current process.
-                              if (A[col].size ())
-                                {
-                                  rhs[col] -= A[col][row] * rhs[row];
-                                  A[col][row] = 0.0;
-                                }
-                            }
-                        }
-
-                    if (std::abs (A[row][row])
-                        < std::numeric_limits<double>::epsilon ())
-                      {
-                        A[row][row] = std::accumulate
-                          (A[row].begin (),
-                           A[row].end (),
-                           0.0,
-                           [] (double value,
-                               const std::map<int, double>::value_type & p)
-                           {
-                             return (value + std::abs (p.second));
-                           }
-                           );
-                      }
-
-                    A[row][row] *= 1e16;
-
-                    // Multiply rhs by the diagonal entry.
-                    rhs[row] *= A[row][row];
+                    bim3a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);                    
                   }
             }
         }
     }
 }
 
-/* CCI: BEGIN ADDED */
+// Specialization.
+template <>
+void
+interpolate_vector (tmesh_3d & mesh,
+                    std::vector<double> & vec_in,
+                    std::vector<double> & vec_out,
+                    const ordering & ord)
+{
+  tmesh_3d::data_t * data;
+
+  size_t start = mesh.lnodes->global_offset;
+  size_t end = start + mesh.num_owned_nodes ();
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      data = static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
+
+      for (int node = 0; node < 8; ++node)
+        {
+          // If current node is owned.
+          if (! quadrant->is_hanging (node) &&
+              vec_out[ord (quadrant->gt (node))] == 0 &&
+              quadrant->gt (node) >= start && quadrant->gt (node) < end)
+            {
+              // Multiply by interpolation matrix.
+              for (int i = 0; i < 8; ++i)
+                vec_out[ord (quadrant->gt (node))] +=
+                  data->interp_coeff[node][i] *
+                  vec_in[ord (data->interp_idx[i])];
+            }
+        }
+    }
+}
+
+// Specialization.
+template <>
+void
+interpolate_vector (tmesh_3d & mesh,
+                    distributed_vector & vec_in,
+                    distributed_vector & vec_out,
+                    const ordering & ord)
+{
+  tmesh_3d::data_t * data;
+
+  // Assemble indices related to interpolation matrices.
+  vec_in.clear_non_local ();
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      data = static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
+
+      for (int node = 0; node < 8; ++node)
+        {
+          if (! quadrant->is_hanging (node))
+            {
+              // Multiply by interpolation matrix.
+              for (int i = 0; i < 8; ++i)
+                vec_in[ord (data->interp_idx[i])] += 0;
+            }
+        }
+    }
+
+  vec_in.assemble (replace_op);
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      data = static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
+
+      for (int node = 0; node < 8; ++node)
+        {
+          if (! quadrant->is_hanging (node))
+            {
+              if (vec_out[ord (quadrant->gt (node))] == 0)
+                {
+                  // Multiply by interpolation matrix.
+                  for (int i = 0; i < 8; ++i)
+                    vec_out[ord (quadrant->gt (node))] +=
+                      data->interp_coeff[node][i] *
+                      vec_in[ord (data->interp_idx[i])];
+                }
+            }
+          // Assemble parents.
+          else
+            {
+              for (int pp = 0; pp < quadrant->num_parents(node); ++pp)
+                vec_out[ord (quadrant->gparent (pp, node))] += 0;
+            }
+        }
+    }
+}
 
 /// Edge ordering:
 ///
@@ -552,7 +600,7 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
 ///          /  |              /  |
 ///         /___|____9________/   |
 ///        |    |             |   5
-///        |    0               |   |
+///        |    0             |   |
 ///        |    |             4   |
 ///        1    |_______10____|___|
 ///        |   /              |   /
@@ -828,19 +876,13 @@ bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
               break;
             }
 
-          for (node_n = 0; node_n < 8; ++node_n)
-            if (neighbor->gt (node_n) ==
-                quadrant->gt (node_side))
-              break;
-
-          // If not, or if node_n is hanging,
-          // switch to the next neighbor.
-          if (node_n == 8 || neighbor->is_hanging (node_n))
+          if (neighbor->gt (node) != quadrant->gt (node_side) ||
+              neighbor->is_hanging (node))
             continue;
 
           hx = neighbor->p (0, 1) - neighbor->p (0, 0);
 
-          switch (node_n)
+          switch (node)
             {
             case 0:
               if (node_side == 1)
@@ -930,19 +972,13 @@ bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
               break;
             }
 
-          for (node_n = 0; node_n < 8; ++node_n)
-            if (neighbor->gt (node_n) ==
-                quadrant->gt (node_side))
-              break;
-
-          // If not, or if node_n is hanging,
-          // switch to the next neighbor.
-          if (node_n == 8 || neighbor->is_hanging (node_n))
+          if (neighbor->gt (node) != quadrant->gt (node_side) ||
+              neighbor->is_hanging (node))
             continue;
 
           hy = neighbor->p (1, 2) - neighbor->p (1, 0);
 
-          switch (node_n)
+          switch (node)
             {
             case 0:
               if (node_side == 2)
@@ -1032,19 +1068,13 @@ bim3c_recovered_gradient_loc (tmesh_3d::quadrant_iterator quadrant,
               break;
             }
 
-          for (node_n = 0; node_n < 8; ++node_n)
-            if (neighbor->gt (node_n) ==
-                quadrant->gt (node_side))
-              break;
-
-          // If not, or if node_n is hanging,
-          // switch to the next neighbor.
-          if (node_n == 8 || neighbor->is_hanging (node_n))
+          if (neighbor->gt (node) != quadrant->gt (node_side) ||
+              neighbor->is_hanging (node))
             continue;
 
           hz = neighbor->p (2, 4) - neighbor->p (2, 0);
 
-          switch (node_n)
+          switch (node)
             {
             case 0:
               if (node_side == 4)
@@ -1323,7 +1353,7 @@ compute_solution_if_hanging (std::array<double, 8>& u_star_loc,
     q1 = 1-pp;		// in case of two parents, their indices are always 0,1
 
   auto normal_to_x =
-    [hy, hz, du, pp, q1, q2, q3, n]
+    [hy, hz, &du, pp, q1, q2, q3, n]
     (tmesh_3d::quadrant_iterator & quadrant, std::array<double, 8>& u_star_loc)
     {
       u_star_loc[n] +=
@@ -1339,7 +1369,7 @@ compute_solution_if_hanging (std::array<double, 8>& u_star_loc,
     };
 
   auto normal_to_y =
-    [hx, hz, du, pp, q1, q2, q3, n]
+    [hx, hz, &du, pp, q1, q2, q3, n]
     (tmesh_3d::quadrant_iterator & quadrant, std::array<double, 8>& u_star_loc)
     {
       u_star_loc[n] +=
@@ -1355,7 +1385,7 @@ compute_solution_if_hanging (std::array<double, 8>& u_star_loc,
     };
 
   auto normal_to_z =
-    [hx, hy, du, pp, q1, q2, q3, n]
+    [hx, hy, &du, pp, q1, q2, q3, n]
     (tmesh_3d::quadrant_iterator & quadrant, std::array<double, 8>& u_star_loc)
     {
       u_star_loc[n] +=
@@ -1604,6 +1634,7 @@ bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
     du_y_star_loc,
     du_z_star_loc;
 
+
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
@@ -1748,15 +1779,13 @@ bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
 
               // Compute recovered solution at the
               // double-sized neighbor element.
-              compute_solution_if_hanging(u_star_loc,du,quadrant,n,p,i);
+              compute_solution_if_hanging (u_star_loc,du,quadrant,n,p,i);
             }
 
           u_star[quadrant->get_forest_quad_idx ()][n] = u_star_loc[n];
         }
 
-
       // Compute values at edges
-
       // face 0
       u_star[quadrant->get_forest_quad_idx ()][8] =
         0.5 * (u_star_loc[2] + u_star_loc[6])
@@ -1809,9 +1838,7 @@ bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
         0.5 * (u_star_loc[7] + u_star_loc[6])
         + hx * (du_x_star_loc[6] - du_x_star_loc[7]) / 8;
 
-
       // Compute values at faces midpoints.
-
       // face 0
       u_star[quadrant->get_forest_quad_idx ()][20] =
         0.25 * (u_star[quadrant->get_forest_quad_idx ()][8] +
@@ -1903,7 +1930,6 @@ bim3c_quadtree_pde_recovered_solution (tmesh_3d& mesh,
   return u_star;
 }
 
-/* CCI: END ADDED */
 
 // 4-points Gauss quadature nodes and weights (in [0, 1]).
 static constexpr double gn[4] =
@@ -1923,7 +1949,6 @@ static inline double
 xformw (const double *x, const double w)
 { return (w * (x[1] - x[0])); }
 
-/* CCI: BEGIN ADDED */
 
 // Approximate integral of fun on [x[0], x[1]] x [y[0], y[1]] x [z[0], z[1]].
 static double
@@ -2154,7 +2179,7 @@ estimator_grad (tmesh_3d::quadrant_iterator q,
       }
 
   auto fun =
-    [x, y, z, dudxstar_loc, dudystar_loc, dudzstar_loc, u_loc]
+    [&x, &y, &z, &dudxstar_loc, &dudystar_loc, &dudzstar_loc, &u_loc]
     (double X, double Y, double Z) -> double
     {
       return
@@ -2167,6 +2192,17 @@ estimator_grad (tmesh_3d::quadrant_iterator q,
     };
 
   return std::sqrt (quad_integral (x, y, z, fun));
+}
+
+
+template <class T>
+int
+zz_marker_grad (tmesh_3d::quadrant_iterator q,
+                const gradient3<T>& du_star,
+                const T& u,
+                double limit)
+{
+  return estimator_grad (q, du_star, u) > limit ? 1 : 0;
 }
 
 
@@ -2204,7 +2240,7 @@ estimator_sol (tmesh_3d::quadrant_iterator q,
     }
 
   auto fun =
-    [x, y, z, ustar_loc, u_loc]
+    [&x, &y, &z, &ustar_loc, &u_loc]
     (double X, double Y, double Z) -> double
     {
       return
@@ -2213,6 +2249,17 @@ estimator_sol (tmesh_3d::quadrant_iterator q,
     };
 
   return std::sqrt (quad_integral (x, y, z, fun));
+}
+
+
+template <class T>
+int
+zz_marker_sol (tmesh_3d::quadrant_iterator q,
+               const q2_vec3& ustar,
+               const T& u,
+               double limit)
+{
+  return estimator_sol (q, ustar, u) > limit ? 1 : 0;
 }
 
 
@@ -2242,7 +2289,7 @@ l2_error (tmesh_3d::quadrant_iterator q,
       }
 
   auto fun =
-    [x, y, z, u_loc, u_ex]
+    [&x, &y, &z, &u_loc, &u_ex]
     (double X, double Y, double Z) -> double
     { return std::pow (q1 (X, Y, Z, x, y, z, u_loc) - u_ex (X, Y, Z), 2); };
 
@@ -2278,7 +2325,7 @@ semih1_error (tmesh_3d::quadrant_iterator q,
       }
 
   auto fun =
-    [x, y, z, dudx_ex, dudy_ex, dudz_ex, u_loc]
+    [&x, &y, &z, &dudx_ex, &dudy_ex, &dudz_ex, &u_loc]
     (double X, double Y, double Z) -> double
     {
       return
@@ -2312,7 +2359,7 @@ l2_star_error (tmesh_3d::quadrant_iterator q,
     ustar_loc[ii] = (ustar[q->get_forest_quad_idx ()])[ii];
 
   auto fun =
-    [x, y, z, ustar_loc, u_ex]
+    [&x, &y, &z, &ustar_loc, &u_ex]
     (double X, double Y, double Z) -> double
     {
       return
@@ -2323,7 +2370,7 @@ l2_star_error (tmesh_3d::quadrant_iterator q,
 }
 
 
-// Compute |du_star - grad(u_ex)|_H^1(q).
+// Compute ||du_star - grad(u_ex)||_L^2(q).
 template <class T>
 double
 semih1_star_error (tmesh_3d::quadrant_iterator q,
@@ -2363,8 +2410,8 @@ semih1_star_error (tmesh_3d::quadrant_iterator q,
       }
 
   auto fun =
-    [x, y, z, dudxstar_loc, dudystar_loc, dudzstar_loc,
-     dudx_ex, dudy_ex, dudz_ex]
+    [&x, &y, &z, &dudxstar_loc, &dudystar_loc, &dudzstar_loc,
+     &dudx_ex, &dudy_ex, &dudz_ex]
     (double X, double Y, double Z) -> double
     {
       return
@@ -2568,4 +2615,3 @@ semih1_star_error (tmesh_3d::quadrant_iterator,
                    const func3 &,
                    const func3 &,
                    const gradient3<distributed_vector> &);
-/* CCI: END ADDED */

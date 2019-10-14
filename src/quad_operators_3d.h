@@ -130,7 +130,12 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
                     const ordering& ord = default_ord,
                     const bool& only_rhs = false);
 
-
+template <class T>
+void
+interpolate_vector (tmesh_3d & mesh,
+                    T & vec_in,
+                    T & vec_out,
+                    const ordering & ord = default_ord);
 
 
 
@@ -218,7 +223,7 @@ l2_star_error (tmesh_3d::quadrant_iterator q,
                const func3 & u_ex,
                const q2_vec3 & ustar);
 
-/// Compute |du_star - grad(u_ex)|_H^1(q).
+/// Compute ||du_star - grad(u_ex)||_L^2(q).
 template <class T>
 double
 semih1_star_error (tmesh_3d::quadrant_iterator q,

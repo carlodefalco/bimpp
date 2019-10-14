@@ -6,8 +6,20 @@
 #include <iostream>
 #include <octave_file_io.h>
 
-
 #include <tmesh_3d.h>
+
+#define dgemm dgemm_
+#define DGEMM dgemm_
+
+extern "C"
+{
+  void
+  dgemm (const char *TRANSA, const char *TRANSB, const int *M,
+         const int *N, const int *K, const double *ALPHA,
+         const double *A, const int *LDA, const double *B,
+         const int *LDB, const double *BETA, double *C,
+         const int *LDC);
+}
 
 
 
@@ -170,7 +182,12 @@ tmesh_3d::neighbor_iterator::operator++ ()
     }
   else
     {
+      delete data;
       data = nullptr;
+
+      delete face_neighbor;
+      face_neighbor = nullptr;
+
       this->face_idx = -1;
     }
 };
@@ -494,7 +511,7 @@ octbingz2connectivity
 
   int flag_load = octave_load ("msh", tmp);
   assert (flag_load == 0);
-  
+
   Matrix p_matrix =
     tmp.scalar_map_value ().contents ("p").matrix_value ();
 
@@ -518,7 +535,7 @@ tmesh_3d::read_connectivity (const char *filename, int source)
     octbingz2connectivity (filename, &conn);
 
   conn = p8est_connectivity_bcast (conn, source, comm);
-  p8est = p8est_new (comm, conn, 0, NULL, this);
+  p8est = p8est_new (comm, conn, sizeof (tmesh_3d::data_t), nullptr, this);
 };
 
 void
@@ -533,7 +550,7 @@ tmesh_3d::read_connectivity (const double *p,
                          t, num_trees, &conn);
 
   conn = p8est_connectivity_bcast (conn, source, comm);
-  p8est = p8est_new (comm, conn, 0, NULL, this);
+  p8est = p8est_new (comm, conn, sizeof (tmesh_3d::data_t), nullptr, this);
 };
 
 void
@@ -542,7 +559,8 @@ tmesh_3d::save (const char *filename)
 
 void
 tmesh_3d::load (const char *filename)
-{ p8est = p8est_load (filename, comm, 0, 0, this, &conn); };
+{ p8est = p8est_load (filename, comm, sizeof (tmesh_3d::data_t), 0,
+                      this, &conn); };
 
 void
 tmesh_3d::vtk_export (const char *filename)
@@ -560,33 +578,34 @@ tmesh_3d::vtk_export (const char *filename)
   assert (flag == 0);
 };
 
+template<class T>
 void
-tmesh_3d::octbin_export (const char * basename,
-                         const std::vector<double> & f)
+octbin_export_tmpl (tmesh_3d *THIS, const char* basename, const T& f,
+                    const ordering& ord)
 {
-  assert (f.size () == num_global_nodes ());
+  //  assert (f.size () == num_global_nodes ());
 
-  std::vector<double> p (3 * num_owned_nodes ());
-  std::vector<double> f_loc (num_owned_nodes ());
+  std::vector<double> p (3 * THIS->num_owned_nodes ());
+  std::vector<double> f_loc (THIS->num_owned_nodes ());
 
   Array<octave_idx_type>
-    oct_t (dim_vector (8, num_local_quadrants ()), 0);
+    oct_t (dim_vector (8, THIS->num_local_quadrants ()), 0);
   octave_idx_type *t = oct_t.fortran_vec ();
 
   octave_idx_type ij = 0;
-  for (auto quadrant = begin_quadrant_sweep ();
-       quadrant != end_quadrant_sweep ();
+  for (auto quadrant = THIS->begin_quadrant_sweep ();
+       quadrant != THIS->end_quadrant_sweep ();
        ++quadrant)
     {
       ij = 0;
       for (int ii = 0; ii < 8; ++ii)
         {
           if (! quadrant->is_hanging (ii))
-            if (quadrant->t (ii) < num_owned_nodes ())
+            if (quadrant->t (ii) < THIS->num_owned_nodes ())
               {
                 for (int jj = 0; jj < 3; ++jj)
                   p[3 * quadrant->t (ii) + jj] = quadrant->p (jj, ii);
-                f_loc[quadrant->t (ii)] = f[quadrant->gt (ii)];
+                f_loc[quadrant->t (ii)] = f[ord(quadrant->gt (ii))];
                 t[8 * quadrant->get_forest_quad_idx () + (ij++)] =
                   quadrant->t (ii);
               }
@@ -594,7 +613,7 @@ tmesh_3d::octbin_export (const char * basename,
               {
                 for (int jj = 0; jj < 3; ++jj)
                   p.push_back (quadrant->p (jj, ii));
-                f_loc.push_back (f[quadrant->gt (ii)]);
+                f_loc.push_back (f[ord(quadrant->gt (ii))]);
                 t[8 * quadrant->get_forest_quad_idx () + (ij++)] =
                   f_loc.size () - 1;
               }
@@ -605,14 +624,13 @@ tmesh_3d::octbin_export (const char * basename,
               int pp;
               double fbuff = 0;
               for (pp = 0; pp < quadrant->num_parents (ii); ++pp)
-                fbuff += f [quadrant->gparent (pp, ii)];
+                fbuff += f [ord(quadrant->gparent (pp, ii))];
               f_loc.push_back (fbuff / pp);
               t[8 * quadrant->get_forest_quad_idx () + (ij++)] =
                 f_loc.size () - 1;
             }
         }
     }
-
 
   Matrix oct_p (3, p.size () / 3, 0.0);
   ColumnVector oct_f (f_loc.size (), 0.0);
@@ -629,18 +647,35 @@ tmesh_3d::octbin_export (const char * basename,
 
   // Define filename.
   char filename[255] = "";
-  sprintf (filename, "%s_%4.4d.octbin.gz", basename, rank);
+  sprintf (filename, "%s_%4.4d.octbin.gz", basename, THIS->rank);
 
   // Save to filename.
   int flag_open = octave_io_open (filename, m, &m);
   assert (flag_open == 0);
-  
+
   int flag_save = octave_save ("msh", octave_value (the_map));
   assert (flag_save == 0);
 
   int flag_close = octave_io_close ();
   assert (flag_close == 0);
+
 };
+
+void
+tmesh_3d::octbin_export (const char * filename,
+                         const distributed_vector & f,
+                         const ordering& ord)
+{
+  octbin_export_tmpl (this, filename, f, ord);
+};
+
+void
+tmesh_3d::octbin_export (const char * filename,
+                         const std::vector<double> & f,
+                         const ordering& ord)
+{
+  octbin_export_tmpl (this, filename, f, ord);
+}
 
 void
 tmesh_3d::octbin_export_quadrant (const char * basename,
@@ -654,7 +689,7 @@ tmesh_3d::octbin_export_quadrant (const char * basename,
 
   octave_scalar_map the_map;
   the_map.assign ("f", oct_f);
-  
+
   octave_io_mode m = gz_write_mode;
 
   // Define filename.
@@ -664,7 +699,7 @@ tmesh_3d::octbin_export_quadrant (const char * basename,
   // Save to filename.
   int flag_open = octave_io_open (filename, m, &m);
   assert (flag_open == 0);
-  
+
   int flag_save = octave_save ("msh", octave_value (the_map));
   assert (flag_save == 0);
 
@@ -725,25 +760,32 @@ tmesh_3d::begin_quadrant_sweep ()
 
 void
 tmesh_3d::set_metrics_marker
-(std::function<double (tmesh_3d::quadrant_iterator)> estim,
- double tol, int max_depth)
+(std::function<double (tmesh_3d::quadrant_iterator)> estimator,
+ double tol, int max_depth, int n_refine, int n_coarsen)
 {
   this->metrics_max_depth = max_depth;
 
-  double hxhat_hx = 0;
+  tmesh_3d::data_t * data;
+  int hxhat_hx = 0;
 
   for (auto quadrant = this->begin_quadrant_sweep ();
        quadrant != this->end_quadrant_sweep (); ++quadrant)
     {
-      hxhat_hx = std::log2 (estim (quadrant)
-                            * std::sqrt (this->num_global_quadrants ()) / tol);
+      set_interpolation_matrix (quadrant);
 
-      quadrant->the_quadrant->p.user_int =
-        std::min (std::max (-double (max_depth),
-                            std::ceil (hxhat_hx)),
-                  double (max_depth));
+      hxhat_hx = static_cast<int> (std::round(std::log2 (estimator (quadrant)
+                                                         * std::sqrt (this->num_global_quadrants ()) / tol)));
 
-      std::cout << quadrant->the_quadrant->p.user_int << std::endl;
+      if (hxhat_hx >= 0)
+        hxhat_hx = std::max(0, hxhat_hx - n_refine);
+      else
+        hxhat_hx = std::min(0, hxhat_hx - n_coarsen);
+
+      data =
+        static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
+
+      data->refine_count =
+        std::min (std::max (-max_depth, hxhat_hx), max_depth);
     }
 
   return;
@@ -755,14 +797,11 @@ tmesh_3d::refine (int recursive, int partforcoarsen, int balance)
   quadrant_iterator qi (&current_quadrant);
   qi.reset ();
 
-  if (replace_fun == nullptr)
-    p8est_refine (p8est, recursive, refine_callback, nullptr);
-  else
-    p8est_refine_ext (p8est, recursive, -1, refine_callback,
-                      nullptr, replace_callback);
+  p8est_refine_ext (p8est, recursive, -1, refine_callback,
+                    nullptr, replace_callback);
 
   if (balance)
-    p8est_balance (p8est, P8EST_CONNECT_EDGE, nullptr);
+    p8est_balance_ext (p8est, P8EST_CONNECT_EDGE, nullptr, replace_callback);
 
   p8est_partition (p8est, partforcoarsen, nullptr);
 
@@ -781,32 +820,28 @@ tmesh_3d::metrics_refine (idx_t max_elems)
 {
   int recursive = 0;
   int partforcoarsen = 1;
+  int balance = 0;
 
-  for (int i = 0; i < metrics_max_depth - 1; ++i)
+  for (int i = 0; i < metrics_max_depth; ++i)
     {
-      coarsen (recursive, partforcoarsen, 0);
-      refine (recursive, partforcoarsen, 0);
+      coarsen (recursive, partforcoarsen, balance);
 
       // Prevent large meshes.
-      if (max_elems > 0 && this->num_global_quadrants () >= max_elems)
-        break;
+      if (max_elems <= 0 || this->num_global_quadrants () < max_elems)
+        refine (recursive, partforcoarsen, balance);
     }
 
-  coarsen (recursive, partforcoarsen, 0);
-  refine (recursive, partforcoarsen, 1);
+  p8est_balance_ext (p8est, P8EST_CONNECT_EDGE, nullptr, replace_callback);
 }
 
 void
 tmesh_3d::coarsen (int recursive, int partforcoarsen, int balance)
 {
-  if (replace_fun == nullptr)
-    p8est_coarsen (p8est, recursive, coarsen_callback, nullptr);
-  else
-    p8est_coarsen_ext (p8est, recursive, 0, coarsen_callback,
-                       nullptr, replace_callback);
+  p8est_coarsen_ext (p8est, recursive, 0, coarsen_callback,
+                     nullptr, replace_callback);
 
   if (balance)
-    p8est_balance (p8est, P8EST_CONNECT_EDGE, nullptr);
+    p8est_balance_ext (p8est, P8EST_CONNECT_EDGE, nullptr, replace_callback);
 
   p8est_partition (p8est, partforcoarsen, nullptr);
 
@@ -838,7 +873,7 @@ tmesh_3d::update_ghosts ()
     delete[] this->mirror_data;
   if (! (this->ghost_data  == nullptr))
     delete[] this->ghost_data;
-  
+
   // Send mirror data.
   constexpr p4est_locidx_t chunk_len = 40;
   constexpr size_t data_size = sizeof (p4est_gloidx_t);
@@ -973,27 +1008,188 @@ tmesh_3d::userint_replace (std::vector<int> old_userint)
   return new_userint;
 }
 
+static constexpr std::array<std::array<std::array<double, 8>, 8>, 8>
+loc_interp =
+  { // 0
+    1,     0,     0,     0,     0,     0,     0,     0,
+    0.5,   0.5,   0,     0,     0,     0,     0,     0,
+    0.5,   0,     0.5,   0,     0,     0,     0,     0,
+    0.25,  0.25,  0.25,  0.25,  0,     0,     0,     0,
+    0.5,   0,     0,     0,     0.5,   0,     0,     0,
+    0.25,  0.25,  0,     0,     0.25,  0.25,  0,     0,
+    0.25,  0,     0.25,  0,     0.25,  0,     0.25,  0,
+    0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+    // 1
+    0.5,   0.5,   0,     0,     0,     0,     0,     0,
+    0,     1,     0,     0,     0,     0,     0,     0,
+    0.25,  0.25,  0.25,  0.25,  0,     0,     0,     0,
+    0,     0.5,   0,     0.5,   0,     0,     0,     0,
+    0.25,  0.25,  0,     0,     0.25,  0.25,  0,     0,
+    0,     0.5,   0,     0,     0,     0.5,   0,     0,
+    0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+    0,     0.25,  0,     0.25,  0,     0.25,  0,     0.25,
+    // 2
+    0.5,   0,     0.5,   0,     0,     0,     0,     0,
+    0.25,  0.25,  0.25,  0.25,  0,     0,     0,     0,
+    0,     0,     1,     0,     0,     0,     0,     0,
+    0,     0,     0.5,   0.5,   0,     0,     0,     0,
+    0.25,  0,     0.25,  0,     0.25,  0,     0.25,  0,
+    0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+    0,     0,     0.5,   0,     0,     0,     0.5,   0,
+    0,     0,     0.25,  0.25,  0,     0,     0.25,  0.25,
+    // 3
+    0.25,  0.25,  0.25,  0.25,  0,     0,     0,     0,
+    0,     0.5,   0,     0.5,   0,     0,     0,     0,
+    0,     0,     0.5,   0.5,   0,     0,     0,     0,
+    0,     0,     0,     1,     0,     0,     0,     0,
+    0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+    0,     0.25,  0,     0.25,  0,     0.25,  0,     0.25,
+    0,     0,     0.25,  0.25,  0,     0,     0.25,  0.25,
+    0,     0,     0,     0.5,   0,     0,     0,     0.5,
+    // 4
+    0.5,   0,     0,     0,     0.5,   0,     0,     0,
+    0.25,  0.25,  0,     0,     0.25,  0.25,  0,     0,
+    0.25,  0,     0.25,  0,     0.25,  0,     0.25,  0,
+    0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+    0,     0,     0,     0,     1,     0,     0,     0,
+    0,     0,     0,     0,     0.5,   0.5,   0,     0,
+    0,     0,     0,     0,     0.5,   0,     0.5,   0,
+    0,     0,     0,     0,     0.25,  0.25,  0.25,  0.25,
+    // 5
+    0.25,  0.25,  0,     0,     0.25,  0.25,  0,     0,
+    0,     0.5,   0,     0,     0,     0.5,   0,     0,
+    0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+    0,     0.25,  0,     0.25,  0,     0.25,  0,     0.25,
+    0,     0,     0,     0,     0.5,   0.5,   0,     0,
+    0,     0,     0,     0,     0,     1,     0,     0,
+    0,     0,     0,     0,     0.25,  0.25,  0.25,  0.25,
+    0,     0,     0,     0,     0,     0.5,   0,     0.5,
+    // 6
+    0.25,  0,     0.25,  0,     0.25,  0,     0.25,  0,
+    0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+    0,     0,     0.5,   0,     0,     0,     0.5,   0,
+    0,     0,     0.25,  0.25,  0,     0,     0.25,  0.25,
+    0,     0,     0,     0,     0.5,   0,     0.5,   0,
+    0,     0,     0,     0,     0.25,  0.25,  0.25,  0.25,
+    0,     0,     0,     0,     0,     0,     1,     0,
+    0,     0,     0,     0,     0,     0,     0.5,   0.5,
+    // 7
+    0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125,
+    0,     0.25,  0,     0.25,  0,     0.25,  0,     0.25,
+    0,     0,     0.25,  0.25,  0,     0,     0.25,  0.25,
+    0,     0,     0,     0.5,   0,     0,     0,     0.5,
+    0,     0,     0,     0,     0.25,  0.25,  0.25,  0.25,
+    0,     0,     0,     0,     0,     0.5,   0,     0.5,
+    0,     0,     0,     0,     0,     0,     0.5,   0.5,
+    0,     0,     0,     0,     0,     0,     0,     1
+  };
+
+void
+tmesh_3d::user_data_replace (std::vector<tmesh_3d::data_t *> old_user_data,
+                             std::vector<tmesh_3d::data_t>&  new_user_data)
+{
+  int row, col, k;
+
+  // Refinement.
+  if (old_user_data.size () == 1)
+    {
+      new_user_data.resize (8);
+
+      for (size_t i = 0; i < new_user_data.size (); ++i)
+        {
+          // Decrease refine_count.
+          new_user_data[i].refine_count =
+            old_user_data[0]->refine_count - 1;
+
+          // Determine interpolation indices.
+          new_user_data[i].interp_idx =
+            old_user_data[0]->interp_idx;
+
+          // Compute local interpolation matrix and
+          // multiply by parent interpolation matrix.
+          new_user_data[i].interp_coeff = {0};
+          
+          const int eight = 8;
+          const double one = 1.0;
+          const double zero = .0;
+          dgemm ("N", "N", &eight, &eight, &eight, &one,
+                 &(loc_interp[i][0][0]),
+                 &eight, &(old_user_data[0]->interp_coeff[0][0]),
+                 &eight, &zero, &(new_user_data[i].interp_coeff[0][0]),
+                 &eight);
+
+          // Alternatively use the following if
+          // lapack does not work
+          //
+          //std::array<std::array<double, 8>, 8> tmp = {0};          
+          // for (row = 0; row < 8; ++row)
+          //   for (col = 0; col < 8; ++col)
+          //     for (k = 0; k < 8; ++k)
+          //       new_user_data[i].interp_coeff[row][col] +=
+          //         loc_interp[i][row][k] * old_user_data[0]->interp_coeff[k][col];
+
+
+        }
+    }
+  // Coarsening.
+  else if (old_user_data.size () == 8)
+    {
+      new_user_data.resize (1);
+
+      // Increase refine_count.
+      auto comp = [] (tmesh_3d::data_t *d0, tmesh_3d::data_t *d1)
+        { return (d0->refine_count < d1->refine_count); };
+
+      new_user_data[0].refine_count =
+        (*std::max_element (old_user_data.begin (),
+                            old_user_data.end (), comp))->refine_count + 1;
+
+      // Replace interpolation matrix.
+      new_user_data[0].interp_coeff = {0};
+
+      for (row = 0; row < 8; ++row)
+        // If coarsening, then (due to balancing)
+        // the parent indices have a "1" entry.
+        for (col = 0; col < 8; ++col)
+          if (old_user_data[row]->interp_coeff[row][col] == 1)
+            {
+              new_user_data[0].interp_idx[row] =
+                old_user_data[row]->interp_idx[col];
+
+              // Insert diagonal entry.
+              new_user_data[0].interp_coeff[row][row] = 1;
+              break;
+            }
+
+    }
+
+}
+
 int
 tmesh_3d::refine_callback (p8est_t* p8, p4est_topidx_t tt,
                            p8est_quadrant_t* qq)
 {
-  return (qq->p.user_int > 0);
+  tmesh_3d::data_t * data =
+    static_cast<tmesh_3d::data_t *> (qq->p.user_data);
+
+  return (data->refine_count > 0);
 };
 
 int
 tmesh_3d::coarsen_callback (p8est_t* p8, p4est_topidx_t tt,
                             p8est_quadrant_t* qq [])
 {
-  return (qq[0]->p.user_int < 0 &&
-          qq[1]->p.user_int < 0 &&
-          qq[2]->p.user_int < 0 &&
-          qq[3]->p.user_int < 0 &&
-          qq[4]->p.user_int < 0 &&
-          qq[5]->p.user_int < 0 &&
-          qq[6]->p.user_int < 0 &&
-          qq[7]->p.user_int < 0);
+  auto pred =  [] (p8est_quadrant_t* q)
+    {
+      return (static_cast<tmesh_3d::data_t *>
+              (q->p.user_data)->refine_count < 0);
+    };
+  bool result = std::all_of (qq, qq+8, pred);
+  return (result);
 };
 
+static std::vector<tmesh_3d::data_t> new_user_data;
+static std::vector<tmesh_3d::data_t *> old_user_data;
 void
 tmesh_3d::replace_callback (p8est_t * p8,
                             p4est_topidx_t tt,
@@ -1004,15 +1200,60 @@ tmesh_3d::replace_callback (p8est_t * p8,
 {
   tmesh_3d *tm = reinterpret_cast<tmesh_3d*> (p8->user_pointer);
 
-  std::vector<int> old_userint (num_outgoing);
+  old_user_data.reserve (8);
+  old_user_data.resize (num_outgoing);
 
   for (size_t i = 0; i < num_outgoing; ++i)
-    old_userint[i] = outgoing[i]->p.user_int;
+    old_user_data[i] =
+      static_cast<tmesh_3d::data_t *> (outgoing[i]->p.user_data);
 
-  std::vector<int> new_userint = tm->replace_fun (old_userint);
+  new_user_data.reserve (8);
+  tm->replace_fun (old_user_data, new_user_data);
 
   for (size_t i = 0; i < num_incoming; ++i)
-    incoming[i]->p.user_int = new_userint[i];
+    *(static_cast<tmesh_3d::data_t *> (incoming[i]->p.user_data)) =
+      new_user_data[i];
 
   return;
+};
+
+void
+tmesh_3d::set_interpolation_matrix (tmesh_3d::quadrant_iterator & q)
+{
+  // Create interpolation map.
+  std::map<idx_t,
+           std::vector<std::pair<int, double>>> interp_map;
+
+  for (int node = 0; node < 8; ++node)
+    {
+      if (! q->is_hanging (node))
+        interp_map[q->gt (node)].push_back
+          (std::make_pair(node, 1));
+      else
+        {
+          int np = q->num_parents(node);
+          for (int pp = 0; pp < np; ++pp)
+            interp_map[q->gparent (pp, node)].push_back
+              (std::make_pair(node, 1/np));
+        }
+    }
+
+  // Copy interp_map into user_data.
+  tmesh_3d::data_t * data =
+    static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
+
+  data->interp_idx = {0};
+  data->interp_coeff = {0};
+
+  int col = 0;
+  for (auto map_el = interp_map.begin ();
+       map_el != interp_map.end ();
+       ++col, ++map_el)
+    {
+      data->interp_idx[col] =
+        map_el->first;
+
+      for (auto vec_entry : map_el->second)
+        data->interp_coeff[vec_entry.first][col] = vec_entry.second;
+    }
 };
