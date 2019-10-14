@@ -68,7 +68,6 @@ distributed_sparse_matrix::non_local_csr ()
               {
                 non_local.row_ind.push_back (kk);
                 non_local.col_ind.push_back (this->col_idx (jj));
-                non_local.a.push_back (this->col_val (jj));
               }
           }
     }
@@ -77,6 +76,7 @@ distributed_sparse_matrix::non_local_csr ()
   for (int j = 0; j < non_local.col_ind.size (); ++j)
     non_local.a[j] =
       (*this)[non_local.row_ind[j]][non_local.col_ind[j]];
+
 }
 
 
