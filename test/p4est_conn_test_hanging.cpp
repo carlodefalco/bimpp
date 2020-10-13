@@ -1,5 +1,6 @@
 #include <cassert>
 #include <vector>
+#include <limits>
 
 #include <bim_timing.h>
 #include <octave_file_io.h>
@@ -123,7 +124,7 @@ main (int argc, char **argv)
   the_map.assign ("children", oct_children);
   
   octave_io_mode m = gz_write_mode;
-  sprintf(filename, "p4est_conn_test_hanging_output_%4.4d.octbin.gz", rank);
+  sprintf(filename, "p4est_conn_test_hanging_output_%4.4d.octbin", rank);
   assert (octave_io_open (filename, m, &m) == 0);
   assert (octave_save ("msh", octave_value (the_map)) == 0);
   assert (octave_io_close () == 0);

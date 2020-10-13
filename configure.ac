@@ -181,8 +181,6 @@ AC_SUBST(BLAS_LIB, "$BLAS_LIB")
 #AC_SUBST(LIS_LDFLAGS, "$LIS_LDFLAGS")
 #AC_SUBST(LIS_LIB, "$LIS_LIB")
 
-AC_LANG_POP([C++])
-
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
 AC_TYPE_SIZE_T
@@ -210,6 +208,7 @@ $(env -i PATH=$PATH LD_LIBRARY_PATH=$LD_LIBRARY_PATH DYLD_LIBRARY_PATH=$DYLD_LIB
 $(env -i PATH=$PATH LD_LIBRARY_PATH=$LD_LIBRARY_PATH DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH ${OCTAVE_MKOCTFILE} -p RDYNAMIC_FLAG) \
 $(env -i PATH=$PATH LD_LIBRARY_PATH=$LD_LIBRARY_PATH DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH ${OCTAVE_MKOCTFILE} -p ALL_LDFLAGS)")
    AC_SUBST(OCTAVE_LINK_ADD, "$(env -i PATH=$PATH LD_LIBRARY_PATH=$LD_LIBRARY_PATH DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH ${OCTAVE_MKOCTFILE} -p LFLAGS) \
+-L$(env -i PATH=$PATH LD_LIBRARY_PATH=$LD_LIBRARY_PATH DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH ${OCTAVE_MKOCTFILE} -p OCTLIBDIR) \
 $(env -i PATH=$PATH LD_LIBRARY_PATH=$LD_LIBRARY_PATH DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH ${OCTAVE_MKOCTFILE} -p OCTAVE_LIBS) \
 $(env -i PATH=$PATH LD_LIBRARY_PATH=$LD_LIBRARY_PATH DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH ${OCTAVE_MKOCTFILE} -p LAPACK_LIBS) \
 $(env -i PATH=$PATH LD_LIBRARY_PATH=$LD_LIBRARY_PATH DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH ${OCTAVE_MKOCTFILE} -p BLAS_LIBS) \
@@ -222,8 +221,45 @@ else
    AC_MSG_WARN([You do not seem to have a complete install of Octave on your computer.])
 fi
 
+AC_ARG_WITH([octave_file_io],
+            [AS_HELP_STRING([--without-octave_file_io],
+            [Disable octave_file_io library])],
+            [],
+            [with_octave_file_io=yes])
 
+AS_IF([test "x$with_octave_file_io" != xno],
+      [
+       AC_ARG_WITH([octave_file_io-home],
+        [AS_HELP_STRING([--with-octave_file_io-home=DIR],
+        [Select the directory where octave_file_io is installed.])],
+        [OCTAVE_FILE_IO_HOME=$withval],
+        [OCTAVE_FILE_IO_HOME=/usr/local])
+      
+        OCTAVE_FILE_IO_CPPFLAGS="-I$(env -i PATH=$PATH PATH=$PATH LD_LIBRARY_PATH=$LD_LIBRARY_PATH DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH ${OCTAVE_MKOCTFILE} -p OCTINCLUDEDIR)/..  -I$OCTAVE_FILE_IO_HOME/include"
+        OCTAVE_FILE_IO_LDFLAGS="-L$OCTAVE_FILE_IO_HOME/lib"
+        OCTAVE_FILE_IO_LIB="-loctave_file_io"
+        save_CPPFLAGS=$CPPFLAGS
+        CPPFLAGS="$OCTAVE_FILE_IO_CPPFLAGS $OCTAVE_CPPFLAGS $CPPFLAGS"
 
+        AC_CHECK_HEADER(octave_file_io.h, ,AC_MSG_ERROR([octave_file_io.h not found. I cowardly refuse to continue.]))
+
+        save_LIBS=$LIBS
+        save_LDFLAGS=$LDFLAGS
+        LDFLAGS="$OCTAVE_FILE_IO_LDFLAGS $LDFLAGS"
+        LIBS="$OCTAVE_FILE_IO_LIB $LIBS"
+ 	dnl DOES NOT WORK FOR C++ LIBS!!AC_CHECK_LIB([octave_file_io],[octave_io_open],
+        AC_SUBST(OCTAVE_FILE_IO_CPPFLAGS, "$OCTAVE_FILE_IO_CPPFLAGS")
+        AC_SUBST(OCTAVE_FILE_IO_LDFLAGS, "$OCTAVE_FILE_IO_LDFLAGS")
+        AC_SUBST(OCTAVE_FILE_IO_LIB,"$OCTAVE_FILE_IO_LIB")
+        AC_DEFINE([HAVE_OCTAVE_FILE_IO],[1],[Define if you have octave_file_io library])
+        ])
+AM_CONDITIONAL([HAVE_OCTAVE_FILE_IO], test x$with_octave_file_io = xyes)
+
+LIBS=$save_LIBS
+CPPFLAGS=$save_CPPFLAGS
+LDFLAGS=$save_LDFLAGS
+
+AC_LANG_POP([C++])
 
 
 # Checks for library functions.

@@ -167,7 +167,7 @@ int main(int argc, char ** argv)
   
   // Create mesh.
   if (rank == 0)
-    unit_cube ("p4est_unitcube.octbin.gz");    
+    unit_cube ("p4est_unitcube.octbin");    
   tmsh.read_connectivity ("p4est_unitcube.octbin.gz");
 
   // Define marking for adaptive refinement.

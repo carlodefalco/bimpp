@@ -1,9 +1,9 @@
 BIMMUMPSLIB = ../src/libbimmumps.la @MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@
 BIMLISLIB   = ../src/libbimlis.la @LIS_LIB@ @MUMPS_EXTRA_LIBS@
 BIMP4ESTLIB = ../src/libbimp4est.la @P4EST_LIB@
-BIMIOLIB    = ../src/libbimio.la @OCTAVE_LINK_FLAGS@ @OCTAVE_LINK_ADD@
+BIMIOLIB    = @OCTAVE_FILE_IO_LIB@ @OCTAVE_LINK_FLAGS@ @OCTAVE_LINK_ADD@
 
-BIMLIB           = ../src/libbim.la
+BIMLIB           = ../src/libbim.la @BLAS_LIB@
 AM_CPPFLAGS      =  -I$(top_srcdir)/src -I$(top_srcdir)/test -I$(top_builddir)/src @MUMPS_CPPFLAGS@ @LIS_CPPFLAGS@ @OCTAVE_COMPILE_FLAGS@ @OCTAVE_LINK_FLAGS@ 
 AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
@@ -11,7 +11,7 @@ AUTOMAKE_OPTIONS = nostdinc
 CLEANFILES = 
 
 
-check_PROGRAMS = io_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 bim3_stationary_test \
+check_PROGRAMS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 bim3_stationary_test \
                  bim3_stationary_test2 bim3_stationary_test2_osc bim3_stationary_test3 \
                  bim3_stationary_test3_osc bim3_stationary_test4 bim3_timedependent_test \
                  bim3_timedependent_test2 bim3_timedependent_test2_osc bim3_timedependent_test3 \
@@ -20,7 +20,7 @@ check_PROGRAMS = io_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 
 if HAVE_LIS
   check_PROGRAMS += lis_stationary_test lis_timedependent_test linear_solver_test \
                     linear_solver_test_repeated nonlinear_solver_test nonlinear_solver_test2 \
-                    nonlinear_solver_test3 nonlinear_solver_test4 nonlinear_solver_eq_test
+                    nonlinear_solver_test3  nonlinear_solver_eq_test #nonlinear_solver_test4
 endif
 
 if HAVE_P4EST
@@ -38,11 +38,6 @@ endif
 # schur_test_SOURCES = schur_test.cpp
 # CLEANFILES += 
 # schur_test_LDADD = $(BIMLIB) $(BIMMUMPSLIB) $(BIMLISLIB)
-
-io_test_SOURCES =  io_test.cpp
-io_test_CPPFLAGS =  $(AM_CPPFLAGS)
-io_test_LDADD = $(BIMLIB) $(BIMIOLIB)
-CLEANFILES += tmp_io_test.octbin.gz
 
 sparse_test_SOURCES = sparse_test.cpp
 CLEANFILES += first_solve.txt second_solve.txt
@@ -137,9 +132,9 @@ if HAVE_LIS
   nonlinear_solver_test3_LDADD = $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLIB)
   CLEANFILES += NonLinear_Plaplacian_Test3.txt
 
-  nonlinear_solver_test4_SOURCES =  nonlinear_solver_test4.cpp plaplacian_class.h plaplacian_class.cpp
-  nonlinear_solver_test4_LDADD = $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLIB)
-  CLEANFILES += NonLinear_Plaplacian_Test4.txt
+  # nonlinear_solver_test4_SOURCES =  nonlinear_solver_test4.cpp plaplacian_class.h plaplacian_class.cpp
+  # nonlinear_solver_test4_LDADD = $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLIB)
+  # CLEANFILES += NonLinear_Plaplacian_Test4.txt
 
   nonlinear_solver_eq_test_SOURCES =  nonlinear_solver_eq_test.cpp equation_class.h equation_class.cpp
   nonlinear_solver_eq_test_LDADD =  $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLIB)
@@ -309,7 +304,7 @@ TESTS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 p4es
 
 endif
 
-TESTS += io_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
+TESTS += sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
 	 bim3_stationary_test bim3_stationary_test2 bim3_stationary_test2_osc \
          bim3_stationary_test3 bim3_stationary_test3_osc bim3_stationary_test4 \
          bim3_timedependent_test bim3_timedependent_test2 bim3_timedependent_test2_osc \
@@ -318,6 +313,6 @@ TESTS += io_test sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
 if HAVE_LIS
 TESTS += linear_solver_test linear_solver_test_repeated \
           lis_stationary_test lis_timedependent_test nonlinear_solver_eq_test\
-          nonlinear_solver_test nonlinear_solver_test2 nonlinear_solver_test3 nonlinear_solver_test4
+          nonlinear_solver_test nonlinear_solver_test2 nonlinear_solver_test3 #nonlinear_solver_test4
 endif
 

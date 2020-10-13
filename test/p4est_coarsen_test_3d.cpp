@@ -6,7 +6,7 @@
 
 #include <vector>
 #include <cassert>
-
+#include <limits>
 
 static int
 doping_driven_refinement (tmesh_3d::quadrant_iterator quadrant)
@@ -79,7 +79,7 @@ main (int argc, char **argv)
   MPI_Comm_size (mpicomm, &size);
 
   if (rank == 0)
-    write_example_connectivity3 ("p4est_coarsen_test_3d.octbin.gz");
+    write_example_connectivity3 ("p4est_coarsen_test_3d.octbin");
 
   tmsh.read_connectivity ("p4est_coarsen_test_3d.octbin.gz");
   

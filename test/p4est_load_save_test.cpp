@@ -22,7 +22,7 @@ main (int argc, char **argv)
   MPI_Comm_size (mpicomm, &size);
 
   if (rank == 0)
-    write_example_connectivity ("p4est_load_save_test.octbin.gz");
+    write_example_connectivity ("p4est_load_save_test.octbin");
 
   tmsh.read_connectivity ("p4est_load_save_test.octbin.gz");  
   tmsh.save ("p4est_load_save_test.p4est");  

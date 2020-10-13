@@ -19,7 +19,7 @@ main (int argc, char **argv)
   MPI_Comm_size (mpicomm, &size);
 
   if (rank == 0)
-    write_example_connectivity3 ("p4est_load_save_test_3d.octbin.gz");
+    write_example_connectivity3 ("p4est_load_save_test_3d.octbin");
 
   tmsh.read_connectivity ("p4est_load_save_test_3d.octbin.gz");  
   
