@@ -26,26 +26,26 @@ libbim_la_LDFLAGS = @OCTAVE_LINK_FLAGS@ @OCTAVE_FILE_IO_LDFLAGS@ @OCTAVE_FILE_IO
 libbim_la_CPPFLAGS = @OCTAVE_COMPILE_FLAGS@ @OCTAVE_FILE_IO_CPPFLAGS@ $(AM_CPPFLAGS)
 
 libbimlinalg_la_SOURCES = $(BIMXXLINALGSRC)
-libbimlinalg_la_LDFLAGS = 
+libbimlinalg_la_LDFLAGS = @OCTAVE_LINK_FLAGS@
 libbimlinalg_la_CPPFLAGS = $(AM_CPPFLAGS) 
 libbimlinalg_la_LIBADD = 
 
 libbimmumps_la_SOURCES = $(BIMXXMUMPSSRC)
-libbimmumps_la_LDFLAGS = @MUMPS_LDFLAGS@
+libbimmumps_la_LDFLAGS = @MUMPS_LDFLAGS@ 
 libbimmumps_la_CPPFLAGS = $(AM_CPPFLAGS) @MUMPS_CPPFLAGS@
-libbimmumps_la_LIBADD = @MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@
+libbimmumps_la_LIBADD = @MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@ libbimlinalg.la
 
 libbimlis_la_SOURCES = $(BIMXXLISSRC)
-libbimlis_la_LDFLAGS = @LIS_LDFLAGS@
+libbimlis_la_LDFLAGS = @LIS_LDFLAGS@ 
 libbimlis_la_CPPFLAGS = $(AM_CPPFLAGS) @LIS_CPPFLAGS@
-libbimlis_la_LIBADD = @LIS_LIB@
+libbimlis_la_LIBADD = @LIS_LIB@ libbimlinalg.la
 
 libbimp4est_la_SOURCES = $(BIMXXP4ESTSRC)
-libbimp4est_la_LDFLAGS = @P4EST_LDFLAGS@  libbimlinalg.la @OCTAVE_LINK_FLAGS@
+libbimp4est_la_LDFLAGS = @P4EST_LDFLAGS@  @OCTAVE_LINK_FLAGS@
 libbimp4est_la_CPPFLAGS = $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ @OCTAVE_COMPILE_FLAGS@ @OCTAVE_FILE_IO_CPPFLAGS@
-libbimp4est_la_LIBADD = @P4EST_LIB@
+libbimp4est_la_LIBADD = @P4EST_LIB@ libbimlinalg.la
 
 libbimsystemsolver_la_SOURCES = $(BIMXXMUMPSP4ESTSRC)
 libbimsystemsolver_la_LDFLAGS = @MUMPS_LDFLAGS@ @P4EST_LDFLAGS@
 libbimsystemsolver_la_CPPFLAGS = $(AM_CPPFLAGS) @MUMPS_CPPFLAGS@ @P4EST_CPPFLAGS@
-libbimsystemsolver_la_LIBADD = @MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@ @P4EST_LIB@
+libbimsystemsolver_la_LIBADD = @MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@ @P4EST_LIB@ libbimlinalg.la

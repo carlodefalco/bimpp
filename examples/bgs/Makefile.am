@@ -1,6 +1,7 @@
 BIMMUMPSLIB = ../../src/libbimmumps.la @MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@
 BIMLISLIB   = ../../src/libbimlis.la @LIS_LIB@ @MUMPS_EXTRA_LIBS@
 BIMP4ESTLIB = ../../src/libbimp4est.la @P4EST_LIB@
+BIMLINALGLIB = ../../src/libbimlinalg.la 
 BIMIOLIB    = @OCTAVE_FILE_IO_LDFLAGS@ @OCTAVE_LINK_FLAGS@ @OCTAVE_FILE_IO_LIB@ @OCTAVE_LINK_ADD@
 
 BIMLIB           = ../../src/libbim.la
@@ -11,4 +12,4 @@ AUTOMAKE_OPTIONS = nostdinc
 bin_PROGRAMS = bgs_test
 
 bgs_test_SOURCES = bgs_test.cpp
-bgs_test_LDADD = $(BIMLIB) $(BIMMUMPSLIB) $(BIMLISLIB) 
+bgs_test_LDADD = $(BIMLIB) $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLINALGLIB)
