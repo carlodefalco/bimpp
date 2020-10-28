@@ -1,12 +1,13 @@
 #ifndef HAVE_QUAD_OPERATORS_3D_H
 #define HAVE_QUAD_OPERATORS_3D_H 1
 
+#include "bimutils.h"
 #include <tmesh_3d.h>
 #include <bim_distributed_vector.h>
 #include <bim_ordering.h>
 #include <bim_sparse.h>
-#include <operators.h>
 
+#include <cmath>
 #include <functional>
 #include <tuple>
 #include <vector>

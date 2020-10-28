@@ -27,6 +27,7 @@
 #define HAVE_OPERATORS_H 1
 #include "mesh.h"
 #include "bim_sparse.h"
+#include "bimutils.h"
 #include <cmath>
 #include <mpi.h>
 

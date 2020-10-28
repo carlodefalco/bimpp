@@ -1,7 +1,7 @@
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src 
 AUTOMAKE_OPTIONS = nostdinc
 
-BIMXXHEADERS =  bim_timing.h mesh.h operators.h \
+BIMXXHEADERS =  bimutils.h bim_timing.h mesh.h operators.h \
 bim_sparse.h bim_sparse_distributed.h linear_solver.h mumps_class.h mumps_solve.h \
 lis_class.h nonlinear_solver.h adaptive_inexact_newton_class.h \
 backtracking_inexact_newton_class.h abstract_nonlinear_problem.h \
@@ -10,10 +10,10 @@ tmesh.h bim_ordering.h quad_operators.h tmesh_3d.h quad_operators_3d.h \
 bim_distributed_vector.h mpi_alltoallv2.h system_solver.h
 
 BIMXXSRC = mesh.cpp operators.cpp adaptive_inexact_newton_class.cpp \
-backtracking_inexact_newton_class.cpp forcing_class.cpp bgs_class.cpp rre.cpp #schur_class.cpp
+backtracking_inexact_newton_class.cpp forcing_class.cpp  #schur_class.cpp
 
 BIMXXLINALGSRC = bim_sparse.cpp bim_sparse_distributed.cpp bim_distributed_vector.cpp \
-mpi_alltoallv2.cpp
+mpi_alltoallv2.cpp bimutils.cpp bgs_class.cpp rre.cpp
 BIMXXMUMPSSRC = mumps_class.cpp mumps_solve.cpp
 BIMXXP4ESTSRC = tmesh.cpp bim_ordering.cpp quad_operators.cpp tmesh_3d.cpp quad_operators_3d.cpp
 BIMXXLISSRC = lis_class.cpp lis_class_master.cpp lis_class_slaves.cpp
