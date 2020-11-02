@@ -33,27 +33,17 @@ AC_ARG_WITH([blas-lapack],
             [AS_HELP_STRING([--with-blas-lapack=FLAGS],
             [Select the options to use to link the blas/lapack libraries.])],
             [BLAS_LIB=$withval],
-            dnl look in /usr/lib/atlas
+            dnl look for -lopenblas
             [
-                AC_MSG_NOTICE([searching for atlas in /usr/lib/atlas-base]); 
-                save_LDFLAGS=$LDFLAGS; LDFLAGS="-L/usr/lib/atlas-base $LDFLAGS";
-                AC_CHECK_LIB([f77blas],[daxpy_],[BLAS_LIB="-L/usr/lib/atlas-base -lf77blas -llapack_atlas -latlas"],
-                dnl look in /usr/lib64/atlas
-                [                                                          
-                        AC_MSG_NOTICE([searching for atlas in /usr/lib64/atlas]);
-                        LDFLAGS=$save_LDFLAGS; LDFLAGS="-L/usr/lib64/atlas $LDFLAGS";
-                        AC_CHECK_LIB([f77blas],[daxpy_],[BLAS_LIB="-L/usr/lib64/atlas -lf77blas -llapack_atlas -latlas"],
-                        dnl look in /opt/local/lib
-                        [
-                                AC_MSG_NOTICE([searching for atlas in /opt/local/lib]);
-                                LDFLAGS=$save_LDFLAGS; LDFLAGS="-L/opt/local/lib $LDFLAGS";
-                                AC_CHECK_LIB([f77blas],[daxpy_],[BLAS_LIB="-L/opt/local/lib -lf77blas -llapack -latlas"],cd cd ~
+            AC_MSG_NOTICE([searching for openblas]);
+            save_LDFLAGS=$LDFLAGS; LDFLAGS="-lopenblas $LDFLAGS";
+            AC_CHECK_LIB([openblas],[daxpy_],[BLAS_LIB="-lopenblas"],
                                              [AC_MSG_ERROR([I can't find blas and lapack in standard places, please tell me where to search.])],
-                                             [-latlas])
-                        ], [-latlas])
-                 ], [-latlas])
-                 LDFLAGS=$save_LDFLAGS
-            ])
+                                             [-lopenblas])
+            LDFLAGS=$save_LDFLAGS                                 
+            ]
+            )
+
 
 AC_ARG_WITH([p4estlibrary],
             [AS_HELP_STRING([--without-p4estlibrary],
