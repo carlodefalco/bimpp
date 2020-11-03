@@ -7,7 +7,6 @@
 #include <mumps_class.h>
 
 
-#include <cassert>
 #include <cmath>
 #include <cstdio>
 #include <fstream>

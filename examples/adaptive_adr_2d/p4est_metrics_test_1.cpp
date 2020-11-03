@@ -6,7 +6,6 @@
 #include <simple_connectivity_2d.h>
 
 #include <vector>
-#include <cassert>
 
 static int
 uniform_refinement (tmesh::quadrant_iterator q)

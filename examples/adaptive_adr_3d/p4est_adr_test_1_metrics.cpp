@@ -5,7 +5,6 @@
 
 #include <simple_connectivity_3d.h>
 
-#include <cassert>
 #include <limits>
 
 // uniform_refinement:

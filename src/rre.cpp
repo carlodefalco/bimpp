@@ -1,3 +1,4 @@
+#include <cassert>
 #include "bim_config.h"
 #include "rre_aux.h"
 #include "rre.h"

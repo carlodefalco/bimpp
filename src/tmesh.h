@@ -20,7 +20,6 @@
 #include <p4est_mesh.h>
 #include <p4est_vtk.h>
 
-#include <cassert>
 #include <functional>
 #include <array>
 #include <vector>

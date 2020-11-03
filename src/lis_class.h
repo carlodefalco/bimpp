@@ -180,9 +180,9 @@ public :
   analyze ()
   {
     if (rank == 0)
-      assert (analyze_master () == 1);
+      { int CHK = analyze_master (); assert (CHK == 1); }
     else
-      assert (analyze_slaves () == 1);
+      { int CHK = analyze_slaves (); assert (CHK == 1); }
 
     return 1;
   }
@@ -209,12 +209,12 @@ public :
   factorize ()
   {
     if (rank == 0)
-      assert (factorize_master () == 1);
+      { int CHK = factorize_master (); assert (CHK == 1); }
     else
-      assert (factorize_slaves () == 1);
+      { int CHK = factorize_slaves (); assert (CHK == 1); }
     
     init_lis_objects ();
-    assert (assemble_lis_matrix () == 1);
+    int CHK = assemble_lis_matrix (); assert (CHK == 1);
     
     return 1;
   }
@@ -224,9 +224,9 @@ public :
   solve ()
   {
     if (rank == 0)
-      assert (solve_master () == 1);
+      { int CHK = solve_master (); assert (CHK == 1); }
     else
-      assert (solve_slaves () == 1);
+      { int CHK = solve_slaves (); assert (CHK == 1); }
     return 1;
   }
 

@@ -8,7 +8,7 @@
 */
 
 #include "lis_class.h"
-#include <stdlib.h>
+#include <cstdlib>
 #include <sstream>
 #include <string>
 #include <cstring>

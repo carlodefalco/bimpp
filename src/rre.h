@@ -2,7 +2,6 @@
 #ifndef RRE_H
 #define RRE_H
 
-#include <cassert>
 #include <vector>
 #include <iostream>
 

@@ -1,3 +1,4 @@
+#include <cassert>
 #include "quad_operators.h"
 #include "bim_distributed_vector.h"
 

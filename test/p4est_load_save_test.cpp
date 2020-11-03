@@ -4,8 +4,6 @@
 #include <tmesh.h>
 
 #include <vector>
-#include <cassert>
-
 
 int
 main (int argc, char **argv)

@@ -1,3 +1,4 @@
+#include <cassert>
 #include <tmesh_3d.h>
 #include <bim_timing.h>
 #include <octave_file_io.h>
@@ -39,10 +40,11 @@ unit_cube (const char * filename)
   the_map.assign ("t", oct_t);
     
   octave_io_mode m = gz_write_mode;
-    
-  assert (octave_io_open (filename, m, &m) == 0);
-  assert (octave_save ("msh", octave_value(the_map)) == 0);
-  assert (octave_io_close () == 0);
+
+  int CHK;
+  CHK = octave_io_open (filename, m, &m); assert (CHK == 0);
+  CHK = octave_save ("msh", octave_value(the_map)); assert (CHK == 0);
+  CHK = octave_io_close (); assert (CHK == 0);
     
   return 0;
 }

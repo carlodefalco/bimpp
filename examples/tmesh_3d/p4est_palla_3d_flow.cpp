@@ -4,7 +4,6 @@
 #include <mumps_class.h>
 
 #include <array>
-#include <cassert>
 #include <cstdio>
 
 #include "simple_connectivity_3d.h"

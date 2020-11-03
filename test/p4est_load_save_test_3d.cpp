@@ -2,8 +2,6 @@
 #include <tmesh_3d.h>
 
 #include <vector>
-#include <cassert>
-
 
 int
 main (int argc, char **argv)

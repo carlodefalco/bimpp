@@ -3,7 +3,6 @@
 #include <tmesh_3d.h>
 
 #include <vector>
-#include <cassert>
 
 static int
 fake_refinement (tmesh_3d::quadrant_iterator quadrant)

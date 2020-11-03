@@ -125,9 +125,10 @@ main (int argc, char **argv)
   
   octave_io_mode m = gz_write_mode;
   sprintf(filename, "p4est_conn_test_hanging_output_%4.4d.octbin", rank);
-  assert (octave_io_open (filename, m, &m) == 0);
-  assert (octave_save ("msh", octave_value (the_map)) == 0);
-  assert (octave_io_close () == 0);
+  int CHK;
+  CHK = octave_io_open (filename, m, &m); assert (CHK == 0);
+  CHK = octave_save ("msh", octave_value (the_map)); assert (CHK == 0);
+  CHK = octave_io_close (); assert (CHK == 0);
       
   MPI_Finalize ();
   return 0;

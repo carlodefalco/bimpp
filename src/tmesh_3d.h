@@ -17,7 +17,6 @@
 #include <bim_distributed_vector.h>
 #include <bim_ordering.h>
 
-#include <cassert>
 #include <functional>
 #include <array>
 #include <vector>

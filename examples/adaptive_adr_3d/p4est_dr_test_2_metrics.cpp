@@ -6,8 +6,6 @@
 #include <simple_connectivity_3d.h>
 
 #include <algorithm>
-
-#include <cassert>
 #include <limits>
 
 constexpr bool EXPORT_ALL = false;

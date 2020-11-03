@@ -5,7 +5,6 @@
 #include <mosfet_doping_3d.h>
 
 #include <vector>
-#include <cassert>
 #include <limits>
 
 static int

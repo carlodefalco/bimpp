@@ -4,7 +4,6 @@
 #include <tmesh.h>
 
 #include <vector>
-#include <cassert>
 #include <limits>
 
 static int

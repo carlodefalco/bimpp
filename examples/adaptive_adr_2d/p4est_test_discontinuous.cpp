@@ -4,7 +4,6 @@
 #include <tmesh.h>
 
 #include <vector>
-#include <cassert>
 
 // Define mesh.
 constexpr p4est_topidx_t simple_conn_num_vertices = 6;

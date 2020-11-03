@@ -2,7 +2,6 @@
 #include <tmesh_3d.h>
 
 #include <array>
-#include <cassert>
 #include <cmath>
 #include <cstdio>
 

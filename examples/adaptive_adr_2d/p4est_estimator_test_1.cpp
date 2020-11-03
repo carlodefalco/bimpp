@@ -6,7 +6,6 @@
 #include <simple_connectivity_2d.h>
 
 #include <vector>
-#include <cassert>
 #include <limits>
 
 static int

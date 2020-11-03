@@ -468,7 +468,8 @@ arrays2connectivity (const p_type *p_matrix_start,
         (*conn)->tree_to_face[6 * tree + face] = face;
       }
 
-  assert (p8est_connectivity_is_valid (*conn));
+  bool CHK;
+  CHK = p8est_connectivity_is_valid (*conn); assert (CHK);
   p8est_connectivity_complete (*conn);
 };
 
