@@ -57,8 +57,10 @@ main (int argc, char **argv)
   tmesh::idx_t ln_elements = tmsh.num_local_quadrants ();
 
   Q1 sol (ln_nodes * 3);
+  Q1 incr (ln_nodes * 3);
   sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
-
+  incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
+  
   peraire_stepper stp(tmsh, sol, ordh, ordUx, ordUy);
   
   // Buffer for export filename
@@ -99,6 +101,10 @@ main (int argc, char **argv)
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUx, false);
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy);
+  
+  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
+  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
+  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
   TOC ("compute initial condition");
 
 
@@ -122,25 +128,30 @@ main (int argc, char **argv)
       if(rank==0)
         std::cout<<"TIME= "<<time<<std::endl;
 
-      // Reset solution
+      // Reset increment
       TIC();
-      sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
-      sol.assemble (replace_op);
+      incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
+      incr.assemble (replace_op);
       TOC("Reset");
-
+      
       TIC();
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
         {
           stp.set_quadrant (quadrant);
           stp.update ();
-          assemble_vector (quadrant, stp.loc_incrh, sol, ordh);
-          assemble_vector (quadrant, stp.loc_incrUx, sol, ordUx);
-          assemble_vector (quadrant, stp.loc_incrUy, sol, ordUy);
+          assemble_vector (quadrant, stp.loc_incrh, incr, ordh);
+          assemble_vector (quadrant, stp.loc_incrUx, incr, ordUx);
+          assemble_vector (quadrant, stp.loc_incrUy, incr, ordUy);
         }
       TOC("Compute step");
 
-        
+      TIC();
+      for (auto kk = 0; kk < incr.get_owned_data ().size (); kk++)
+        sol.get_owned_data ()[kk] += incr.get_owned_data ()[kk];
+      sol.assemble (replace_op);
+      TOC("Apply increment");
+      
       // Save solution
       TIC();
       sprintf(filename, "swe_h_%4.4d",   count);

@@ -81,39 +81,3 @@ assemble_vector (tmesh::quadrant_iterator& quadrant,
           locrhs[i] / rows.size ();
     }
 }
-
-/*
-static
-std::array<double, 4> rhsloc;
-
-void
-loop_over_vector (tmesh& mesh,
-                  const Q0& f,
-                  const Q1& g,
-                  Q1& rhs,
-                  const ordering& ord)
-{
-  rhsloc.fill (0.0);
-
-  double f_loc = 0;
-  std::array<double, 4> g_loc;
-
-  for (auto quadrant = mesh.begin_quadrant_sweep ();
-       quadrant != mesh.end_quadrant_sweep (); ++quadrant)
-    {
-      f_loc = f[quadrant->get_forest_quad_idx ()];
-
-      for (int n = 0; n < 4; ++n)
-        {
-          if (! quadrant->is_hanging (n))
-            g_loc[n] = g[quadrant->gt (n)];
-          else
-            g_loc[n] = 0.5 * (g[quadrant->gparent (0, n)] +
-                              g[quadrant->gparent (1, n)]);
-        }
-
-      //bim2a_rhs_loc (quadrant, f_loc, g_loc, rhsloc);
-      assemble_vector (quadrant, rhsloc, rhs, ord);
-    }
-}
-*/
