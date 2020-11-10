@@ -1,3 +1,4 @@
+#include <numeric>
 #include <bim_distributed_vector.h>
 #include <tmesh.h>
 #include <quad_operators.h>
@@ -24,8 +25,14 @@ public :
   {  };
 
   void
-  update ()
+  update_flux ()
   {
+
+    for (int ii = 0; ii < 4; ++ii) {
+      xn[ii] = quadrant->p(0, ii);
+      yn[ii] = quadrant->p(1, ii);
+    }
+
     for (int ii = 0; ii < 4; ++ii){
       if (! quadrant->is_hanging (ii)){  
         hdof[ii] = state_vector [ordh (quadrant->gt (ii))];
@@ -47,14 +54,34 @@ public :
     }
 
     static_cast<T*>(this)->basis_functions ();
-    static_cast<T*>(this)->update_function ();
+    static_cast<T*>(this)->flux_function ();
     
   }
+  
+  void
+  update_state ()
+  { static_cast<T*>(this)->incr_function (); }
 
   void
   set_quadrant (tmesh::quadrant_iterator q)
   { quadrant = q; }
 
+  void
+  set_dt (const double dt_)
+  { dt = dt_; }
+
+  double
+  get_dt ()
+  { return dt; }
+
+  void
+  set_flux (const double Fh, const double FUx, const double FUy)
+  { loc_fluxh = Fh; loc_fluxUx = FUx; loc_fluxUy = FUy; }
+
+  void
+  get_flux (double& Fh, double& FUx, double& FUy)
+  { Fh = loc_fluxh; FUx = loc_fluxUx ; FUy = loc_fluxUy; }
+  
   const Q1& state_vector; 
   const ordering& ordh;
   const ordering& ordUx;
@@ -90,10 +117,17 @@ public :
 
   // quadrature weights
   std::array<double, nquad> wq;
-  
+
+  // local buffers for state and flux update
   std::array<double, 4> loc_incrh  = {0, 0, 0, 0};
   std::array<double, 4> loc_incrUx = {0, 0, 0, 0};
   std::array<double, 4> loc_incrUy = {0, 0, 0, 0};
+
+  double loc_fluxh  = 0;
+  double loc_fluxUx = 0;
+  double loc_fluxUy = 0;
+
+  double dt = 1.0;
   
 private :
 
@@ -187,7 +221,37 @@ public :
   { }
 
   void
-  update_function () {
+  flux_function () {
+    int jj, kk;
+    double tmpdh = 0, tmpdUx = 0, tmpdUy = 0,
+      tmph = 0, tmpUx = 0, tmpUy = 0;
+    
+    double area = (xn[1] - xn[0]) * (yn[2] - yn[0]);
+    for (jj = 0; jj < 4; ++jj) {
+      for (kk = 0; kk < get_nquad (); ++kk) {
+        tmpdh  += - .1 * wq[kk] * shp[jj][kk] *  hdof[jj];
+        tmpdUx += - .1 * wq[kk] * shp[jj][kk] * Uxdof[jj];
+        tmpdUy += - .1 * wq[kk] * shp[jj][kk] * Uydof[jj];
+      }
+    }
+
+    tmph = std::accumulate (hdof.begin(), hdof.end(), 0.0) +
+      (dt/2.) * tmpdh / area;
+
+    tmpUx = std::accumulate (Uxdof.begin(), Uxdof.end(), 0.0) +
+      (dt/2.) * tmpdUx / area;
+
+    tmpUy = std::accumulate (Uydof.begin(), Uydof.end(), 0.0) +
+      (dt/2.) * tmpdUy / area;
+
+    loc_fluxh  = - .1 * tmph;
+    loc_fluxUx = - .1 * tmpUx;
+    loc_fluxUy = - .1 * tmpUy;
+    
+  }
+  
+  void
+  incr_function () {
     int ii, jj, kk;
     loc_incrh  = {0, 0, 0, 0};
     loc_incrUx = {0, 0, 0, 0};
@@ -196,12 +260,9 @@ public :
     for (ii = 0; ii < 4; ++ii) {
       for (jj = 0; jj < 4; ++jj) {
         for (kk = 0; kk < get_nquad (); ++kk) {
-          loc_incrh [ii] += - 2.e1 * wq[kk] * (shgx[ii][kk] * shgx[jj][kk] +
-                                               shgy[ii][kk] * shgy[jj][kk]) * hdof[jj];
-          loc_incrUx[ii] += - 2.e1 * wq[kk] * (shgx[ii][kk] * shgx[jj][kk] +
-                                               shgy[ii][kk] * shgy[jj][kk]) * Uxdof[jj];
-          loc_incrUy[ii] += - 2.e1 * wq[kk] * (shgx[ii][kk] * shgx[jj][kk] +
-                                               shgy[ii][kk] * shgy[jj][kk]) * Uydof[jj];
+          loc_incrh [ii] += wq[kk] * shp[ii][kk] * loc_fluxh;
+          loc_incrUx[ii] += wq[kk] * shp[ii][kk] * loc_fluxUx;
+          loc_incrUy[ii] += wq[kk] * shp[ii][kk] * loc_fluxUy;
         }
       }
     }

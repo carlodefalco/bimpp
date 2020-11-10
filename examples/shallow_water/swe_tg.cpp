@@ -58,15 +58,17 @@ main (int argc, char **argv)
 
   Q1 sol  (ln_nodes * 3);
   Q1 incr (ln_nodes * 3);
+  sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
+  incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
   
   Q1 mass (ln_nodes * 3);
   bim2a_mass_vector (tmsh, mass, ordh);
   bim2a_mass_vector (tmsh, mass, ordUx);
   bim2a_mass_vector (tmsh, mass, ordUy);
   mass.assemble ();
-  
-  sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
-  incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
+
+  Q0 flux (ln_elements * 3);
+  flux.assign (flux.size (), 0.0);
   
   peraire_stepper stp(tmsh, sol, ordh, ordUx, ordUy);
   
@@ -140,18 +142,32 @@ main (int argc, char **argv)
       // Reset increment
       TIC();
       incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
-      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
-      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
-      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
       incr.assemble (replace_op);
       TOC("Reset");
+
+      TIC();
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+        {
+          stp.set_quadrant (quadrant);
+          stp.set_dt (DELTAT);
+          stp.update_flux ();
+          stp.get_flux (flux[ordh(quadrant->get_forest_quad_idx ())],
+                        flux[ordUx(quadrant->get_forest_quad_idx ())],
+                        flux[ordUy(quadrant->get_forest_quad_idx ())]);
+        }
+      incr.assemble ();
+      TOC("Compute flux");
       
       TIC();
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
         {
           stp.set_quadrant (quadrant);
-          stp.update ();
+          stp.set_flux (flux[ordh(quadrant->get_forest_quad_idx ())],
+                        flux[ordUx(quadrant->get_forest_quad_idx ())],
+                        flux[ordUy(quadrant->get_forest_quad_idx ())]);
+          stp.update_state ();
           assemble_vector (quadrant, stp.loc_incrh, incr, ordh);
           assemble_vector (quadrant, stp.loc_incrUx, incr, ordUx);
           assemble_vector (quadrant, stp.loc_incrUy, incr, ordUy);

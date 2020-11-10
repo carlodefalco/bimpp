@@ -1,9 +1,9 @@
 // Setting parameters
 constexpr double pi = 3.14159265358979323846264338327950288;
 constexpr int NUM_REFINEMENTS = 4;
-constexpr double SKIPSAVE  = 500;
-constexpr double DELTAT =  0.25;
-constexpr double T      = 8000;
+constexpr double SKIPSAVE  = 2;
+constexpr double DELTAT =  0.05;
+constexpr double T      = 2;
 
 
 // Connectivity of local element
