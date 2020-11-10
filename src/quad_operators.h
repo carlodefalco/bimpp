@@ -102,6 +102,14 @@ bim2a_rhs (tmesh& mesh,
            T& rhs,
            const ordering& ord = default_ord);
 
+
+template <class T>
+void
+bim2a_mass_vector (tmesh& mesh,
+                   T& rhs,
+                   const ordering& ord = default_ord);
+
+
 void
 bim2a_solution_with_ghosts (tmesh& mesh,
                             distributed_vector& rhs,

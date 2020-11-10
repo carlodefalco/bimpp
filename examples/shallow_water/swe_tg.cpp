@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2022 Carlo de Falco
+  Copyright (C) 2020 Carlo de Falco
   This software is distributed under the terms
   the terms of the GNU/GPL licence v3
 */
@@ -56,8 +56,15 @@ main (int argc, char **argv)
   tmesh::idx_t ln_nodes    = tmsh.num_owned_nodes ();
   tmesh::idx_t ln_elements = tmsh.num_local_quadrants ();
 
-  Q1 sol (ln_nodes * 3);
+  Q1 sol  (ln_nodes * 3);
   Q1 incr (ln_nodes * 3);
+  
+  Q1 mass (ln_nodes * 3);
+  bim2a_mass_vector (tmsh, mass, ordh);
+  bim2a_mass_vector (tmsh, mass, ordUx);
+  bim2a_mass_vector (tmsh, mass, ordUy);
+  mass.assemble ();
+  
   sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
   incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
   
@@ -97,7 +104,8 @@ main (int argc, char **argv)
             }
         }
     }
- 
+
+  
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUx, false);
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy);
@@ -119,11 +127,12 @@ main (int argc, char **argv)
 
 
   int count = 0;
+  int savecount = 0;
   // Time loop
   for (double time = DELTAT; time <= T; time += DELTAT)
     {
-      count++;
-
+      savecount++;
+      
       // Print curent time
       if(rank==0)
         std::cout<<"TIME= "<<time<<std::endl;
@@ -131,6 +140,9 @@ main (int argc, char **argv)
       // Reset increment
       TIC();
       incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
+      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
+      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
+      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
       incr.assemble (replace_op);
       TOC("Reset");
       
@@ -144,22 +156,27 @@ main (int argc, char **argv)
           assemble_vector (quadrant, stp.loc_incrUx, incr, ordUx);
           assemble_vector (quadrant, stp.loc_incrUy, incr, ordUy);
         }
+      incr.assemble ();
       TOC("Compute step");
 
       TIC();
       for (auto kk = 0; kk < incr.get_owned_data ().size (); kk++)
-        sol.get_owned_data ()[kk] += incr.get_owned_data ()[kk];
+        sol.get_owned_data ()[kk] += DELTAT * incr.get_owned_data ()[kk] / mass.get_owned_data ()[kk];
       sol.assemble (replace_op);
       TOC("Apply increment");
       
       // Save solution
       TIC();
-      sprintf(filename, "swe_h_%4.4d",   count);
-      tmsh.octbin_export (filename, sol, ordh);
-      sprintf(filename, "swe_Ux_%4.4d",  count);
-      tmsh.octbin_export (filename, sol, ordUx);
-      sprintf(filename, "swe_Uy_%4.4d",  count);
-      tmsh.octbin_export (filename, sol, ordUy);
+      if (savecount >= SKIPSAVE) {
+        count++;
+        sprintf(filename, "swe_h_%4.4d",   count);
+        tmsh.octbin_export (filename, sol, ordh);
+        sprintf(filename, "swe_Ux_%4.4d",  count);
+        tmsh.octbin_export (filename, sol, ordUx);
+        sprintf(filename, "swe_Uy_%4.4d",  count);
+        tmsh.octbin_export (filename, sol, ordUy);
+        savecount = 0;
+      }
       TOC("Exporting solution");
 
     }
