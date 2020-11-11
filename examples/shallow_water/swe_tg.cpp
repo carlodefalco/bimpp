@@ -88,8 +88,8 @@ main (int argc, char **argv)
             double yy=quadrant->p(1,ii);
            
             sol [ordh (quadrant->gt (ii))] = (8. - std::sin (pi * xx / 2. / 400.));
-            sol [ordUx(quadrant->gt (ii))] = (8. - std::sin (pi * xx / 2. / 400.));
-            sol [ordUy(quadrant->gt (ii))] = (8. - std::sin (pi * xx / 2. / 400.));
+            sol [ordUx(quadrant->gt (ii))] = 0.;
+            sol [ordUy(quadrant->gt (ii))] = 0.;
           }
 
           else
@@ -162,27 +162,81 @@ main (int argc, char **argv)
           // only flux is considered, but the same should be done
           // for src
           /* 
-          stp.get_flux (flux[ordh(quadrant->get_forest_quad_idx ())],
-                        flux[ordUx(quadrant->get_forest_quad_idx ())],
-                        flux[ordUy(quadrant->get_forest_quad_idx ())]);
+             stp.get_flux (flux[ordh(quadrant->get_forest_quad_idx ())],
+             flux[ordUx(quadrant->get_forest_quad_idx ())],
+             flux[ordUy(quadrant->get_forest_quad_idx ())]);
 
           
-          stp.set_flux (flux[ordh(quadrant->get_forest_quad_idx ())],
-                        flux[ordUx(quadrant->get_forest_quad_idx ())],
-                        flux[ordUy(quadrant->get_forest_quad_idx ())]);
+             stp.set_flux (flux[ordh(quadrant->get_forest_quad_idx ())],
+             flux[ordUx(quadrant->get_forest_quad_idx ())],
+             flux[ordUy(quadrant->get_forest_quad_idx ())]);
           */
           stp.update_state_incr ();
           assemble_vector (quadrant, stp.loc_incrh, incr, ordh);
           assemble_vector (quadrant, stp.loc_incrUx, incr, ordUx);
           assemble_vector (quadrant, stp.loc_incrUy, incr, ordUy);
         }
+      
       incr.assemble ();
       TOC("Compute step");
 
       TIC();
       for (auto kk = 0; kk < incr.get_owned_data ().size (); kk++)
         sol.get_owned_data ()[kk] += DELTAT * incr.get_owned_data ()[kk] / mass.get_owned_data ()[kk];
-      sol.assemble (replace_op);
+
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep (); ++quadrant) {
+        auto tree_idx = quadrant->get_tree_idx ();
+
+        for (int i = 0; i < 4; ++i) {
+          if (! quadrant->is_hanging (i)) {
+            auto boundary_idx = quadrant->e (i);
+            auto boundary_idxx = quadrant->ex (i);
+            auto boundary_idxy = quadrant->ey (i);
+            
+            // If current node is on boundary 
+            if (boundary_idx != tmesh::quadrant_t::NOT_ON_BOUNDARY) {
+
+              // Loop over all the boundary conditions on h.
+              for (size_t bc = 0; bc < bcsh.size (); ++bc)
+                // If this boundary condition matches with
+                // the current node.
+                if (std::get<0> (bcsh[bc]) == tree_idx
+                    && (std::get<1> (bcsh[bc]) == boundary_idx
+                        || std::get<1> (bcsh[bc]) == boundary_idxx
+                        || std::get<1> (bcsh[bc]) == boundary_idxy)) {                        
+                  // Evaluate bc at current node.
+                  sol[ordh (quadrant->gt (i))] = (std::get<2> (bcsh[bc])) (quadrant->p (0, i), quadrant->p (1, i));
+                }
+
+              // Loop over all the boundary conditions on Ux.
+              for (size_t bc = 0; bc < bcsUx.size (); ++bc)
+                // If this boundary condition matches with
+                // the current node.
+                if (std::get<0> (bcsUx[bc]) == tree_idx
+                    && (std::get<1> (bcsUx[bc]) == boundary_idx
+                        || std::get<1> (bcsUx[bc]) == boundary_idxx
+                        || std::get<1> (bcsUx[bc]) == boundary_idxy)) {                    
+                  // Evaluate bc at current node.
+                  sol[ordUx (quadrant->gt (i))] = (std::get<2> (bcsUx[bc])) (quadrant->p (0, i), quadrant->p (1, i));
+                }
+              
+              // Loop over all the boundary conditions on Uy.
+              for (size_t bc = 0; bc < bcsUy.size (); ++bc)
+                // If this boundary condition matches with
+                // the current node.
+                if (std::get<0> (bcsUy[bc]) == tree_idx
+                    && (std::get<1> (bcsUy[bc]) == boundary_idx
+                        || std::get<1> (bcsUy[bc]) == boundary_idxx
+                        || std::get<1> (bcsUy[bc]) == boundary_idxy)) {                       
+                  // Evaluate bc at current node.
+                  sol[ordUy (quadrant->gt (i))] = (std::get<2> (bcsUy[bc])) (quadrant->p (0, i), quadrant->p (1, i));
+                }
+            }
+          }
+        }
+      }
+      sol.assemble (replace_op);            
       TOC("Apply increment");
       
       // Save solution

@@ -282,17 +282,51 @@ tmesh::quadrant_t::e (idx_t i)
   p4est_quadrant_t node;
   p4est_quadrant_corner_node (this->the_quadrant, i, &node);
 
-  if (node.y == 0)
+  if (node.x == 0)
+    retval = 0;
+  else if (node.x == P4EST_ROOT_LEN)
+    retval = 1;
+  else if (node.y == 0)
     retval = 2;
   else if (node.y == P4EST_ROOT_LEN)
     retval = 3;
-  else if (node.x == 0)
+
+  return retval;
+};
+
+tmesh::idx_t
+tmesh::quadrant_t::ex (idx_t i)
+{
+  assert (i < 4);
+  idx_t retval = NOT_ON_BOUNDARY;
+  p4est_quadrant_t node;
+  p4est_quadrant_corner_node (this->the_quadrant, i, &node);
+
+  if (node.x == 0)
     retval = 0;
   else if (node.x == P4EST_ROOT_LEN)
     retval = 1;
 
   return retval;
 };
+
+tmesh::idx_t
+tmesh::quadrant_t::ey (idx_t i)
+{
+  assert (i < 4);
+  idx_t retval = NOT_ON_BOUNDARY;
+  p4est_quadrant_t node;
+  p4est_quadrant_corner_node (this->the_quadrant, i, &node);
+
+  if (node.y == 0)
+    retval = 2;
+  else if (node.y == P4EST_ROOT_LEN)
+    retval = 3;
+
+  return retval;
+};
+
+
 
 tmesh::neighbor_iterator
 tmesh::quadrant_t::begin_neighbor_sweep ()

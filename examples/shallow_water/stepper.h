@@ -244,41 +244,42 @@ public :
     : basetype(msh, state, oh, oUx, oUy)
   { }
 
+  static constexpr double grav = 9.81;
   double
   h_flux_formula_x (double h, double Ux, double Uy)
-  { return 0; }
+  { return Ux; }
 
   double
   h_flux_formula_y (double h, double Ux, double Uy)
-  { return 0; }
+  { return Uy; }
 
   double
   Ux_flux_formula_x (double h, double Ux, double Uy)
-  { return 0; }
+  { return Ux*Ux/h + grav*h*h/2.; }
   
   double
   Ux_flux_formula_y (double h, double Ux, double Uy)
-  { return 0; }
+  { return Uy*Uy/h; }
 
   double
   Uy_flux_formula_x (double h, double Ux, double Uy)
-  { return 0; }
+  { return Ux*Ux/h; }
   
   double
   Uy_flux_formula_y (double h, double Ux, double Uy)
-  { return 0; }
+  { return Uy*Uy/h + grav*h*h/2.; }
 
     double
   h_src_formula (double h, double Ux, double Uy)
-  { return (- .1  * h); }
+  { return (0.); }
 
   double
   Ux_src_formula (double h, double Ux, double Uy)
-  { return (- .1  * Ux); }
+  { return (0.); }
 
   double
   Uy_src_formula (double h, double Ux, double Uy)
-  { return (- .1  * Uy); }
+  { return (0.); }
 
    void
   halfstep_function () {
@@ -339,26 +340,12 @@ public :
     for (ii = 0; ii < 4; ++ii) {
       for (jj = 0; jj < 4; ++jj) {
         for (kk = 0; kk < get_nquad (); ++kk) {
-          loc_incrh [ii] += wq[kk] * shp[ii][kk] * loc_srch;
-          loc_incrUx[ii] += wq[kk] * shp[ii][kk] * loc_srcUx;
-          loc_incrUy[ii] += wq[kk] * shp[ii][kk] * loc_srcUy;
+          loc_incrh [ii] += wq[kk] * (shp[ii][kk] * loc_srch  + shgx[ii][kk] * loc_fluxh_x  + shgy[ii][kk] * loc_fluxh_y);
+          loc_incrUx[ii] += wq[kk] * (shp[ii][kk] * loc_srcUx + shgx[ii][kk] * loc_fluxUx_x + shgy[ii][kk] * loc_fluxUx_y);
+          loc_incrUy[ii] += wq[kk] * (shp[ii][kk] * loc_srcUy + shgx[ii][kk] * loc_fluxUy_x + shgy[ii][kk] * loc_fluxUy_y);
         }
       }
     }
-
-    for (ii = 0; ii < 4; ++ii) {
-      for (jj = 0; jj < 4; ++jj) {
-        for (kk = 0; kk < get_nquad (); ++kk) {
-          loc_incrh [ii] += wq[kk] * (shgx[ii][kk] * loc_fluxh_x +
-                                      shgy[ii][kk] * loc_fluxh_y);
-          loc_incrUx[ii] += wq[kk] * (shgx[ii][kk] * loc_fluxUy_x +
-                                      shgy[ii][kk] * loc_fluxUy_y);
-          loc_incrUy[ii] += wq[kk] * (shgx[ii][kk] * loc_fluxUy_x +
-                                      shgy[ii][kk] * loc_fluxUy_y);
-        }
-      }
-    }
-    
   }
 
 

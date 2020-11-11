@@ -190,6 +190,10 @@ public:
     //  NOT_ON_BOUNDARY if an interior vertex.
     idx_t
     e (idx_t i);
+    idx_t
+    ex (idx_t i);
+    idx_t
+    ey (idx_t i);
 
     /// Get an iterator to the first neighbor
     /// of the current quadrant.

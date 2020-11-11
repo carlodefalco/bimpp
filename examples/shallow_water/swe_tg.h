@@ -1,9 +1,9 @@
 // Setting parameters
 constexpr double pi = 3.14159265358979323846264338327950288;
 constexpr int NUM_REFINEMENTS = 4;
-constexpr double SKIPSAVE  = 2;
-constexpr double DELTAT =  0.05;
-constexpr double T      = 2;
+constexpr double SKIPSAVE  = 500;
+constexpr double DELTAT =  0.0001;
+constexpr double T      = 100;
 
 
 // Connectivity of local element
@@ -45,6 +45,29 @@ const p4est_topidx_t simple_conn_t[simple_conn_num_trees*5] =
      17,   19,   20,   18,    1,
      19,   21,   22,   20,    1};
 
+const dirichlet_bcs bcsh;
+const dirichlet_bcs bcsUx = {{0, 0, [] (double, double) {return 0;}},
+                             {9, 1, [] (double, double) {return 0;}}};
+const dirichlet_bcs bcsUy= {{0, 3, [] (double, double) {return 0;}},
+                            {0, 2, [] (double, double) {return 0;}},
+                            {1, 3, [] (double, double) {return 0;}},
+                            {1, 2, [] (double, double) {return 0;}},
+                            {2, 3, [] (double, double) {return 0;}},
+                            {2, 2, [] (double, double) {return 0;}},
+                            {3, 3, [] (double, double) {return 0;}},
+                            {3, 2, [] (double, double) {return 0;}},
+                            {4, 3, [] (double, double) {return 0;}},
+                            {4, 2, [] (double, double) {return 0;}},
+                            {5, 3, [] (double, double) {return 0;}},
+                            {5, 2, [] (double, double) {return 0;}},
+                            {6, 3, [] (double, double) {return 0;}},
+                            {6, 2, [] (double, double) {return 0;}},
+                            {7, 3, [] (double, double) {return 0;}},
+                            {7, 2, [] (double, double) {return 0;}},
+                            {8, 3, [] (double, double) {return 0;}},
+                            {8, 2, [] (double, double) {return 0;}},
+                            {9, 3, [] (double, double) {return 0;}},
+                            {9, 2, [] (double, double) {return 0;}}};
 
 using Q1  = q1_vec<distributed_vector>;  // Typedef for distributed q_1 vector
 using Q0  = std::vector<double>;         // Typedef for local q_0 vector
