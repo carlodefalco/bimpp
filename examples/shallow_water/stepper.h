@@ -25,9 +25,25 @@ public :
   {  };
 
   void
-  update_flux ()
-  {
+  update_halfstep ()
+  { static_cast<T*>(this)->halfstep_function (); }
 
+  void
+  update_flux ()
+  { static_cast<T*>(this)->flux_function (); }
+
+  void
+  update_src ()
+  { static_cast<T*>(this)->src_function (); }
+
+  void
+  update_state_incr ()
+  { static_cast<T*>(this)->incr_function (); }
+
+  void
+  set_quadrant (tmesh::quadrant_iterator q)
+  {
+    quadrant = q;
     for (int ii = 0; ii < 4; ++ii) {
       xn[ii] = quadrant->p(0, ii);
       yn[ii] = quadrant->p(1, ii);
@@ -47,24 +63,8 @@ public :
                           state_vector [ordUy (quadrant->gparent(1,ii))]);
       }
     }
-
-    for (int ii = 0; ii < 4; ++ii) {
-      xn[ii] = quadrant->p(0, ii);
-      yn[ii] = quadrant->p(1, ii);
-    }
-
     static_cast<T*>(this)->basis_functions ();
-    static_cast<T*>(this)->flux_function ();
-    
   }
-  
-  void
-  update_state ()
-  { static_cast<T*>(this)->incr_function (); }
-
-  void
-  set_quadrant (tmesh::quadrant_iterator q)
-  { quadrant = q; }
 
   void
   set_dt (const double dt_)
@@ -75,12 +75,23 @@ public :
   { return dt; }
 
   void
-  set_flux (const double Fh, const double FUx, const double FUy)
-  { loc_fluxh = Fh; loc_fluxUx = FUx; loc_fluxUy = FUy; }
+  set_flux (const double Fh_x, const double Fh_y, const double FUx_x,
+            const double FUx_y, const double FUy_x, const double FUy_y)
+  { loc_fluxh_x = Fh_x; loc_fluxUx_x = FUx_x; loc_fluxUy_x = FUy_x;
+    loc_fluxh_y = Fh_y; loc_fluxUx_y = FUx_y; loc_fluxUy_y = FUy_y;}
 
   void
-  get_flux (double& Fh, double& FUx, double& FUy)
-  { Fh = loc_fluxh; FUx = loc_fluxUx ; FUy = loc_fluxUy; }
+  get_flux (double& Fh_x, double& Fh_y, double& FUx_x, double& FUx_y, double& FUy_x, double& FUy_y)
+  { Fh_x = loc_fluxh_x; FUx_x = loc_fluxUx_x ; FUy_x = loc_fluxUy_x;
+    Fh_y = loc_fluxh_y; FUx_y = loc_fluxUx_y ; FUy_y = loc_fluxUy_y;}
+
+  void
+  set_src (const double Sh, const double SUx, const double SUy)
+  { loc_srch = Sh; loc_srcUx = SUx; loc_srcUy = SUy; }
+
+  void
+  get_src (double& Sh, double& SUx, double& SUy)
+  { Sh = loc_srch; SUx = loc_srcUx ; SUy = loc_srcUy; }
   
   const Q1& state_vector; 
   const ordering& ordh;
@@ -123,9 +134,20 @@ public :
   std::array<double, 4> loc_incrUx = {0, 0, 0, 0};
   std::array<double, 4> loc_incrUy = {0, 0, 0, 0};
 
-  double loc_fluxh  = 0;
-  double loc_fluxUx = 0;
-  double loc_fluxUy = 0;
+  double loc_midh  = 0;
+  double loc_midUx = 0;
+  double loc_midUy = 0;
+  
+  double loc_fluxh_x  = 0;
+  double loc_fluxh_y  = 0;
+  double loc_fluxUx_x = 0;
+  double loc_fluxUx_y = 0;
+  double loc_fluxUy_x = 0;
+  double loc_fluxUy_y = 0;
+
+  double loc_srch  = 0;
+  double loc_srcUx = 0;
+  double loc_srcUy = 0;
 
   double dt = 1.0;
   
@@ -221,7 +243,7 @@ public :
   { }
 
   void
-  flux_function () {
+  halfstep_function () {
     int jj, kk;
     double tmpdh = 0, tmpdUx = 0, tmpdUy = 0,
       tmph = 0, tmpUx = 0, tmpUy = 0;
@@ -235,19 +257,32 @@ public :
       }
     }
 
-    tmph = std::accumulate (hdof.begin(), hdof.end(), 0.0) +
+    loc_midh = std::accumulate (hdof.begin(), hdof.end(), 0.0) +
       (dt/2.) * tmpdh / area;
 
-    tmpUx = std::accumulate (Uxdof.begin(), Uxdof.end(), 0.0) +
+    loc_midUx = std::accumulate (Uxdof.begin(), Uxdof.end(), 0.0) +
       (dt/2.) * tmpdUx / area;
 
-    tmpUy = std::accumulate (Uydof.begin(), Uydof.end(), 0.0) +
+    loc_midUy = std::accumulate (Uydof.begin(), Uydof.end(), 0.0) +
       (dt/2.) * tmpdUy / area;
-
-    loc_fluxh  = - .1 * tmph;
-    loc_fluxUx = - .1 * tmpUx;
-    loc_fluxUy = - .1 * tmpUy;
     
+  }
+  
+  void
+  flux_function () {
+    loc_fluxh_x  = 0. * loc_midh;
+    loc_fluxh_y  = 0. * loc_midh; 
+    loc_fluxUx_x = 0. * loc_midUx;
+    loc_fluxUx_y = 0. * loc_midUx;
+    loc_fluxUy_x = 0. * loc_midUy;
+    loc_fluxUy_y = 0. * loc_midUy;
+  }
+
+  void
+  src_function () {
+    loc_srch  = - .1 * loc_midh;
+    loc_srcUx = - .1 * loc_midUx;
+    loc_srcUy = - .1 * loc_midUy;
   }
   
   void
@@ -260,12 +295,23 @@ public :
     for (ii = 0; ii < 4; ++ii) {
       for (jj = 0; jj < 4; ++jj) {
         for (kk = 0; kk < get_nquad (); ++kk) {
-          loc_incrh [ii] += wq[kk] * shp[ii][kk] * loc_fluxh;
-          loc_incrUx[ii] += wq[kk] * shp[ii][kk] * loc_fluxUx;
-          loc_incrUy[ii] += wq[kk] * shp[ii][kk] * loc_fluxUy;
+          loc_incrh [ii] += wq[kk] * shp[ii][kk] * loc_srch;
+          loc_incrUx[ii] += wq[kk] * shp[ii][kk] * loc_srcUx;
+          loc_incrUy[ii] += wq[kk] * shp[ii][kk] * loc_srcUy;
         }
       }
     }
+
+    for (ii = 0; ii < 4; ++ii) {
+      for (jj = 0; jj < 4; ++jj) {
+        for (kk = 0; kk < get_nquad (); ++kk) {
+          loc_incrh [ii] += wq[kk] * (shgx[ii][kk] * loc_fluxh_x + shgy[ii][kk] * loc_fluxh_y);
+          loc_incrUx[ii] += wq[kk] * (shgx[ii][kk] * loc_fluxUy_x + shgy[ii][kk] * loc_fluxUy_y);
+          loc_incrUy[ii] += wq[kk] * (shgx[ii][kk] * loc_fluxUy_x + shgy[ii][kk] * loc_fluxUy_y);
+        }
+      }
+    }
+    
   }
 
 

@@ -151,23 +151,27 @@ main (int argc, char **argv)
         {
           stp.set_quadrant (quadrant);
           stp.set_dt (DELTAT);
+          stp.update_halfstep ();
+          stp.update_src ();
           stp.update_flux ();
+
+          // this part is only needed if we intend to split
+          // the two steps of the method into two different loops
+          // in case that is not explicitely needed we can save time
+          // and memory doing everything in one single pass, below
+          // only flux is considered, but the same should be done
+          // for src
+          /* 
           stp.get_flux (flux[ordh(quadrant->get_forest_quad_idx ())],
                         flux[ordUx(quadrant->get_forest_quad_idx ())],
                         flux[ordUy(quadrant->get_forest_quad_idx ())]);
-        }
-      incr.assemble ();
-      TOC("Compute flux");
-      
-      TIC();
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-           quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-        {
-          stp.set_quadrant (quadrant);
+
+          
           stp.set_flux (flux[ordh(quadrant->get_forest_quad_idx ())],
                         flux[ordUx(quadrant->get_forest_quad_idx ())],
                         flux[ordUy(quadrant->get_forest_quad_idx ())]);
-          stp.update_state ();
+          */
+          stp.update_state_incr ();
           assemble_vector (quadrant, stp.loc_incrh, incr, ordh);
           assemble_vector (quadrant, stp.loc_incrUx, incr, ordUx);
           assemble_vector (quadrant, stp.loc_incrUy, incr, ordUy);
