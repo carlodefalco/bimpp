@@ -81,7 +81,8 @@ public :
     loc_fluxh_y = Fh_y; loc_fluxUx_y = FUx_y; loc_fluxUy_y = FUy_y;}
 
   void
-  get_flux (double& Fh_x, double& Fh_y, double& FUx_x, double& FUx_y, double& FUy_x, double& FUy_y)
+  get_flux (double& Fh_x, double& Fh_y, double& FUx_x,
+            double& FUx_y, double& FUy_x, double& FUy_y)
   { Fh_x = loc_fluxh_x; FUx_x = loc_fluxUx_x ; FUy_x = loc_fluxUy_x;
     Fh_y = loc_fluxh_y; FUx_y = loc_fluxUx_y ; FUy_y = loc_fluxUy_y;}
 
@@ -191,7 +192,8 @@ public:
   compute_quad_points () {
     top().xq = top().xn;
     top().yq = top().yn;
-    double hxhyby4 = .25 * (top().xn[1] - top().xn[0]) * (top().yn[2] - top().yn[0]);
+    double hxhyby4 = .25 * (top().xn[1] - top().xn[0]) *
+      (top().yn[2] - top().yn[0]);
     top().wq = {hxhyby4, hxhyby4, hxhyby4, hxhyby4};
   }
 
@@ -242,7 +244,43 @@ public :
     : basetype(msh, state, oh, oUx, oUy)
   { }
 
-  void
+  double
+  h_flux_formula_x (double h, double Ux, double Uy)
+  { return 0; }
+
+  double
+  h_flux_formula_y (double h, double Ux, double Uy)
+  { return 0; }
+
+  double
+  Ux_flux_formula_x (double h, double Ux, double Uy)
+  { return 0; }
+  
+  double
+  Ux_flux_formula_y (double h, double Ux, double Uy)
+  { return 0; }
+
+  double
+  Uy_flux_formula_x (double h, double Ux, double Uy)
+  { return 0; }
+  
+  double
+  Uy_flux_formula_y (double h, double Ux, double Uy)
+  { return 0; }
+
+    double
+  h_src_formula (double h, double Ux, double Uy)
+  { return (- .1  * h); }
+
+  double
+  Ux_src_formula (double h, double Ux, double Uy)
+  { return (- .1  * Ux); }
+
+  double
+  Uy_src_formula (double h, double Ux, double Uy)
+  { return (- .1  * Uy); }
+
+   void
   halfstep_function () {
     int jj, kk;
     double tmpdh = 0, tmpdUx = 0, tmpdUy = 0,
@@ -251,9 +289,15 @@ public :
     double area = (xn[1] - xn[0]) * (yn[2] - yn[0]);
     for (jj = 0; jj < 4; ++jj) {
       for (kk = 0; kk < get_nquad (); ++kk) {
-        tmpdh  += - .1 * wq[kk] * shp[jj][kk] *  hdof[jj];
-        tmpdUx += - .1 * wq[kk] * shp[jj][kk] * Uxdof[jj];
-        tmpdUy += - .1 * wq[kk] * shp[jj][kk] * Uydof[jj];
+        tmpdh   += wq[kk] * (- shgx[jj][kk] * h_flux_formula_x (hdof[jj],  Uxdof[jj], Uydof[jj])
+                             - shgy[jj][kk] * h_flux_formula_y (hdof[jj],  Uxdof[jj], Uydof[jj])
+                             + shp[jj][kk]  * h_src_formula (hdof[jj],  Uxdof[jj], Uydof[jj]));
+        tmpdUx  += wq[kk] * (- shgx[jj][kk] * Ux_flux_formula_x (hdof[jj],  Uxdof[jj], Uydof[jj])
+                             - shgy[jj][kk] * Ux_flux_formula_y (hdof[jj],  Uxdof[jj], Uydof[jj])
+                             + shp[jj][kk]  * Ux_src_formula (hdof[jj],  Uxdof[jj], Uydof[jj]));
+        tmpdUy  += wq[kk] * (- shgx[jj][kk] * Uy_flux_formula_x (hdof[jj],  Uxdof[jj], Uydof[jj])
+                             - shgy[jj][kk] * Uy_flux_formula_y (hdof[jj],  Uxdof[jj], Uydof[jj])
+                             + shp[jj][kk]  * Uy_src_formula (hdof[jj],  Uxdof[jj], Uydof[jj]));
       }
     }
 
@@ -270,19 +314,19 @@ public :
   
   void
   flux_function () {
-    loc_fluxh_x  = 0. * loc_midh;
-    loc_fluxh_y  = 0. * loc_midh; 
-    loc_fluxUx_x = 0. * loc_midUx;
-    loc_fluxUx_y = 0. * loc_midUx;
-    loc_fluxUy_x = 0. * loc_midUy;
-    loc_fluxUy_y = 0. * loc_midUy;
+    loc_fluxh_x  = h_flux_formula_x  (loc_midh, loc_midUx, loc_midUy);
+    loc_fluxh_y  = h_flux_formula_y  (loc_midh, loc_midUx, loc_midUy);
+    loc_fluxUx_x = Ux_flux_formula_x (loc_midh, loc_midUx, loc_midUy);
+    loc_fluxUx_y = Ux_flux_formula_y (loc_midh, loc_midUx, loc_midUy);
+    loc_fluxUy_x = Uy_flux_formula_x (loc_midh, loc_midUx, loc_midUy);
+    loc_fluxUy_y = Uy_flux_formula_y (loc_midh, loc_midUx, loc_midUy);
   }
 
   void
   src_function () {
-    loc_srch  = - .1 * loc_midh;
-    loc_srcUx = - .1 * loc_midUx;
-    loc_srcUy = - .1 * loc_midUy;
+    loc_srch  = h_src_formula  (loc_midh, loc_midUx, loc_midUy);
+    loc_srcUx = Ux_src_formula (loc_midh, loc_midUx, loc_midUy);
+    loc_srcUy = Uy_src_formula (loc_midh, loc_midUx, loc_midUy);
   }
   
   void
@@ -305,9 +349,12 @@ public :
     for (ii = 0; ii < 4; ++ii) {
       for (jj = 0; jj < 4; ++jj) {
         for (kk = 0; kk < get_nquad (); ++kk) {
-          loc_incrh [ii] += wq[kk] * (shgx[ii][kk] * loc_fluxh_x + shgy[ii][kk] * loc_fluxh_y);
-          loc_incrUx[ii] += wq[kk] * (shgx[ii][kk] * loc_fluxUy_x + shgy[ii][kk] * loc_fluxUy_y);
-          loc_incrUy[ii] += wq[kk] * (shgx[ii][kk] * loc_fluxUy_x + shgy[ii][kk] * loc_fluxUy_y);
+          loc_incrh [ii] += wq[kk] * (shgx[ii][kk] * loc_fluxh_x +
+                                      shgy[ii][kk] * loc_fluxh_y);
+          loc_incrUx[ii] += wq[kk] * (shgx[ii][kk] * loc_fluxUy_x +
+                                      shgy[ii][kk] * loc_fluxUy_y);
+          loc_incrUy[ii] += wq[kk] * (shgx[ii][kk] * loc_fluxUy_x +
+                                      shgy[ii][kk] * loc_fluxUy_y);
         }
       }
     }
