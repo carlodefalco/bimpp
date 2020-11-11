@@ -1,8 +1,8 @@
 // Setting parameters
 constexpr double pi = 3.14159265358979323846264338327950288;
 constexpr int NUM_REFINEMENTS = 4;
-constexpr double SKIPSAVE  = 500;
-constexpr double DELTAT =  0.0001;
+constexpr double SKIPSAVE  = 10000;
+constexpr double DELTAT =  0.00001;
 constexpr double T      = 100;
 
 
@@ -48,7 +48,10 @@ const p4est_topidx_t simple_conn_t[simple_conn_num_trees*5] =
 const dirichlet_bcs bcsh;
 const dirichlet_bcs bcsUx = {{0, 0, [] (double, double) {return 0;}},
                              {9, 1, [] (double, double) {return 0;}}};
-const dirichlet_bcs bcsUy= {{0, 3, [] (double, double) {return 0;}},
+
+const dirichlet_bcs bcsUy= {{0, 0, [] (double, double) {return 0;}},
+                            {9, 1, [] (double, double) {return 0;}},
+                            {0, 3, [] (double, double) {return 0;}},
                             {0, 2, [] (double, double) {return 0;}},
                             {1, 3, [] (double, double) {return 0;}},
                             {1, 2, [] (double, double) {return 0;}},

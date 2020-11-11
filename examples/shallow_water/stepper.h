@@ -302,13 +302,13 @@ public :
       }
     }
 
-    loc_midh = std::accumulate (hdof.begin(), hdof.end(), 0.0) +
+    loc_midh = .25 * std::accumulate (hdof.begin(), hdof.end(), 0.0) +
       (dt/2.) * tmpdh / area;
 
-    loc_midUx = std::accumulate (Uxdof.begin(), Uxdof.end(), 0.0) +
+    loc_midUx = .25 * std::accumulate (Uxdof.begin(), Uxdof.end(), 0.0) +
       (dt/2.) * tmpdUx / area;
 
-    loc_midUy = std::accumulate (Uydof.begin(), Uydof.end(), 0.0) +
+    loc_midUy = .25 * std::accumulate (Uydof.begin(), Uydof.end(), 0.0) +
       (dt/2.) * tmpdUy / area;
     
   }
