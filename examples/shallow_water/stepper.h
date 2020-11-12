@@ -207,7 +207,7 @@ public:
 
   void
   compute_shgx () {
-    const double hx = top().xn[1]-top().xn[0];
+    const double hx = top().xn[1]-top().xn[0]; 
     top().shgx[0] = {-1./hx, -1./hx,  0,      0};
     top().shgx[1] = {1./hx,   1./hx,  0,      0};
     top().shgx[2] = {0,       0,     -1./hx, -1./hx};
@@ -216,7 +216,7 @@ public:
 
   void
   compute_shgy () {
-    const double hy = top().yn[2]-top().yn[0];
+    const double hy = top().yn[2]-top().yn[0]; 
     top().shgy[0] = {-1./hy,  0,     -1./hy,  0};
     top().shgy[1] = { 0,     -1./hy,  0,     -1./hy};
     top().shgy[2] = { 1./hy,  0,      1./hy,  0};
@@ -259,17 +259,17 @@ public :
   
   double
   Ux_flux_formula_y (double h, double Ux, double Uy)
-  { return Uy*Uy/h; }
+  { return Uy*Ux/h; }
 
   double
   Uy_flux_formula_x (double h, double Ux, double Uy)
-  { return Ux*Ux/h; }
+  { return Uy*Ux/h; }
   
   double
   Uy_flux_formula_y (double h, double Ux, double Uy)
   { return Uy*Uy/h + grav*h*h/2.; }
 
-    double
+  double
   h_src_formula (double h, double Ux, double Uy)
   { return (0.); }
 
@@ -302,14 +302,21 @@ public :
       }
     }
 
+    const double hx = top().xn[1]-top().xn[0];
+    const double hy = top().yn[2]-top().yn[0];
+    const double dtoptx = hx / (std::abs (std::accumulate (Uxdof.begin(), Uxdof.end(), 0.0)/std::accumulate (hdof.begin(), hdof.end(), 0.0)) +
+                                std::sqrt (grav * std::accumulate (hdof.begin(), hdof.end(), 0.0)));
+    const double dtopty = hy / (std::abs (std::accumulate (Uydof.begin(), Uydof.end(), 0.0)/std::accumulate (hdof.begin(), hdof.end(), 0.0)) +
+                                std::sqrt (grav * std::accumulate (hdof.begin(), hdof.end(), 0.0)));
+    const double dtopt = dtoptx > dtopty ? dtopty : dtoptx;
     loc_midh = .25 * std::accumulate (hdof.begin(), hdof.end(), 0.0) +
-      (dt/2.) * tmpdh / area;
+      (dtopt/2.) * tmpdh / area;
 
     loc_midUx = .25 * std::accumulate (Uxdof.begin(), Uxdof.end(), 0.0) +
-      (dt/2.) * tmpdUx / area;
+      (dtopt/2.) * tmpdUx / area;
 
     loc_midUy = .25 * std::accumulate (Uydof.begin(), Uydof.end(), 0.0) +
-      (dt/2.) * tmpdUy / area;
+      (dtopt/2.) * tmpdUy / area;
     
   }
   
