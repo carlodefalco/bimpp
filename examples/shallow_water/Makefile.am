@@ -10,11 +10,17 @@ BIMCHLIB         = ../../src/libbimsystemsolver.la
 AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
-bin_PROGRAMS = swe_tg
+bin_PROGRAMS = swe_tg orography
 CLEANFILES =
 
 swe_tg_SOURCES =  swe_tg.cpp
 swe_tg_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
 swe_tg_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 swe_tg_LDADD = $(BIMLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLINALGLIB) $(BIMIOLIB) @P4EST_LIB@
+CLEANFILES +=
+
+orography_SOURCES =  orography.cpp
+orography_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
+orography_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+orography_LDADD = $(BIMLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLINALGLIB) $(BIMIOLIB) @P4EST_LIB@
 CLEANFILES +=
