@@ -707,7 +707,8 @@ void
 bim2a_mass_vector_loc (tmesh::quadrant_iterator& quadrant,
                        std::array<double, 4>& locrhs)
 {
-  auto hxhyby4 = .25 * (quadrant->p(0, 1) - quadrant->p (0, 0)) *
+  auto hxhyby4 = .25 *
+    (quadrant->p(0, 1) - quadrant->p (0, 0)) *
     (quadrant->p(1, 2) - quadrant->p (1, 0));
 
   for (int i = 0; i < 4; ++i)
@@ -721,9 +722,6 @@ bim2a_mass_vector (tmesh& mesh,
                    const ordering& ord)
 {
   rhsloc.fill (0.0);
-
-  double f_loc = 0;
-  std::array<double, 4> g_loc;
 
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep (); ++quadrant)

@@ -8,6 +8,7 @@
 #include <cmath>
 #include <algorithm>
 #include <cstdio>
+#include <octave_file_io.h>
 
 #include <bim_distributed_vector.h>
 #include <bim_timing.h>
@@ -22,6 +23,9 @@ static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return NUM_REFINEMENTS; }
 
+static int
+refine_right_half (tmesh::quadrant_iterator quadrant)
+{ return (quadrant->centroid (0) > 0.0 ? 1 : 0); }
 
 // Re-Define tic and toc to add an MPI_Barrier
 #define TIC() MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
@@ -89,6 +93,14 @@ main (int argc, char **argv)
   tmsh.set_refine_marker (uniform_refinement);
   tmsh.refine (recursive);
 
+  /*
+  tmsh.set_refine_marker (refine_right_half);
+  tmsh.refine (0);
+  tmsh.set_refine_marker (refine_right_half);
+  tmsh.refine (0);
+  tmsh.set_refine_marker (refine_right_half);
+  tmsh.refine (0);
+  */
   tmesh::idx_t gn_nodes    = tmsh.num_global_nodes ();
   tmesh::idx_t ln_nodes    = tmsh.num_owned_nodes ();
   tmesh::idx_t ln_elements = tmsh.num_local_quadrants ();
@@ -124,9 +136,9 @@ main (int argc, char **argv)
             double xx=quadrant->p(0,ii);
             double yy=quadrant->p(1,ii);
            
-            sol [ordh (quadrant->gt (ii))] = (8. - std::sin (pi * xx / 2. / 400.));
-            sol [ordUx(quadrant->gt (ii))] = 0.;
-            sol [ordUy(quadrant->gt (ii))] = 0.;
+            sol [ordh (quadrant->gt (ii))] = h0_fun (xx, yy);
+            sol [ordUx(quadrant->gt (ii))] = Ux0_fun (xx, yy);
+            sol [ordUy(quadrant->gt (ii))] = Uy0_fun (xx, yy);
           }
 
           else
@@ -164,18 +176,25 @@ main (int argc, char **argv)
   tmsh.octbin_export (filename, sol, ordUy);
 
 
+  std::vector<double> full_time_vector;
+  full_time_vector.reserve (static_cast<int> (T/DELTAT));
+  std::vector<double> save_time_vector;
+  save_time_vector.reserve (static_cast<int> (T/SAVEDT));
 
-  int count = 0;
-  int savecount = 0;
+  
   // Time loop
-  for (double time = DELTAT; time <= T; time += DELTAT)
-    {
-      savecount++;
-      
-      // Print curent time
-      if(rank==0)
-        std::cout<<"TIME= "<<time<<std::endl;
-
+  double time = 0.0;
+  double deltat = DELTAT;
+  if(rank==0) {
+    full_time_vector.push_back (0.0);
+    save_time_vector.push_back (0.0);
+  }
+  int count = 0;
+  
+  double savecount = 0.0;
+  
+  while (time <= T)
+    {      
       // Reset increment
       TIC();
       incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
@@ -187,39 +206,43 @@ main (int argc, char **argv)
            quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
         {
           stp.set_quadrant (quadrant);
-          stp.set_dt (DELTAT);
+          stp.set_dt (DELTAT/REDCDT);
           stp.update_halfstep ();
           stp.update_src ();
           stp.update_flux ();
 
-          // this part is only needed if we intend to split
-          // the two steps of the method into two different loops
-          // in case that is not explicitely needed we can save time
-          // and memory doing everything in one single pass, below
-          // only flux is considered, but the same should be done
-          // for src
-          /* 
-             stp.get_flux (flux[ordh(quadrant->get_forest_quad_idx ())],
-             flux[ordUx(quadrant->get_forest_quad_idx ())],
-             flux[ordUy(quadrant->get_forest_quad_idx ())]);
-
-          
-             stp.set_flux (flux[ordh(quadrant->get_forest_quad_idx ())],
-             flux[ordUx(quadrant->get_forest_quad_idx ())],
-             flux[ordUy(quadrant->get_forest_quad_idx ())]);
-          */
           stp.update_state_incr ();
           assemble_vector (quadrant, stp.loc_incrh, incr, ordh);
           assemble_vector (quadrant, stp.loc_incrUx, incr, ordUx);
           assemble_vector (quadrant, stp.loc_incrUy, incr, ordUy);
         }
-      
+
       incr.assemble ();
       TOC("Compute step");
 
+      deltat = REDCDT * stp.get_dt ();
+      if(rank==0)
+        std::cout << "TIME = " << time << ", next dt = " << deltat << std::endl;
+      
+      MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&deltat), 1, MPI_INT, MPI_MIN, tmsh.comm);
+      time += deltat;
+      savecount += deltat;
+      MPI_Bcast (static_cast<void*> (&time), 1, MPI_DOUBLE, 0, tmsh.comm);
+      MPI_Bcast (static_cast<void*> (&savecount), 1, MPI_DOUBLE, 0, tmsh.comm);
+      MPI_Barrier (tmsh.comm);
+
+      // Print curent time
+      if(rank==0)
+        {
+          std::cout << "TIME = " << time << ", last dt = " << deltat << std::endl;
+          full_time_vector.push_back (time);
+        }
+
+
       TIC();
       for (auto kk = 0; kk < incr.get_owned_data ().size (); kk++)
-        sol.get_owned_data ()[kk] += DELTAT * incr.get_owned_data ()[kk] / mass.get_owned_data ()[kk];
+        sol.get_owned_data ()[kk] += deltat * incr.get_owned_data ()[kk] / mass.get_owned_data ()[kk];
+      
 
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep (); ++quadrant) {
@@ -227,6 +250,7 @@ main (int argc, char **argv)
 
         for (int i = 0; i < 4; ++i) {
           if (! quadrant->is_hanging (i)) {
+              
             auto boundary_idx = quadrant->e (i);
             auto boundary_idxx = quadrant->ex (i);
             auto boundary_idxy = quadrant->ey (i);
@@ -276,22 +300,40 @@ main (int argc, char **argv)
       sol.assemble (replace_op);            
       TOC("Apply increment");
       
-      // Save solution
-      TIC();
-      if (savecount >= SKIPSAVE) {
+      // Save solution      
+      if (savecount >= SAVEDT) {
+        TIC();
+        if (rank == 0)
+          std::cout << "savecount = " << savecount << std::endl;
         count++;
+        save_time_vector.push_back (time);
         sprintf(filename, "swe_h_%4.4d",   count);
         tmsh.octbin_export (filename, sol, ordh);
         sprintf(filename, "swe_Ux_%4.4d",  count);
         tmsh.octbin_export (filename, sol, ordUx);
         sprintf(filename, "swe_Uy_%4.4d",  count);
         tmsh.octbin_export (filename, sol, ordUy);
-        savecount = 0;
+        /*sprintf(filename, "swe_mass_%4.4d",count);
+          tmsh.octbin_export (filename, mass, ordh);*/
+        savecount = 0.0;
+        TOC("Exporting solution");
       }
-      TOC("Exporting solution");
+
 
     }
 
+  if (rank == 0)
+    {
+      ColumnVector vtmp (save_time_vector.size ());
+      std::copy (save_time_vector.begin (), save_time_vector.end (), vtmp.fortran_vec ());
+      octave_io_mode m;
+      octave_io_open ("timesteps.octbin", gz_write_mode, &m);
+      octave_save ("save_time", vtmp);
+      vtmp.resize (full_time_vector.size ());
+      std::copy (full_time_vector.begin (), full_time_vector.end (), vtmp.fortran_vec ());
+      octave_save ("full_time", vtmp);
+      octave_io_close ();
+    }
 
   // Close MPI and print report
   MPI_Barrier (MPI_COMM_WORLD);

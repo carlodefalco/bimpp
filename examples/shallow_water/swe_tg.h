@@ -1,9 +1,10 @@
 // Setting parameters
 constexpr double pi = 3.14159265358979323846264338327950288;
-constexpr int NUM_REFINEMENTS = 5;
-constexpr double SKIPSAVE  = 300;
-constexpr double DELTAT =  0.01;
-constexpr double T      = 1000;
+constexpr int NUM_REFINEMENTS = 3;
+constexpr double SAVEDT  = 1.;
+constexpr double DELTAT =  1.;
+constexpr double REDCDT =  1.;
+constexpr double T      =  100;
 
 
 // Connectivity of local element
@@ -69,4 +70,8 @@ const dirichlet_bcs bcsUy= {{0, 3, [] (double, double) {return 0;}},
                             {8, 2, [] (double, double) {return 0;}},
                             {9, 3, [] (double, double) {return 0;}},
                             {9, 2, [] (double, double) {return 0;}}};
+
+double h0_fun (double xx, double yy) {return (8. - std::sin (pi * xx / 2. / 400.)); }
+double Ux0_fun (double xx, double yy) {return 0.; }
+double Uy0_fun (double xx, double yy) {return 0.; }
 
