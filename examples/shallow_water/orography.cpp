@@ -28,8 +28,8 @@ static constexpr double L = res*(Nx-1);
 static constexpr double H = res*(Ny-1);
 static std::vector<double>   dem;
 static std::vector<double>   basin_mask;
-static constexpr int NUM_REFINEMENTS = 9; // 3
-static constexpr int NUM_TREFINEMENTS = 3;
+static constexpr int NUM_REFINEMENTS = 3; // 3
+static constexpr int NUM_TREFINEMENTS = 9;
 
 // Connectivity of local element
 constexpr p4est_topidx_t simple_conn_num_vertices = 4;
@@ -49,7 +49,7 @@ uniform_refinement (tmesh::quadrant_iterator q)
 { return NUM_REFINEMENTS; }
 
 //static int
-//refine_function (tmesh::quadrant_iterator quadrant)  // -1, 0, 1
+//refine_function (tmesh::quadrant_iterator quadrant)
 //{
 //  static double x[4];
 //  static double y[4];
@@ -70,6 +70,16 @@ uniform_refinement (tmesh::quadrant_iterator q)
 //
 //}
 
+static int
+raster_2_vector(const double& i_x,
+                const double& i_y)
+{
+  static int ii;
+  ii = i_y + Ny*i_x;
+  
+  return(ii);
+}
+
 static std::array<int,3>
 global_coord_2_raster(const double& x,
                       const double& y)
@@ -82,36 +92,115 @@ global_coord_2_raster(const double& x,
   i_x = std::round(x / res);
   i_y = - std::round(y / res) + (Ny-1);
   
-  ii = i_y + Ny*i_x;
+  ii = raster_2_vector(i_x,i_y);
   
   return(std::array<int,3>{{ ii,int(i_x),int(i_y) }});
 }
 
+
+
 static int
-raster_2_vector(const double& i_x,
-                const double& i_y)
+refine_function (tmesh::quadrant_iterator quadrant)
 {
-  static int ii;
-  ii = i_y + Ny*i_x;
+
+  static double xm;
+  static double ym;
+
+  static std::array<int,3> ids;
+
+  static double x_minus;
+  static double x_plus;
+  static double y_minus;
+  static double y_plus;
   
-  return(ii);
+  static double grad_x;
+  static double grad_y;
+  static double grad;
+
+  // x, y coord. of cell center
+  xm = quadrant->centroid (0);
+  ym = quadrant->centroid (1);
+
+  ids = global_coord_2_raster(xm,ym);
+
+  const auto & id_m = ids[0];
+  
+  x_minus = quadrant->p (0, 0);
+  x_plus  = quadrant->p (0, 1);
+  y_minus = quadrant->p (1, 0);
+  y_plus  = quadrant->p (1, 2);
+  
+  grad_x = std::abs(dem[global_coord_2_raster(x_minus,y_minus)[0]] -
+                    dem[global_coord_2_raster(x_plus,y_minus)[0]]);
+  grad_x += std::abs(dem[global_coord_2_raster(x_minus,y_plus)[0]] -
+                     dem[global_coord_2_raster(x_plus,y_plus)[0]]);
+  grad_x /= (2*std::abs(x_minus - x_plus));
+  
+  grad_y = std::abs(dem[global_coord_2_raster(x_minus,y_minus)[0]] -
+                    dem[global_coord_2_raster(x_minus,y_plus)[0]]);
+  grad_y += std::abs(dem[global_coord_2_raster(x_plus,y_minus)[0]] -
+                     dem[global_coord_2_raster(x_plus,y_plus)[0]]);
+  grad_y /= (2*std::abs(y_minus - y_plus));
+  
+  grad = std::sqrt(std::pow(grad_x,2.) + std::pow(grad_y,2.));
+
+//  const auto & i_x_m = ids[1];
+//  const auto & i_y_m = ids[2];
+
+
+//  i_x_plus = i_x_m+1;
+//  i_x_plus = i_x_plus >= Nx ? (Nx-1) : i_x_plus;
+//
+//  i_x_minus = i_x_m-1;
+//  i_x_minus = i_x_minus < 0 ? 0 : i_x_minus;
+//
+//  i_y_plus = i_y_m+1;
+//  i_y_plus = i_y_plus >= Ny ? (Ny-1) : i_y_plus;
+//
+//  i_y_minus = i_y_m-1;
+//  i_y_minus = i_y_minus < 0 ? 0 : i_y_minus;
+
+
+//  return(basin_mask[id_m]);
+  return((basin_mask[id_m] && (std::atan(grad)/M_PI*180)>20) ? 1 : 0);
+
+//  return(
+//  basin_mask[id_m] ?
+//  !(basin_mask[raster_2_vector(i_x_plus,i_y_m)] &&
+//  basin_mask[raster_2_vector(i_x_minus,i_y_m)] &&
+//  basin_mask[raster_2_vector(i_x_m,i_y_plus)] &&
+//  basin_mask[raster_2_vector(i_x_m,i_y_minus)] &&
+//  basin_mask[raster_2_vector(i_x_minus,i_y_minus)] &&
+//  basin_mask[raster_2_vector(i_x_plus,i_y_plus)] &&
+//  basin_mask[raster_2_vector(i_x_minus,i_y_plus)] &&
+//  basin_mask[raster_2_vector(i_x_plus,i_y_minus)]) ? 1 : 0 : 0);
+
+//  return(
+//         basin_mask[id_m] ?
+//         !(basin_mask[raster_2_vector(i_x_plus,i_y_m)] &&
+//           basin_mask[raster_2_vector(i_x_minus,i_y_m)] &&
+//           basin_mask[raster_2_vector(i_x_m,i_y_plus)] &&
+//           basin_mask[raster_2_vector(i_x_m,i_y_minus)]) ? 1 : 0 : 0);
+
 }
 
 
-
 static int
-refine_function (tmesh::quadrant_iterator quadrant)  // -1, 0, 1
+coarsen_function (tmesh::quadrant_iterator quadrant)
 {
-  
   static double xm;
   static double ym;
   
   static std::array<int,3> ids;
   
-  static int i_x_plus;
-  static int i_x_minus;
-  static int i_y_plus;
-  static int i_y_minus;
+  static double x_minus;
+  static double x_plus;
+  static double y_minus;
+  static double y_plus;
+  
+  static double grad_x;
+  static double grad_y;
+  static double grad;
   
   // x, y coord. of cell center
   xm = quadrant->centroid (0);
@@ -121,40 +210,28 @@ refine_function (tmesh::quadrant_iterator quadrant)  // -1, 0, 1
   
   const auto & id_m = ids[0];
   
-  const auto & i_x_m = ids[1];
-  const auto & i_y_m = ids[2];
+  x_minus = quadrant->p (0, 0);
+  x_plus  = quadrant->p (0, 1);
+  y_minus = quadrant->p (1, 0);
+  y_plus  = quadrant->p (1, 2);
   
+  grad_x = std::abs(dem[global_coord_2_raster(x_minus,y_minus)[0]] -
+                    dem[global_coord_2_raster(x_plus,y_minus)[0]]);
+  grad_x += std::abs(dem[global_coord_2_raster(x_minus,y_plus)[0]] -
+                     dem[global_coord_2_raster(x_plus,y_plus)[0]]);
+  grad_x /= (2*std::abs(x_minus - x_plus));
   
-  i_x_plus = i_x_m+1;
-  i_x_plus = i_x_plus >= Nx ? (Nx-1) : i_x_plus;
+  grad_y = std::abs(dem[global_coord_2_raster(x_minus,y_minus)[0]] -
+                    dem[global_coord_2_raster(x_minus,y_plus)[0]]);
+  grad_y += std::abs(dem[global_coord_2_raster(x_plus,y_minus)[0]] -
+                     dem[global_coord_2_raster(x_plus,y_plus)[0]]);
+  grad_y /= (2*std::abs(y_minus - y_plus));
   
-  i_x_minus = i_x_m-1;
-  i_x_minus = i_x_minus < 0 ? 0 : i_x_minus;
+  grad = std::sqrt(std::pow(grad_x,2.) + std::pow(grad_y,2.));
   
-  i_y_plus = i_y_m+1;
-  i_y_plus = i_y_plus >= Ny ? (Ny-1) : i_y_plus;
-  
-  i_y_minus = i_y_m-1;
-  i_y_minus = i_y_minus < 0 ? 0 : i_y_minus;
-  
-  return(
-  basin_mask[id_m] ?
-  !(basin_mask[raster_2_vector(i_x_plus,i_y_m)] &&
-  basin_mask[raster_2_vector(i_x_minus,i_y_m)] &&
-  basin_mask[raster_2_vector(i_x_m,i_y_plus)] &&
-  basin_mask[raster_2_vector(i_x_m,i_y_minus)] &&
-  basin_mask[raster_2_vector(i_x_minus,i_y_minus)] &&
-  basin_mask[raster_2_vector(i_x_plus,i_y_plus)] &&
-  basin_mask[raster_2_vector(i_x_minus,i_y_plus)] &&
-  basin_mask[raster_2_vector(i_x_plus,i_y_minus)]) ? 1 : 0 : 0);
-  
-//  return(
-//         basin_mask[id_m] ?
-//         !(basin_mask[raster_2_vector(i_x_plus,i_y_m)] &&
-//           basin_mask[raster_2_vector(i_x_minus,i_y_m)] &&
-//           basin_mask[raster_2_vector(i_x_m,i_y_plus)] &&
-//           basin_mask[raster_2_vector(i_x_m,i_y_minus)]) ? 1 : 0 : 0);
-  
+//  std::cout << std::atan(grad) << std::endl;
+//  return(!basin_mask[id_m]);
+  return((!basin_mask[id_m] && (std::atan(grad)*180/M_PI)<20) ? 1 : 0);
 }
 
 
@@ -253,8 +330,11 @@ main (int argc, char **argv)
   
   TIC ();
   for (int ii = 0; ii < NUM_TREFINEMENTS; ++ii) {
+//    tmsh.set_metrics_marker (refine_function, 1e-5, 5, 10, 3);
+    tmsh.set_coarsen_marker (coarsen_function);
     tmsh.set_refine_marker (refine_function);
-    tmsh.refine ();
+    tmsh.coarsen (recursive, 1, 0);
+    tmsh.refine (recursive, 1);
   }
   TOC ("Non-uniform refinement");
   
