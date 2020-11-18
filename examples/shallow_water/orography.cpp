@@ -263,7 +263,6 @@ main (int argc, char **argv)
   tmsh.save (SAVEFILENAME_1);
   tmsh.vtk_export (SAVEFILENAME_1);
   TOC ("Save");
-  return 0;
 
 
   // Close MPI and print report
