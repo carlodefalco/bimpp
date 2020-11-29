@@ -105,6 +105,7 @@ main (int argc, char **argv)
   tmesh::idx_t ln_nodes    = tmsh.num_owned_nodes ();
   tmesh::idx_t ln_elements = tmsh.num_local_quadrants ();
 
+ 
   Q1 sol  (ln_nodes * 3);
   Q1 incr (ln_nodes * 3);
   sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
@@ -118,8 +119,11 @@ main (int argc, char **argv)
 
   Q0 flux (ln_elements * 3);
   flux.assign (flux.size (), 0.0);
+
+  Q1 Z    (ln_nodes);
+  Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
   
-  peraire_stepper stp(tmsh, sol, ordh, ordUx, ordUy);
+  peraire_stepper stp(tmsh, sol, ordh, ordUx, ordUy, Z);
   
   // Buffer for export filename
   char filename[255]="";
@@ -139,6 +143,8 @@ main (int argc, char **argv)
             sol [ordh (quadrant->gt (ii))] = h0_fun (xx, yy);
             sol [ordUx(quadrant->gt (ii))] = Ux0_fun (xx, yy);
             sol [ordUy(quadrant->gt (ii))] = Uy0_fun (xx, yy);
+
+            Z   [quadrant->gt (ii)] = Z_fun (xx, yy);
           }
 
           else
@@ -152,6 +158,9 @@ main (int argc, char **argv)
               sol [ordUy(quadrant->gparent(0,ii))] += 0.;
               sol [ordUy(quadrant->gparent(1,ii))] += 0.;
 
+              Z   [quadrant->gparent(0,ii)] += 0.;
+              Z   [quadrant->gparent(1,ii)] += 0.;
+
             }
         }
     }
@@ -160,6 +169,8 @@ main (int argc, char **argv)
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUx, false);
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy);
+
+  bim2a_solution_with_ghosts (tmsh, Z, replace_op);
   
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
@@ -174,7 +185,8 @@ main (int argc, char **argv)
   tmsh.octbin_export (filename, sol, ordUx);
   sprintf(filename, "swe_Uy_0000");
   tmsh.octbin_export (filename, sol, ordUy);
-
+  sprintf(filename, "swe_Z_0000");
+  tmsh.octbin_export (filename, Z);
 
   std::vector<double> full_time_vector;
   full_time_vector.reserve (static_cast<int> (T/DELTAT));
@@ -206,7 +218,7 @@ main (int argc, char **argv)
            quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
         {
           stp.set_quadrant (quadrant);
-          stp.set_dt (DELTAT/REDCDT);
+          stp.set_dt (DELTAT);
           stp.update_halfstep ();
           stp.update_src ();
           stp.update_flux ();
@@ -313,8 +325,8 @@ main (int argc, char **argv)
         tmsh.octbin_export (filename, sol, ordUx);
         sprintf(filename, "swe_Uy_%4.4d",  count);
         tmsh.octbin_export (filename, sol, ordUy);
-        /*sprintf(filename, "swe_mass_%4.4d",count);
-          tmsh.octbin_export (filename, mass, ordh);*/
+        sprintf(filename, "swe_Z_%4.4d",  count);
+        tmsh.octbin_export (filename, Z);
         savecount = 0.0;
         TOC("Exporting solution");
       }
