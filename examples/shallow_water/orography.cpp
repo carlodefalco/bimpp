@@ -27,8 +27,8 @@ static constexpr double L = res*(Nx-1);
 static constexpr double H = res*(Ny-1);
 static std::vector<double>   dem;
 static std::vector<double>   basin_mask;
-static constexpr int NUM_REFINEMENTS = 3; // 3
-static constexpr int NUM_TREFINEMENTS = 10;
+static constexpr int NUM_REFINEMENTS = 3; // 3, 11
+static constexpr int NUM_TREFINEMENTS = 10; // 10
 
 // Connectivity of local element
 constexpr p4est_topidx_t simple_conn_num_vertices = 4;
@@ -119,6 +119,8 @@ refine_function (tmesh::quadrant_iterator quadrant)
   static double total_energy;
   
   static double rel_error;
+  static double N_el;
+  static double const toll = 0;//0.002; //0.2
 
   // x, y coord. of cell center
   xm = quadrant->centroid (0);
@@ -153,11 +155,23 @@ refine_function (tmesh::quadrant_iterator quadrant)
   
   grad = std::sqrt(std::pow(grad_x,2.) + std::pow(grad_y,2.));
   
-//  std::cout << ids_minus_minus[1] << " " << ids_plus_minus[1] << " " << ids_minus_plus[2] << " " << ids_minus_minus[2] << std::endl;
+//  std::cout << ids_minus_minus[1] << " " << i ds_plus_minus[1] << " " << ids_minus_plus[2] << " " << ids_minus_minus[2] << std::endl;
   // gradient on the raster elements in the bimpp one, take the infinity norm
-  grad_dem = 0;
-  rel_error = 0;
-  total_energy = 0;
+  const auto k  = raster_2_vector(ids_minus_minus[1],ids_minus_minus[2]);
+  const auto kx = raster_2_vector(ids_minus_minus[1]+1,ids_minus_minus[2]);
+  const auto ky = raster_2_vector(ids_minus_minus[1],ids_minus_minus[2]+1);
+  
+  const auto & h_center = dem[k];
+  const auto & h_plus_x = dem[kx];
+  const auto & h_plus_y = dem[ky];
+  
+  grad_x = std::abs(h_center - h_plus_x)/res;
+  grad_y = std::abs(h_center - h_plus_y)/res;
+  grad_dem = std::sqrt(std::pow(grad_x,2.) + std::pow(grad_y,2.));
+  
+  rel_error = std::pow(grad-grad_dem,2.);
+//  rel_error = std::pow((std::atan(grad)-std::atan(grad_dem))*180/M_PI,2.);
+  total_energy = std::pow(grad_dem,2.);
   for (int i_x = ids_minus_minus[1]; i_x < ids_plus_minus[1]; i_x++)
   {
     for (int i_y = ids_minus_plus[2]; i_y < ids_minus_minus[2]; i_y++)
@@ -175,21 +189,30 @@ refine_function (tmesh::quadrant_iterator quadrant)
 
       grad_dem = std::sqrt(std::pow(grad_x,2.) + std::pow(grad_y,2.));
       total_energy += std::pow(grad_dem,2.);
+      
       rel_error += std::pow(grad-grad_dem,2.);
-//      grad_dem = std::max(grad_dem, std::sqrt(std::pow(grad_x,2.) + std::pow(grad_y,2.)));
-
+      
+//      rel_error += std::pow((std::atan(grad)-std::atan(grad_dem))*180/M_PI,2.);
+      
     }
   }
+  N_el = (ids_plus_minus[1]-ids_minus_minus[1]+1)*
+         (ids_minus_minus[2]-ids_minus_plus[2]+1);
+  
 //  rel_error = std::sqrt(rel_error/total_energy);
-  rel_error = std::sqrt(rel_error/((ids_plus_minus[1]-ids_minus_minus[1])*(ids_minus_minus[2]-ids_minus_plus[2])));
+//  rel_error = std::sqrt(N_el * rel_error * res);
+  rel_error = std::sqrt(rel_error/N_el);
   
-  
-//  std::cout << rel_error << std::endl;
+  const auto basin_check = basin_mask[ids_minus_minus[0]] +
+  basin_mask[ids_minus_plus[0]] + basin_mask[ids_plus_minus[0]] +
+  basin_mask[ids_plus_plus[0]];
 
-//  return(basin_mask[id_m]);
+  
+  
+//  return(basin_check>0);
 //  return((basin_mask[id_m] && (std::atan(grad)/M_PI*180)>20) ? 1 : 0);
-  return((basin_mask[id_m] && ((rel_error>0.2)*((x_plus-x_minus)>res))) ? 1 : 0);
-//  return(rel_error>.1 ? 1 : 0);
+  return((basin_check>0 && ((rel_error>toll)*((x_plus-x_minus)>res))) ? 1 : 0);
+//  return((rel_error>toll)*((x_plus-x_minus)>res) ? 1 : 0);
   
 //  return(
 //  basin_mask[id_m] ?
@@ -240,11 +263,16 @@ coarsen_function (tmesh::quadrant_iterator quadrant)
   
   const auto & id_m = ids[0];
   
-//  const auto & ids_minus_minus = global_coord_2_raster(x_minus,y_minus);
-//  const auto & ids_minus_plus  = global_coord_2_raster(x_minus,y_plus);
-//  const auto & ids_plus_minus  = global_coord_2_raster(x_plus,y_minus);
-//  const auto & ids_plus_plus   = global_coord_2_raster(x_plus,y_plus);
-//
+  x_minus = quadrant->p (0, 0);
+  x_plus  = quadrant->p (0, 1);
+  y_minus = quadrant->p (1, 0);
+  y_plus  = quadrant->p (1, 2);
+  
+  const auto & ids_minus_minus = global_coord_2_raster(x_minus,y_minus);
+  const auto & ids_minus_plus  = global_coord_2_raster(x_minus,y_plus);
+  const auto & ids_plus_minus  = global_coord_2_raster(x_plus,y_minus);
+  const auto & ids_plus_plus   = global_coord_2_raster(x_plus,y_plus);
+
 //    // gradient on the bimpp element
 //  grad_x = std::abs(dem[ids_minus_minus[0]] -
 //                    dem[ids_plus_minus[0]]);
@@ -283,10 +311,127 @@ coarsen_function (tmesh::quadrant_iterator quadrant)
 //  rel_error = std::abs(grad-grad_dem)/grad_dem;
   
 //  std::cout << std::atan(grad) << std::endl;
-  return((!basin_mask[id_m] || (std::abs(quadrant->p (0, 1)-quadrant->p (0, 0))<res)) ? 1 : 0);
+//  return((!basin_mask[id_m] || (std::abs(quadrant->p (0, 1)-quadrant->p (0, 0))<res)) ? 1 : 0);
 //  return((!basin_mask[id_m] || (rel_error<.5)) ? 1 : 0);
-//  return((!basin_mask[id_m] && (std::atan(grad)*180/M_PI)<20) ? 1 : 0);
+  
+//  return 0;
+  return(!basin_mask[ids_minus_minus[0]] &&
+         !basin_mask[ids_minus_plus[0]] &&
+         !basin_mask[ids_plus_minus[0]] &&
+         !basin_mask[ids_plus_plus[0]] ? 1 : 0);
 }
+
+
+static double
+error_slope (tmesh::quadrant_iterator quadrant)
+{
+  
+  static double xm;
+  static double ym;
+  
+  static std::array<int,3> ids;
+  
+  static double x_minus;
+  static double x_plus;
+  static double y_minus;
+  static double y_plus;
+  
+  static double grad_x;
+  static double grad_y;
+  static double grad;
+  static double grad_dem;
+  
+  static double rel_error;
+  
+    // x, y coord. of cell center
+  xm = quadrant->centroid (0);
+  ym = quadrant->centroid (1);
+  
+  ids = global_coord_2_raster(xm,ym);
+  
+  const auto & id_m = ids[0];
+  
+  x_minus = quadrant->p (0, 0);
+  x_plus  = quadrant->p (0, 1);
+  y_minus = quadrant->p (1, 0);
+  y_plus  = quadrant->p (1, 2);
+  
+  auto ids_minus_minus = global_coord_2_raster(x_minus,y_minus);
+  auto ids_minus_plus  = global_coord_2_raster(x_minus,y_plus);
+  auto ids_plus_minus  = global_coord_2_raster(x_plus,y_minus);
+  auto ids_plus_plus   = global_coord_2_raster(x_plus,y_plus);
+  
+  auto i_x_m = ids_minus_minus[1];
+  auto i_x_p = ids_plus_minus[1];
+  auto i_y_p = ids_minus_plus[2];
+  auto i_y_m = ids_minus_minus[2];
+  
+  
+    // gradient on the bimpp element
+  grad_x = std::abs(dem[raster_2_vector(i_x_m,i_y_m)] -
+                    dem[raster_2_vector(i_x_p,i_y_m)]);
+  grad_x += std::abs(dem[raster_2_vector(i_x_m,i_y_p)] -
+                     dem[raster_2_vector(i_x_p,i_y_p)]);
+  grad_x /= (2*std::abs(x_minus - x_plus));
+  
+  grad_y = std::abs(dem[raster_2_vector(i_x_m,i_y_m)] -
+                    dem[raster_2_vector(i_x_m,i_y_p)]);
+  grad_y += std::abs(dem[raster_2_vector(i_x_p,i_y_m)] -
+                     dem[raster_2_vector(i_x_p,i_y_p)]);
+  grad_y /= (2*std::abs(y_minus - y_plus));
+  
+  grad = std::sqrt(std::pow(grad_x,2.) + std::pow(grad_y,2.));
+  
+    //  std::cout << ids_minus_minus[1] << " " << ids_plus_minus[1] << " " << ids_minus_plus[2] << " " << ids_minus_minus[2] << std::endl;
+    // gradient on the raster elements in the bimpp one, take the infinity norm
+  grad_dem = 0;
+  
+  if (!(std::abs(y_minus - y_plus)<=res && std::abs(x_minus - x_plus)<=res))
+  {
+    for (int i_x = i_x_m; i_x < i_x_p; i_x++)
+    {
+      for (int i_y = i_y_p; i_y < i_y_m; i_y++)
+      {
+        const auto k  = raster_2_vector (i_x, i_y);
+        const auto kx = raster_2_vector (i_x + 1, i_y);
+        const auto ky = raster_2_vector (i_x, i_y + 1);
+        
+        const auto& h_center = dem[k];
+        const auto& h_plus_x = dem[kx];
+        const auto& h_plus_y = dem[ky];
+        
+        grad_x = std::abs (h_center - h_plus_x) / res;
+        grad_y = std::abs (h_center - h_plus_y) / res;
+        
+        grad_dem = std::max (grad_dem, std::sqrt (std::pow (grad_x, 2.) + std::pow (grad_y, 2.) ) );
+        
+        
+      }
+    }
+    rel_error = std::abs(grad_dem - grad);
+  }
+  else // in case the resolution of the bim element (both in x and y) is <= than the dem resolution i.e 5 meters the slope difference wrt the starting dem is zero 
+  {
+    rel_error = 0;
+  }
+  
+
+  
+  
+  const auto basin_check = basin_mask[ids_minus_minus[0]] +
+  basin_mask[ids_minus_plus[0]] + basin_mask[ids_plus_minus[0]] +
+  basin_mask[ids_plus_plus[0]];
+  
+  return(rel_error*(basin_check>0));
+//  return(grad);
+  
+}
+
+
+
+
+
+
 
 
 
@@ -303,7 +448,7 @@ using Q1  = q1_vec<distributed_vector>;  // Typedef for distributed q_1 vector
 int
 main (int argc, char **argv)
 {
-  // Manegement of solutions ordering
+  // Management of solutions ordering
   ordering // bim_ordering.h
   ord0 = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<1, 0> (gt); };
   
@@ -342,6 +487,7 @@ main (int argc, char **argv)
   M = v.matrix_value ();
   basin_mask.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask.begin ());
+  
   TOC("Load data matrix");
   
   
@@ -363,7 +509,7 @@ main (int argc, char **argv)
       if (! quadrant->is_hanging (ii)){
         double xx=quadrant->p(0,ii);
         double yy=quadrant->p(1,ii);
-        sol[ord0(quadrant->gt (ii))] = dem[global_coord_2_raster(xx,yy)[0]];
+        sol[ord0(quadrant->gt (ii))] = dem[global_coord_2_raster(xx,yy)[0]]; //error_slope(quadrant); //dem[global_coord_2_raster(xx,yy)[0]];
       }
       
       else
@@ -380,6 +526,8 @@ main (int argc, char **argv)
   tmsh.octbin_export (filename, sol, ord0);
   TOC("Save initial orography");
   
+//  return 0;
+  
   
   TIC ();
   for (int ii = 0; ii < NUM_TREFINEMENTS; ++ii) {
@@ -388,41 +536,41 @@ main (int argc, char **argv)
     tmsh.set_refine_marker (refine_function);
     tmsh.coarsen (recursive, 1, 0);
     tmsh.refine (recursive, 1);
-  }
-  TOC ("Non-uniform refinement");
-  
-  
-  // prima di salvare in octbin_export valutare la funzione nel dem come fatto prima con uniform refinement
-  
-    // Initialize initial datas
-  for (auto quadrant = tmsh.begin_quadrant_sweep ();
-       quadrant != tmsh.end_quadrant_sweep ();
-       ++quadrant)
-  {
     
-    for (int ii = 0; ii < 4; ++ii)
+    
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
     {
-      if (! quadrant->is_hanging (ii)){
-        double xx=quadrant->p(0,ii);
-        double yy=quadrant->p(1,ii);
-        sol[ord0(quadrant->gt (ii))] = dem[global_coord_2_raster(xx,yy)[0]];
-      }
       
-      else
+      for (int ii = 0; ii < 4; ++ii)
       {
-        sol[ord0(quadrant->gparent(0,ii))] +=0.;
-        sol[ord0(quadrant->gparent(1,ii))] +=0.;
+        if (! quadrant->is_hanging (ii)){
+          double xx=quadrant->p(0,ii);
+          double yy=quadrant->p(1,ii);
+//          sol[ord0(quadrant->gt (ii))] = dem[global_coord_2_raster(xx,yy)[0]];
+          sol[ord0(quadrant->gt (ii))] = error_slope(quadrant); //dem[global_coord_2_raster(xx,yy)[0]];
+        }
+        
+        else
+        {
+          sol[ord0(quadrant->gparent(0,ii))] +=0.;
+          sol[ord0(quadrant->gparent(1,ii))] +=0.;
+        }
       }
     }
+    
+    TIC ();
+      /// Save the p4est and connectivity to a file.
+    sprintf(filename, "orography_%4.4d",ii);
+      //  tmsh.save (filename);
+      //  tmsh.vtk_export (filename);
+    tmsh.octbin_export (filename, sol, ord0);
+    TOC ("Save");
+    
   }
-  
-  TIC ();
-  /// Save the p4est and connectivity to a file.
-  sprintf(filename, "orography_%4.4d",1);
-//  tmsh.save (filename);
-//  tmsh.vtk_export (filename);
-  tmsh.octbin_export (filename, sol, ord0);
-  TOC ("Save");
+  TOC ("Non-uniform refinement");
+
 
 
   // Close MPI and print report
