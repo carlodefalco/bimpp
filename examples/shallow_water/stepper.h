@@ -64,6 +64,7 @@ public :
       }
     }
     static_cast<T*>(this)->basis_functions ();
+    static_cast<T*>(this)->update_coeffs ();
   }
 
   void
@@ -152,7 +153,7 @@ public :
 
   double dt = 1.0;
   
-private :
+protected :
 
   tmesh::quadrant_iterator quadrant;
 
@@ -187,6 +188,9 @@ public:
     compute_shgx ();
     compute_shgy ();
   }
+
+  void
+  update_coeffs () { }
   
   void
   compute_quad_points () {
@@ -232,6 +236,12 @@ class
 peraire_stepper
   : public default_stepper_4<peraire_stepper>
 {
+
+private :
+  
+  const basetype::Q1& Z;
+  std::array<double, 4> dZdx  = {0, 0, 0, 0};
+  std::array<double, 4> dZdy  = {0, 0, 0, 0};
   
 public :
   
@@ -241,10 +251,32 @@ public :
                     const basetype::Q1& state,
                     const ordering& oh,
                     const ordering& oUx,
-                    const ordering& oUy)
-    : basetype(msh, state, oh, oUx, oUy)
+                    const ordering& oUy,
+                    const basetype::Q1& elevation)
+    : basetype(msh, state, oh, oUx, oUy), Z(elevation)
   { }
 
+  void
+  update_coeffs () {
+
+    dZdx.fill (0.0);
+    dZdy.fill (0.0);
+    for (int kk = 0; kk < get_nquad (); ++kk) {
+      for (int ii = 0; ii < 4; ++ii){
+        if (! quadrant->is_hanging (ii)){  
+          dZdx[kk] += shgx[ii][kk] * Z[quadrant->gt (ii)];
+          dZdy[kk] += shgy[ii][kk] * Z[quadrant->gt (ii)];
+        } else {
+          dZdx[ii] = shgx[ii][kk] * .5 * (Z[quadrant->gparent(0,ii)] +
+                                          Z[quadrant->gparent(1,ii)]);
+          dZdy[ii] = shgy[ii][kk] * .5 * (Z[quadrant->gparent(0,ii)] +
+                                          Z[quadrant->gparent(1,ii)]);
+        }
+      }
+    }
+
+  }
+  
   static constexpr double grav = 9.81;
   double
   h_flux_formula_x (double h, double Ux, double Uy)
@@ -275,12 +307,12 @@ public :
   { return (0.); }
 
   double
-  Ux_src_formula (double h, double Ux, double Uy)
-  { return (0.); }
+  Ux_src_formula (double dZdx, double h, double Ux, double Uy)
+  { return (-grav*h*dZdx); }
 
   double
-  Uy_src_formula (double h, double Ux, double Uy)
-  { return (0.); }
+  Uy_src_formula (double dZdy, double h, double Ux, double Uy)
+  { return (-grav*h*dZdy); }
 
    void
   halfstep_function () {
@@ -302,8 +334,8 @@ public :
       
     if (hm > 0.) {
 
-      const double dtoptx = .5e-3 * hx / (std::abs (Uxm / hm) + std::sqrt (grav * hm));
-      const double dtopty = .5e-3 * hy / (std::abs (Uym / hm) + std::sqrt (grav * hm));
+      const double dtoptx = hx / (std::abs (Uxm / hm) + std::sqrt (grav * hm));
+      const double dtopty = hy / (std::abs (Uym / hm) + std::sqrt (grav * hm));
       const double dtopt = dtoptx > dtopty ? dtopty : dtoptx;
     
       if (get_dt () > dtopt) set_dt (dtopt);
@@ -315,10 +347,10 @@ public :
                                + shp[jj][kk]  * h_src_formula     (hdof[jj], Uxdof[jj], Uydof[jj]));
           tmpdUx  += wq[kk] * (- shgx[jj][kk] * Ux_flux_formula_x (hdof[jj], Uxdof[jj], Uydof[jj])
                                - shgy[jj][kk] * Ux_flux_formula_y (hdof[jj], Uxdof[jj], Uydof[jj])
-                               + shp[jj][kk]  * Ux_src_formula    (hdof[jj], Uxdof[jj], Uydof[jj]));
+                               + shp[jj][kk]  * Ux_src_formula    (dZdx[kk], hdof[jj], Uxdof[jj], Uydof[jj]));
           tmpdUy  += wq[kk] * (- shgx[jj][kk] * Uy_flux_formula_x (hdof[jj], Uxdof[jj], Uydof[jj])
                                - shgy[jj][kk] * Uy_flux_formula_y (hdof[jj], Uxdof[jj], Uydof[jj])
-                               + shp[jj][kk]  * Uy_src_formula    (hdof[jj], Uxdof[jj], Uydof[jj]));
+                               + shp[jj][kk]  * Uy_src_formula    (dZdy[kk], hdof[jj], Uxdof[jj], Uydof[jj]));
         }
       }     
 
@@ -344,10 +376,15 @@ public :
   }
 
   void
-  src_function () {    
+  src_function () {
       loc_srch  = 0.;
       loc_srcUx = 0.;
       loc_srcUy = 0.;
+      double area = (xn[1] - xn[0]) * (yn[2] - yn[0]);
+      for (int kk = 0; kk < 4; ++kk) {
+        loc_srcUx += wq[kk] * Ux_src_formula (dZdx[kk], loc_midh, loc_midUx, loc_midUy) / area;
+        loc_srcUy += wq[kk] * Uy_src_formula (dZdy[kk], loc_midh, loc_midUx, loc_midUy) / area;
+    }
   }
   
   void
@@ -359,7 +396,6 @@ public :
 
     if (loc_midh > 0.) 
       for (ii = 0; ii < 4; ++ii) 
-        for (jj = 0; jj < 4; ++jj) 
           for (kk = 0; kk < get_nquad (); ++kk) {
             loc_incrh [ii] += wq[kk] * (shp[ii][kk] * loc_srch  + shgx[ii][kk] * loc_fluxh_x  + shgy[ii][kk] * loc_fluxh_y);
             loc_incrUx[ii] += wq[kk] * (shp[ii][kk] * loc_srcUx + shgx[ii][kk] * loc_fluxUx_x + shgy[ii][kk] * loc_fluxUx_y);
@@ -372,146 +408,3 @@ public :
 };
 
 
-// /// Final concrete class implementing a particular model/method
-// class
-// thacker_stepper
-//   : public default_stepper_4<thacker_stepper>
-// {
-  
-// public :
-  
-//   using basetype = default_stepper_4<thacker_stepper>;
-//   peraire_stepper () = delete;
-//   peraire_stepper  (tmesh& msh,
-//                     const basetype::Q1& state,
-//                     const ordering& oh,
-//                     const ordering& oUx,
-//                     const ordering& oUy)
-//     : basetype(msh, state, oh, oUx, oUy)
-//   { }
-
-//   static constexpr double grav = 9.81;
-//   double
-//   h_flux_formula_x (double h, double Ux, double Uy)
-//   { return h > 0. ? Ux : 0.; }
-
-//   double
-//   h_flux_formula_y (double h, double Ux, double Uy)
-//   { return h > 0. ? Uy : 0.; }
-
-//   double
-//   Ux_flux_formula_x (double h, double Ux, double Uy)
-//   { return h > 0. ?  Ux*Ux/h + grav*h*h/2. : 0.; }
-  
-//   double
-//   Ux_flux_formula_y (double h, double Ux, double Uy)
-//   { return h > 0. ? Uy*Ux/h : 0.; }
-
-//   double
-//   Uy_flux_formula_x (double h, double Ux, double Uy)
-//   { return h > 0. ? Uy*Ux/h : 0.; }
-  
-//   double
-//   Uy_flux_formula_y (double h, double Ux, double Uy)
-//   { return h > 0. ? Uy*Uy/h + grav*h*h/2. : 0.; }
-
-//   double
-//   h_src_formula (double h, double Ux, double Uy)
-//   { return (0.); }
-
-//   double
-//   Ux_src_formula (double h, double Ux, double Uy)
-//   { return (0.); }
-
-//   double
-//   Uy_src_formula (double h, double Ux, double Uy)
-//   { return (0.); }
-
-//    void
-//   halfstep_function () {
-//     int jj, kk;
-//     double tmpdh = 0, tmpdUx = 0, tmpdUy = 0,
-//       tmph = 0, tmpUx = 0, tmpUy = 0;
-    
-//     double area = (xn[1] - xn[0]) * (yn[2] - yn[0]);
-
-//     loc_midh  = 0.;
-//     loc_midUx = 0.;
-//     loc_midUy = 0.;
-
-//     const double hx = xn[1]-xn[0];
-//     const double hy = yn[2]-yn[0];
-//     const double hm  = .25 * std::accumulate (hdof.begin(),  hdof.end(),  0.0);
-//     const double Uxm = .25 * std::accumulate (Uxdof.begin(), Uxdof.end(), 0.0);
-//     const double Uym = .25 * std::accumulate (Uydof.begin(), Uydof.end(), 0.0);
-      
-//     if (hm > 0.) {
-
-//       const double dtoptx = .5e-3 * hx / (std::abs (Uxm / hm) + std::sqrt (grav * hm));
-//       const double dtopty = .5e-3 * hy / (std::abs (Uym / hm) + std::sqrt (grav * hm));
-//       const double dtopt = dtoptx > dtopty ? dtopty : dtoptx;
-    
-//       if (get_dt () > dtopt) set_dt (dtopt);
-      
-//       for (jj = 0; jj < 4; ++jj) {
-//         for (kk = 0; kk < get_nquad (); ++kk) {
-//           tmpdh   += wq[kk] * (- shgx[jj][kk] * h_flux_formula_x  (hdof[jj], Uxdof[jj], Uydof[jj])
-//                                - shgy[jj][kk] * h_flux_formula_y  (hdof[jj], Uxdof[jj], Uydof[jj])
-//                                + shp[jj][kk]  * h_src_formula     (hdof[jj], Uxdof[jj], Uydof[jj]));
-//           tmpdUx  += wq[kk] * (- shgx[jj][kk] * Ux_flux_formula_x (hdof[jj], Uxdof[jj], Uydof[jj])
-//                                - shgy[jj][kk] * Ux_flux_formula_y (hdof[jj], Uxdof[jj], Uydof[jj])
-//                                + shp[jj][kk]  * Ux_src_formula    (hdof[jj], Uxdof[jj], Uydof[jj]));
-//           tmpdUy  += wq[kk] * (- shgx[jj][kk] * Uy_flux_formula_x (hdof[jj], Uxdof[jj], Uydof[jj])
-//                                - shgy[jj][kk] * Uy_flux_formula_y (hdof[jj], Uxdof[jj], Uydof[jj])
-//                                + shp[jj][kk]  * Uy_src_formula    (hdof[jj], Uxdof[jj], Uydof[jj]));
-//         }
-//       }     
-
-//       loc_midh  = hm  + .5 * dtopt * tmpdh  / area;
-//       if (loc_midh > 0.) {
-//         loc_midUx = Uxm + .5 * dtopt * tmpdUx / area;
-//         loc_midUy = Uym + .5 * dtopt * tmpdUy / area;
-//       } else 
-//         loc_midh = 0.;
-
-//     }
-    
-//    }
-  
-//   void
-//   flux_function () {
-//       loc_fluxh_x  = h_flux_formula_x  (loc_midh, loc_midUx, loc_midUy);
-//       loc_fluxh_y  = h_flux_formula_y  (loc_midh, loc_midUx, loc_midUy);
-//       loc_fluxUx_x = Ux_flux_formula_x (loc_midh, loc_midUx, loc_midUy);
-//       loc_fluxUx_y = Ux_flux_formula_y (loc_midh, loc_midUx, loc_midUy);
-//       loc_fluxUy_x = Uy_flux_formula_x (loc_midh, loc_midUx, loc_midUy);
-//       loc_fluxUy_y = Uy_flux_formula_y (loc_midh, loc_midUx, loc_midUy);
-//   }
-
-//   void
-//   src_function () {    
-//       loc_srch  = 0.;
-//       loc_srcUx = 0.;
-//       loc_srcUy = 0.;
-//   }
-  
-//   void
-//   incr_function () {
-//     int ii, jj, kk;
-//     loc_incrh  = {0, 0, 0, 0};
-//     loc_incrUx = {0, 0, 0, 0};
-//     loc_incrUy = {0, 0, 0, 0};
-
-//     if (loc_midh > 0.) 
-//       for (ii = 0; ii < 4; ++ii) 
-//         for (jj = 0; jj < 4; ++jj) 
-//           for (kk = 0; kk < get_nquad (); ++kk) {
-//             loc_incrh [ii] += wq[kk] * (shp[ii][kk] * loc_srch  + shgx[ii][kk] * loc_fluxh_x  + shgy[ii][kk] * loc_fluxh_y);
-//             loc_incrUx[ii] += wq[kk] * (shp[ii][kk] * loc_srcUx + shgx[ii][kk] * loc_fluxUx_x + shgy[ii][kk] * loc_fluxUx_y);
-//             loc_incrUy[ii] += wq[kk] * (shp[ii][kk] * loc_srcUy + shgx[ii][kk] * loc_fluxUy_x + shgy[ii][kk] * loc_fluxUy_y);
-//           }
-          
-//   }
-
-
-// };
