@@ -110,7 +110,7 @@ refine_function (tmesh::quadrant_iterator quadrant)
   static double res_x, res_y;
   static double Dx_bim, Dy_bim;
   
-  static double const toll = 0.;//0.002; //0.2
+  static double const toll = 0.00;//0.002; //0.2
   
   x_minus = quadrant->p (0, 0);
   x_plus  = quadrant->p (0, 1);
@@ -130,7 +130,7 @@ refine_function (tmesh::quadrant_iterator quadrant)
   Dx_bim = (x_plus - x_minus);
   Dy_bim = (y_plus - y_minus);
   
-    // gradient on the bimpp element
+  // gradient on the bimpp element
   grad_x = std::abs(dem[raster_2_vector(i_x_m,i_y_p)] - dem[raster_2_vector(i_x_p,i_y_p)]);
   grad_x /= Dx_bim;
   
@@ -144,7 +144,7 @@ refine_function (tmesh::quadrant_iterator quadrant)
   N_el = N_x*N_y;
   
   res_x = Dx_bim/N_x;
-  res_x = Dy_bim/N_y;
+  res_y = Dy_bim/N_y;
   
   grad_dem = 0;
   rel_error = 0;
