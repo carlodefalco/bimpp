@@ -518,14 +518,38 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant, Q1& increment)
     
         
         
-        const auto h_b  = -der_coeffs_x[ii] * F_star_h_x_b  + der_coeffs_y[ii] * F_star_h_y_b;
-        const auto Ux_b = -der_coeffs_x[ii] * F_star_Ux_x_b + der_coeffs_y[ii] * F_star_Ux_y_b;
-        const auto Uy_b = -der_coeffs_x[ii] * F_star_Uy_x_b + der_coeffs_y[ii] * F_star_Uy_y_b;
+        auto h_b  = -der_coeffs_x[ii] * F_star_h_x_b  + der_coeffs_y[ii] * F_star_h_y_b;
+        auto Ux_b = -der_coeffs_x[ii] * F_star_Ux_x_b + der_coeffs_y[ii] * F_star_Ux_y_b;
+        auto Uy_b = -der_coeffs_x[ii] * F_star_Uy_x_b + der_coeffs_y[ii] * F_star_Uy_y_b;
         
         
         increment [ordh  (quadrant->gt (ii))] += h_b;
         increment [ordUx (quadrant->gt (ii))] += Ux_b;
         increment [ordUy (quadrant->gt (ii))] += Uy_b;
+        
+        
+        for (int jj = 0; jj < 4; ++jj){
+          if ( quadrant->is_hanging (jj) && (der_coeffs_y[jj]*der_coeffs_y[ii] > 0.) )
+          {
+            F_star_h_y_b = h_flux_formula_y(sol_onehalf[index_quadrant], -sol_onehalf[index_quadrant+gn_elements], sol_onehalf[index_quadrant+2*gn_elements]);
+            
+            F_star_Ux_y_b = Ux_flux_formula_y(sol_onehalf[index_quadrant], -sol_onehalf[index_quadrant+gn_elements], sol_onehalf[index_quadrant+2*gn_elements]);
+            
+            F_star_Uy_y_b = Uy_flux_formula_y(sol_onehalf[index_quadrant], -sol_onehalf[index_quadrant+gn_elements], sol_onehalf[index_quadrant+2*gn_elements]);
+            
+            h_b  = 2. * der_coeffs_y[jj] * F_star_h_y_b;
+            Ux_b = 2. * der_coeffs_y[jj] * F_star_Ux_y_b;
+            Uy_b = 2. * der_coeffs_y[jj] * F_star_Uy_y_b;
+            
+            increment [ordh  (quadrant->gt (ii))] += h_b;
+            increment [ordUx (quadrant->gt (ii))] += Ux_b;
+            increment [ordUy (quadrant->gt (ii))] += Uy_b;
+          }
+          
+        }
+        
+        
+        
         
       }
       
@@ -543,14 +567,36 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant, Q1& increment)
         F_star_Uy_y_b = Uy_flux_formula_y(sol_onehalf[index_quadrant], sol_onehalf[index_quadrant+gn_elements], -sol_onehalf[index_quadrant+2*gn_elements]);
         
         
-        const auto h_b  = der_coeffs_x[ii] * F_star_h_x_b  - der_coeffs_y[ii] * F_star_h_y_b;
-        const auto Ux_b = der_coeffs_x[ii] * F_star_Ux_x_b - der_coeffs_y[ii] * F_star_Ux_y_b;
-        const auto Uy_b = der_coeffs_x[ii] * F_star_Uy_x_b - der_coeffs_y[ii] * F_star_Uy_y_b;
+        auto h_b  = der_coeffs_x[ii] * F_star_h_x_b  - der_coeffs_y[ii] * F_star_h_y_b;
+        auto Ux_b = der_coeffs_x[ii] * F_star_Ux_x_b - der_coeffs_y[ii] * F_star_Ux_y_b;
+        auto Uy_b = der_coeffs_x[ii] * F_star_Uy_x_b - der_coeffs_y[ii] * F_star_Uy_y_b;
         
         
         increment [ordh  (quadrant->gt (ii))] += h_b;
         increment [ordUx (quadrant->gt (ii))] += Ux_b;
         increment [ordUy (quadrant->gt (ii))] += Uy_b;
+        
+        
+        for (int jj = 0; jj < 4; ++jj){
+          if ( quadrant->is_hanging (jj) && (der_coeffs_x[jj]*der_coeffs_x[ii] > 0.) )
+          {
+            F_star_h_x_b = h_flux_formula_x (sol_onehalf[index_quadrant], sol_onehalf[index_quadrant + gn_elements], -sol_onehalf[index_quadrant + 2 * gn_elements]);
+            
+            F_star_Ux_x_b = Ux_flux_formula_x (sol_onehalf[index_quadrant], sol_onehalf[index_quadrant + gn_elements], -sol_onehalf[index_quadrant + 2 * gn_elements]);
+            
+            F_star_Uy_x_b = Uy_flux_formula_x (sol_onehalf[index_quadrant], sol_onehalf[index_quadrant + gn_elements], -sol_onehalf[index_quadrant + 2 * gn_elements]);
+            
+            h_b  = 2. * der_coeffs_x[jj] * F_star_h_x_b;
+            Ux_b = 2. * der_coeffs_x[jj] * F_star_Ux_x_b;
+            Uy_b = 2. * der_coeffs_x[jj] * F_star_Uy_x_b;
+            
+            increment [ordh  (quadrant->gt (ii))] += h_b;
+            increment [ordUx (quadrant->gt (ii))] += Ux_b;
+            increment [ordUy (quadrant->gt (ii))] += Uy_b;
+          }
+          
+        }
+        
         
       }
       
@@ -570,18 +616,17 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant, Q1& increment)
         F_star_Uy_y_b = Uy_flux_formula_y (sol_onehalf[index_quadrant], -sol_onehalf[index_quadrant + gn_elements], -sol_onehalf[index_quadrant + 2 * gn_elements]);
         
         
-        const auto h_b  = -der_coeffs_x[ii] * F_star_h_x_b  - der_coeffs_y[ii] * F_star_h_y_b;
-        const auto Ux_b = -der_coeffs_x[ii] * F_star_Ux_x_b - der_coeffs_y[ii] * F_star_Ux_y_b;
-        const auto Uy_b = -der_coeffs_x[ii] * F_star_Uy_x_b - der_coeffs_y[ii] * F_star_Uy_y_b;
+        auto h_b  = -der_coeffs_x[ii] * F_star_h_x_b  - der_coeffs_y[ii] * F_star_h_y_b;
+        auto Ux_b = -der_coeffs_x[ii] * F_star_Ux_x_b - der_coeffs_y[ii] * F_star_Ux_y_b;
+        auto Uy_b = -der_coeffs_x[ii] * F_star_Uy_x_b - der_coeffs_y[ii] * F_star_Uy_y_b;
         
         
         increment [ordh  (quadrant->gt (ii))] += h_b;
         increment [ordUx (quadrant->gt (ii))] += Ux_b;
         increment [ordUy (quadrant->gt (ii))] += Uy_b;
+      
         
       }
-      
-      
       
       
     } else {
