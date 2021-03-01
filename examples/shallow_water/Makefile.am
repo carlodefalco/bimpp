@@ -10,7 +10,7 @@ BIMCHLIB         = ../../src/libbimsystemsolver.la
 AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
-bin_PROGRAMS = swe_tg orography
+bin_PROGRAMS = swe_tg orography rusanov main
 CLEANFILES =
 
 swe_tg_SOURCES =  swe_tg.cpp
@@ -23,4 +23,16 @@ orography_SOURCES =  orography.cpp
 orography_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
 orography_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 orography_LDADD = $(BIMLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLINALGLIB) $(BIMIOLIB) @P4EST_LIB@
+CLEANFILES +=
+
+rusanov_SOURCES =  rusanov.cpp
+rusanov_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
+rusanov_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+rusanov_LDADD = $(BIMLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLINALGLIB) $(BIMIOLIB) @P4EST_LIB@
+CLEANFILES +=
+
+main_SOURCES =  main.cpp Taylor_Galerkin.cpp
+main_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
+main_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
+main_LDADD = $(BIMLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLINALGLIB) $(BIMIOLIB) @P4EST_LIB@
 CLEANFILES +=
