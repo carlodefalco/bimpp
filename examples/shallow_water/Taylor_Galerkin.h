@@ -28,13 +28,6 @@ public:
   
   ~TG2_scheme() = default;
   
-  void
-  set_quadrant (tmesh::quadrant_iterator quadrant);
-  
-  void
-  step_function (Q1& increment, tmesh::quadrant_iterator quadrant);
-
-  
   
   void
   compute_dt (tmesh::quadrant_iterator quadrant);
@@ -44,6 +37,9 @@ public:
   
   void
   second_step (tmesh::quadrant_iterator quadrant, Q1& increment);
+  
+  void
+  flux_limiter(const double& Q_min, const double& Q_max, const double& Q_vertex, const double& Q_cell, const double& toll, double& phi_cell_Q);
   
   
   void
@@ -121,18 +117,22 @@ public:
 
   
   Q0& sol_onehalf;
+  Q0 local_extrema;
   
 private:
   static constexpr double grav = 9.81;
-  static constexpr double epsilon = 1.e-6;
+  static constexpr double epsilon = 1e-6;
   
   std::array<double, 4> der_coeffs_x, der_coeffs_y;
   std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging;
+  double vel_rusanov_cell_x, vel_rusanov_cell_y;
+  
+  std::array<double, 2> grad_cell_h, grad_cell_Ux, grad_cell_Uy;
+  
   
   int gn_elements;
   
   const Q1& state_vector;
-  
   const ordering& ordh;
   const ordering& ordUx;
   const ordering& ordUy;

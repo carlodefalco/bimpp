@@ -39,7 +39,7 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 static constexpr double SAVEDT  = 1e-3;
 static constexpr double DELTAT =  1e-3;
 static constexpr double REDCDT =  1;
-static constexpr double T      =  5;
+static constexpr double T      =  5.;
 
 
 
@@ -71,7 +71,12 @@ hanging_refinement (tmesh::quadrant_iterator quadrant)
   y_minus = quadrant->p (1, 0);
   y_plus  = quadrant->p (1, 2);
   
-  const auto marker = (x_minus+x_plus)/2<L/2;//(x_minus+x_plus)/2<L/2 && (y_minus+y_plus)/2>H/2 ? 1 : 0;
+  double x_center, y_center;
+  x_center = quadrant->centroid (0);
+  y_center = quadrant->centroid (1);
+  
+  const auto marker = x_center<3./4.*L && x_center>L/4. && y_center<3./4.*H && y_center>H/4.;
+//  const auto marker = (x_minus+x_plus)/2<L/2;//(x_minus+x_plus)/2<L/2 && (y_minus+y_plus)/2>H/2 ? 1 : 0;
   return marker; }
 
 
@@ -111,19 +116,22 @@ using Q0  = std::vector<double>;         // Typedef for local q_0 vector
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy, const double& L, const double& H)  {
   
-  return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   
-  /*
-  if (xx>L*3./10. && xx<7./10.*L)
+//  return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+//  return ( 0.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+
+  
+  
+  if (xx>L*1./4. && xx<L*3./4. && yy >H*1./4. && yy <H*3./4.) //(xx>L*3./10. && xx<7./10.*L)
   {
-    return 2;
+    return 1.;
   }
   
 //  if (xx>L/4 && xx<3/4*L && yy>H/4 && yy <3/4*H)
 //  {
 //    return 2;
 //  }
-  return 0;*/
+  return 0.;
 }
 double Ux0_fun (double xx, double yy) { return 0.; }
 double Uy0_fun (double xx, double yy) { return 0.; }
@@ -192,21 +200,27 @@ main (int argc, char **argv)
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
   
+  
+  MPI_Barrier (MPI_COMM_WORLD);
+  
+  
   TIC ();
   int recursive = 1;
   tmsh.set_refine_marker (uniform_refinement);
   tmsh.refine (recursive);
   
-  tmsh.set_refine_marker (hanging_refinement);
-  tmsh.refine (recursive, 1);
+  
+//  tmsh.set_refine_marker (hanging_refinement);
+//  tmsh.refine (recursive, 1);
   TOC ("Uniform refinement");
+  
+  
   
   // ln_nodes sono i dof non gli hanging node!! (sono esclusi dal calcolo)
   tmesh::idx_t gn_nodes    = tmsh.num_global_nodes (); // Return total number of nodes owned by all process
   tmesh::idx_t ln_nodes    = tmsh.num_owned_nodes (); // Return number of nodes owned by local process
   tmesh::idx_t ln_elements = tmsh.num_local_quadrants ();  // Return number of quadrants owned by local process across all trees
   tmesh::idx_t gn_elements = tmsh.num_global_quadrants (); // Return number of quadrants owned by all processes across all trees
-  
   
   
   /// Allocate initial data container
@@ -345,7 +359,7 @@ main (int argc, char **argv)
   
   
   TG2_scheme stp(sol, sol_onehalf, ordh, ordUx, ordUy, Z, DELTAT);
-
+  
   
   
   // Time loop
@@ -371,8 +385,6 @@ main (int argc, char **argv)
     incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
     incr.assemble (replace_op);
     TOC("Reset");
-    
-    
     TIC();
     
   
@@ -385,7 +397,7 @@ main (int argc, char **argv)
     }
     deltat = REDCDT * stp.dt;
     
-    
+
     
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&deltat), 1, MPI_INT, MPI_MIN, tmsh.comm);
     time += deltat;
@@ -409,10 +421,36 @@ main (int argc, char **argv)
       stp.first_step(quadrant, deltat);
     }
     
-//    for (int ii=0; ii<stp.sol_onehalf.size(); ++ii)
+
+
+    MPI_Allreduce(stp.sol_onehalf.data(), stp.local_extrema.data(), stp.sol_onehalf.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Barrier (MPI_COMM_WORLD);
+
+//    if (rank==0)
 //    {
-//      MPI_Allreduce(MPI_IN_PLACE, &stp.sol_onehalf[ii], 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+//      for (int ii=0;ii<stp.local_extrema.size();ii++)
+//      std::cout << stp.local_extrema[ii] << " " << stp.sol_onehalf[ii] << std::endl;
 //    }
+//
+//    if (rank==1)
+//    {
+//      for (int ii=0;ii<stp.local_extrema.size();ii++)
+//      std::cout << stp.local_extrema[ii] << " " << stp.sol_onehalf[ii] << std::endl;
+//    }
+//    MPI_Barrier (MPI_COMM_WORLD);
+//    MPI_Finalize ();
+//    return 0;
+    
+    
+//    for (int ii = 0; ii < gn_elements; ++ii)
+//    {
+//      if (stp.sol_onehalf[ii] < 0.)
+//      {
+//        stp.sol_onehalf[ii] = 0.;
+//      }
+//    }
+    
+    
     
     // second step!
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -435,9 +473,21 @@ main (int argc, char **argv)
       // this is the increment, sol.get_owned_data () is a vector probably because it has .assign function
       sol.get_owned_data ()[kk] += deltat * incr.get_owned_data ()[kk] / mass.get_owned_data ()[kk];
     }
-
-    
     sol.assemble (replace_op);
+    
+//    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+//         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+//    {
+//      for (int ii = 0; ii < 4; ++ii)
+//      {
+//        if (! quadrant->is_hanging (ii) )
+//        {
+//          auto & hdof = sol [ordh (quadrant->gt (ii) )];
+//          hdof = hdof>0. ? hdof : 0.;
+//        }
+//      }
+//    }
+    
     TOC("Apply increment");
     
     // Save solution
