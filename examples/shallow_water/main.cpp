@@ -32,15 +32,16 @@ static constexpr double L = 2;//res*(Nx-1);
 static constexpr double H = 2;//res*(Ny-1);
 static std::vector<double>   dem;
 static std::vector<double>   basin_mask;
-static constexpr int NUM_REFINEMENTS = 6;
+static constexpr int NUM_REFINEMENTS = 6; // 3, 6
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 static constexpr double SAVEDT  = 1e-3;
 static constexpr double DELTAT =  1e-3;
-static constexpr double REDCDT =  1;
-static constexpr double T      =  5.;
+static constexpr double REDCDT =  .5;
+static constexpr double T      =  .6;
 
+static constexpr bool is_space_adaptivity = true;
 
 
 
@@ -65,6 +66,7 @@ uniform_refinement (tmesh::quadrant_iterator q)
 static int
 hanging_refinement (tmesh::quadrant_iterator quadrant)
 {
+  
   double x_minus, x_plus, y_minus, y_plus;
   x_minus = quadrant->p (0, 0);
   x_plus  = quadrant->p (0, 1);
@@ -111,13 +113,13 @@ global_coord_2_raster(const double& x,
 
 
 using Q1  = q1_vec<distributed_vector>;  // Typedef for distributed q_1 vector
-using Q0  = std::vector<double>;         // Typedef for local q_0 vector
+using Q0  = distributed_vector; //std::vector<double>;         // Typedef for local q_0 vector // distributed_vector
 
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy, const double& L, const double& H)  {
   
   
-//  return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
 //  return ( 0.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
 
   
@@ -131,7 +133,7 @@ double h0_fun (const double& xx, const double& yy, const double& L, const double
 //  {
 //    return 2;
 //  }
-  return 0.;
+  return 0.1;
 }
 double Ux0_fun (double xx, double yy) { return 0.; }
 double Uy0_fun (double xx, double yy) { return 0.; }
@@ -201,17 +203,17 @@ main (int argc, char **argv)
                           simple_conn_t, simple_conn_num_trees);
   
   
-  MPI_Barrier (MPI_COMM_WORLD);
-  
   
   TIC ();
   int recursive = 1;
   tmsh.set_refine_marker (uniform_refinement);
   tmsh.refine (recursive);
   
-  
-//  tmsh.set_refine_marker (hanging_refinement);
-//  tmsh.refine (recursive, 1);
+//  for (int ii=0; ii<4; ii++)
+//  {
+//    tmsh.set_refine_marker (hanging_refinement);
+//    tmsh.refine (recursive, 1);
+//  }
   TOC ("Uniform refinement");
   
   
@@ -235,20 +237,8 @@ main (int argc, char **argv)
   bim2a_mass_vector (tmsh, mass, ordUy);
   mass.assemble ();
   
-  Q0 sol_onehalf(gn_elements * 3);
-  sol_onehalf.assign(sol_onehalf.size(), 0.0);
-  
-  
-  // .assemble serve probabilmente in un ambiente parallelo per creare la matrice di massa globale
-  
-//   gioca un po' con questo per capire la matrice di massa lumpata e come integrare il termine di flusso
-//  for (const auto& it : mass.get_owned_data ())
-//  {
-//    std::cout << it << std::endl;
-//  }
-//
-//  std::cout << "STOP!" << " " << ln_nodes << " " << ln_elements << " " << mass.get_owned_data ().size() <<std::endl;
-//  return 0;
+  Q0 sol_onehalf(ln_elements * 3);
+  sol_onehalf.get_owned_data ().assign(sol_onehalf.size(), 0.0);
   
   
   Q1 Z    (ln_nodes);
@@ -277,6 +267,9 @@ main (int argc, char **argv)
   // Buffer for export filename
   char filename[255]="";
   
+  std::vector<tmesh::idx_t> nnodes;
+  std::vector<double> hmesh_step;
+  std::vector<double> estim;
 
   // Initialize initial datas
   TIC ();
@@ -284,6 +277,10 @@ main (int argc, char **argv)
        quadrant != tmsh.end_quadrant_sweep ();
        ++quadrant)
   {
+    
+    sol_onehalf [ordh  (quadrant->get_global_quad_idx ())] = 0.;
+    sol_onehalf [ordUx (quadrant->get_global_quad_idx ())] = 0.;
+    sol_onehalf [ordUy (quadrant->get_global_quad_idx ())] = 0.;
     
     for (int ii = 0; ii < 4; ++ii)
     {
@@ -297,7 +294,6 @@ main (int argc, char **argv)
         
         Z[quadrant->gt (ii)] = 0.;//dem[global_coord_2_raster(xx,yy)[0]]*0;
         
-//        if (h0_fun (xx, yy) !=0) std::cout << h0_fun (xx, yy) << std::endl;
       }
       
       else
@@ -326,29 +322,200 @@ main (int argc, char **argv)
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
-  TOC ("compute initial condition");
   
-  // create results dir
-//  if (rank == 0)
-//  {
-//    std::string bashCommand = std::string ( "rm -r results" );
-//    std::system ( bashCommand.c_str() );
-//
-//    bashCommand = std::string ( "mkdir -p results" );
-//    std::system ( bashCommand.c_str() );
-//  }
+  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordh,  false);
+  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUx, false);
+  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUy);
+  
+  /*
+  {
+    
+    TIC();
+    std::vector<double> result(gn_nodes * 3);
+    for (int idx = sol.get_range_start (); idx < sol.get_range_end (); ++idx)
+    {
+      result[idx] = sol(idx);
+    }
+    MPI_Allreduce (MPI_IN_PLACE, result.data (),
+                   result.size (), MPI_DOUBLE,
+                   MPI_SUM, MPI_COMM_WORLD);
+  
+  
+    std::vector<double> Z_gl(gn_nodes);
+    for (int idx = Z.get_range_start (); idx < Z.get_range_end (); ++idx)
+    {
+      Z_gl[idx] = Z(idx);
+    }
+    MPI_Allreduce (MPI_IN_PLACE, Z_gl.data (),
+                   Z_gl.size (), MPI_DOUBLE,
+                   MPI_SUM, MPI_COMM_WORLD);
+    TOC("get global sol.");
+  
+    TIC();
+    Q1 only_h (gn_nodes);
+    for (int idx = 0; idx < gn_nodes; ++idx)
+    {
+      only_h (idx) = result [ordh (idx) ];
+    }
+    only_h.assemble (replace_op);
+    TOC ("copy only H");
+  
+  
+  
+    TIC();
+    double tol = 1e-5;
+    gradient<Q1> dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
+    q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
+  
+  
+    TOC ("gradient and hstar");
+  
+    TIC();
+//    auto estimator = [& h_star, & only_h] (tmesh::quadrant_iterator q)
+//    {
+//      return estimator_sol (q, h_star, only_h);
+//    };
+    auto estimator = [& dh, & only_h] (tmesh::quadrant_iterator q)
+    {
+      return estimator_grad (q, dh, only_h);
+    };
+    tmsh.set_metrics_marker (estimator, tol, 4, 2, 0);
+    TOC ("Computing estimator");
+  
+    TIC();
+    // Compute metrics and h.
+    std::vector<double> metrics (ln_elements);
+  
+    double hmeshx = 0, hmeshy = 0,
+    hmesh = std::numeric_limits<double>::max (),
+    global_hmesh = 0;
+    double est = 0, global_est = 0;
+  
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
+    {
+      metrics[quadrant->get_forest_quad_idx ()] =
+      estimator (quadrant) * std::sqrt (tmsh.num_global_quadrants () )
+      / tol;
+    
+      hmeshx = quadrant->p (0, 1) - quadrant->p (0, 0);
+      hmeshy = quadrant->p (1, 2) - quadrant->p (1, 0);
+    
+      hmesh = std::min (hmesh, std::sqrt (hmeshx * hmeshx + hmeshy * hmeshy) );
+    
+      est += std::pow (estimator (quadrant), 2);
+    }
+  
+  
+    MPI_Reduce (&hmesh, &global_hmesh, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+    MPI_Reduce (&est, &global_est, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    global_est = std::sqrt (global_est);
+  
+    nnodes.push_back (tmsh.num_global_nodes () );
+    hmesh_step.push_back (global_hmesh);
+    estim.push_back (global_est);
+    TOC ("Compute metrics and h")
+  
+    TIC();
+    tmsh.metrics_refine (1e4);  // RAFFINAMENTO (arg is max element)
+    TOC ("refine");
+  
+    // Ottengo i parametri della mesh corrente
+    TIC();
+    gn_nodes    = tmsh.num_global_nodes ();
+    ln_nodes    = tmsh.num_owned_nodes ();
+    ln_elements = tmsh.num_local_quadrants ();
+    TOC ("Obtaining new parameters");
+  
+  
+    // Interpolo sol sulla nuova mesh
+    TIC();
+  
+    std::vector<double> sol_new_global (gn_nodes * 3);
+    interpolate_vector (tmsh, result, sol_new_global, ordh);
+    interpolate_vector (tmsh, result, sol_new_global, ordUx);
+    interpolate_vector (tmsh, result, sol_new_global, ordUy);
+    Q1 sol_ (ln_nodes * 3);
+    sol_.get_owned_data ().assign (sol_.get_owned_data ().size (), 0.0);
+    for (int idx = sol_.get_range_start (); idx < sol_.get_range_end (); ++idx)
+    {
+      sol_ (idx) = sol_new_global [idx];
+    }
+    sol_.assemble (replace_op);
+  
+  
+    Q1 incr_ (ln_nodes * 3);
+    incr_.get_owned_data ().assign (incr_.get_owned_data ().size(), 0.0);
+    incr_.assemble ();
+  
+    Q1 mass_ (ln_nodes * 3);
+    bim2a_mass_vector (tmsh, mass_, ordh);
+    bim2a_mass_vector (tmsh, mass_, ordUx);
+    bim2a_mass_vector (tmsh, mass_, ordUy);
+    mass_.assemble ();
+  
+    Q0 sol_onehalf_ (ln_elements * 3);
+    sol_onehalf_.get_owned_data ().assign (sol_onehalf_.get_owned_data ().size(), 0.0);
+    sol_onehalf_.assemble ();
 
+  
+    std::vector<double> Z_global (gn_nodes);
+    interpolate_vector (tmsh, Z_gl, Z_global);
+    Q1 Z_ (ln_nodes);
+    Z_.get_owned_data ().assign (Z_.get_owned_data ().size (), 0.0);
+    for (int idx = Z_.get_range_start (); idx < Z_.get_range_end (); ++idx)
+    {
+      Z_ (idx) = Z_global [idx];
+    }
+    Z_.assemble (replace_op);
+  
+  
+    bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordh,  false);
+    bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUx, false);
+    bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUy);
+
+    bim2a_solution_with_ghosts (tmsh, Z_, replace_op);
+
+    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordh,  false);
+    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUx, false);
+    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUy);
+
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordh,  false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordUx, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordUy);
+  
+    
+    sol         = sol_;
+    incr        = incr_;
+    mass        = mass_;
+    sol_onehalf = sol_onehalf_;
+    Z           = Z_;
+  
+    TOC ("compute initial condition");
+  }*/
+  
+  Q1 sol_dyn         = sol;
+  Q1 sold_dyn        = sol;
+  Q1 soldd_dyn       = sol;
+  Q1 incr_dyn        = incr;
+  Q1 mass_dyn        = mass;
+  Q0 sol_onehalf_dyn = sol_onehalf;
+  Q1 Z_dyn           = Z;
+  
+  TG2_scheme stp(sol_dyn, sold_dyn, soldd_dyn, incr_dyn, sol_onehalf_dyn, ordh, ordUx, ordUy, Z_dyn, DELTAT);
   
   
   // Save initial conditions
   sprintf(filename, "results/swe_h_%4.4d", 0);
-  tmsh.octbin_export (filename, sol, ordh);
+  tmsh.octbin_export (filename, sol_dyn, ordh);
   sprintf(filename, "results/swe_Ux_%4.4d", 0);
-  tmsh.octbin_export (filename, sol, ordUx);
+  tmsh.octbin_export (filename, sol_dyn, ordUx);
   sprintf(filename, "results/swe_Uy_%4.4d", 0);
-  tmsh.octbin_export (filename, sol, ordUy);
+  tmsh.octbin_export (filename, sol_dyn, ordUy);
   sprintf(filename, "results/swe_Z_%4.4d", 0);
-  tmsh.octbin_export (filename, Z);
+  tmsh.octbin_export (filename, Z_dyn);
+  
   
 
   std::vector<double> full_time_vector;
@@ -357,14 +524,27 @@ main (int argc, char **argv)
   save_time_vector.reserve (static_cast<int> (T/SAVEDT));
   
   
-  
-  TG2_scheme stp(sol, sol_onehalf, ordh, ordUx, ordUy, Z, DELTAT);
-  
-  
-  
   // Time loop
-  double time = 0.0;
-  double deltat = DELTAT;
+  double time      = 0.0;
+  double time_old  = 0.0;
+  double time_oldd = 0.0;
+
+  
+  stp.set_dt (DELTAT);
+  for (auto quadrant = tmsh.begin_quadrant_sweep ();
+       quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+  {
+    stp.compute_dt(quadrant);
+  }
+  double max_dt = REDCDT * stp.dt;
+  MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&max_dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
+  stp.set_dt(max_dt);
+  time_old  -= stp.dt;
+  time_oldd -= 2*stp.dt;
+  stp.set_times(time, time_old, time_oldd);
+  
+  
+  
   if(rank==0) {
     full_time_vector.push_back (0.0);
     save_time_vector.push_back (0.0);
@@ -378,12 +558,15 @@ main (int argc, char **argv)
     std::cout << "start loop" << std::endl;
   }
   
+  
   while (time <= T)
   {
+    
+    
     // Reset increment
     TIC();
-    incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
-    incr.assemble (replace_op);
+    incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
+    incr_dyn.assemble (replace_op);
     TOC("Reset");
     TIC();
     
@@ -395,13 +578,34 @@ main (int argc, char **argv)
     {
       stp.compute_dt(quadrant);
     }
-    deltat = REDCDT * stp.dt;
+    stp.set_dt(REDCDT * stp.dt); // deltat max
+    MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
     
-
     
-    MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&deltat), 1, MPI_INT, MPI_MIN, tmsh.comm);
-    time += deltat;
-    savecount += deltat;
+//    // time adaptivity
+//    stp.nu_htot = 0.;
+//    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+//         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+//    {
+//      stp.compute_dt_adaptive(quadrant);
+//    }
+//    MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
+//    const double rho_h = (1./(stp.time-stp.timed))*std::sqrt(stp.nu_htot);
+//    stp.set_dt( std::min((5e-3/(rho_h+1e-7))*std::sqrt(1./(stp.time-stp.timed)), max_dt) );
+    
+//    std::cout << count << " " << rank << " " << stp.nu_htot << std::endl;
+//    MPI_Barrier (MPI_COMM_WORLD);
+//    if (rank == 0) { print_timing_report (); }
+//    MPI_Finalize ();
+//    return 0;
+    
+    
+    
+    
+    time_oldd = time_old;
+    time_old = time;
+    time += stp.dt;
+    savecount += stp.dt;
     MPI_Bcast (static_cast<void*> (&time), 1, MPI_DOUBLE, 0, tmsh.comm);
     MPI_Bcast (static_cast<void*> (&savecount), 1, MPI_DOUBLE, 0, tmsh.comm);
     MPI_Barrier (tmsh.comm); // tmsh.comm = MPI_COMM_WORLD
@@ -409,46 +613,20 @@ main (int argc, char **argv)
     // Print current time
     if(rank==0)
     {
-      std::cout << "TIME = " << time << ", dt = " << deltat << std::endl;
+      std::cout << "TIME = " << time << ", dt = " << stp.dt << std::endl;
       full_time_vector.push_back (time);
     }
+    
+    
     
     
     // first step!
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
     {
-      stp.first_step(quadrant, deltat);
+      stp.first_step(quadrant);
     }
-    
-
-
-    MPI_Allreduce(stp.sol_onehalf.data(), stp.local_extrema.data(), stp.sol_onehalf.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Barrier (MPI_COMM_WORLD);
-
-//    if (rank==0)
-//    {
-//      for (int ii=0;ii<stp.local_extrema.size();ii++)
-//      std::cout << stp.local_extrema[ii] << " " << stp.sol_onehalf[ii] << std::endl;
-//    }
-//
-//    if (rank==1)
-//    {
-//      for (int ii=0;ii<stp.local_extrema.size();ii++)
-//      std::cout << stp.local_extrema[ii] << " " << stp.sol_onehalf[ii] << std::endl;
-//    }
-//    MPI_Barrier (MPI_COMM_WORLD);
-//    MPI_Finalize ();
-//    return 0;
-    
-    
-//    for (int ii = 0; ii < gn_elements; ++ii)
-//    {
-//      if (stp.sol_onehalf[ii] < 0.)
-//      {
-//        stp.sol_onehalf[ii] = 0.;
-//      }
-//    }
+    sol_onehalf_dyn.assemble(replace_op);
     
     
     
@@ -456,39 +634,42 @@ main (int argc, char **argv)
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
     {
-      stp.second_step(quadrant, incr);
+      stp.second_step(quadrant);
     }
-
-    
-    incr.assemble ();
+    incr_dyn.assemble ();
     TOC("Compute step");
     
 
+    stp.set_times(time, time_old, time_oldd);
+    soldd_dyn = sold_dyn;
+    sold_dyn  = sol_dyn;
     
     
     
     TIC();
-    for (auto kk = 0; kk < incr.get_owned_data ().size (); kk++)
+    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
     {
       // this is the increment, sol.get_owned_data () is a vector probably because it has .assign function
-      sol.get_owned_data ()[kk] += deltat * incr.get_owned_data ()[kk] / mass.get_owned_data ()[kk];
+      sol_dyn.get_owned_data ()[kk] += stp.dt * incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
     }
-    sol.assemble (replace_op);
     
-//    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-//         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-//    {
-//      for (int ii = 0; ii < 4; ++ii)
-//      {
-//        if (! quadrant->is_hanging (ii) )
-//        {
-//          auto & hdof = sol [ordh (quadrant->gt (ii) )];
-//          hdof = hdof>0. ? hdof : 0.;
-//        }
-//      }
-//    }
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
+    {
+      for (int ii = 0; ii < 4; ++ii)
+      {
+        if (! quadrant->is_hanging (ii)){
+          sol_dyn [ordh (quadrant->gt (ii))] *= (sol_dyn [ordh (quadrant->gt (ii))]>0);
+        }
+      }
+    }
     
+    
+    sol_dyn.assemble (replace_op);
     TOC("Apply increment");
+    
+    
     
     // Save solution
     if (savecount >= SAVEDT) {
@@ -498,15 +679,238 @@ main (int argc, char **argv)
       count++;
       save_time_vector.push_back (time);
       sprintf(filename, "results/swe_h_%4.4d",   count);
-      tmsh.octbin_export (filename, sol, ordh);
+      tmsh.octbin_export (filename, sol_dyn, ordh);
       sprintf(filename, "results/swe_Ux_%4.4d",  count);
-      tmsh.octbin_export (filename, sol, ordUx);
+      tmsh.octbin_export (filename, sol_dyn, ordUx);
       sprintf(filename, "results/swe_Uy_%4.4d",  count);
-      tmsh.octbin_export (filename, sol, ordUy);
+      tmsh.octbin_export (filename, sol_dyn, ordUy);
       sprintf(filename, "results/swe_Z_%4.4d",  count);
-      tmsh.octbin_export (filename, Z);
+      tmsh.octbin_export (filename, Z_dyn);
       savecount = 0.0;
       TOC("Exporting solution");
+      
+      if (is_space_adaptivity && count==100) //(is_space_adaptivity && count==3)
+      {
+          
+        TIC();
+        std::vector<double> result(gn_nodes * 3);
+        for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx)
+        {
+          result[idx] = sol_dyn(idx);
+        }
+        MPI_Allreduce (MPI_IN_PLACE, result.data (),
+                       result.size (), MPI_DOUBLE,
+                       MPI_SUM, MPI_COMM_WORLD);
+        
+        
+        std::vector<double> result_d(gn_nodes * 3);
+        for (int idx = sold_dyn.get_range_start (); idx < sold_dyn.get_range_end (); ++idx)
+        {
+          result_d[idx] = sold_dyn(idx);
+        }
+        MPI_Allreduce (MPI_IN_PLACE, result_d.data (),
+                       result_d.size (), MPI_DOUBLE,
+                       MPI_SUM, MPI_COMM_WORLD);
+        
+        
+        std::vector<double> result_dd(gn_nodes * 3);
+        for (int idx = soldd_dyn.get_range_start (); idx < soldd_dyn.get_range_end (); ++idx)
+        {
+          result_dd[idx] = soldd_dyn(idx);
+        }
+        MPI_Allreduce (MPI_IN_PLACE, result_dd.data (),
+                       result_dd.size (), MPI_DOUBLE,
+                       MPI_SUM, MPI_COMM_WORLD);
+        
+        
+        std::vector<double> Z_gl(gn_nodes);
+        for (int idx = Z_dyn.get_range_start (); idx < Z_dyn.get_range_end (); ++idx)
+        {
+          Z_gl[idx] = Z_dyn(idx);
+        }
+        MPI_Allreduce (MPI_IN_PLACE, Z_gl.data (),
+                       Z_gl.size (), MPI_DOUBLE,
+                       MPI_SUM, MPI_COMM_WORLD);
+        TOC("get global sol.");
+        
+        TIC();
+        Q1 only_h (gn_nodes);
+        for (int idx = 0; idx < gn_nodes; ++idx)
+        {
+          only_h (idx) = result [ordh (idx) ];
+        }
+        only_h.assemble (replace_op);
+        TOC ("copy only H");
+        
+        
+        
+        TIC();
+        double tol = 1e-5;
+        gradient<Q1> dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
+        q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
+        
+        
+        TOC ("gradient and hstar");
+        
+        TIC();
+        auto estimator = [& h_star, & only_h] (tmesh::quadrant_iterator q)
+        {
+          return estimator_sol (q, h_star, only_h);
+        };
+//        auto estimator = [& dh, & only_h] (tmesh::quadrant_iterator q)
+//        {
+//          return estimator_grad(q, dh, only_h);
+//        };
+        tmsh.set_metrics_marker (estimator, tol, 4, 2, 0);
+        TOC ("Computing estimator");
+        
+        TIC();
+        // Compute metrics and h.
+        std::vector<double> metrics (ln_elements);
+        
+        double hmeshx = 0, hmeshy = 0,
+        hmesh = std::numeric_limits<double>::max (),
+        global_hmesh = 0;
+        double est = 0, global_est = 0;
+        
+        for (auto quadrant = tmsh.begin_quadrant_sweep ();
+             quadrant != tmsh.end_quadrant_sweep ();
+             ++quadrant)
+        {
+          metrics[quadrant->get_forest_quad_idx ()] =
+          estimator (quadrant) * std::sqrt (tmsh.num_global_quadrants () )
+          / tol;
+          
+          hmeshx = quadrant->p (0, 1) - quadrant->p (0, 0);
+          hmeshy = quadrant->p (1, 2) - quadrant->p (1, 0);
+          
+          hmesh = std::min (hmesh, std::sqrt (hmeshx * hmeshx + hmeshy * hmeshy) );
+          
+          est += std::pow (estimator (quadrant), 2);
+        }
+        
+        
+        MPI_Reduce (&hmesh, &global_hmesh, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+        MPI_Reduce (&est, &global_est, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        global_est = std::sqrt (global_est);
+        
+        nnodes.push_back (tmsh.num_global_nodes () );
+        hmesh_step.push_back (global_hmesh);
+        estim.push_back (global_est);
+        TOC ("Compute metrics and h")
+        
+        TIC();
+        tmsh.metrics_refine (1e4);  // RAFFINAMENTO (arg is max element)
+        TOC ("refine");
+        
+        // Ottengo i parametri della mesh corrente
+        TIC();
+        gn_nodes    = tmsh.num_global_nodes ();
+        ln_nodes    = tmsh.num_owned_nodes ();
+        ln_elements = tmsh.num_local_quadrants ();
+        TOC ("Obtaining new parameters");
+        
+        
+        // Interpolo sol sulla nuova mesh
+        TIC();
+        std::vector<double> sol_new_global (gn_nodes * 3);
+        interpolate_vector (tmsh, result, sol_new_global, ordh);
+        interpolate_vector (tmsh, result, sol_new_global, ordUx);
+        interpolate_vector (tmsh, result, sol_new_global, ordUy);
+        Q1 sol (ln_nodes * 3);
+        sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
+        for (int idx = sol.get_range_start (); idx < sol.get_range_end (); ++idx)
+        {
+          sol (idx) = sol_new_global [idx];
+        }
+        sol.assemble (replace_op);
+        
+        std::vector<double> sold_new_global (gn_nodes * 3);
+        interpolate_vector (tmsh, result_d, sold_new_global, ordh);
+        interpolate_vector (tmsh, result_d, sold_new_global, ordUx);
+        interpolate_vector (tmsh, result_d, sold_new_global, ordUy);
+        Q1 sold (ln_nodes * 3);
+        sold.get_owned_data ().assign (sold.get_owned_data ().size (), 0.0);
+        for (int idx = sold.get_range_start (); idx < sold.get_range_end (); ++idx)
+        {
+          sold (idx) = sold_new_global [idx];
+        }
+        sold.assemble (replace_op);
+        
+        std::vector<double> soldd_new_global (gn_nodes * 3);
+        interpolate_vector (tmsh, result_dd, soldd_new_global, ordh);
+        interpolate_vector (tmsh, result_dd, soldd_new_global, ordUy);
+        interpolate_vector (tmsh, result_dd, soldd_new_global, ordUx);
+        Q1 soldd (ln_nodes * 3);
+        soldd.get_owned_data ().assign (soldd.get_owned_data ().size (), 0.0);
+        for (int idx = soldd.get_range_start (); idx < soldd.get_range_end (); ++idx)
+        {
+          soldd (idx) = soldd_new_global [idx];
+        }
+        soldd.assemble (replace_op);
+        
+        
+        Q1 incr (ln_nodes * 3);
+        incr.get_owned_data ().assign (incr.get_owned_data ().size(), 0.0);
+        incr.assemble ();
+        
+        Q1 mass (ln_nodes * 3);
+        bim2a_mass_vector (tmsh, mass, ordh);
+        bim2a_mass_vector (tmsh, mass, ordUx);
+        bim2a_mass_vector (tmsh, mass, ordUy);
+        mass.assemble ();
+        
+        Q0 sol_onehalf (ln_elements * 3);
+        sol_onehalf.get_owned_data ().assign (sol_onehalf.get_owned_data ().size(), 0.0);
+        sol_onehalf.assemble ();
+        
+        
+        std::vector<double> Z_global (gn_nodes);
+        interpolate_vector (tmsh, Z_gl, Z_global);
+        Q1 Z (ln_nodes);
+        Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
+        for (int idx = Z.get_range_start (); idx < Z.get_range_end (); ++idx)
+        {
+          Z (idx) = Z_global [idx];
+        }
+        Z.assemble (replace_op);
+        
+        
+        
+        bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh,  false);
+        bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUx, false);
+        bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy);
+        
+        bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordh,  false);
+        bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordUx, false);
+        bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordUy);
+        
+        bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordh,  false);
+        bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUx, false);
+        bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUy);
+        
+        bim2a_solution_with_ghosts (tmsh, Z, replace_op);
+        
+        bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
+        bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
+        bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
+        
+        bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordh,  false);
+        bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUx, false);
+        bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUy);
+        
+        
+        sol_dyn         = sol;
+        sold_dyn        = sold;
+        soldd_dyn       = soldd;
+        incr_dyn        = incr;
+        mass_dyn        = mass;
+        sol_onehalf_dyn = sol_onehalf;
+        Z_dyn           = Z;
+        
+        TOC ("Interpolation");
+        
+      }
       
     }
     
@@ -534,7 +938,7 @@ main (int argc, char **argv)
   
   MPI_Finalize ();
   
-  
+
   return 0;
   
 }
