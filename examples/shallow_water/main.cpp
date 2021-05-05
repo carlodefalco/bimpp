@@ -119,7 +119,7 @@ using Q0  = distributed_vector; //std::vector<double>;         // Typedef for lo
 double h0_fun (const double& xx, const double& yy, const double& L, const double& H)  {
   
   
-  return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
 //  return ( 0.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
 
   
@@ -133,7 +133,7 @@ double h0_fun (const double& xx, const double& yy, const double& L, const double
 //  {
 //    return 2;
 //  }
-  return 0.1;
+  return 0.;
 }
 double Ux0_fun (double xx, double yy) { return 0.; }
 double Uy0_fun (double xx, double yy) { return 0.; }
@@ -244,6 +244,8 @@ main (int argc, char **argv)
   Q1 Z    (ln_nodes);
   Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
   
+  Q0 phi_cell_h_vect(ln_elements);
+  phi_cell_h_vect.get_owned_data ().assign(phi_cell_h_vect.size(), 0.0);
 
   TIC();
 //  octave_io_mode m_in = gz_read_mode, m_out = gz_read_mode;
@@ -281,6 +283,8 @@ main (int argc, char **argv)
     sol_onehalf [ordh  (quadrant->get_global_quad_idx ())] = 0.;
     sol_onehalf [ordUx (quadrant->get_global_quad_idx ())] = 0.;
     sol_onehalf [ordUy (quadrant->get_global_quad_idx ())] = 0.;
+
+    phi_cell_h_vect [quadrant->get_global_quad_idx ()] = 0.;
     
     for (int ii = 0; ii < 4; ++ii)
     {
@@ -318,6 +322,8 @@ main (int argc, char **argv)
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy);
   
   bim2a_solution_with_ghosts (tmsh, Z, replace_op);
+
+  bim2a_solution_with_ghosts_center (tmsh, phi_cell_h_vect, replace_op);
   
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
@@ -327,7 +333,7 @@ main (int argc, char **argv)
   bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUx, false);
   bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUy);
   
-  /*
+  
   {
     
     TIC();
@@ -338,16 +344,6 @@ main (int argc, char **argv)
     }
     MPI_Allreduce (MPI_IN_PLACE, result.data (),
                    result.size (), MPI_DOUBLE,
-                   MPI_SUM, MPI_COMM_WORLD);
-  
-  
-    std::vector<double> Z_gl(gn_nodes);
-    for (int idx = Z.get_range_start (); idx < Z.get_range_end (); ++idx)
-    {
-      Z_gl[idx] = Z(idx);
-    }
-    MPI_Allreduce (MPI_IN_PLACE, Z_gl.data (),
-                   Z_gl.size (), MPI_DOUBLE,
                    MPI_SUM, MPI_COMM_WORLD);
     TOC("get global sol.");
   
@@ -363,7 +359,6 @@ main (int argc, char **argv)
   
   
     TIC();
-    double tol = 1e-5;
     gradient<Q1> dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
     q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
   
@@ -379,43 +374,8 @@ main (int argc, char **argv)
     {
       return estimator_grad (q, dh, only_h);
     };
-    tmsh.set_metrics_marker (estimator, tol, 4, 2, 0);
+    tmsh.set_metrics_marker (estimator, 1.e-5, 4, 2, 0);
     TOC ("Computing estimator");
-  
-    TIC();
-    // Compute metrics and h.
-    std::vector<double> metrics (ln_elements);
-  
-    double hmeshx = 0, hmeshy = 0,
-    hmesh = std::numeric_limits<double>::max (),
-    global_hmesh = 0;
-    double est = 0, global_est = 0;
-  
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep ();
-         ++quadrant)
-    {
-      metrics[quadrant->get_forest_quad_idx ()] =
-      estimator (quadrant) * std::sqrt (tmsh.num_global_quadrants () )
-      / tol;
-    
-      hmeshx = quadrant->p (0, 1) - quadrant->p (0, 0);
-      hmeshy = quadrant->p (1, 2) - quadrant->p (1, 0);
-    
-      hmesh = std::min (hmesh, std::sqrt (hmeshx * hmeshx + hmeshy * hmeshy) );
-    
-      est += std::pow (estimator (quadrant), 2);
-    }
-  
-  
-    MPI_Reduce (&hmesh, &global_hmesh, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
-    MPI_Reduce (&est, &global_est, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    global_est = std::sqrt (global_est);
-  
-    nnodes.push_back (tmsh.num_global_nodes () );
-    hmesh_step.push_back (global_hmesh);
-    estim.push_back (global_est);
-    TOC ("Compute metrics and h")
   
     TIC();
     tmsh.metrics_refine (1e4);  // RAFFINAMENTO (arg is max element)
@@ -459,23 +419,40 @@ main (int argc, char **argv)
     sol_onehalf_.get_owned_data ().assign (sol_onehalf_.get_owned_data ().size(), 0.0);
     sol_onehalf_.assemble ();
 
-  
-    std::vector<double> Z_global (gn_nodes);
-    interpolate_vector (tmsh, Z_gl, Z_global);
+
     Q1 Z_ (ln_nodes);
-    Z_.get_owned_data ().assign (Z_.get_owned_data ().size (), 0.0);
-    for (int idx = Z_.get_range_start (); idx < Z_.get_range_end (); ++idx)
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
     {
-      Z_ (idx) = Z_global [idx];
+      
+      for (int ii = 0; ii < 4; ++ii)
+      {
+        if (! quadrant->is_hanging (ii)){
+          double xx=quadrant->p(0,ii);
+          double yy=quadrant->p(1,ii);
+          Z_[quadrant->gt (ii)] = 0;//dem[global_coord_2_raster(xx,yy)[0]];
+        }
+        
+        else
+        {
+          Z_[quadrant->gparent(0,ii)] += 0.;
+          Z_[quadrant->gparent(1,ii)] += 0.;
+        }
+      }
     }
-    Z_.assemble (replace_op);
-  
+
+    Q0 phi_cell_h_vect_ (ln_elements);
+    phi_cell_h_vect_.get_owned_data ().assign (phi_cell_h_vect_.get_owned_data ().size(), 0.0);
+    phi_cell_h_vect_.assemble ();
   
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordh,  false);
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUx, false);
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUy);
 
     bim2a_solution_with_ghosts (tmsh, Z_, replace_op);
+
+    bim2a_solution_with_ghosts_center (tmsh, phi_cell_h_vect_, replace_op);
 
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordh,  false);
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUx, false);
@@ -486,24 +463,26 @@ main (int argc, char **argv)
     bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordUy);
   
     
-    sol         = sol_;
-    incr        = incr_;
-    mass        = mass_;
-    sol_onehalf = sol_onehalf_;
-    Z           = Z_;
-  
+    sol             = sol_;
+    incr            = incr_;
+    mass            = mass_;
+    sol_onehalf     = sol_onehalf_;
+    Z               = Z_;
+    phi_cell_h_vect = phi_cell_h_vect_;
+
     TOC ("compute initial condition");
-  }*/
+  }
   
-  Q1 sol_dyn         = sol;
-  Q1 sold_dyn        = sol;
-  Q1 soldd_dyn       = sol;
-  Q1 incr_dyn        = incr;
-  Q1 mass_dyn        = mass;
-  Q0 sol_onehalf_dyn = sol_onehalf;
-  Q1 Z_dyn           = Z;
+  Q1 sol_dyn             = sol;
+  Q1 sold_dyn            = sol;
+  Q1 soldd_dyn           = sol;
+  Q1 incr_dyn            = incr;
+  Q1 mass_dyn            = mass;
+  Q0 sol_onehalf_dyn     = sol_onehalf;
+  Q1 Z_dyn               = Z;
+  Q0 phi_cell_h_vect_dyn = phi_cell_h_vect;
   
-  TG2_scheme stp(sol_dyn, sold_dyn, soldd_dyn, incr_dyn, sol_onehalf_dyn, ordh, ordUx, ordUy, Z_dyn, DELTAT);
+  TG2_scheme stp(sol_dyn, sold_dyn, soldd_dyn, incr_dyn, sol_onehalf_dyn, phi_cell_h_vect_dyn, ordh, ordUx, ordUy, Z_dyn, DELTAT);
   
   
   // Save initial conditions
@@ -689,7 +668,7 @@ main (int argc, char **argv)
       savecount = 0.0;
       TOC("Exporting solution");
       
-      if (is_space_adaptivity && count==100) //(is_space_adaptivity && count==3)
+      if (is_space_adaptivity && count%10) //(is_space_adaptivity && count==3)
       {
           
         TIC();
@@ -721,16 +700,6 @@ main (int argc, char **argv)
         MPI_Allreduce (MPI_IN_PLACE, result_dd.data (),
                        result_dd.size (), MPI_DOUBLE,
                        MPI_SUM, MPI_COMM_WORLD);
-        
-        
-        std::vector<double> Z_gl(gn_nodes);
-        for (int idx = Z_dyn.get_range_start (); idx < Z_dyn.get_range_end (); ++idx)
-        {
-          Z_gl[idx] = Z_dyn(idx);
-        }
-        MPI_Allreduce (MPI_IN_PLACE, Z_gl.data (),
-                       Z_gl.size (), MPI_DOUBLE,
-                       MPI_SUM, MPI_COMM_WORLD);
         TOC("get global sol.");
         
         TIC();
@@ -745,7 +714,6 @@ main (int argc, char **argv)
         
         
         TIC();
-        double tol = 1e-5;
         gradient<Q1> dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
         q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
         
@@ -761,46 +729,21 @@ main (int argc, char **argv)
 //        {
 //          return estimator_grad(q, dh, only_h);
 //        };
-        tmsh.set_metrics_marker (estimator, tol, 4, 2, 0);
-        TOC ("Computing estimator");
-        
-        TIC();
-        // Compute metrics and h.
-        std::vector<double> metrics (ln_elements);
-        
-        double hmeshx = 0, hmeshy = 0,
-        hmesh = std::numeric_limits<double>::max (),
-        global_hmesh = 0;
-        double est = 0, global_est = 0;
-        
-        for (auto quadrant = tmsh.begin_quadrant_sweep ();
-             quadrant != tmsh.end_quadrant_sweep ();
-             ++quadrant)
-        {
-          metrics[quadrant->get_forest_quad_idx ()] =
-          estimator (quadrant) * std::sqrt (tmsh.num_global_quadrants () )
-          / tol;
-          
-          hmeshx = quadrant->p (0, 1) - quadrant->p (0, 0);
-          hmeshy = quadrant->p (1, 2) - quadrant->p (1, 0);
-          
-          hmesh = std::min (hmesh, std::sqrt (hmeshx * hmeshx + hmeshy * hmeshy) );
-          
-          est += std::pow (estimator (quadrant), 2);
+        auto refine_function = [& phi_cell_h_vect] (tmesh::quadrant_iterator q)
+        {  
+          return(phi_cell_h_vect[q->get_global_quad_idx()]<0.5 ? 1 : 0);
+        };
+
+        for (int ii = 0; ii < NUM_TREFINEMENTS; ++ii) {
+          tmsh.set_metrics_marker (estimator, 1e-5, 4, 2, 0);
+          tmsh.metrics_refine (1e4);  // RAFFINAMENTO (arg is max element)
+
+          //tmsh.set_coarsen_marker (coarsen_function);
+          //tmsh.set_refine_marker  (refine_function);
+          //tmsh.coarsen (recursive, 1, 0);
+          //tmsh.refine  (recursive, 1);
         }
-        
-        
-        MPI_Reduce (&hmesh, &global_hmesh, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
-        MPI_Reduce (&est, &global_est, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-        global_est = std::sqrt (global_est);
-        
-        nnodes.push_back (tmsh.num_global_nodes () );
-        hmesh_step.push_back (global_hmesh);
-        estim.push_back (global_est);
-        TOC ("Compute metrics and h")
-        
-        TIC();
-        tmsh.metrics_refine (1e4);  // RAFFINAMENTO (arg is max element)
+
         TOC ("refine");
         
         // Ottengo i parametri della mesh corrente
@@ -863,17 +806,32 @@ main (int argc, char **argv)
         Q0 sol_onehalf (ln_elements * 3);
         sol_onehalf.get_owned_data ().assign (sol_onehalf.get_owned_data ().size(), 0.0);
         sol_onehalf.assemble ();
+
+        Q0 phi_cell_h_vect (ln_elements);
+        phi_cell_h_vect.get_owned_data ().assign (phi_cell_h_vect.get_owned_data ().size(), 0.0);
+        phi_cell_h_vect.assemble ();
         
-        
-        std::vector<double> Z_global (gn_nodes);
-        interpolate_vector (tmsh, Z_gl, Z_global);
-        Q1 Z (ln_nodes);
-        Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
-        for (int idx = Z.get_range_start (); idx < Z.get_range_end (); ++idx)
+        Q1 Z_ (ln_nodes);
+        for (auto quadrant = tmsh.begin_quadrant_sweep ();
+             quadrant != tmsh.end_quadrant_sweep ();
+             ++quadrant)
         {
-          Z (idx) = Z_global [idx];
+          
+          for (int ii = 0; ii < 4; ++ii)
+          {
+            if (! quadrant->is_hanging (ii)){
+              double xx=quadrant->p(0,ii);
+              double yy=quadrant->p(1,ii);
+              Z_[quadrant->gt (ii)] = 0;//dem[global_coord_2_raster(xx,yy)[0]];
+            }
+            
+            else
+            {
+              Z_[quadrant->gparent(0,ii)] += 0.;
+              Z_[quadrant->gparent(1,ii)] += 0.;
+            }
+          }
         }
-        Z.assemble (replace_op);
         
         
         
@@ -890,6 +848,8 @@ main (int argc, char **argv)
         bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUy);
         
         bim2a_solution_with_ghosts (tmsh, Z, replace_op);
+
+        bim2a_solution_with_ghosts_center (tmsh, phi_cell_h_vect, replace_op);
         
         bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
         bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
@@ -900,13 +860,14 @@ main (int argc, char **argv)
         bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUy);
         
         
-        sol_dyn         = sol;
-        sold_dyn        = sold;
-        soldd_dyn       = soldd;
-        incr_dyn        = incr;
-        mass_dyn        = mass;
-        sol_onehalf_dyn = sol_onehalf;
-        Z_dyn           = Z;
+        sol_dyn             = sol;
+        sold_dyn            = sold;
+        soldd_dyn           = soldd;
+        incr_dyn            = incr;
+        mass_dyn            = mass;
+        sol_onehalf_dyn     = sol_onehalf;
+        Z_dyn               = Z;
+        phi_cell_h_vect_dyn = phi_cell_h_vect;
         
         TOC ("Interpolation");
         
