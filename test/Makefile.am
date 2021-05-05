@@ -287,7 +287,8 @@ endif
 TEST_EXTENSIONS = .m .sh .mpi
 M_LOG_COMPILER = octave
 SH_LOG_COMPILER = bash
-MPI_LOG_COMPILER = mpiexec
+MPIEXEC ?= mpiexec
+MPI_LOG_COMPILER = $(MPIEXEC)
 AM_M_LOG_FLAGS = -q --no-gui --path $(top_srcdir)/script/m:$(top_srcdir)/data
 AM_MPI_LOG_FLAGS = -np 2 
 
