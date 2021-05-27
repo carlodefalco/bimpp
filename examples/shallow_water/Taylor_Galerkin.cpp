@@ -7,14 +7,15 @@ TG2_scheme::TG2_scheme(const Q1& sol,
                        const Q1& soldd,
                        Q1& incr,
                        Q0& sol_onehalf,
-                       Q0& phi_cell_h_vect,
                        const ordering& oh,
                        const ordering& oUx,
                        const ordering& oUy,
                        const Q1& Z,
-                       const double& DELTAT)
-: sol(sol), sold(sold), soldd(soldd), incr(incr), sol_onehalf(sol_onehalf), phi_cell_h_vect(phi_cell_h_vect), ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), DELTAT(DELTAT)
+                       const double& DELTAT,
+                       const double& h_min)
+: sol(sol), sold(sold), soldd(soldd), incr(incr), sol_onehalf(sol_onehalf), ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), DELTAT(DELTAT), epsilon(h_min)
 { }
+
 
 
 void
@@ -36,7 +37,6 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
       hdof[ii]  = sol [ordh  (quadrant->gt (ii) )];
       Uxdof[ii] = sol [ordUx (quadrant->gt (ii) )];
       Uydof[ii] = sol [ordUy (quadrant->gt (ii) )];
-      
     }
     else
     {
@@ -46,8 +46,6 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
                         sol [ordUx (quadrant->gparent (1, ii) )]);
       Uydof[ii] = .5 * (sol [ordUy (quadrant->gparent (0, ii) )] +
                         sol [ordUy (quadrant->gparent (1, ii) )]);
-
-      
     }
   }
   
@@ -134,49 +132,66 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   Dy = yn[2] - yn[0];
   area = Dx * Dy;
   
-  double h_cell_average = 0., Ux_cell_average = 0., Uy_cell_average = 0.;
+
+  double h_cell_average        = 0., Ux_cell_average        = 0., Uy_cell_average        = 0.;
   double source_h_cell_average = 0., source_Ux_cell_average = 0., source_Uy_cell_average = 0.;
+  double partial_x_Z_average   = 0., partial_y_Z_average    = 0.;
+  for (int ii = 0; ii < 4; ++ii)
+  {
+    if (! quadrant->is_hanging (ii) )
+    {
+      Z_node[ii] = Z[quadrant->gt (ii)];
+    }
+    else
+    {
+      Z_node[ii] = .5 * (Z [quadrant->gparent (0, ii)] +
+                         Z [quadrant->gparent (1, ii)]);
+    }
+  }
+  partial_x_Z_average = .5*( (Z_node[1]-Z_node[0])/Dx + (Z_node[3]-Z_node[2])/Dx );
+  partial_y_Z_average = .5*( (Z_node[2]-Z_node[0])/Dy + (Z_node[3]-Z_node[1])/Dy );
+
+
+
   for (int ii = 0; ii < 4; ++ii)
   {
     double hdof_c, Uxdof_c, Uydof_c;
 
     if (! quadrant->is_hanging (ii) )
     {
-      hdof_c    = sol [ordh    (quadrant->gt (ii) )];
-      Uxdof_c   = sol [ordUx   (quadrant->gt (ii) )];
-      Uydof_c   = sol [ordUy   (quadrant->gt (ii) )];
+      hdof_c    = sol [ordh  (quadrant->gt (ii) )];
+      Uxdof_c   = sol [ordUx (quadrant->gt (ii) )];
+      Uydof_c   = sol [ordUy (quadrant->gt (ii) )];
     }
     else
     {
-      hdof_c    = .5 * (sol [ordh    (quadrant->gparent (0, ii) )] +
-                        sol [ordh    (quadrant->gparent (1, ii) )]);
-      Uxdof_c   = .5 * (sol [ordUx   (quadrant->gparent (0, ii) )] +
-                        sol [ordUx   (quadrant->gparent (1, ii) )]);
-      Uydof_c   = .5 * (sol [ordUy   (quadrant->gparent (0, ii) )] +
-                        sol [ordUy   (quadrant->gparent (1, ii) )]);
+      hdof_c    = .5 * (sol [ordh  (quadrant->gparent (0, ii) )] +
+                        sol [ordh  (quadrant->gparent (1, ii) )]);
+      Uxdof_c   = .5 * (sol [ordUx (quadrant->gparent (0, ii) )] +
+                        sol [ordUx (quadrant->gparent (1, ii) )]);
+      Uydof_c   = .5 * (sol [ordUy (quadrant->gparent (0, ii) )] +
+                        sol [ordUy (quadrant->gparent (1, ii) )]);
     }
 
-    h_cell_average    += hdof_c;
-    Ux_cell_average   += Uxdof_c;
-    Uy_cell_average   += Uydof_c;
+    h_cell_average  += hdof_c;
+    Ux_cell_average += Uxdof_c;
+    Uy_cell_average += Uydof_c;
 
-    source_h_cell_average  += h_src_formula  (hdof_c, Uxdof_c, Uydof_c);
-    source_Ux_cell_average += Ux_src_formula (hdof_c, Uxdof_c, Uydof_c);
-    source_Uy_cell_average += Uy_src_formula (hdof_c, Uxdof_c, Uydof_c);
+    source_Ux_cell_average += Ux_src_formula (hdof_c, Uxdof_c, Uydof_c, partial_x_Z_average);
+    source_Uy_cell_average += Uy_src_formula (hdof_c, Uxdof_c, Uydof_c, partial_y_Z_average);
     
-    fluxx_h_node[ii]    = h_flux_formula_x   (hdof_c, Uxdof_c, Uydof_c);
-    fluxy_h_node[ii]    = h_flux_formula_y   (hdof_c, Uxdof_c, Uydof_c);
-    fluxx_Ux_node[ii]   = Ux_flux_formula_x  (hdof_c, Uxdof_c, Uydof_c);
-    fluxy_Ux_node[ii]   = Ux_flux_formula_y  (hdof_c, Uxdof_c, Uydof_c);
-    fluxx_Uy_node[ii]   = Uy_flux_formula_x  (hdof_c, Uxdof_c, Uydof_c);
-    fluxy_Uy_node[ii]   = Uy_flux_formula_y  (hdof_c, Uxdof_c, Uydof_c);
+    fluxx_h_node [ii] = h_flux_formula_x   (hdof_c, Uxdof_c, Uydof_c);
+    fluxy_h_node [ii] = h_flux_formula_y   (hdof_c, Uxdof_c, Uydof_c);
+    fluxx_Ux_node[ii] = Ux_flux_formula_x  (hdof_c, Uxdof_c, Uydof_c);
+    fluxy_Ux_node[ii] = Ux_flux_formula_y  (hdof_c, Uxdof_c, Uydof_c);
+    fluxx_Uy_node[ii] = Uy_flux_formula_x  (hdof_c, Uxdof_c, Uydof_c);
+    fluxy_Uy_node[ii] = Uy_flux_formula_y  (hdof_c, Uxdof_c, Uydof_c);
 
   }
-  h_cell_average    /= 4.;
-  Ux_cell_average   /= 4.;
-  Uy_cell_average   /= 4.;
+  h_cell_average  /= 4.;
+  Ux_cell_average /= 4.;
+  Uy_cell_average /= 4.;
   
-  source_h_cell_average  /= 4.;
   source_Ux_cell_average /= 4.;
   source_Uy_cell_average /= 4.;
   
@@ -192,16 +207,16 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const auto div_FUy_y = .5*((fluxy_Uy_node[2]-fluxy_Uy_node[0]) + (fluxy_Uy_node[3]-fluxy_Uy_node[1]));
   const auto div_FUy_cell = Dy*div_FUy_x + Dx*div_FUy_y;
   
-  sol_onehalf[ordh    (index_quadrant)] = h_cell_average    - dt / 2. * div_Fh_cell    / area + dt / 2. * source_h_cell_average;
-  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average   - dt / 2. * div_FUx_cell   / area + dt / 2. * source_Ux_cell_average;
-  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average   - dt / 2. * div_FUy_cell   / area + dt / 2. * source_Uy_cell_average;
+  sol_onehalf[ordh    (index_quadrant)] = h_cell_average  - dt/2.*div_Fh_cell /area;
+  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average - dt/2.*div_FUx_cell/area + dt/2.*source_Ux_cell_average;
+  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average - dt/2.*div_FUy_cell/area + dt/2.*source_Uy_cell_average;
   
 
   // touch neig cells and add 0 then assemble sol_onehalf.assemble()
   for (auto quadrant_nei = quadrant->begin_neighbor_sweep();
        quadrant_nei != quadrant->end_neighbor_sweep (); ++quadrant_nei)
   {
-    const auto & index_quadrant_nei = quadrant_nei->get_global_quad_idx (); 
+    const auto & index_quadrant_nei = quadrant_nei->get_global_quad_idx ();
     
     sol_onehalf[ordh    (index_quadrant_nei)] += 0.;
     sol_onehalf[ordUx   (index_quadrant_nei)] += 0.;
@@ -255,9 +270,9 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   der_coeffs_y = {-Dx/2.*isdof_or_hanging[0], -Dx/2.*isdof_or_hanging[1],
     +Dx/2.*isdof_or_hanging[2], +Dx/2.*isdof_or_hanging[3]};
   
-  double F_star_h_x = 0., F_star_h_y = 0.,
-  F_star_Ux_x = 0., F_star_Ux_y = 0.,
-  F_star_Uy_x = 0., F_star_Uy_y = 0.;
+  double F_star_h_x  = 0., F_star_h_y  = 0.,
+         F_star_Ux_x = 0., F_star_Ux_y = 0.,
+         F_star_Uy_x = 0., F_star_Uy_y = 0.;
   
 
   
@@ -297,7 +312,6 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
     Uy_min = std::min(Uy_current_cell, Uy_min);
     Uy_max = std::max(Uy_current_cell, Uy_max);
-
   }
   
   for (int ii = 0; ii < 4; ++ii){
@@ -310,17 +324,17 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   vel_rusanov_cell_y /= 4.;
   
   
-  grad_cell_h    = {.5 * ( (hdof[3]    - hdof[2])    + (hdof[1]  - hdof[0])  )     / Dx, .5 * ( (hdof[2]  - hdof[0])      + (hdof[3] - hdof[1])  )      / Dy};
-  grad_cell_Ux   = {.5 * ( (Uxdof[3]   - Uxdof[2])   + (Uxdof[1] - Uxdof[0]) )     / Dx, .5 * ( (Uxdof[2] - Uxdof[0])     + (Uxdof[3] - Uxdof[1]) )     / Dy};
-  grad_cell_Uy   = {.5 * ( (Uydof[3]   - Uydof[2])   + (Uydof[1] - Uydof[0]) )     / Dx, .5 * ( (Uydof[2] - Uydof[0])     + (Uydof[3] - Uydof[1]) )     / Dy};
+  grad_cell_h    = {.5 * ( (hdof [3] - hdof [2]) + (hdof [1] - hdof [0]) ) / Dx, .5 * ( (hdof [2] - hdof [0]) + (hdof [3] - hdof [1]) ) / Dy};
+  grad_cell_Ux   = {.5 * ( (Uxdof[3] - Uxdof[2]) + (Uxdof[1] - Uxdof[0]) ) / Dx, .5 * ( (Uxdof[2] - Uxdof[0]) + (Uxdof[3] - Uxdof[1]) ) / Dy};
+  grad_cell_Uy   = {.5 * ( (Uydof[3] - Uydof[2]) + (Uydof[1] - Uydof[0]) ) / Dx, .5 * ( (Uydof[2] - Uydof[0]) + (Uydof[3] - Uydof[1]) ) / Dy};
   
   // compute flux limiter, grad limiter
   const auto toll = 1e-6;
   double phi_cell_h = 1., phi_cell_Ux = 1., phi_cell_Uy = 1.;
   for (int ii = 0; ii < 4; ++ii){
-    const auto h_vertex    = sol[ordh     (quadrant->gt (ii))];
-    const auto Ux_vertex   = sol[ordUx    (quadrant->gt (ii))];
-    const auto Uy_vertex   = sol[ordUy    (quadrant->gt (ii))];
+    const auto h_vertex  = sol[ordh  (quadrant->gt (ii))];
+    const auto Ux_vertex = sol[ordUx (quadrant->gt (ii))];
+    const auto Uy_vertex = sol[ordUy (quadrant->gt (ii))];
     
 //    const auto x_node = quadrant->p(0, ii);
 //    const auto y_node = quadrant->p(1, ii);
@@ -339,12 +353,11 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     flux_limiter(Uy_min, Uy_max, Uy_vertex, Uy_cell, toll, phi_cell_Uy);
     
   }
-  phi_cell_h_vect[index_quadrant] = phi_cell_h;
 
   phi_cell_h    = 1. - phi_cell_h;
   phi_cell_Ux   = 1. - phi_cell_Ux;
   phi_cell_Uy   = 1. - phi_cell_Uy;
-  
+
   
   F_star_h_x  -= grad_cell_h[0] *Dx * phi_cell_h  * vel_rusanov_cell_y;
   F_star_h_y  -= grad_cell_h[1] *Dy * phi_cell_h  * vel_rusanov_cell_x;
@@ -357,13 +370,30 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   
   
   
+  double partial_x_Z_average = 0., partial_y_Z_average = 0.;
+  for (int ii = 0; ii < 4; ++ii)
+  {
+
+    if (! quadrant->is_hanging (ii) )
+    {
+      Z_node[ii] = Z[quadrant->gt (ii)];
+    }
+    else
+    {
+      Z_node[ii] = .5 * (Z [quadrant->gparent (0, ii)] +
+                         Z [quadrant->gparent (1, ii)]);
+    }
+  }
+  partial_x_Z_average = .5*( (Z_node[1]-Z_node[0])/Dx + (Z_node[3]-Z_node[2])/Dx );
+  partial_y_Z_average = .5*( (Z_node[2]-Z_node[0])/Dy + (Z_node[3]-Z_node[1])/Dy );
   
-  // aggiungere termine sorgente!!
+  
+  // aggiungere termine sorgente!! 
   for (int ii = 0; ii < 4; ++ii){
     
-    const auto h_    = der_coeffs_x[ii] * F_star_h_x    + der_coeffs_y[ii] * F_star_h_y;
-    const auto Ux_   = der_coeffs_x[ii] * F_star_Ux_x   + der_coeffs_y[ii] * F_star_Ux_y;
-    const auto Uy_   = der_coeffs_x[ii] * F_star_Uy_x   + der_coeffs_y[ii] * F_star_Uy_y;
+    const auto h_  = der_coeffs_x[ii] * F_star_h_x  + der_coeffs_y[ii] * F_star_h_y;
+    const auto Ux_ = der_coeffs_x[ii] * F_star_Ux_x + der_coeffs_y[ii] * F_star_Ux_y + .25*area*isdof_or_hanging[ii] * Ux_src_formula(h_cell, Ux_cell, Uy_cell, partial_x_Z_average);
+    const auto Uy_ = der_coeffs_x[ii] * F_star_Uy_x + der_coeffs_y[ii] * F_star_Uy_y + .25*area*isdof_or_hanging[ii] * Uy_src_formula(h_cell, Ux_cell, Uy_cell, partial_y_Z_average);
     
     if (! quadrant->is_hanging (ii)){
       incr [ordh  (quadrant->gt (ii))] += h_;
@@ -377,22 +407,23 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       
       
       if (boundary_idxx != tmesh::quadrant_t::NOT_ON_BOUNDARY) {
-        double F_star_h_x_b = 0., F_star_h_y_b = 0.,
-        F_star_Ux_x_b = 0., F_star_Ux_y_b = 0., F_star_Uy_x_b = 0., F_star_Uy_y_b = 0.;
+        double F_star_h_x_b  = 0., F_star_h_y_b  = 0.,
+               F_star_Ux_x_b = 0., F_star_Ux_y_b = 0., F_star_Uy_x_b = 0., F_star_Uy_y_b = 0.;
         
-        F_star_h_x_b  = h_flux_formula_x(h_cell, -Ux_cell, Uy_cell);
-        F_star_h_y_b  = h_flux_formula_y(h_cell, -Ux_cell, Uy_cell);
+        F_star_h_x_b  = h_flux_formula_x(h_cell, Ux_cell, Uy_cell);
+        F_star_h_y_b  = h_flux_formula_y(h_cell, Ux_cell, Uy_cell);
 
-        F_star_Ux_x_b = Ux_flux_formula_x(h_cell, -Ux_cell, Uy_cell);
-        F_star_Ux_y_b = Ux_flux_formula_y(h_cell, -Ux_cell, Uy_cell);
+        F_star_Ux_x_b = Ux_flux_formula_x(h_cell, Ux_cell, Uy_cell);
+        F_star_Ux_y_b = Ux_flux_formula_y(h_cell, Ux_cell, Uy_cell);
 
-        F_star_Uy_x_b = Uy_flux_formula_x(h_cell, -Ux_cell, Uy_cell);
-        F_star_Uy_y_b = Uy_flux_formula_y(h_cell, -Ux_cell, Uy_cell);
+        F_star_Uy_x_b = Uy_flux_formula_x(h_cell, Ux_cell, Uy_cell);
+        F_star_Uy_y_b = Uy_flux_formula_y(h_cell, Ux_cell, Uy_cell);
+    
         
         
-        auto h_b    = -der_coeffs_x[ii] * F_star_h_x_b    + der_coeffs_y[ii] * F_star_h_y_b;
-        auto Ux_b   = -der_coeffs_x[ii] * F_star_Ux_x_b   + der_coeffs_y[ii] * F_star_Ux_y_b;
-        auto Uy_b   = -der_coeffs_x[ii] * F_star_Uy_x_b   + der_coeffs_y[ii] * F_star_Uy_y_b;
+        auto h_b    = -der_coeffs_x[ii] * F_star_h_x_b  + der_coeffs_y[ii] * F_star_h_y_b;
+        auto Ux_b   = -der_coeffs_x[ii] * F_star_Ux_x_b + der_coeffs_y[ii] * F_star_Ux_y_b;
+        auto Uy_b   = -der_coeffs_x[ii] * F_star_Uy_x_b + der_coeffs_y[ii] * F_star_Uy_y_b;
         
 //        auto h_b  = -der_coeffs_x[ii] * F_star_h_x  + der_coeffs_y[ii] * F_star_h_y;
 //        auto Ux_b = -der_coeffs_x[ii] * F_star_Ux_x + der_coeffs_y[ii] * F_star_Ux_y;
@@ -407,21 +438,21 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
         for (int jj = 0; jj < 4; ++jj){
           if ( quadrant->is_hanging (jj) && (der_coeffs_y[jj]*der_coeffs_y[ii] > 0.) )
           {
-            F_star_h_y_b    = h_flux_formula_y   (h_cell, -Ux_cell, Uy_cell);
-            F_star_Ux_y_b   = Ux_flux_formula_y  (h_cell, -Ux_cell, Uy_cell);
-            F_star_Uy_y_b   = Uy_flux_formula_y  (h_cell, -Ux_cell, Uy_cell);
+            F_star_h_y_b  = h_flux_formula_y  (h_cell, Ux_cell, Uy_cell);
+            F_star_Ux_y_b = Ux_flux_formula_y (h_cell, Ux_cell, Uy_cell);
+            F_star_Uy_y_b = Uy_flux_formula_y (h_cell, Ux_cell, Uy_cell);
             
-            h_b    = 2. * der_coeffs_y[jj] * F_star_h_y_b;
-            Ux_b   = 2. * der_coeffs_y[jj] * F_star_Ux_y_b;
-            Uy_b   = 2. * der_coeffs_y[jj] * F_star_Uy_y_b;
+            h_b  = 2. * der_coeffs_y[jj] * F_star_h_y_b;
+            Ux_b = 2. * der_coeffs_y[jj] * F_star_Ux_y_b;
+            Uy_b = 2. * der_coeffs_y[jj] * F_star_Uy_y_b;
             
 //            h_b  = 2. * der_coeffs_y[jj] * F_star_h_y;
 //            Ux_b = 2. * der_coeffs_y[jj] * F_star_Ux_y;
 //            Uy_b = 2. * der_coeffs_y[jj] * F_star_Uy_y;
             
-            incr [ordh    (quadrant->gt (ii))] += h_b;
-            incr [ordUx   (quadrant->gt (ii))] += Ux_b;
-            incr [ordUy   (quadrant->gt (ii))] += Uy_b;
+            incr [ordh  (quadrant->gt (ii))] += h_b;
+            incr [ordUx (quadrant->gt (ii))] += Ux_b;
+            incr [ordUy (quadrant->gt (ii))] += Uy_b;
           }
           
         }
@@ -433,16 +464,17 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       
       if (boundary_idxy != tmesh::quadrant_t::NOT_ON_BOUNDARY) {
         double F_star_h_x_b = 0., F_star_h_y_b = 0.,
-        F_star_Ux_x_b = 0., F_star_Ux_y_b = 0., F_star_Uy_x_b = 0., F_star_Uy_y_b = 0.;
+        F_star_Ux_x_b = 0., F_star_Ux_y_b = 0., F_star_Uy_x_b = 0., F_star_Uy_y_b = 0.,
+        F_star_mesh_x_b = 0., F_star_mesh_y_b = 0.;
         
-        F_star_h_x_b  = h_flux_formula_x(h_cell, Ux_cell, -Uy_cell);
-        F_star_h_y_b  = h_flux_formula_y(h_cell, Ux_cell, -Uy_cell);
+        F_star_h_x_b    = h_flux_formula_x (h_cell, Ux_cell, Uy_cell);
+        F_star_h_y_b    = h_flux_formula_y (h_cell, Ux_cell, Uy_cell);
 
-        F_star_Ux_x_b = Ux_flux_formula_x(h_cell, Ux_cell, -Uy_cell);
-        F_star_Ux_y_b = Ux_flux_formula_y(h_cell, Ux_cell, -Uy_cell);
-
-        F_star_Uy_x_b = Uy_flux_formula_x(h_cell, Ux_cell, -Uy_cell);
-        F_star_Uy_y_b = Uy_flux_formula_y(h_cell, Ux_cell, -Uy_cell);
+        F_star_Ux_x_b   = Ux_flux_formula_x(h_cell, Ux_cell, Uy_cell);
+        F_star_Ux_y_b   = Ux_flux_formula_y(h_cell, Ux_cell, Uy_cell);
+ 
+        F_star_Uy_x_b   = Uy_flux_formula_x(h_cell, Ux_cell, Uy_cell);
+        F_star_Uy_y_b   = Uy_flux_formula_y(h_cell, Ux_cell, Uy_cell);
         
         
         auto h_b    = der_coeffs_x[ii] * F_star_h_x_b    - der_coeffs_y[ii] * F_star_h_y_b;
@@ -462,9 +494,9 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
         for (int jj = 0; jj < 4; ++jj){
           if ( quadrant->is_hanging (jj) && (der_coeffs_x[jj]*der_coeffs_x[ii] > 0.) )
           {
-            F_star_h_x_b    = h_flux_formula_x   (h_cell, Ux_cell, -Uy_cell);
-            F_star_Ux_x_b   = Ux_flux_formula_x  (h_cell, Ux_cell, -Uy_cell);
-            F_star_Uy_x_b   = Uy_flux_formula_x  (h_cell, Ux_cell, -Uy_cell);
+            F_star_h_x_b    = h_flux_formula_x (h_cell, Ux_cell, Uy_cell);
+            F_star_Ux_x_b   = Ux_flux_formula_x(h_cell, Ux_cell, Uy_cell);
+            F_star_Uy_x_b   = Uy_flux_formula_x(h_cell, Ux_cell, Uy_cell);
             
             h_b    = 2. * der_coeffs_x[jj] * F_star_h_x_b;
             Ux_b   = 2. * der_coeffs_x[jj] * F_star_Ux_x_b;
@@ -488,21 +520,22 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       if (boundary_idxx != tmesh::quadrant_t::NOT_ON_BOUNDARY && boundary_idxy != tmesh::quadrant_t::NOT_ON_BOUNDARY)
       {
         double F_star_h_x_b = 0., F_star_h_y_b = 0.,
-        F_star_Ux_x_b = 0., F_star_Ux_y_b = 0., F_star_Uy_x_b = 0., F_star_Uy_y_b = 0.;
+        F_star_Ux_x_b = 0., F_star_Ux_y_b = 0., F_star_Uy_x_b = 0., F_star_Uy_y_b = 0.,
+        F_star_mesh_x_b = 0., F_star_mesh_y_b = 0.;
         
-        F_star_h_x_b  = h_flux_formula_x  (h_cell, -Ux_cell, -Uy_cell);
-        F_star_h_y_b  = h_flux_formula_y  (h_cell, -Ux_cell, -Uy_cell);
+        F_star_h_x_b = h_flux_formula_x (h_cell, Ux_cell, Uy_cell);
+        F_star_h_y_b = h_flux_formula_y (h_cell, Ux_cell, Uy_cell);
         
-        F_star_Ux_x_b = Ux_flux_formula_x (h_cell, -Ux_cell, -Uy_cell);
-        F_star_Ux_y_b = Ux_flux_formula_y (h_cell, -Ux_cell, -Uy_cell);
+        F_star_Ux_x_b = Ux_flux_formula_x (h_cell, Ux_cell, Uy_cell);
+        F_star_Ux_y_b = Ux_flux_formula_y (h_cell, Ux_cell, Uy_cell);
         
-        F_star_Uy_x_b = Uy_flux_formula_x (h_cell, -Ux_cell, -Uy_cell);
-        F_star_Uy_y_b = Uy_flux_formula_y (h_cell, -Ux_cell, -Uy_cell);
+        F_star_Uy_x_b = Uy_flux_formula_x (h_cell, Ux_cell, Uy_cell);
+        F_star_Uy_y_b = Uy_flux_formula_y (h_cell, Ux_cell, Uy_cell);
         
         
-        auto h_b    = -der_coeffs_x[ii] * F_star_h_x_b  - der_coeffs_y[ii] * F_star_h_y_b;
-        auto Ux_b   = -der_coeffs_x[ii] * F_star_Ux_x_b - der_coeffs_y[ii] * F_star_Ux_y_b;
-        auto Uy_b   = -der_coeffs_x[ii] * F_star_Uy_x_b - der_coeffs_y[ii] * F_star_Uy_y_b;
+        auto h_b    = -der_coeffs_x[ii] * F_star_h_x_b    - der_coeffs_y[ii] * F_star_h_y_b;
+        auto Ux_b   = -der_coeffs_x[ii] * F_star_Ux_x_b   - der_coeffs_y[ii] * F_star_Ux_y_b;
+        auto Uy_b   = -der_coeffs_x[ii] * F_star_Uy_x_b   - der_coeffs_y[ii] * F_star_Uy_y_b;
         
 //        auto h_b  = -der_coeffs_x[ii] * F_star_h_x  - der_coeffs_y[ii] * F_star_h_y;
 //        auto Ux_b = -der_coeffs_x[ii] * F_star_Ux_x - der_coeffs_y[ii] * F_star_Ux_y;
@@ -551,7 +584,7 @@ TG2_scheme::flux_limiter(const double& Q_min, const double& Q_max, const double&
   
   if (Q_cell == 0 || Q_vertex == 0)
   {
-    phi_cell_Q = 0.;
+    phi_cell_Q = 0.; 
   }
   
 }
@@ -603,16 +636,14 @@ TG2_scheme::h_src_formula (const double& h, const double& Ux, const double& Uy)
 { return (0.); }
 
 double
-TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy)
+TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdx)
 {
-  const double dZdx = 0.;
   return (-grav*h*dZdx);
 }
 
 double
-TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy)
+TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdy)
 {
-  const double dZdy = 0.;
   return (-grav*h*dZdy);
 }
 

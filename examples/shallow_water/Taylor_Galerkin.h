@@ -1,5 +1,5 @@
 #ifndef TAYLOR_GALERKIN_H
-#  define TAYLOR_GALERKIN_H
+#define TAYLOR_GALERKIN_H
 
 #include <numeric>
 #include <bim_distributed_vector.h>
@@ -15,18 +15,18 @@ class TG2_scheme
   using Q0  = distributed_vector;
   
 public:
-
+  
   TG2_scheme(const Q1& sol,
              const Q1& sold,
              const Q1& soldd,
              Q1& incr,
              Q0& sol_onehalf,
-             Q0& phi_cell_h_vect,
              const ordering& oh,
-             const ordering& oUx,
-             const ordering& oUy,
+             const ordering& oUx, 
+             const ordering& oUy, 
              const Q1& Z,
-             const double& DELTAT);
+             const double& DELTAT,
+             const double& h_min);
   
   TG2_scheme() = delete;
   
@@ -83,6 +83,7 @@ public:
   std::array<double, 4> hdof    = {0, 0, 0, 0};
   std::array<double, 4> Uxdof   = {0, 0, 0, 0};
   std::array<double, 4> Uydof   = {0, 0, 0, 0};
+  std::array<double, 4> Z_node  = {0, 0, 0, 0};
   
   // std::array<double, 4> source_h_node  = {0, 0, 0, 0};
   // std::array<double, 4> source_Ux_node = {0, 0, 0, 0};
@@ -113,17 +114,17 @@ public:
   
   double
   Uy_flux_formula_y (const double& h, const double& Ux, const double& Uy);
-  
+
   
   // source terms
   double
   h_src_formula (const double& h, const double& Ux, const double& Uy);
   
   double
-  Ux_src_formula (const double& h, const double& Ux, const double& Uy);
+  Ux_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdx);
   
   double
-  Uy_src_formula (const double& h, const double& Ux, const double& Uy);
+  Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdy);
   
   double time, timed, timedd;
   double nu_htot = 0.;
@@ -134,12 +135,9 @@ public:
   Q1& incr;
   Q0& sol_onehalf;
   const Q1& Z;
-
-  Q0& phi_cell_h_vect;
   
 private:
   static constexpr double grav = 9.81;
-  static constexpr double epsilon = 1e-6;
   
   std::array<double, 4> der_coeffs_x, der_coeffs_y;
   std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging;
@@ -152,6 +150,7 @@ private:
   const ordering& ordUx;
   const ordering& ordUy;
   const double& DELTAT;
+  const double& epsilon;
   
 };
 
