@@ -797,6 +797,61 @@ tmesh::set_metrics_marker
   return;
 }
 
+
+void
+tmesh::set_metrics_marker_flux_lim
+(std::function<double (tmesh::quadrant_iterator)> estimator, 
+ std::function<double (tmesh::quadrant_iterator)> estimator_flux,
+ std::function<double (tmesh::quadrant_iterator)> estimator_flux_dry,
+ double mesh_size_dry, double mesh_size_wet, double mesh_size_interface,
+ double tol, int max_depth, int n_refine, int n_coarsen)
+{
+  this->metrics_max_depth = max_depth;
+
+  tmesh::data_t * data;
+  int hxhat_hx = 0;
+
+  for (auto quadrant = this->begin_quadrant_sweep ();
+       quadrant != this->end_quadrant_sweep ();
+       ++quadrant)
+    {
+      const auto x_minus = quadrant->p (0, 0);
+      const auto x_plus  = quadrant->p (0, 1);
+      const auto y_minus = quadrant->p (1, 0);
+      const auto y_plus  = quadrant->p (1, 2);
+
+      const auto current_mesh_size = std::min(x_plus-x_minus, y_plus-y_minus);
+
+            auto number_wet = static_cast<int> (std::round(std::log2(current_mesh_size/mesh_size_wet)));
+      const auto number_dry = static_cast<int> (std::round(std::log2(current_mesh_size/mesh_size_dry)));
+      const auto number_int = static_cast<int> (std::round(std::log2(current_mesh_size/mesh_size_interface)));
+
+
+      set_interpolation_matrix (quadrant);
+      
+      hxhat_hx = static_cast<int> (std::round (std::log2 (estimator (quadrant) * std::sqrt (this->num_global_quadrants ()) / tol)));
+
+      if (hxhat_hx >= 0)
+        hxhat_hx = std::max (0, hxhat_hx - n_refine);
+      else
+        hxhat_hx = std::min (0, hxhat_hx + n_coarsen);
+      
+      data = static_cast<tmesh::data_t *> (quadrant->the_quadrant->p.user_data);
+      
+
+      hxhat_hx = std::min (std::max (-max_depth, hxhat_hx), max_depth);
+      number_wet = std::min(number_wet, hxhat_hx);
+
+      data->refine_count = number_wet;
+      data->refine_count = estimator_flux_dry (quadrant)==1 ? number_dry : data->refine_count; 
+      data->refine_count = estimator_flux     (quadrant)==1 ? number_int : data->refine_count;
+
+
+    }
+
+  return;
+}
+
 void
 tmesh::refine (int recursive, int partforcoarsen, int balance)
 {
