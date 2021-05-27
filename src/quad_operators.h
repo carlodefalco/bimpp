@@ -117,6 +117,13 @@ bim2a_solution_with_ghosts (tmesh& mesh,
                             const ordering& ord = default_ord,
                             bool remap_assemble = true);
 
+void
+bim2a_solution_with_ghosts_center (tmesh& mesh,
+                                   distributed_vector& rhs,
+                                   const binary_operator &op = std::plus<double> (),
+                                   const ordering& ord = default_ord,
+                                   bool remap_assemble = true);
+
 template <class T>
 void
 bim2a_boundary_mass (tmesh & mesh,
@@ -166,6 +173,13 @@ interpolate_vector (tmesh & mesh,
                     T & vec_out,
                     const ordering & ord = default_ord);
 
+template <class T>
+void
+interpolate_vector_cons (tmesh & mesh,
+                         T & vec_in,
+                         T & vec_out,
+                         const ordering & ord = default_ord);
+
 
 
 
@@ -204,6 +218,21 @@ double
 estimator_sol (tmesh::quadrant_iterator q,
                const q2_vec & ustar,
                const T & u);
+
+template <class T>
+double
+refinement_flux_limiter_rec_based (tmesh::quadrant_iterator q,
+                                   const q2_vec & ustar,
+                                   const T & u,
+                                   const T & phi,
+                                   const double & gn_elements);
+
+template <class T>
+double
+coarsen_flux_limiter_rec_based (tmesh::quadrant_iterator q,
+                                const q2_vec & ustar,
+                                const T & u,
+                                const double & gn_elements);
 
 template <class T>
 int

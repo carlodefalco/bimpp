@@ -771,6 +771,43 @@ bim2a_solution_with_ghosts (tmesh& mesh,
 }
 
 
+void
+bim2a_solution_with_ghosts_center (tmesh& mesh,
+                                   distributed_vector& v,
+                                   const binary_operator &op,
+                                   const ordering& ord,
+                                   bool ra)
+{
+  int node = 0;
+  for (auto q = mesh.begin_quadrant_sweep ();
+       q != mesh.end_quadrant_sweep ();
+       ++q)
+  {
+    v[ord (q->get_global_quad_idx ())] += 0;
+    
+    
+    
+    for (auto n = q->begin_neighbor_sweep ();
+         n != q->end_neighbor_sweep ();
+         ++n)
+    v[ord (n->get_global_quad_idx ())] += 0;
+    
+  }
+  if (ra)
+  {
+    v.remap ();
+    v.assemble (op);
+  }
+}
+
+
+
+
+
+
+
+
+
 template <class T>
 void
 bim2a_boundary_mass (tmesh& mesh,
@@ -1008,6 +1045,48 @@ interpolate_vector (tmesh & mesh,
             }
         }
     }
+}
+
+// Specialization.
+template <>
+void
+interpolate_vector_cons (tmesh & mesh,
+                         std::vector<double> & vec_in,
+                         std::vector<double> & vec_out,
+                         const ordering & ord)
+{
+  tmesh::data_t * data;
+  
+  size_t start = mesh.lnodes->global_offset;
+  size_t end = start + mesh.num_owned_nodes ();
+  
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+  {
+    data = static_cast<tmesh::data_t *> (quadrant->the_quadrant->p.user_data);
+    
+    for (int node = 0; node < 4; ++node)
+    {
+      // If current node is owned.
+      if (! quadrant->is_hanging (node) &&
+          vec_out[ord (quadrant->gt (node))] == 0 &&
+          quadrant->gt (node) >= start && quadrant->gt (node) < end)
+      {
+        
+        // Multiply by interpolation matrix.
+        for (int i = 0; i < 4; ++i)
+        {
+//          std::cout << data->interp_coeff[node][i]  << std::endl;
+//          vec_out[ord (quadrant->gt (node))] +=
+//          vec_in[ord (data->interp_idx[i])]/4.*0;
+          vec_out[ord (quadrant->gt (node))] +=
+          data->interp_coeff[node][i] *
+          vec_in[ord (data->interp_idx[i])];
+        }
+      }
+    }
+  }
 }
 
 // Specialization.
@@ -1876,6 +1955,97 @@ estimator_sol (tmesh::quadrant_iterator q,
   return std::sqrt (quad_integral (x, y, fun));
 }
 
+
+template <class T>
+double
+refinement_flux_limiter_rec_based (tmesh::quadrant_iterator q,
+                                   const q2_vec & ustar,
+                                   const T & u,
+                                   const T & phi,
+                                   const double & gn_elements)
+{
+  double toll = 1e-5;
+  double max_elem = 1e4;
+
+  double
+    x[2] = {q->p(0,0), q->p (0,1)},
+    y[2] = {q->p(1,0), q->p (1,3)};
+
+  double ustar_loc[9] = {0,0,0,0,0,0,0,0,0};
+  double u_loc[4] = {0,0,0,0};
+
+  for (int ii = 0; ii < 9; ++ii)
+    ustar_loc[ii] = (ustar[q->get_forest_quad_idx ()])[ii];
+
+  for (int ii = 0; ii < 4; ++ii)
+    if (! q->is_hanging (ii))
+      u_loc[ii] = u[q->gt (ii)];
+    else
+      u_loc[ii] = 0.5 *
+        (u[q->gparent (0, ii)] +
+         u[q->gparent (1, ii)]);
+
+  auto fun =
+    [x, y, ustar_loc, u_loc]
+    (double X, double Y) -> double
+    {
+      return
+      std::pow (q1 (X, Y, x, y, u_loc) -
+                q2 (X, Y, x, y, ustar_loc), 2);
+    };
+
+
+  const auto selector_ref = std::sqrt (quad_integral (x, y, fun))>(toll*toll / std::sqrt(gn_elements));
+  //const auto selector_ref = std::round(std::log2(std::sqrt (quad_integral (x, y, fun))*gn_elements/toll))>0 ? 1 : 0; 
+  //const auto selector_ref = ( (std::round(std::log2(std::sqrt (quad_integral (x, y, fun))*gn_elements/toll))>0 || 
+  //  (phi[q->get_global_quad_idx()]<0.5 && (u_loc[0]+u_loc[1]+u_loc[2]+u_loc[3])>0)) && (gn_elements<max_elem) ) ? 1 : 0; 
+
+  return selector_ref;//selector_ref;//(selector_ref * (gn_elements<max_elem));
+}
+
+
+template <class T>
+double
+coarsen_flux_limiter_rec_based (tmesh::quadrant_iterator q,
+                                const q2_vec & ustar,
+                                const T & u,
+                                const double & gn_elements)
+{
+  double toll = 1e-5;
+
+  double
+    x[2] = {q->p(0,0), q->p (0,1)},
+    y[2] = {q->p(1,0), q->p (1,3)};
+
+  double ustar_loc[9] = {0,0,0,0,0,0,0,0,0};
+  double u_loc[4] = {0,0,0,0};
+
+  for (int ii = 0; ii < 9; ++ii)
+    ustar_loc[ii] = (ustar[q->get_forest_quad_idx ()])[ii];
+
+  for (int ii = 0; ii < 4; ++ii)
+    if (! q->is_hanging (ii))
+      u_loc[ii] = u[q->gt (ii)];
+    else
+      u_loc[ii] = 0.5 *
+        (u[q->gparent (0, ii)] +
+         u[q->gparent (1, ii)]);
+
+  auto fun =
+    [x, y, ustar_loc, u_loc]
+    (double X, double Y) -> double
+    {
+      return
+      std::pow (q1 (X, Y, x, y, u_loc) -
+                q2 (X, Y, x, y, ustar_loc), 2);
+    };
+
+  const auto selector_coars = std::sqrt (quad_integral (x, y, fun))<(toll*toll / std::sqrt(gn_elements));
+  //const auto selector_coars = std::round(std::log2(std::sqrt (quad_integral (x, y, fun))*gn_elements/toll))<0 ? 1 : 0;
+
+  return selector_coars;
+}
+
 // Refinement marker function based on ZZ estimator
 // for the recovered solution u*.
 template <class T>
@@ -2357,6 +2527,21 @@ double
 estimator_sol (tmesh::quadrant_iterator q,
                const q2_vec & ustar,
                const distributed_vector & u);
+
+template
+double
+refinement_flux_limiter_rec_based (tmesh::quadrant_iterator q,
+                                   const q2_vec & ustar,
+                                   const distributed_vector & u,
+                                   const distributed_vector & phi,
+                                   const double & gn_elements);
+
+template
+double
+coarsen_flux_limiter_rec_based (tmesh::quadrant_iterator q,
+                                const q2_vec & ustar,
+                                const distributed_vector & u,
+                                const double & gn_elements);
 
 /* ---- */
 template
