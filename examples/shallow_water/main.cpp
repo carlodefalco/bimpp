@@ -18,8 +18,9 @@
 
 #include "Taylor_Galerkin.h"
 
-static constexpr char LOADFILENAME_1[255] = "inputs/dem.octbin.gz";
-static constexpr char LOADFILENAME_2[255] = "inputs/mask_in.octbin.gz";
+static constexpr char SAVE_DIR[255] = "/marconi/home/userexternal/fgatti02/bimpp/BUILD/examples/shallow_water/16/"; 
+static constexpr char LOADFILENAME_1[255] = "/marconi/home/userexternal/fgatti02/bimpp/BUILD/examples/shallow_water/inputs/dem.octbin.gz";
+static constexpr char LOADFILENAME_2[255] = "/marconi/home/userexternal/fgatti02/bimpp/BUILD/examples/shallow_water/inputs/mask_in.octbin.gz";
 static constexpr char SAVEFILENAME_1[255] = "orography_tmsh";
 static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in";  
@@ -354,10 +355,10 @@ main (int argc, char **argv)
   
   
   // Buffer for export filename
-  char filename[255]="";
+  char filename[255]="", arr[255]="";
 
 
-  // Initialize initial datas
+  // Initialize 
   TIC ();
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep ();
@@ -622,13 +623,26 @@ main (int argc, char **argv)
   
   
   // Save initial conditions
-  sprintf(filename, "results/swe_h_%4.4d", 0);
+  std::string str = "";
+
+  str = std::string(SAVE_DIR) + "results/swe_h_%4.4d"; 
+  strcpy(arr, str.c_str());
+  sprintf(filename, arr, 0);
   tmsh.octbin_export (filename, sol_dyn, ordh);
-  sprintf(filename, "results/swe_Ux_%4.4d", 0);
+
+  str = std::string(SAVE_DIR) + "results/swe_Ux_%4.4d";
+  strcpy(arr, str.c_str());
+  sprintf(filename, arr, 0);
   tmsh.octbin_export (filename, sol_dyn, ordUx); 
-  sprintf(filename, "results/swe_Uy_%4.4d", 0);
+
+  str = std::string(SAVE_DIR) + "results/swe_Uy_%4.4d";
+  strcpy(arr, str.c_str());
+  sprintf(filename, arr, 0);
   tmsh.octbin_export (filename, sol_dyn, ordUy);
-  sprintf(filename, "results/swe_Z_%4.4d", 0); 
+  
+  str = std::string(SAVE_DIR) + "results/swe_Z_%4.4d";
+  strcpy(arr, str.c_str());
+  sprintf(filename, arr, 0); 
   tmsh.octbin_export (filename, Z_dyn);
   
   // MPI_Barrier (MPI_COMM_WORLD);
@@ -797,13 +811,25 @@ main (int argc, char **argv)
         std::cout << "savecount = " << savecount << std::endl;
       count++;
       save_time_vector.push_back (time);
-      sprintf(filename, "results/swe_h_%4.4d",   count);
+     
+      str = std::string(SAVE_DIR) + "results/swe_h_%4.4d";
+      strcpy(arr, str.c_str());
+      sprintf(filename, arr,   count);
       tmsh.octbin_export (filename, sol_dyn, ordh);
-      sprintf(filename, "results/swe_Ux_%4.4d",  count);
+      
+      str = std::string(SAVE_DIR) + "results/swe_Ux_%4.4d";
+      strcpy(arr, str.c_str());
+      sprintf(filename, arr,  count);
       tmsh.octbin_export (filename, sol_dyn, ordUx);
-      sprintf(filename, "results/swe_Uy_%4.4d",  count);
+      
+      str = std::string(SAVE_DIR) + "results/swe_Uy_%4.4d";
+      strcpy(arr, str.c_str());
+      sprintf(filename, arr,  count);
       tmsh.octbin_export (filename, sol_dyn, ordUy);
-      sprintf(filename, "results/swe_Z_%4.4d",  count);
+      
+      str = std::string(SAVE_DIR) + "results/swe_Z_%4.4d";
+      strcpy(arr, str.c_str());
+      sprintf(filename, arr,  count);
       tmsh.octbin_export (filename, Z_dyn);
       savecount = 0.0;
       TOC("Exporting solution");
