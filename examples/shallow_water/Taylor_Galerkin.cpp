@@ -12,8 +12,20 @@ TG2_scheme::TG2_scheme(const Q1& sol,
                        const ordering& oUy,
                        const Q1& Z,
                        const double& DELTAT,
-                       const double& h_min)
-: sol(sol), sold(sold), soldd(soldd), incr(incr), sol_onehalf(sol_onehalf), ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), DELTAT(DELTAT), epsilon(h_min)
+                       const double& h_min,
+                       const bool& is_non_reflBC,
+                       const double& density,
+                       const double& turbulence_coeff,
+                       const double& surface_pressure,
+                       const double& bed_friction_angle_rad,
+                       const double& fluid_viscosity,
+                       const double& yield_shear_stress,
+                       const bool& is_1d_simulation_along_x,
+                       const bool& is_1d_simulation_along_y)
+: sol(sol), sold(sold), soldd(soldd), incr(incr), sol_onehalf(sol_onehalf), 
+  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), 
+  density(density), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress),
+  is_1d_simulation_along_x(is_1d_simulation_along_x), is_1d_simulation_along_y(is_1d_simulation_along_y)
 { }
 
 
@@ -300,9 +312,13 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   {
     const auto & index_quadrant_nei = quadrant_nei->get_global_quad_idx (); 
     
-    const auto & h_current_cell    = sol_onehalf[ordh    (index_quadrant_nei)];
-    const auto & Ux_current_cell   = sol_onehalf[ordUx   (index_quadrant_nei)];
-    const auto & Uy_current_cell   = sol_onehalf[ordUy   (index_quadrant_nei)];
+    const auto & h_current_cell  = sol_onehalf[ordh    (index_quadrant_nei)];
+    const auto & Ux_current_cell = sol_onehalf[ordUx   (index_quadrant_nei)];
+    const auto & Uy_current_cell = sol_onehalf[ordUy   (index_quadrant_nei)];
+
+    for (int ii = 0; ii < 4; ++ii){
+
+    }
 
     h_min  = std::min(h_current_cell,  h_min);
     h_max  = std::max(h_current_cell,  h_max);
@@ -329,45 +345,57 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   grad_cell_Uy   = {.5 * ( (Uydof[3] - Uydof[2]) + (Uydof[1] - Uydof[0]) ) / Dx, .5 * ( (Uydof[2] - Uydof[0]) + (Uydof[3] - Uydof[1]) ) / Dy};
   
   // compute flux limiter, grad limiter
-  const auto toll = 1e-6;
+  const auto toll = 1e-17;
   double phi_cell_h = 1., phi_cell_Ux = 1., phi_cell_Uy = 1.;
   for (int ii = 0; ii < 4; ++ii){
     const auto h_vertex  = sol[ordh  (quadrant->gt (ii))];
     const auto Ux_vertex = sol[ordUx (quadrant->gt (ii))];
     const auto Uy_vertex = sol[ordUy (quadrant->gt (ii))];
     
-//    const auto x_node = quadrant->p(0, ii);
-//    const auto y_node = quadrant->p(1, ii);
-//    const auto x_center = quadrant->centroid(0);
-//    const auto y_center = quadrant->centroid(1);
-//
-//    const auto Dx_v = x_node - x_center;
-//    const auto Dy_v = y_node - y_center;
-//
-//    const auto h_vertex  = h_cell  + grad_cell_h[0] *Dx_v/2 + grad_cell_h[1] *Dy_v/2;
-//    const auto Ux_vertex = Ux_cell + grad_cell_Ux[0]*Dx_v/2 + grad_cell_Ux[1]*Dy_v/2;
-//    const auto Uy_vertex = Uy_cell + grad_cell_Uy[0]*Dx_v/2 + grad_cell_Uy[1]*Dy_v/2;
+   // const auto x_node = quadrant->p(0, ii);
+   // const auto y_node = quadrant->p(1, ii);
+   // const auto x_center = quadrant->centroid(0);
+   // const auto y_center = quadrant->centroid(1);
+
+   // const auto Dx_v = x_node - x_center;
+   // const auto Dy_v = y_node - y_center;
+
+   // const auto h_vertex  = h_cell  + grad_cell_h[0] *Dx_v/2 + grad_cell_h[1] *Dy_v/2;
+   // const auto Ux_vertex = Ux_cell + grad_cell_Ux[0]*Dx_v/2 + grad_cell_Ux[1]*Dy_v/2;
+   // const auto Uy_vertex = Uy_cell + grad_cell_Uy[0]*Dx_v/2 + grad_cell_Uy[1]*Dy_v/2;
     
     flux_limiter(h_min,  h_max,  h_vertex,  h_cell,  toll, phi_cell_h );
     flux_limiter(Ux_min, Ux_max, Ux_vertex, Ux_cell, toll, phi_cell_Ux);
     flux_limiter(Uy_min, Uy_max, Uy_vertex, Uy_cell, toll, phi_cell_Uy);
     
   }
+  //std::cout << phi_cell_h << " " << phi_cell_Ux << " " << phi_cell_Uy << std::endl;
+  // phi_cell_h  = 0.;
+  // phi_cell_Ux = 0.;
+  // phi_cell_Uy = 0.;
 
-  phi_cell_h    = 1. - phi_cell_h;
-  phi_cell_Ux   = 1. - phi_cell_Ux;
-  phi_cell_Uy   = 1. - phi_cell_Uy;
+  phi_cell_h  = 1. - phi_cell_h;
+  phi_cell_Ux = 1. - phi_cell_Ux;
+  phi_cell_Uy = 1. - phi_cell_Uy;
 
+  const auto correction_term_h_x = grad_cell_h[0] *Dx  * vel_rusanov_cell_y * phi_cell_h;
+  const auto correction_term_h_y = grad_cell_h[1] *Dy  * vel_rusanov_cell_x * phi_cell_h;
+
+  const auto correction_term_Ux_x = grad_cell_Ux[0]*Dx * vel_rusanov_cell_y * phi_cell_Ux;
+  const auto correction_term_Ux_y = grad_cell_Ux[1]*Dy * vel_rusanov_cell_x * phi_cell_Ux;
+
+  const auto correction_term_Uy_x = grad_cell_Uy[0]*Dx * vel_rusanov_cell_y * phi_cell_Uy;
+  const auto correction_term_Uy_y = grad_cell_Uy[1]*Dy * vel_rusanov_cell_x * phi_cell_Uy;
   
-  F_star_h_x  -= grad_cell_h[0] *Dx * phi_cell_h  * vel_rusanov_cell_y;
-  F_star_h_y  -= grad_cell_h[1] *Dy * phi_cell_h  * vel_rusanov_cell_x;
+  F_star_h_x  -= correction_term_h_x;
+  F_star_h_y  -= correction_term_h_y;
   
-  F_star_Ux_x -= grad_cell_Ux[0]*Dx * phi_cell_Ux * vel_rusanov_cell_y;
-  F_star_Ux_y -= grad_cell_Ux[1]*Dy * phi_cell_Ux * vel_rusanov_cell_x;
+  F_star_Ux_x -= correction_term_Ux_x;
+  F_star_Ux_y -= correction_term_Ux_y;
   
-  F_star_Uy_x -= grad_cell_Uy[0]*Dx * phi_cell_Uy * vel_rusanov_cell_y;
-  F_star_Uy_y -= grad_cell_Uy[1]*Dy * phi_cell_Uy * vel_rusanov_cell_x;
-  
+  F_star_Uy_x -= correction_term_Uy_x;
+  F_star_Uy_y -= correction_term_Uy_y;
+
   
   
   double partial_x_Z_average = 0., partial_y_Z_average = 0.;
@@ -388,7 +416,6 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   partial_y_Z_average = .5*( (Z_node[2]-Z_node[0])/Dy + (Z_node[3]-Z_node[1])/Dy );
   
   
-  // aggiungere termine sorgente!! 
   for (int ii = 0; ii < 4; ++ii){
     
     const auto h_  = der_coeffs_x[ii] * F_star_h_x  + der_coeffs_y[ii] * F_star_h_y;
@@ -405,54 +432,48 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       auto boundary_idxy = quadrant->ey (ii);
       
       
-      
+      double F_star_h_x_b  = 0., F_star_h_y_b  = 0.,
+             F_star_Ux_x_b = 0., F_star_Ux_y_b = 0., 
+             F_star_Uy_x_b = 0., F_star_Uy_y_b = 0.;
+
+
       if (boundary_idxx != tmesh::quadrant_t::NOT_ON_BOUNDARY) {
-        double F_star_h_x_b  = 0., F_star_h_y_b  = 0.,
-               F_star_Ux_x_b = 0., F_star_Ux_y_b = 0., F_star_Uy_x_b = 0., F_star_Uy_y_b = 0.;
         
-        F_star_h_x_b  = h_flux_formula_x(h_cell, Ux_cell, Uy_cell);
-        F_star_h_y_b  = h_flux_formula_y(h_cell, Ux_cell, Uy_cell);
+        F_star_h_x_b  = h_flux_formula_x (h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, Uy_cell);
+        F_star_h_y_b  = h_flux_formula_y (h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, Uy_cell);
 
-        F_star_Ux_x_b = Ux_flux_formula_x(h_cell, Ux_cell, Uy_cell);
-        F_star_Ux_y_b = Ux_flux_formula_y(h_cell, Ux_cell, Uy_cell);
+        F_star_Ux_x_b = Ux_flux_formula_x(h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, Uy_cell);
+        F_star_Ux_y_b = Ux_flux_formula_y(h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, Uy_cell);
 
-        F_star_Uy_x_b = Uy_flux_formula_x(h_cell, Ux_cell, Uy_cell);
-        F_star_Uy_y_b = Uy_flux_formula_y(h_cell, Ux_cell, Uy_cell);
+        F_star_Uy_x_b = Uy_flux_formula_x(h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, Uy_cell);
+        F_star_Uy_y_b = Uy_flux_formula_y(h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, Uy_cell);
     
         
+        auto h_b  = -der_coeffs_x[ii] * F_star_h_x_b  + der_coeffs_y[ii] * F_star_h_y_b;
+        auto Ux_b = -der_coeffs_x[ii] * F_star_Ux_x_b + der_coeffs_y[ii] * F_star_Ux_y_b;
+        auto Uy_b = -der_coeffs_x[ii] * F_star_Uy_x_b + der_coeffs_y[ii] * F_star_Uy_y_b;
         
-        auto h_b    = -der_coeffs_x[ii] * F_star_h_x_b  + der_coeffs_y[ii] * F_star_h_y_b;
-        auto Ux_b   = -der_coeffs_x[ii] * F_star_Ux_x_b + der_coeffs_y[ii] * F_star_Ux_y_b;
-        auto Uy_b   = -der_coeffs_x[ii] * F_star_Uy_x_b + der_coeffs_y[ii] * F_star_Uy_y_b;
+        //std::cout << boundary_idxx << " " << xn[0] << std::endl;
         
-//        auto h_b  = -der_coeffs_x[ii] * F_star_h_x  + der_coeffs_y[ii] * F_star_h_y;
-//        auto Ux_b = -der_coeffs_x[ii] * F_star_Ux_x + der_coeffs_y[ii] * F_star_Ux_y;
-//        auto Uy_b = -der_coeffs_x[ii] * F_star_Uy_x + der_coeffs_y[ii] * F_star_Uy_y;
-        
-        
-        incr [ordh    (quadrant->gt (ii))] += h_b;
+        incr [ordh    (quadrant->gt (ii))] += is_1d_simulation_along_y ? 0. : h_b;
         incr [ordUx   (quadrant->gt (ii))] += Ux_b;
-        incr [ordUy   (quadrant->gt (ii))] += Uy_b;
+        incr [ordUy   (quadrant->gt (ii))] += is_1d_simulation_along_y ? 0. : Uy_b;
         
         
         for (int jj = 0; jj < 4; ++jj){
           if ( quadrant->is_hanging (jj) && (der_coeffs_y[jj]*der_coeffs_y[ii] > 0.) )
           {
-            F_star_h_y_b  = h_flux_formula_y  (h_cell, Ux_cell, Uy_cell);
-            F_star_Ux_y_b = Ux_flux_formula_y (h_cell, Ux_cell, Uy_cell);
-            F_star_Uy_y_b = Uy_flux_formula_y (h_cell, Ux_cell, Uy_cell);
+            F_star_h_y_b  = h_flux_formula_y  (h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, Uy_cell);
+            F_star_Ux_y_b = Ux_flux_formula_y (h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, Uy_cell);
+            F_star_Uy_y_b = Uy_flux_formula_y (h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, Uy_cell);
             
             h_b  = 2. * der_coeffs_y[jj] * F_star_h_y_b;
-            Ux_b = 2. * der_coeffs_y[jj] * F_star_Ux_y_b;
+            Ux_b = 2. * der_coeffs_y[jj] * F_star_Ux_y_b; 
             Uy_b = 2. * der_coeffs_y[jj] * F_star_Uy_y_b;
             
-//            h_b  = 2. * der_coeffs_y[jj] * F_star_h_y;
-//            Ux_b = 2. * der_coeffs_y[jj] * F_star_Ux_y;
-//            Uy_b = 2. * der_coeffs_y[jj] * F_star_Uy_y;
-            
-            incr [ordh  (quadrant->gt (ii))] += h_b;
-            incr [ordUx (quadrant->gt (ii))] += Ux_b;
-            incr [ordUy (quadrant->gt (ii))] += Uy_b;
+            incr [ordh  (quadrant->gt (ii))] += is_1d_simulation_along_y ? 0. : h_b;
+            incr [ordUx (quadrant->gt (ii))] += Ux_b; 
+            incr [ordUy (quadrant->gt (ii))] += is_1d_simulation_along_y ? 0. : Uy_b;
           }
           
         }
@@ -463,51 +484,41 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       }
       
       if (boundary_idxy != tmesh::quadrant_t::NOT_ON_BOUNDARY) {
-        double F_star_h_x_b = 0., F_star_h_y_b = 0.,
-        F_star_Ux_x_b = 0., F_star_Ux_y_b = 0., F_star_Uy_x_b = 0., F_star_Uy_y_b = 0.,
-        F_star_mesh_x_b = 0., F_star_mesh_y_b = 0.;
-        
-        F_star_h_x_b    = h_flux_formula_x (h_cell, Ux_cell, Uy_cell);
-        F_star_h_y_b    = h_flux_formula_y (h_cell, Ux_cell, Uy_cell);
 
-        F_star_Ux_x_b   = Ux_flux_formula_x(h_cell, Ux_cell, Uy_cell);
-        F_star_Ux_y_b   = Ux_flux_formula_y(h_cell, Ux_cell, Uy_cell);
+        F_star_h_x_b = h_flux_formula_x  (h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+        F_star_h_y_b = h_flux_formula_y  (h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+
+        F_star_Ux_x_b = Ux_flux_formula_x(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+        F_star_Ux_y_b = Ux_flux_formula_y(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
  
-        F_star_Uy_x_b   = Uy_flux_formula_x(h_cell, Ux_cell, Uy_cell);
-        F_star_Uy_y_b   = Uy_flux_formula_y(h_cell, Ux_cell, Uy_cell);
+        F_star_Uy_x_b = Uy_flux_formula_x(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+        F_star_Uy_y_b = Uy_flux_formula_y(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
         
         
-        auto h_b    = der_coeffs_x[ii] * F_star_h_x_b    - der_coeffs_y[ii] * F_star_h_y_b;
-        auto Ux_b   = der_coeffs_x[ii] * F_star_Ux_x_b   - der_coeffs_y[ii] * F_star_Ux_y_b;
-        auto Uy_b   = der_coeffs_x[ii] * F_star_Uy_x_b   - der_coeffs_y[ii] * F_star_Uy_y_b;
+        auto h_b  = der_coeffs_x[ii] * F_star_h_x_b  - der_coeffs_y[ii] * F_star_h_y_b;
+        auto Ux_b = der_coeffs_x[ii] * F_star_Ux_x_b - der_coeffs_y[ii] * F_star_Ux_y_b;
+        auto Uy_b = der_coeffs_x[ii] * F_star_Uy_x_b - der_coeffs_y[ii] * F_star_Uy_y_b;
         
-//        auto h_b  = der_coeffs_x[ii] * F_star_h_x  - der_coeffs_y[ii] * F_star_h_y;
-//        auto Ux_b = der_coeffs_x[ii] * F_star_Ux_x - der_coeffs_y[ii] * F_star_Ux_y;
-//        auto Uy_b = der_coeffs_x[ii] * F_star_Uy_x - der_coeffs_y[ii] * F_star_Uy_y;
-        
-        
-        incr [ordh    (quadrant->gt (ii))] += h_b;
-        incr [ordUx   (quadrant->gt (ii))] += Ux_b;
+
+        incr [ordh    (quadrant->gt (ii))] += is_1d_simulation_along_x ? 0. : h_b;
+        incr [ordUx   (quadrant->gt (ii))] += is_1d_simulation_along_x ? 0. : Ux_b;
         incr [ordUy   (quadrant->gt (ii))] += Uy_b;
         
         
         for (int jj = 0; jj < 4; ++jj){
           if ( quadrant->is_hanging (jj) && (der_coeffs_x[jj]*der_coeffs_x[ii] > 0.) )
           {
-            F_star_h_x_b    = h_flux_formula_x (h_cell, Ux_cell, Uy_cell);
-            F_star_Ux_x_b   = Ux_flux_formula_x(h_cell, Ux_cell, Uy_cell);
-            F_star_Uy_x_b   = Uy_flux_formula_x(h_cell, Ux_cell, Uy_cell);
+            F_star_h_x_b  = h_flux_formula_x (h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+            F_star_Ux_x_b = Ux_flux_formula_x(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+            F_star_Uy_x_b = Uy_flux_formula_x(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
             
-            h_b    = 2. * der_coeffs_x[jj] * F_star_h_x_b;
-            Ux_b   = 2. * der_coeffs_x[jj] * F_star_Ux_x_b;
-            Uy_b   = 2. * der_coeffs_x[jj] * F_star_Uy_x_b;
+            h_b  = 2. * der_coeffs_x[jj] * F_star_h_x_b;
+            Ux_b = 2. * der_coeffs_x[jj] * F_star_Ux_x_b;
+            Uy_b = 2. * der_coeffs_x[jj] * F_star_Uy_x_b;
             
-//            h_b  = 2. * der_coeffs_x[jj] * F_star_h_x;
-//            Ux_b = 2. * der_coeffs_x[jj] * F_star_Ux_x;
-//            Uy_b = 2. * der_coeffs_x[jj] * F_star_Uy_x;
             
-            incr [ordh    (quadrant->gt (ii))] += h_b;
-            incr [ordUx   (quadrant->gt (ii))] += Ux_b;
+            incr [ordh    (quadrant->gt (ii))] += is_1d_simulation_along_x ? 0. : h_b;
+            incr [ordUx   (quadrant->gt (ii))] += is_1d_simulation_along_x ? 0. : Ux_b;
             incr [ordUy   (quadrant->gt (ii))] += Uy_b;
           }
           
@@ -519,32 +530,25 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       // corner points!
       if (boundary_idxx != tmesh::quadrant_t::NOT_ON_BOUNDARY && boundary_idxy != tmesh::quadrant_t::NOT_ON_BOUNDARY)
       {
-        double F_star_h_x_b = 0., F_star_h_y_b = 0.,
-        F_star_Ux_x_b = 0., F_star_Ux_y_b = 0., F_star_Uy_x_b = 0., F_star_Uy_y_b = 0.,
-        F_star_mesh_x_b = 0., F_star_mesh_y_b = 0.;
         
-        F_star_h_x_b = h_flux_formula_x (h_cell, Ux_cell, Uy_cell);
-        F_star_h_y_b = h_flux_formula_y (h_cell, Ux_cell, Uy_cell);
+        F_star_h_x_b = h_flux_formula_x   (h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+        F_star_h_y_b = h_flux_formula_y   (h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
         
-        F_star_Ux_x_b = Ux_flux_formula_x (h_cell, Ux_cell, Uy_cell);
-        F_star_Ux_y_b = Ux_flux_formula_y (h_cell, Ux_cell, Uy_cell);
+        F_star_Ux_x_b = Ux_flux_formula_x (h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+        F_star_Ux_y_b = Ux_flux_formula_y (h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
         
-        F_star_Uy_x_b = Uy_flux_formula_x (h_cell, Ux_cell, Uy_cell);
-        F_star_Uy_y_b = Uy_flux_formula_y (h_cell, Ux_cell, Uy_cell);
+        F_star_Uy_x_b = Uy_flux_formula_x (h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+        F_star_Uy_y_b = Uy_flux_formula_y (h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
         
         
-        auto h_b    = -der_coeffs_x[ii] * F_star_h_x_b    - der_coeffs_y[ii] * F_star_h_y_b;
-        auto Ux_b   = -der_coeffs_x[ii] * F_star_Ux_x_b   - der_coeffs_y[ii] * F_star_Ux_y_b;
-        auto Uy_b   = -der_coeffs_x[ii] * F_star_Uy_x_b   - der_coeffs_y[ii] * F_star_Uy_y_b;
+        auto h_b  = -der_coeffs_x[ii] * F_star_h_x_b  - der_coeffs_y[ii] * F_star_h_y_b;
+        auto Ux_b = -der_coeffs_x[ii] * F_star_Ux_x_b - der_coeffs_y[ii] * F_star_Ux_y_b;
+        auto Uy_b = -der_coeffs_x[ii] * F_star_Uy_x_b - der_coeffs_y[ii] * F_star_Uy_y_b;
         
-//        auto h_b  = -der_coeffs_x[ii] * F_star_h_x  - der_coeffs_y[ii] * F_star_h_y;
-//        auto Ux_b = -der_coeffs_x[ii] * F_star_Ux_x - der_coeffs_y[ii] * F_star_Ux_y;
-//        auto Uy_b = -der_coeffs_x[ii] * F_star_Uy_x - der_coeffs_y[ii] * F_star_Uy_y;
-        
-        
-        incr [ordh    (quadrant->gt (ii))] += h_b;
-        incr [ordUx   (quadrant->gt (ii))] += Ux_b;
-        incr [ordUy   (quadrant->gt (ii))] += Uy_b;
+
+        incr [ordh    (quadrant->gt (ii))] += (is_1d_simulation_along_x || is_1d_simulation_along_y) ? 0. : h_b;
+        incr [ordUx   (quadrant->gt (ii))] += is_1d_simulation_along_x ? 0. : Ux_b;
+        incr [ordUy   (quadrant->gt (ii))] += is_1d_simulation_along_y ? 0. : Uy_b;
         
       }
       
@@ -638,13 +642,17 @@ TG2_scheme::h_src_formula (const double& h, const double& Ux, const double& Uy)
 double
 TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdx)
 {
-  return (-grav*h*dZdx);
+  const double bed_pressure = density*grav*h - surface_pressure;
+  const double abs_vel = h > epsilon ? std::sqrt( std::pow((Ux/h),2.) + std::pow((Uy/h),2.) ) : 0.;
+  return (-grav*h*dZdx - (grav*abs_vel/turbulence_coeff + h > epsilon ? bed_pressure*std::tan(bed_friction_angle_rad)/abs_vel/density : 0.)*(h>epsilon ? Ux/h : 0.) );
 }
 
 double
 TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdy)
 {
-  return (-grav*h*dZdy);
+  const double bed_pressure = density*grav*h - surface_pressure;
+  const double abs_vel = h > epsilon ? std::sqrt( std::pow((Ux/h),2.) + std::pow((Uy/h),2.) ) : 0.;
+  return (-grav*h*dZdy - (grav*abs_vel/turbulence_coeff + h > epsilon ? bed_pressure*std::tan(bed_friction_angle_rad)/abs_vel/density : 0.)*(h>epsilon ? Uy/h : 0.) );
 }
 
 

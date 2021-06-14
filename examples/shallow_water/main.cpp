@@ -18,9 +18,9 @@
 
 #include "Taylor_Galerkin.h"
 
-static constexpr char SAVE_DIR[255] = "/marconi/home/userexternal/fgatti02/bimpp/BUILD/examples/shallow_water/16/"; 
-static constexpr char LOADFILENAME_1[255] = "/marconi/home/userexternal/fgatti02/bimpp/BUILD/examples/shallow_water/inputs/dem.octbin.gz";
-static constexpr char LOADFILENAME_2[255] = "/marconi/home/userexternal/fgatti02/bimpp/BUILD/examples/shallow_water/inputs/mask_in.octbin.gz";
+static constexpr char SAVE_DIR[255] = "/home/bimpp/BUILD/examples/shallow_water/"; 
+static constexpr char LOADFILENAME_1[255] = "/home/bimpp/BUILD/examples/shallow_water/inputs/dem.octbin.gz";
+static constexpr char LOADFILENAME_2[255] = "/home/bimpp/BUILD/examples/shallow_water/inputs/mask_in.octbin.gz";
 static constexpr char SAVEFILENAME_1[255] = "orography_tmsh";
 static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in";  
@@ -31,8 +31,8 @@ static constexpr double Nx = 1998;
 static constexpr double Ny = 1829;
 
 
-static constexpr double L = 2;//res*(Nx-1);
-static constexpr double H = 2;//res*(Ny-1);
+static constexpr double L = 500;//res*(Nx-1);
+static constexpr double H = 500;//res*(Ny-1);
 static std::vector<double>   dem;
 static std::vector<double>   basin_mask;
 static constexpr int NUM_REFINEMENTS  = 6; // 3, 6
@@ -42,15 +42,28 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 static constexpr double SAVEDT = 1e-3;
 static constexpr double DELTAT = 1e-3;
 static constexpr double REDCDT = .5;
-static constexpr double T      = .6;
+static constexpr double T      = 2.2;
 
-static constexpr bool is_space_adaptivity = true;
+static constexpr bool is_time_adaptivity = false;
+static constexpr bool is_initial_refinement = true;
+static constexpr bool is_space_adaptivity = false;
+static constexpr bool is_non_reflBC       = true;
 
-static constexpr double h_min = 1.e-5;
+static constexpr bool is_1d_simulation_along_x = false;
+static constexpr bool is_1d_simulation_along_y = true;
+
+
+static constexpr double h_min = 1e-5;
+static constexpr double density = 1400;  
+static constexpr double turbulence_coeff = 0.0; 
+static constexpr double surface_pressure = 0.0; 
+static constexpr double bed_friction_angle_rad = 0.0; //23*M_PI/180; 
+static constexpr double fluid_viscosity = 0.0; // 48
+static constexpr double yield_shear_stress = 0.0; // 1e3
 
 static constexpr double level_wet           = 2;
 static constexpr double level_interface     = 5; // minimum resolution!
-static constexpr double mesh_size_dry       = .1; 
+static constexpr double mesh_size_dry       = .2*500/2.; 
 static constexpr double mesh_size_wet       = mesh_size_dry/std::pow(2,level_wet); 
 static constexpr double mesh_size_interface = mesh_size_dry/std::pow(2,level_interface);
 
@@ -127,7 +140,7 @@ using Q0  = distributed_vector; //std::vector<double>;         // Typedef for lo
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy, const double& L, const double& H)  {
   
-  
+  return (xx<=L/2. ? 70 : 0.); //(xx<=L/2. ? 70 : 0.);
   //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 0.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
 
@@ -147,6 +160,12 @@ double h0_fun (const double& xx, const double& yy, const double& L, const double
 } 
 double Ux0_fun (double xx, double yy) { return 0.; }
 double Uy0_fun (double xx, double yy) { return 0.; }
+
+double orography_fun(const double& xx, const double& yy, const double& L, const double& H)
+{
+  return ((L-xx)*200./100.*0.); // 200% slope
+}
+
 
 // Assemble vector from mesh.
 // FIXME  the following two functions are copied over from
@@ -180,7 +199,6 @@ assemble_vector (tmesh::quadrant_iterator& quadrant,
     locrhs[i] / rows.size ();
   }
 }
-
 
 
 void
@@ -380,7 +398,7 @@ main (int argc, char **argv)
         sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
         sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
         
-        Z[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]*0;
+        Z[quadrant->gt (ii)] = orography_fun(xx, yy, L, H); //dem[global_coord_2_raster(xx,yy)[0]];
         
       }
       
@@ -418,7 +436,7 @@ main (int argc, char **argv)
   bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUy);
   
 
-
+  if (is_initial_refinement)
   {
     
     TIC();
@@ -567,7 +585,7 @@ main (int argc, char **argv)
           sol_ [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
           sol_ [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
 
-          Z_[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]*0;
+          Z_[quadrant->gt (ii)] = orography_fun(xx, yy, L, H); //dem[global_coord_2_raster(xx,yy)[0]];
         }
         
         else
@@ -619,7 +637,16 @@ main (int argc, char **argv)
   Q0 sol_onehalf_dyn = sol_onehalf;
   Q1 Z_dyn           = Z;
   
-  TG2_scheme stp(sol_dyn, sold_dyn, soldd_dyn, incr_dyn, sol_onehalf_dyn, ordh, ordUx, ordUy, Z_dyn, DELTAT, h_min);
+  TG2_scheme stp(sol_dyn, 
+                 sold_dyn, 
+                 soldd_dyn, 
+                 incr_dyn, 
+                 sol_onehalf_dyn, 
+                 ordh, ordUx, ordUy, 
+                 Z_dyn, 
+                 DELTAT, h_min, is_non_reflBC, 
+                 density, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress,
+                 is_1d_simulation_along_x, is_1d_simulation_along_y);
   
   
   // Save initial conditions
@@ -711,21 +738,25 @@ main (int argc, char **argv)
     {
       stp.compute_dt(quadrant);
     }
-    stp.set_dt(REDCDT * stp.dt); // deltat max
+    max_dt = REDCDT * stp.dt;
+    stp.set_dt(max_dt); // deltat max
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
     
     
-//    // time adaptivity
-//    stp.nu_htot = 0.;
-//    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-//         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-//    {
-//      stp.compute_dt_adaptive(quadrant);
-//    }
-//    MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
-//    const double rho_h = (1./(stp.time-stp.timed))*std::sqrt(stp.nu_htot);
-//    stp.set_dt( std::min((5e-3/(rho_h+1e-7))*std::sqrt(1./(stp.time-stp.timed)), max_dt) );
-    
+    // time adaptivity
+    if (is_time_adaptivity)
+    {
+      stp.nu_htot = 0.;
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+      {
+        stp.compute_dt_adaptive(quadrant);
+      }
+      MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
+      const double rho_h = (1./(stp.time-stp.timed))*std::sqrt(stp.nu_htot);
+      stp.set_dt( std::min((5e-3/(rho_h+1e-7))*std::sqrt(1./(stp.time-stp.timed)), max_dt) );
+    }
+
 //    std::cout << count << " " << rank << " " << stp.nu_htot << std::endl;
 //    MPI_Barrier (MPI_COMM_WORLD);
 //    if (rank == 0) { print_timing_report (); }
@@ -1066,7 +1097,7 @@ main (int argc, char **argv)
             if (! quadrant->is_hanging (ii)){
               double xx=quadrant->p(0,ii);
               double yy=quadrant->p(1,ii);
-              Z[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]*0;
+              Z[quadrant->gt (ii)] = orography_fun(xx, yy, L, H); //dem[global_coord_2_raster(xx,yy)[0]];
             }
              
             else

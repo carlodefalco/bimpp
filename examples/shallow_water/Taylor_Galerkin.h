@@ -26,7 +26,16 @@ public:
              const ordering& oUy, 
              const Q1& Z,
              const double& DELTAT,
-             const double& h_min);
+             const double& h_min,
+             const bool& is_non_reflBC,
+             const double& density,
+             const double& turbulence_coeff,
+             const double& surface_pressure,
+             const double& bed_friction_angle_rad,
+             const double& fluid_viscosity,
+             const double& yield_shear_stress,
+             const bool& is_1d_simulation_along_x,
+             const bool& is_1d_simulation_along_y);
   
   TG2_scheme() = delete;
   
@@ -151,6 +160,15 @@ private:
   const ordering& ordUy;
   const double& DELTAT;
   const double& epsilon;
+  const bool& is_non_reflBC;
+  const double& density;
+  const double& turbulence_coeff;
+  const double& surface_pressure;
+  const double& bed_friction_angle_rad;
+  const double& fluid_viscosity;
+  const double& yield_shear_stress;
+  const bool& is_1d_simulation_along_x;
+  const bool& is_1d_simulation_along_y;
   
 };
 
