@@ -12,7 +12,7 @@
 class TG2_scheme
 {
   using Q1  = q1_vec<distributed_vector>;
-  using Q0  = distributed_vector;
+  using Q0  = std::vector<double>;
   
 public:
   
@@ -20,7 +20,7 @@ public:
              const Q1& sold,
              const Q1& soldd,
              Q1& incr,
-             Q0& sol_onehalf,
+             Q0& sol_onehalf_incr,
              const ordering& oh,
              const ordering& oUx, 
              const ordering& oUy, 
@@ -33,9 +33,7 @@ public:
              const double& surface_pressure,
              const double& bed_friction_angle_rad,
              const double& fluid_viscosity,
-             const double& yield_shear_stress,
-             const bool& is_1d_simulation_along_x,
-             const bool& is_1d_simulation_along_y);
+             const double& yield_shear_stress);
   
   TG2_scheme() = delete;
   
@@ -142,7 +140,7 @@ public:
   const Q1& sold;
   const Q1& soldd;
   Q1& incr;
-  Q0& sol_onehalf;
+  Q0& sol_onehalf_incr;
   const Q1& Z;
   
 private:
@@ -167,8 +165,6 @@ private:
   const double& bed_friction_angle_rad;
   const double& fluid_viscosity;
   const double& yield_shear_stress;
-  const bool& is_1d_simulation_along_x;
-  const bool& is_1d_simulation_along_y;
   
 };
 

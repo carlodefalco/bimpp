@@ -39,18 +39,15 @@ static constexpr int NUM_REFINEMENTS  = 6; // 3, 6
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
-static constexpr double SAVEDT = 1e-3;
+static constexpr double SAVEDT = 4e-3;
 static constexpr double DELTAT = 1e-3;
 static constexpr double REDCDT = .5;
 static constexpr double T      = 2.2;
 
-static constexpr bool is_time_adaptivity = false;
+static constexpr bool is_time_adaptivity    = true;
 static constexpr bool is_initial_refinement = true;
-static constexpr bool is_space_adaptivity = false;
-static constexpr bool is_non_reflBC       = true;
-
-static constexpr bool is_1d_simulation_along_x = false;
-static constexpr bool is_1d_simulation_along_y = true;
+static constexpr bool is_space_adaptivity   = true;
+static constexpr bool is_non_reflBC         = true;
 
 
 static constexpr double h_min = 1e-5;
@@ -61,8 +58,8 @@ static constexpr double bed_friction_angle_rad = 0.0; //23*M_PI/180;
 static constexpr double fluid_viscosity = 0.0; // 48
 static constexpr double yield_shear_stress = 0.0; // 1e3
 
-static constexpr double level_wet           = 2;
-static constexpr double level_interface     = 5; // minimum resolution!
+static constexpr double level_wet           = 4;
+static constexpr double level_interface     = 4; // minimum resolution!
 static constexpr double mesh_size_dry       = .2*500/2.; 
 static constexpr double mesh_size_wet       = mesh_size_dry/std::pow(2,level_wet); 
 static constexpr double mesh_size_interface = mesh_size_dry/std::pow(2,level_interface);
@@ -101,7 +98,8 @@ hanging_refinement (tmesh::quadrant_iterator quadrant)
   
   const auto marker = x_center<3./4.*L && x_center>L/4. && y_center<3./4.*H && y_center>H/4.;
 //  const auto marker = (x_minus+x_plus)/2<L/2;//(x_minus+x_plus)/2<L/2 && (y_minus+y_plus)/2>H/2 ? 1 : 0;
-  return marker; }
+  return marker; 
+}
 
 
 static int
@@ -135,12 +133,12 @@ global_coord_2_raster(const double& x,
 
 
 using Q1  = q1_vec<distributed_vector>;  // Typedef for distributed q_1 vector
-using Q0  = distributed_vector; //std::vector<double>;         // Typedef for local q_0 vector // distributed_vector
+using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;         // Typedef for local q_0 vector // distributed_vector
 
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy, const double& L, const double& H)  {
   
-  return (xx<=L/2. ? 70 : 0.); //(xx<=L/2. ? 70 : 0.);
+  return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
   //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 0.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
 
@@ -163,7 +161,7 @@ double Uy0_fun (double xx, double yy) { return 0.; }
 
 double orography_fun(const double& xx, const double& yy, const double& L, const double& H)
 {
-  return ((L-xx)*200./100.*0.); // 200% slope
+  return ((L-xx)*200./100.); // 200% slope
 }
 
 
@@ -293,9 +291,9 @@ int
 main (int argc, char **argv)
 {
   // Management of solutions ordering
-  ordering ordh    = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 0> (gt); };
-  ordering ordUx   = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 1> (gt); };
-  ordering ordUy   = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 2> (gt); };
+  ordering ordh  = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 0> (gt); };
+  ordering ordUx = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 1> (gt); };
+  ordering ordUy = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 2> (gt); };
 
   
   
@@ -346,8 +344,8 @@ main (int argc, char **argv)
   bim2a_mass_vector (tmsh, mass, ordUy);
   mass.assemble ();
   
-  Q0 sol_onehalf (ln_elements * 3);
-  sol_onehalf.get_owned_data ().assign(sol_onehalf.size(), 0.0);
+  Q0 sol_onehalf_incr (ln_elements * 3);
+  sol_onehalf_incr.assign(sol_onehalf_incr.size(), 0.0);
   
   
   Q1 Z (ln_nodes);
@@ -382,11 +380,9 @@ main (int argc, char **argv)
        quadrant != tmsh.end_quadrant_sweep ();
        ++quadrant)
   {
-
-    sol_onehalf [ordh    (quadrant->get_global_quad_idx ())] = 0.;
-    sol_onehalf [ordUx   (quadrant->get_global_quad_idx ())] = 0.;
-    sol_onehalf [ordUy   (quadrant->get_global_quad_idx ())] = 0.;
     
+    // std::cout << quadrant->get_forest_quad_idx () << " " << ordh  (quadrant->get_forest_quad_idx ()) << " " 
+    // << ordUx (quadrant->get_forest_quad_idx ()) << " " << ordUy (quadrant->get_forest_quad_idx ()) <<std::endl;
 
     for (int ii = 0; ii < 4; ++ii)
     {
@@ -430,10 +426,6 @@ main (int argc, char **argv)
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
-  
-  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordh,  false);
-  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUy);
   
 
   if (is_initial_refinement)
@@ -563,9 +555,8 @@ main (int argc, char **argv)
     bim2a_mass_vector (tmsh, mass_, ordUy);
     mass_.assemble ();
   
-    Q0 sol_onehalf_ (ln_elements * 3);
-    sol_onehalf_.get_owned_data ().assign (sol_onehalf_.get_owned_data ().size(), 0.0);
-    sol_onehalf_.assemble ();
+    Q0 sol_onehalf_incr_ (ln_elements * 3);
+    sol_onehalf_incr_.assign (sol_onehalf_incr_.size(), 0.0);
 
 
     Q1 sol_ (ln_nodes * 3);
@@ -615,38 +606,34 @@ main (int argc, char **argv)
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordh,  false);
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUx, false);
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUy);
-    
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordUy);
 
-    sol         = sol_;
-    incr        = incr_;
-    mass        = mass_;
-    sol_onehalf = sol_onehalf_;
-    Z           = Z_;
+    sol              = sol_;
+    incr             = incr_;
+    mass             = mass_;
+    sol_onehalf_incr = sol_onehalf_incr_;
+    Z                = Z_;
   
     TOC ("compute initial condition");
   }
   
-  Q1 sol_dyn         = sol;
-  Q1 sold_dyn        = sol;
-  Q1 soldd_dyn       = sol;
-  Q1 incr_dyn        = incr;
-  Q1 mass_dyn        = mass;
-  Q0 sol_onehalf_dyn = sol_onehalf;
-  Q1 Z_dyn           = Z;
+  Q1 sol_dyn              = sol;
+  Q1 sold_dyn             = sol;
+  Q1 soldd_dyn            = sol;
+  Q1 incr_dyn             = incr;
+  Q1 mass_dyn             = mass;
+  Q1 Z_dyn                = Z;
+  Q0 sol_onehalf_incr_dyn = sol_onehalf_incr;
+
   
   TG2_scheme stp(sol_dyn, 
                  sold_dyn, 
                  soldd_dyn, 
                  incr_dyn, 
-                 sol_onehalf_dyn, 
+                 sol_onehalf_incr_dyn, 
                  ordh, ordUx, ordUy, 
                  Z_dyn, 
                  DELTAT, h_min, is_non_reflBC, 
-                 density, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress,
-                 is_1d_simulation_along_x, is_1d_simulation_along_y);
+                 density, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress);
   
   
   // Save initial conditions
@@ -719,7 +706,7 @@ main (int argc, char **argv)
   }
   
   
-  while (time <= T)
+  while (time < T)
   {
     
     
@@ -757,18 +744,17 @@ main (int argc, char **argv)
       stp.set_dt( std::min((5e-3/(rho_h+1e-7))*std::sqrt(1./(stp.time-stp.timed)), max_dt) );
     }
 
-//    std::cout << count << " " << rank << " " << stp.nu_htot << std::endl;
-//    MPI_Barrier (MPI_COMM_WORLD);
-//    if (rank == 0) { print_timing_report (); }
-//    MPI_Finalize ();
-//    return 0;
+
+
+    {
+      const double candidate_dt = time+stp.dt-T;
+      stp.set_dt(candidate_dt>std::numeric_limits<double>::epsilon() ? candidate_dt : stp.dt);
+    }
     
-    
-    
-    
+
     time_oldd = time_old;
     time_old = time;
-    time += stp.dt;
+    time += stp.dt; 
     savecount += stp.dt;
     MPI_Bcast (static_cast<void*> (&time),      1, MPI_DOUBLE, 0, tmsh.comm);
     MPI_Bcast (static_cast<void*> (&savecount), 1, MPI_DOUBLE, 0, tmsh.comm);
@@ -790,7 +776,6 @@ main (int argc, char **argv)
     {
       stp.first_step(quadrant);
     }
-    sol_onehalf_dyn.assemble(replace_op);
     
     
     // second step!
@@ -801,7 +786,6 @@ main (int argc, char **argv)
     }
     incr_dyn.assemble ();
     TOC("Compute step");
-    
 
 
     stp.set_times(time, time_old, time_oldd);
@@ -1079,9 +1063,8 @@ main (int argc, char **argv)
         bim2a_mass_vector (tmsh, mass, ordUy);
         mass.assemble ();
         
-        Q0 sol_onehalf (ln_elements * 3);
-        sol_onehalf.get_owned_data ().assign (sol_onehalf.get_owned_data ().size(), 0.0);
-        sol_onehalf.assemble ();
+        Q0 sol_onehalf_incr (ln_elements * 3);
+        sol_onehalf_incr.assign (sol_onehalf_incr.size(), 0.0);
         
         
 
@@ -1128,18 +1111,14 @@ main (int argc, char **argv)
         bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
         bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
         
-        bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordh,  false);
-        bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUx, false);
-        bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUy);
-        
-        
-        sol_dyn         = sol;
-        sold_dyn        = sold;
-        soldd_dyn       = soldd;
-        incr_dyn        = incr;
-        mass_dyn        = mass;
-        sol_onehalf_dyn = sol_onehalf;
-        Z_dyn           = Z;
+         
+        sol_dyn              = sol;
+        sold_dyn             = sold;
+        soldd_dyn            = soldd;
+        incr_dyn             = incr;
+        mass_dyn             = mass;
+        sol_onehalf_incr_dyn = sol_onehalf_incr;
+        Z_dyn                = Z;
         
         TOC ("Interpolation");
         
@@ -1168,10 +1147,7 @@ main (int argc, char **argv)
   // Close MPI and print report
   MPI_Barrier (MPI_COMM_WORLD);
   if (rank == 0) { print_timing_report (); }
-  
   MPI_Finalize ();
-  
-
   return 0;
   
 }
