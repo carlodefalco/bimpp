@@ -370,9 +370,9 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     
   }
   //std::cout << phi_cell_h << " " << phi_cell_Ux << " " << phi_cell_Uy << std::endl;
-  // phi_cell_h  = 0.;
-  // phi_cell_Ux = 0.;
-  // phi_cell_Uy = 0.;
+  phi_cell_h  = 0.;
+  phi_cell_Ux = 0.;
+  phi_cell_Uy = 0.;
 
   phi_cell_h  = 1. - phi_cell_h;
   phi_cell_Ux = 1. - phi_cell_Ux;
@@ -587,7 +587,7 @@ TG2_scheme::flux_limiter(const double& Q_min, const double& Q_max, const double&
   }
   
   
-  if (Q_cell == 0 || Q_vertex == 0)
+  if (std::abs(Q_cell) <= epsilon || std::abs(Q_vertex) <= epsilon) // (Q_cell == 0 || Q_vertex == 0) // (std::abs(Q_cell) <= epsilon || std::abs(Q_vertex) <= epsilon)
   {
     phi_cell_Q = 0.; 
   }
@@ -655,6 +655,11 @@ TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy,
   const double abs_vel = h > epsilon ? std::sqrt( std::pow((Ux/h),2.) + std::pow((Uy/h),2.) ) : 0.;
   return (-grav*h*dZdy - (grav*abs_vel/turbulence_coeff + h > epsilon ? bed_pressure*std::tan(bed_friction_angle_rad)/abs_vel/density : 0.)*(h>epsilon ? Uy/h : 0.) );
 }
+
+
+
+
+
 
 
 

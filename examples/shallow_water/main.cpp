@@ -19,7 +19,7 @@
 #include "Taylor_Galerkin.h"
 
 static constexpr char SAVE_DIR[255] = "/home/bimpp/BUILD/examples/shallow_water/"; 
-static constexpr char LOADFILENAME_1[255] = "/home/bimpp/BUILD/examples/shallow_water/inputs/dem.octbin.gz";
+static constexpr char LOADFILENAME_1[255] = "/home/bimpp/BUILD/examples/shallow_water/inputs/dem_real.octbin.gz";
 static constexpr char LOADFILENAME_2[255] = "/home/bimpp/BUILD/examples/shallow_water/inputs/mask_in.octbin.gz";
 static constexpr char SAVEFILENAME_1[255] = "orography_tmsh";
 static constexpr char VARNAME_1[255] = "dem";
@@ -27,12 +27,12 @@ static constexpr char VARNAME_2[255] = "mask_in";
 
 // properties of the input dem
 static constexpr double res = 5; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 1998; 
-static constexpr double Ny = 1829;
+static constexpr double Nx = 188; 
+static constexpr double Ny = 180;
 
 
-static constexpr double L = 500;//res*(Nx-1);
-static constexpr double H = 500;//res*(Ny-1);
+static constexpr double L = res*(Nx-1);
+static constexpr double H = res*(Ny-1);
 static std::vector<double>   dem;
 static std::vector<double>   basin_mask;
 static constexpr int NUM_REFINEMENTS  = 6; // 3, 6
@@ -44,7 +44,7 @@ static constexpr double DELTAT = 1e-3;
 static constexpr double REDCDT = .5;
 static constexpr double T      = 2.2;
 
-static constexpr bool is_time_adaptivity    = true;
+static constexpr bool is_time_adaptivity    = false;
 static constexpr bool is_initial_refinement = true;
 static constexpr bool is_space_adaptivity   = true;
 static constexpr bool is_non_reflBC         = true;
@@ -54,13 +54,13 @@ static constexpr double h_min = 1e-5;
 static constexpr double density = 1400;  
 static constexpr double turbulence_coeff = 0.0; 
 static constexpr double surface_pressure = 0.0; 
-static constexpr double bed_friction_angle_rad = 0.0; //23*M_PI/180; 
+static constexpr double bed_friction_angle_rad = 100*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 0.0; // 48
 static constexpr double yield_shear_stress = 0.0; // 1e3
 
-static constexpr double level_wet           = 4;
-static constexpr double level_interface     = 4; // minimum resolution!
-static constexpr double mesh_size_dry       = .2*500/2.; 
+static constexpr double level_wet           = 1;
+static constexpr double level_interface     = 2; // minimum resolution!
+static constexpr double mesh_size_dry       = res*std::pow(2,level_interface); 
 static constexpr double mesh_size_wet       = mesh_size_dry/std::pow(2,level_wet); 
 static constexpr double mesh_size_interface = mesh_size_dry/std::pow(2,level_interface);
 
@@ -136,9 +136,10 @@ using Q1  = q1_vec<distributed_vector>;  // Typedef for distributed q_1 vector
 using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;         // Typedef for local q_0 vector // distributed_vector
 
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
-double h0_fun (const double& xx, const double& yy, const double& L, const double& H)  {
+double h0_fun (const double& xx, const double& yy, const double& L, const double& H, const std::vector<double>& basin_mask)  {
   
-  return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
+  return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 40 : 0);
+  //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
   //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 0.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
 
@@ -147,7 +148,7 @@ double h0_fun (const double& xx, const double& yy, const double& L, const double
   if (xx>L*1./4. && xx<L*3./4. && yy >H*1./4. && yy <H*3./4.) //(xx>L*3./10. && xx<7./10.*L)
   {
     //return (1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ));
-    return 1.;
+    return 40.;
   }
   
 //  if (xx>L/4 && xx<3/4*L && yy>H/4 && yy <3/4*H)
@@ -390,11 +391,11 @@ main (int argc, char **argv)
         double xx=quadrant->p(0,ii);
         double yy=quadrant->p(1,ii); 
         
-        sol [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy, L, H);
+        sol [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy, L, H, basin_mask) ; //basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? h0_fun  (xx, yy, L, H) : 0;
         sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
         sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
         
-        Z[quadrant->gt (ii)] = orography_fun(xx, yy, L, H); //dem[global_coord_2_raster(xx,yy)[0]];
+        Z[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; //orography_fun(xx, yy, L, H); //dem[global_coord_2_raster(xx,yy)[0]];
         
       }
       
@@ -572,11 +573,11 @@ main (int argc, char **argv)
           double xx=quadrant->p(0,ii);
           double yy=quadrant->p(1,ii);
           
-          sol_ [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy, L, H);
+          sol_ [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy, L, H, basin_mask);  //basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? h0_fun  (xx, yy, L, H) : 0; //h0_fun  (xx, yy, L, H);
           sol_ [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
           sol_ [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
 
-          Z_[quadrant->gt (ii)] = orography_fun(xx, yy, L, H); //dem[global_coord_2_raster(xx,yy)[0]];
+          Z_[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; //orography_fun(xx, yy, L, H); //dem[global_coord_2_raster(xx,yy)[0]];
         }
         
         else
@@ -637,7 +638,7 @@ main (int argc, char **argv)
   
   
   // Save initial conditions
-  std::string str = "";
+  std::string str = ""; 
 
   str = std::string(SAVE_DIR) + "results/swe_h_%4.4d"; 
   strcpy(arr, str.c_str());
@@ -1080,7 +1081,7 @@ main (int argc, char **argv)
             if (! quadrant->is_hanging (ii)){
               double xx=quadrant->p(0,ii);
               double yy=quadrant->p(1,ii);
-              Z[quadrant->gt (ii)] = orography_fun(xx, yy, L, H); //dem[global_coord_2_raster(xx,yy)[0]];
+              Z[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; //orography_fun(xx, yy, L, H); //dem[global_coord_2_raster(xx,yy)[0]];
             }
              
             else
@@ -1132,10 +1133,14 @@ main (int argc, char **argv)
   
   if (rank == 0)
   {
+    str = std::string(SAVE_DIR) + "results/timesteps.octbin"; 
+    strcpy(arr, str.c_str());
+    sprintf(filename, arr, 0);
+
     ColumnVector vtmp (save_time_vector.size ());
     std::copy (save_time_vector.begin (), save_time_vector.end (), vtmp.fortran_vec ());
     octave_io_mode m;
-    octave_io_open ("timesteps.octbin", gz_write_mode, &m);
+    octave_io_open (filename, gz_write_mode, &m);
     octave_save ("save_time", vtmp);
     vtmp.resize (full_time_vector.size ());
     std::copy (full_time_vector.begin (), full_time_vector.end (), vtmp.fortran_vec ());
