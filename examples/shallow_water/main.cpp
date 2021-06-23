@@ -18,7 +18,7 @@
 
 #include "Taylor_Galerkin.h"
 
-static constexpr char SAVE_DIR[255] = "/home/bimpp/BUILD/examples/shallow_water/"; 
+
 static constexpr char LOADFILENAME_1[255] = "/home/bimpp/BUILD/examples/shallow_water/inputs/dem_real.octbin.gz";
 static constexpr char LOADFILENAME_2[255] = "/home/bimpp/BUILD/examples/shallow_water/inputs/mask_in.octbin.gz";
 static constexpr char SAVEFILENAME_1[255] = "orography_tmsh";
@@ -37,6 +37,8 @@ static std::vector<double>   dem;
 static std::vector<double>   basin_mask;
 static constexpr int NUM_REFINEMENTS  = 6; // 3, 6
 static constexpr int NUM_TREFINEMENTS = 1; // 10
+
+
 
 
 static constexpr double SAVEDT = 4e-3;
@@ -303,7 +305,20 @@ main (int argc, char **argv)
   int rank, size;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
-  
+
+  if (argc != 2) 
+  {
+    std::cerr << "You should provide as input the $PWD" << std::endl;
+
+    // Close MPI and print report
+    MPI_Barrier (MPI_COMM_WORLD);
+    if (rank == 0) { print_timing_report (); }
+    MPI_Finalize ();
+    return 0;
+  }
+
+  const auto SAVE_DIR = argv[1];
+
   
   /// Generate the mesh in 2d
   tmesh tmsh;
@@ -640,22 +655,22 @@ main (int argc, char **argv)
   // Save initial conditions
   std::string str = ""; 
 
-  str = std::string(SAVE_DIR) + "results/swe_h_%4.4d"; 
+  str = std::string(SAVE_DIR) + "/results/swe_h_%4.4d"; 
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
   tmsh.octbin_export (filename, sol_dyn, ordh);
 
-  str = std::string(SAVE_DIR) + "results/swe_Ux_%4.4d";
+  str = std::string(SAVE_DIR) + "/results/swe_Ux_%4.4d";
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
   tmsh.octbin_export (filename, sol_dyn, ordUx); 
 
-  str = std::string(SAVE_DIR) + "results/swe_Uy_%4.4d";
+  str = std::string(SAVE_DIR) + "/results/swe_Uy_%4.4d";
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
   tmsh.octbin_export (filename, sol_dyn, ordUy);
   
-  str = std::string(SAVE_DIR) + "results/swe_Z_%4.4d";
+  str = std::string(SAVE_DIR) + "/results/swe_Z_%4.4d";
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0); 
   tmsh.octbin_export (filename, Z_dyn);
@@ -828,22 +843,22 @@ main (int argc, char **argv)
       count++;
       save_time_vector.push_back (time);
      
-      str = std::string(SAVE_DIR) + "results/swe_h_%4.4d";
+      str = std::string(SAVE_DIR) + "/results/swe_h_%4.4d";
       strcpy(arr, str.c_str());
       sprintf(filename, arr,   count);
       tmsh.octbin_export (filename, sol_dyn, ordh);
       
-      str = std::string(SAVE_DIR) + "results/swe_Ux_%4.4d";
+      str = std::string(SAVE_DIR) + "/results/swe_Ux_%4.4d";
       strcpy(arr, str.c_str());
       sprintf(filename, arr,  count);
       tmsh.octbin_export (filename, sol_dyn, ordUx);
       
-      str = std::string(SAVE_DIR) + "results/swe_Uy_%4.4d";
+      str = std::string(SAVE_DIR) + "/results/swe_Uy_%4.4d";
       strcpy(arr, str.c_str());
       sprintf(filename, arr,  count);
       tmsh.octbin_export (filename, sol_dyn, ordUy);
       
-      str = std::string(SAVE_DIR) + "results/swe_Z_%4.4d";
+      str = std::string(SAVE_DIR) + "/results/swe_Z_%4.4d";
       strcpy(arr, str.c_str());
       sprintf(filename, arr,  count);
       tmsh.octbin_export (filename, Z_dyn);
@@ -1133,7 +1148,7 @@ main (int argc, char **argv)
   
   if (rank == 0)
   {
-    str = std::string(SAVE_DIR) + "results/timesteps.octbin"; 
+    str = std::string(SAVE_DIR) + "/results/timesteps.octbin"; 
     strcpy(arr, str.c_str());
     sprintf(filename, arr, 0);
 
