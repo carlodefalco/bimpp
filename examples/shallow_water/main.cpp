@@ -24,8 +24,8 @@ static constexpr char VARNAME_2[255] = "mask_in";
 
 // properties of the input dem
 static constexpr double res = 5; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 188; 
-static constexpr double Ny = 180;
+static constexpr double Nx = 101; 
+static constexpr double Ny = 101;
 
 
 static constexpr double L = res*(Nx-1);
@@ -43,10 +43,10 @@ static constexpr double DELTAT = 1e-3;
 static constexpr double REDCDT = .5;
 static constexpr double T      = 2.2;
 
-static constexpr bool is_time_adaptivity    = false;
+static constexpr bool is_time_adaptivity    = true;
 static constexpr bool is_initial_refinement = true;
 static constexpr bool is_space_adaptivity   = true;
-static constexpr bool is_non_reflBC         = true;
+static constexpr bool is_non_reflBC         = false;
 
 
 static constexpr double h_min = 1e-5;
@@ -870,31 +870,25 @@ main (int argc, char **argv)
           
         TIC();
         std::vector<double> result(gn_nodes * 3);
-        std::vector<double> only_h(gn_nodes);
+
+        std::vector<double> only_h (gn_nodes);
         std::vector<double> only_Ux(gn_nodes);
         std::vector<double> only_Uy(gn_nodes);
         for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx)
         {
           result[idx] = sol_dyn(idx);
-          only_h[idx] = sol_dyn(ordh(idx));
-          only_Ux[idx] = sol_dyn(ordUx(idx));
-          only_Uy[idx] = sol_dyn(ordUy(idx));
         }
+
         MPI_Allreduce (MPI_IN_PLACE, result.data (),
                        result.size (), MPI_DOUBLE,
                        MPI_SUM, MPI_COMM_WORLD);
 
-        MPI_Allreduce (MPI_IN_PLACE, only_h.data (),
-                       only_h.size (), MPI_DOUBLE,
-                       MPI_SUM, MPI_COMM_WORLD);
-
-        MPI_Allreduce (MPI_IN_PLACE, only_Ux.data (),
-                       only_Ux.size (), MPI_DOUBLE,
-                       MPI_SUM, MPI_COMM_WORLD);
-
-        MPI_Allreduce (MPI_IN_PLACE, only_Uy.data (),
-                       only_Uy.size (), MPI_DOUBLE,
-                       MPI_SUM, MPI_COMM_WORLD);
+        for (int idx = 0; idx < gn_nodes; idx++)
+        {
+          only_h [idx] = result[ordh (idx)];
+          only_Ux[idx] = result[ordUx(idx)];
+          only_Uy[idx] = result[ordUy(idx)];
+        }
         
         
         std::vector<double> result_d(gn_nodes * 3);
