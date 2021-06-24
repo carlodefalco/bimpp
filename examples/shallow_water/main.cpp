@@ -305,9 +305,9 @@ main (int argc, char **argv)
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
-  if (argc != 2) 
+  if (argc != 4) 
   {
-    std::cerr << "You should provide as input the $PWD" << std::endl;
+    std::cerr << "You should provide as input respecrively, $PWD, dem directory, mask directory" << std::endl;
 
     // Close MPI and print report
     MPI_Barrier (MPI_COMM_WORLD);
