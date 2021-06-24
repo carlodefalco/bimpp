@@ -57,9 +57,9 @@ static constexpr double bed_friction_angle_rad = 0.0;//100*M_PI/180; //0.0; //23
 static constexpr double fluid_viscosity = 0.0; // 48
 static constexpr double yield_shear_stress = 0.0; // 1e3
 
-static constexpr double level_wet           = 1;
-static constexpr double level_interface     = 2; // minimum resolution!
-static constexpr double mesh_size_dry       = res*std::pow(2,level_interface); 
+static constexpr double level_wet           = 10;
+static constexpr double level_interface     = 10; // minimum resolution!
+static constexpr double mesh_size_dry       = std::pow(2,level_interface); res*std::pow(2,level_interface); 
 static constexpr double mesh_size_wet       = mesh_size_dry/std::pow(2,level_wet); 
 static constexpr double mesh_size_interface = mesh_size_dry/std::pow(2,level_interface);
 
