@@ -53,7 +53,7 @@ static constexpr double h_min = 1e-5;
 static constexpr double density = 1400;  
 static constexpr double turbulence_coeff = 0.0; 
 static constexpr double surface_pressure = 0.0; 
-static constexpr double bed_friction_angle_rad = 100*M_PI/180; //0.0; //23*M_PI/180; 
+static constexpr double bed_friction_angle_rad = 0.0;//100*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 0.0; // 48
 static constexpr double yield_shear_stress = 0.0; // 1e3
 
@@ -137,9 +137,9 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy, const double& L, const double& H, const std::vector<double>& basin_mask)  {
   
-  return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 40 : 0);
+  //return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 40 : 0);
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
-  //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 0.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
 
   
@@ -158,11 +158,6 @@ double h0_fun (const double& xx, const double& yy, const double& L, const double
 } 
 double Ux0_fun (double xx, double yy) { return 0.; }
 double Uy0_fun (double xx, double yy) { return 0.; }
-
-double orography_fun(const double& xx, const double& yy, const double& L, const double& H)
-{
-  return ((L-xx)*200./100.); // 200% slope
-}
 
 
 // Assemble vector from mesh.
@@ -465,38 +460,36 @@ main (int argc, char **argv)
     MPI_Allreduce (MPI_IN_PLACE, result.data (),
                    result.size (), MPI_DOUBLE,
                    MPI_SUM, MPI_COMM_WORLD);
-    TOC("get global sol.");
-  
-    TIC();
-    Q1 only_h (gn_nodes);
+
+    std::vector<double> only_h (gn_nodes);
     for (int idx = 0; idx < gn_nodes; ++idx)
     {
-      only_h (idx) = result [ordh (idx) ];
+      only_h [idx] = result [ordh (idx) ];
     }
-    only_h.assemble (replace_op);
-    TOC ("copy only H");
+    TOC("get global sol.");
+
   
   
   
     TIC();
     double tol = 1e-5;
     auto dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
-    q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
+    //q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
   
   
     TOC ("gradient and hstar");
 
 
     TIC();
-    auto estimator = [& h_star, & only_h] (tmesh::quadrant_iterator q)
+    // auto estimator = [& h_star, & only_h] (tmesh::quadrant_iterator q)
+    // {
+    //   return estimator_sol (q, h_star, only_h);
+    // };
+    auto estimator = [& dh, & only_h] (tmesh::quadrant_iterator q)
     {
-      return estimator_sol (q, h_star, only_h);
+      return estimator_grad(q, dh, only_h);
     };
-//        auto estimator = [& dh, & only_h] (tmesh::quadrant_iterator q)
-//        {
-//          return estimator_grad(q, dh, only_h);
-//        };
-    auto estimator_flux = [& h_star, & only_h] (tmesh::quadrant_iterator q)
+    auto estimator_flux = [& only_h] (tmesh::quadrant_iterator q)
     {
 
       std::array<double,4> h_mesh = {0,0,0,0};
@@ -517,7 +510,7 @@ main (int argc, char **argv)
     };
 
 
-    auto dry_function = [& h_star, & only_h] (tmesh::quadrant_iterator q)
+    auto dry_function = [& only_h] (tmesh::quadrant_iterator q)
     {
 
       std::array<double,4> h_mesh = {0,0,0,0};
@@ -540,7 +533,7 @@ main (int argc, char **argv)
 
     tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
     //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1);
-    tmsh.metrics_refine (1e4);  // RAFFINAMENTO (arg is max element)
+    tmsh.metrics_refine (1e6);  // RAFFINAMENTO (arg is max element)
 
     // tmsh.set_coarsen_marker (coarsen_function);
     // tmsh.set_refine_marker  (refine_function);
@@ -870,10 +863,6 @@ main (int argc, char **argv)
           
         TIC();
         std::vector<double> result(gn_nodes * 3);
-
-        std::vector<double> only_h (gn_nodes);
-        std::vector<double> only_Ux(gn_nodes);
-        std::vector<double> only_Uy(gn_nodes);
         for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx)
         {
           result[idx] = sol_dyn(idx);
@@ -883,6 +872,9 @@ main (int argc, char **argv)
                        result.size (), MPI_DOUBLE,
                        MPI_SUM, MPI_COMM_WORLD);
 
+        std::vector<double> only_h (gn_nodes);
+        std::vector<double> only_Ux(gn_nodes);
+        std::vector<double> only_Uy(gn_nodes);
         for (int idx = 0; idx < gn_nodes; idx++)
         {
           only_h [idx] = result[ordh (idx)];
@@ -910,32 +902,33 @@ main (int argc, char **argv)
                        result_dd.size (), MPI_DOUBLE,
                        MPI_SUM, MPI_COMM_WORLD);
         TOC("get global sol.");
-        
 
+        TIC();
         std::set<int> global_index_quad;
         for (auto q = tmsh.begin_quadrant_sweep ();
              q != tmsh.end_quadrant_sweep ();
              ++q)
         {
           quadrant_marker_list(q, only_h,  only_Ux, only_Uy, stp.dt, global_index_quad);
-        }        
+        }      
+        TOC("front track.");  
         
         
         TIC();
         double tol = 1e-5;
         auto dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
-        q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
+        //q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
         TOC ("gradient and hstar");
         
         TIC();
-        auto estimator = [& h_star, & only_h] (tmesh::quadrant_iterator q)
+        // auto estimator = [& h_star, & only_h] (tmesh::quadrant_iterator q)
+        // {
+        //   return estimator_sol (q, h_star, only_h);
+        // };
+        auto estimator = [& dh, & only_h] (tmesh::quadrant_iterator q)
         {
-          return estimator_sol (q, h_star, only_h);
+          return estimator_grad(q, dh, only_h);
         };
-//        auto estimator = [& dh, & only_h] (tmesh::quadrant_iterator q)
-//        {
-//          return estimator_grad(q, dh, only_h);
-//        };
 
         // auto estimator_flux = [& h_star, & only_h] (tmesh::quadrant_iterator q)
         // {
@@ -968,7 +961,7 @@ main (int argc, char **argv)
         };
 
 
-        auto dry_function = [& h_star, & only_h] (tmesh::quadrant_iterator q)
+        auto dry_function = [& only_h] (tmesh::quadrant_iterator q)
         {
 
           std::array<double,4> h_mesh = {0,0,0,0};
@@ -992,7 +985,7 @@ main (int argc, char **argv)
 
         tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
         //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1); 
-        tmsh.metrics_refine (1e4);  // RAFFINAMENTO (arg is max element)
+        tmsh.metrics_refine (1e6);  // RAFFINAMENTO (arg is max element)
 
         // tmsh.set_coarsen_marker (coarsen_function);
         // tmsh.set_refine_marker  (refine_function);
