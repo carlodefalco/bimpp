@@ -19,9 +19,6 @@
 #include "Taylor_Galerkin.h"
 
 
-static constexpr char LOADFILENAME_1[255] = "/home/bimpp/BUILD/examples/shallow_water/inputs/dem_real.octbin.gz";
-static constexpr char LOADFILENAME_2[255] = "/home/bimpp/BUILD/examples/shallow_water/inputs/mask_in.octbin.gz";
-static constexpr char SAVEFILENAME_1[255] = "orography_tmsh";
 static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in";  
 
@@ -202,31 +199,33 @@ assemble_vector (tmesh::quadrant_iterator& quadrant,
 }
 
 
+template <class T>
 void
 quadrant_marker_list (tmesh::quadrant_iterator& q, 
-                      Q1& only_h, Q1& only_Ux, Q1& only_Uy, const double& dt, std::set<int>& output)
+                      const T& only_h, const T& only_Ux, const T& only_Uy, const double& dt, std::set<int>& output)
 {
 
   std::array<double,4> h_current = {0,0,0,0};
   std::array<double,2> vel       = {0,0};
   for (int ii = 0; ii < 4; ++ii)
-  {
-    if (! q->is_hanging (ii)){
-      h_current[ii] = only_h[q->gt (ii)];
-
-      vel[0] += only_Ux[q->gt (ii)]/(only_h[q->gt (ii)]+h_min);
-      vel[1] += only_Uy[q->gt (ii)]/(only_h[q->gt (ii)]+h_min);
-    }
-    else
     {
-      h_current[ii] = .5 * ( only_h[q->gparent(0,ii)] + only_h[q->gparent(1,ii)] );
+      if (! q->is_hanging (ii)){
+        const auto & h_candidate = only_h[q->gt (ii)];
+        h_current[ii] = h_candidate;
 
-      vel[0] += .5*(only_Ux[q->gparent (0,ii)]/(only_h[q->gparent (0,ii)]+h_min) + 
-                    only_Ux[q->gparent (1,ii)]/(only_h[q->gparent (1,ii)]+h_min));
-      vel[1] += .5*(only_Uy[q->gparent (0,ii)]/(only_h[q->gparent (0,ii)]+h_min) + 
-                    only_Uy[q->gparent (1,ii)]/(only_h[q->gparent (1,ii)]+h_min));
+        vel[0] += h_candidate>h_min ? only_Ux[q->gt (ii)]/h_candidate : 0.;
+        vel[1] += h_candidate>h_min ? only_Uy[q->gt (ii)]/h_candidate : 0.;
+      }
+      else
+      {
+        const auto & h_candidate = .5 * ( only_h[q->gparent(0,ii)] + only_h[q->gparent(1,ii)] );
+        h_current[ii] = h_candidate;
+
+        vel[0] += h_candidate>h_min ? .5*(only_Ux[q->gparent (0,ii)] + only_Ux[q->gparent (1,ii)])/h_candidate : 0.;
+
+        vel[1] += h_candidate>h_min ? .5*(only_Uy[q->gparent (0,ii)] + only_Uy[q->gparent (1,ii)])/h_candidate : 0.;
+      }
     }
-  }
   vel[0] /= 4.;
   vel[1] /= 4.;
 
@@ -318,6 +317,8 @@ main (int argc, char **argv)
   }
 
   const auto SAVE_DIR = argv[1];
+  const auto DEM_DIR  = argv[2]; 
+  const auto MASK_DIR = argv[3];
 
   
   /// Generate the mesh in 2d
@@ -368,26 +369,34 @@ main (int argc, char **argv)
   Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
 
 
+  std::string str = ""; 
+  char filename[255]="", arr[255]="";
+
   TIC();
+  str = std::string(DEM_DIR); 
+  strcpy(arr, str.c_str());
+  sprintf(filename, arr, 0);
+
   octave_io_mode m_in = gz_read_mode, m_out = gz_read_mode;
   octave_value v;
 
-  octave_io_open (LOADFILENAME_1, m_in, &m_out);
+  octave_io_open (filename, m_in, &m_out);
   octave_load (VARNAME_1, v);
   Matrix M = v.matrix_value ();
   dem.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), dem.begin ());
 
-  octave_io_open (LOADFILENAME_2, m_in, &m_out);
+  str = std::string(MASK_DIR); 
+  strcpy(arr, str.c_str());
+  sprintf(filename, arr, 0);
+
+  octave_io_open (filename, m_in, &m_out);
   octave_load (VARNAME_2, v);
   M = v.matrix_value ();
   basin_mask.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask.begin ());
   TOC("Load data matrix");
   
-  
-  // Buffer for export filename
-  char filename[255]="", arr[255]="";
 
 
   // Initialize 
@@ -456,16 +465,6 @@ main (int argc, char **argv)
     MPI_Allreduce (MPI_IN_PLACE, result.data (),
                    result.size (), MPI_DOUBLE,
                    MPI_SUM, MPI_COMM_WORLD);
-  
-  
-    std::vector<double> Z_gl(gn_nodes);
-    for (int idx = Z.get_range_start (); idx < Z.get_range_end (); ++idx)
-    {
-      Z_gl[idx] = Z(idx);
-    }
-    MPI_Allreduce (MPI_IN_PLACE, Z_gl.data (),
-                   Z_gl.size (), MPI_DOUBLE,
-                   MPI_SUM, MPI_COMM_WORLD);
     TOC("get global sol.");
   
     TIC();
@@ -481,7 +480,7 @@ main (int argc, char **argv)
   
     TIC();
     double tol = 1e-5;
-    gradient<Q1> dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
+    auto dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
     q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
   
   
@@ -653,7 +652,6 @@ main (int argc, char **argv)
   
   
   // Save initial conditions
-  std::string str = ""; 
 
   str = std::string(SAVE_DIR) + "/results/swe_h_%4.4d"; 
   strcpy(arr, str.c_str());
@@ -757,7 +755,9 @@ main (int argc, char **argv)
       }
       MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
       const double rho_h = (1./(stp.time-stp.timed))*std::sqrt(stp.nu_htot);
-      stp.set_dt( std::min((5e-3/(rho_h+1e-7))*std::sqrt(1./(stp.time-stp.timed)), max_dt) );
+
+      const auto candidate_dt = (5e-3/(rho_h+1e-7))*std::sqrt(1./(stp.time-stp.timed));
+      stp.set_dt( std::min(std::isnan(candidate_dt) ? max_dt : candidate_dt, max_dt) );
     }
 
 
@@ -870,12 +870,30 @@ main (int argc, char **argv)
           
         TIC();
         std::vector<double> result(gn_nodes * 3);
+        std::vector<double> only_h(gn_nodes);
+        std::vector<double> only_Ux(gn_nodes);
+        std::vector<double> only_Uy(gn_nodes);
         for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx)
         {
           result[idx] = sol_dyn(idx);
+          only_h[idx] = sol_dyn(ordh(idx));
+          only_Ux[idx] = sol_dyn(ordUx(idx));
+          only_Uy[idx] = sol_dyn(ordUy(idx));
         }
         MPI_Allreduce (MPI_IN_PLACE, result.data (),
                        result.size (), MPI_DOUBLE,
+                       MPI_SUM, MPI_COMM_WORLD);
+
+        MPI_Allreduce (MPI_IN_PLACE, only_h.data (),
+                       only_h.size (), MPI_DOUBLE,
+                       MPI_SUM, MPI_COMM_WORLD);
+
+        MPI_Allreduce (MPI_IN_PLACE, only_Ux.data (),
+                       only_Ux.size (), MPI_DOUBLE,
+                       MPI_SUM, MPI_COMM_WORLD);
+
+        MPI_Allreduce (MPI_IN_PLACE, only_Uy.data (),
+                       only_Uy.size (), MPI_DOUBLE,
                        MPI_SUM, MPI_COMM_WORLD);
         
         
@@ -897,40 +915,7 @@ main (int argc, char **argv)
         MPI_Allreduce (MPI_IN_PLACE, result_dd.data (),
                        result_dd.size (), MPI_DOUBLE,
                        MPI_SUM, MPI_COMM_WORLD);
-        
-        
-        std::vector<double> Z_gl(gn_nodes);
-        for (int idx = Z_dyn.get_range_start (); idx < Z_dyn.get_range_end (); ++idx)
-        {
-          Z_gl[idx] = Z_dyn(idx);
-        }
-        MPI_Allreduce (MPI_IN_PLACE, Z_gl.data (),
-                       Z_gl.size (), MPI_DOUBLE,
-                       MPI_SUM, MPI_COMM_WORLD);
         TOC("get global sol.");
-        
-        TIC();
-        Q1 only_h (gn_nodes);
-        for (int idx = 0; idx < gn_nodes; ++idx)
-        {
-          only_h (idx) = result [ordh (idx) ];
-        }
-        only_h.assemble (replace_op);
-
-        Q1 only_Ux (gn_nodes);
-        for (int idx = 0; idx < gn_nodes; ++idx)
-        {
-          only_Ux (idx) = result [ordUx (idx) ];
-        }
-        only_Ux.assemble (replace_op);
-
-        Q1 only_Uy (gn_nodes);
-        for (int idx = 0; idx < gn_nodes; ++idx)
-        {
-          only_Uy (idx) = result [ordUy (idx) ];
-        }
-        only_Uy.assemble (replace_op);
-        TOC ("copy only H");
         
 
         std::set<int> global_index_quad;
@@ -944,7 +929,7 @@ main (int argc, char **argv)
         
         TIC();
         double tol = 1e-5;
-        gradient<Q1> dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
+        auto dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
         q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
         TOC ("gradient and hstar");
         
@@ -1171,3 +1156,9 @@ main (int argc, char **argv)
   return 0;
   
 }
+
+
+
+
+
+
