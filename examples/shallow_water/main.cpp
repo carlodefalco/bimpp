@@ -32,7 +32,7 @@ static constexpr double L = res*(Nx-1);
 static constexpr double H = res*(Ny-1);
 static std::vector<double>   dem;
 static std::vector<double>   basin_mask;
-static constexpr int NUM_REFINEMENTS  = 6; // 3, 6
+static constexpr int NUM_REFINEMENTS  = 10; // 3, 6
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
@@ -41,11 +41,11 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 static constexpr double SAVEDT = 4e-3;
 static constexpr double DELTAT = 1e-3;
 static constexpr double REDCDT = .5;
-static constexpr double T      = 2.2;
+static constexpr double T      = 5.;
 
 static constexpr bool is_time_adaptivity    = true;
-static constexpr bool is_initial_refinement = true;
-static constexpr bool is_space_adaptivity   = true;
+static constexpr bool is_initial_refinement = false;
+static constexpr bool is_space_adaptivity   = false;
 static constexpr bool is_non_reflBC         = false;
 
 
@@ -59,7 +59,7 @@ static constexpr double yield_shear_stress = 0.0; // 1e3
 
 static constexpr double level_wet           = 10;
 static constexpr double level_interface     = 10; // minimum resolution!
-static constexpr double mesh_size_dry       = std::pow(2,level_interface); res*std::pow(2,level_interface); 
+static constexpr double mesh_size_dry       = std::pow(2,level_interface); //res*std::pow(2,level_interface); 
 static constexpr double mesh_size_wet       = mesh_size_dry/std::pow(2,level_wet); 
 static constexpr double mesh_size_interface = mesh_size_dry/std::pow(2,level_interface);
 
@@ -453,19 +453,24 @@ main (int argc, char **argv)
     
     TIC();
     std::vector<double> result(gn_nodes * 3);
+    std::vector<double> only_h (gn_nodes);
     for (int idx = sol.get_range_start (); idx < sol.get_range_end (); ++idx)
     {
       result[idx] = sol(idx);
+
+      if (idx%3 == 0)
+      {
+        const int idx_h = idx/3.;
+        only_h[idx_h] = sol(idx);
+      }
     }
     MPI_Allreduce (MPI_IN_PLACE, result.data (),
                    result.size (), MPI_DOUBLE,
                    MPI_SUM, MPI_COMM_WORLD);
 
-    std::vector<double> only_h (gn_nodes);
-    for (int idx = 0; idx < gn_nodes; ++idx)
-    {
-      only_h [idx] = result [ordh (idx) ];
-    }
+    MPI_Allreduce (MPI_IN_PLACE, only_h.data (),
+                   only_h.size (), MPI_DOUBLE,
+                   MPI_SUM, MPI_COMM_WORLD);
     TOC("get global sol.");
 
   
@@ -533,7 +538,7 @@ main (int argc, char **argv)
 
     tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
     //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1);
-    tmsh.metrics_refine (1e6);  // RAFFINAMENTO (arg is max element)
+    tmsh.metrics_refine (1e9);  // RAFFINAMENTO (arg is max element)
 
     // tmsh.set_coarsen_marker (coarsen_function);
     // tmsh.set_refine_marker  (refine_function);
@@ -863,24 +868,47 @@ main (int argc, char **argv)
           
         TIC();
         std::vector<double> result(gn_nodes * 3);
+	std::vector<double> only_h (gn_nodes);
+        std::vector<double> only_Ux(gn_nodes);
+        std::vector<double> only_Uy(gn_nodes);
         for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx)
         {
           result[idx] = sol_dyn(idx);
+
+          if (idx%3 == 0)
+          {
+            const int idx_h = idx/3.;
+            only_h[idx_h] = sol_dyn(idx);
+          }
+
+          if (idx%3 == 1)
+          {
+            const int idx_Ux = (idx-1)/3.;
+            only_Ux[idx_Ux] = sol_dyn(idx);
+          }
+
+          if (idx%3 == 2)
+          {
+            const int idx_Uy = (idx-2)/3.;
+            only_Uy[idx_Uy] = sol_dyn(idx);
+          }
         }
 
         MPI_Allreduce (MPI_IN_PLACE, result.data (),
                        result.size (), MPI_DOUBLE,
                        MPI_SUM, MPI_COMM_WORLD);
 
-        std::vector<double> only_h (gn_nodes);
-        std::vector<double> only_Ux(gn_nodes);
-        std::vector<double> only_Uy(gn_nodes);
-        for (int idx = 0; idx < gn_nodes; idx++)
-        {
-          only_h [idx] = result[ordh (idx)];
-          only_Ux[idx] = result[ordUx(idx)];
-          only_Uy[idx] = result[ordUy(idx)];
-        }
+	MPI_Allreduce (MPI_IN_PLACE, only_h.data (),
+                       only_h.size (), MPI_DOUBLE,
+                       MPI_SUM, MPI_COMM_WORLD);
+
+        MPI_Allreduce (MPI_IN_PLACE, only_Ux.data (),
+                       only_Ux.size (), MPI_DOUBLE,
+                       MPI_SUM, MPI_COMM_WORLD);
+
+	MPI_Allreduce (MPI_IN_PLACE, only_Uy.data (),
+                       only_Uy.size (), MPI_DOUBLE,
+                       MPI_SUM, MPI_COMM_WORLD);       
         
         
         std::vector<double> result_d(gn_nodes * 3);
@@ -985,7 +1013,7 @@ main (int argc, char **argv)
 
         tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
         //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1); 
-        tmsh.metrics_refine (1e6);  // RAFFINAMENTO (arg is max element)
+        tmsh.metrics_refine (1e9);  // RAFFINAMENTO (arg is max element)
 
         // tmsh.set_coarsen_marker (coarsen_function);
         // tmsh.set_refine_marker  (refine_function);
