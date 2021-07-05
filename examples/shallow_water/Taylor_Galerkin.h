@@ -20,7 +20,11 @@ public:
              const Q1& sold,
              const Q1& soldd,
              Q1& incr,
-             Q0& sol_onehalf_incr,
+             std::vector<std::array<double,4>>& incr_anti_diff,
+             Q1& P_plus,
+             Q1& P_minus,
+             Q0& sol_onehalf,
+             const Q1& mass,
              const ordering& oh,
              const ordering& oUx, 
              const ordering& oUy, 
@@ -48,12 +52,15 @@ public:
   
   void
   first_step (tmesh::quadrant_iterator quadrant);
+
+  void
+  compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadrant);
   
   void
   second_step (tmesh::quadrant_iterator quadrant);
   
   void
-  flux_limiter(const double& Q_min, const double& Q_max, const double& Q_vertex, const double& Q_cell, const double& toll, double& phi_cell_Q);
+  flux_limiter(const double& Q_min, const double& Q_max, const double& Q_dof, const double& P_plus_Q, const double& P_minus_Q, const double& flux_on_the_node, const double& mass_node, double& phi_cell_Q);
   
   
   void
@@ -91,6 +98,12 @@ public:
   std::array<double, 4> Uxdof   = {0, 0, 0, 0};
   std::array<double, 4> Uydof   = {0, 0, 0, 0};
   std::array<double, 4> Z_node  = {0, 0, 0, 0};
+  std::array<double, 4> P_plus_h_dof   = {0, 0, 0, 0};
+  std::array<double, 4> P_minus_h_dof  = {0, 0, 0, 0};
+  std::array<double, 4> P_plus_Ux_dof  = {0, 0, 0, 0};
+  std::array<double, 4> P_minus_Ux_dof = {0, 0, 0, 0};
+  std::array<double, 4> P_plus_Uy_dof  = {0, 0, 0, 0};
+  std::array<double, 4> P_minus_Uy_dof = {0, 0, 0, 0};
   
   // std::array<double, 4> source_h_node  = {0, 0, 0, 0};
   // std::array<double, 4> source_Ux_node = {0, 0, 0, 0};
@@ -140,18 +153,18 @@ public:
   const Q1& sold;
   const Q1& soldd;
   Q1& incr;
-  Q0& sol_onehalf_incr;
+  std::vector<std::array<double,4>>& incr_anti_diff;
+  Q1& P_plus;
+  Q1& P_minus;
+  Q0& sol_onehalf;
   const Q1& Z;
+  const Q1& mass;
   
 private:
   static constexpr double grav = 9.81;
-  
-  std::array<double, 4> der_coeffs_x, der_coeffs_y;
-  std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging;
-  double vel_rusanov_cell_x, vel_rusanov_cell_y;
-  
+
+  std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y;
   std::array<double, 2> grad_cell_h, grad_cell_Ux, grad_cell_Uy;
-  
   
   const ordering& ordh;
   const ordering& ordUx;

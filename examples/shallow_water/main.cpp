@@ -19,6 +19,8 @@
 #include "Taylor_Galerkin.h"
 
 
+// mpirun -np 4 main $PWD inputs/dem_ideal.octbin.gz inputs/mask_in.octbin.gz 
+
 static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in";  
 
@@ -32,20 +34,20 @@ static constexpr double L = res*(Nx-1);
 static constexpr double H = res*(Ny-1);
 static std::vector<double>   dem;
 static std::vector<double>   basin_mask;
-static constexpr int NUM_REFINEMENTS  = 10; // 3, 6
+static constexpr int NUM_REFINEMENTS  = 6; // 3, 6
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-
-static constexpr double SAVEDT = 4e-3;
+static constexpr double SPACE_ADAPTDT = .25;
+static constexpr double SAVEDT = 4.e-3;
 static constexpr double DELTAT = 1e-3;
 static constexpr double REDCDT = .5;
-static constexpr double T      = 5.;
+static constexpr double T      = 10.;
 
 static constexpr bool is_time_adaptivity    = true;
-static constexpr bool is_initial_refinement = false;
-static constexpr bool is_space_adaptivity   = false;
+static constexpr bool is_initial_refinement = true;
+static constexpr bool is_space_adaptivity   = true;
 static constexpr bool is_non_reflBC         = false;
 
 
@@ -302,7 +304,7 @@ main (int argc, char **argv)
 
   if (argc != 4) 
   {
-    std::cerr << "You should provide as input respecrively, $PWD, dem directory, mask directory" << std::endl;
+    std::cerr << "You should provide as input respectively, save directory, dem directory, mask directory" << std::endl;
 
     // Close MPI and print report
     MPI_Barrier (MPI_COMM_WORLD);
@@ -347,8 +349,12 @@ main (int argc, char **argv)
   /// Allocate initial data container
   Q1 sol  (ln_nodes * 3);
   Q1 incr (ln_nodes * 3);
+  Q1 P_plus (ln_nodes * 3);
+  Q1 P_minus (ln_nodes * 3);
   sol.get_owned_data  ().assign (sol.get_owned_data  ().size (), 0.0);
   incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
+  P_plus.get_owned_data  ().assign (P_plus.get_owned_data  ().size (), 0.0);
+  P_minus.get_owned_data ().assign (P_minus.get_owned_data ().size (), 0.0);
   
   Q1 mass (ln_nodes * 3);
   bim2a_mass_vector (tmsh, mass, ordh);
@@ -356,9 +362,10 @@ main (int argc, char **argv)
   bim2a_mass_vector (tmsh, mass, ordUy);
   mass.assemble ();
   
-  Q0 sol_onehalf_incr (ln_elements * 3);
-  sol_onehalf_incr.assign(sol_onehalf_incr.size(), 0.0);
-  
+  Q0 sol_onehalf (ln_elements * 3);
+  sol_onehalf.assign(sol_onehalf.size(), 0.0);
+
+  std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 3);
   
   Q1 Z (ln_nodes);
   Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
@@ -446,6 +453,14 @@ main (int argc, char **argv)
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
+
+  bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordh,  false);
+  bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordUx, false);
+  bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordUy);
+
+  bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordh,  false);
+  bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordUx, false);
+  bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordUy);
   
 
   if (is_initial_refinement)
@@ -538,7 +553,7 @@ main (int argc, char **argv)
 
     tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
     //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1);
-    tmsh.metrics_refine (1e9);  // RAFFINAMENTO (arg is max element)
+    tmsh.metrics_refine (1e10);  // RAFFINAMENTO (arg is max element)
 
     // tmsh.set_coarsen_marker (coarsen_function);
     // tmsh.set_refine_marker  (refine_function);
@@ -561,6 +576,14 @@ main (int argc, char **argv)
     Q1 incr_ (ln_nodes * 3);
     incr_.get_owned_data ().assign (incr_.get_owned_data ().size(), 0.0);
     incr_.assemble ();
+
+    Q1 P_plus_ (ln_nodes * 3);
+    P_plus_.get_owned_data ().assign (P_plus_.get_owned_data ().size(), 0.0);
+    P_plus_.assemble ();
+
+    Q1 P_minus_ (ln_nodes * 3);
+    P_minus_.get_owned_data ().assign (P_minus_.get_owned_data ().size(), 0.0);
+    P_minus_.assemble ();
   
     Q1 mass_ (ln_nodes * 3);
     bim2a_mass_vector (tmsh, mass_, ordh);
@@ -568,8 +591,10 @@ main (int argc, char **argv)
     bim2a_mass_vector (tmsh, mass_, ordUy);
     mass_.assemble ();
   
-    Q0 sol_onehalf_incr_ (ln_elements * 3);
-    sol_onehalf_incr_.assign (sol_onehalf_incr_.size(), 0.0);
+    Q0 sol_onehalf_ (ln_elements * 3);
+    sol_onehalf_.assign (sol_onehalf_.size(), 0.0);
+
+    std::vector<std::array<double,4>> incr_anti_diff_ (ln_elements * 3);
 
 
     Q1 sol_ (ln_nodes * 3);
@@ -620,10 +645,21 @@ main (int argc, char **argv)
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUx, false);
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUy);
 
+    bim2a_solution_with_ghosts (tmsh, P_plus_, replace_op, ordh,  false);
+    bim2a_solution_with_ghosts (tmsh, P_plus_, replace_op, ordUx, false);
+    bim2a_solution_with_ghosts (tmsh, P_plus_, replace_op, ordUy);
+
+    bim2a_solution_with_ghosts (tmsh, P_minus_, replace_op, ordh,  false);
+    bim2a_solution_with_ghosts (tmsh, P_minus_, replace_op, ordUx, false);
+    bim2a_solution_with_ghosts (tmsh, P_minus_, replace_op, ordUy);
+
     sol              = sol_;
     incr             = incr_;
+    incr_anti_diff   = incr_anti_diff_;
+    P_plus           = P_plus_;
+    P_minus          = P_minus_;
     mass             = mass_;
-    sol_onehalf_incr = sol_onehalf_incr_;
+    sol_onehalf      = sol_onehalf_;
     Z                = Z_;
   
     TOC ("compute initial condition");
@@ -633,16 +669,24 @@ main (int argc, char **argv)
   Q1 sold_dyn             = sol;
   Q1 soldd_dyn            = sol;
   Q1 incr_dyn             = incr;
+  Q1 P_plus_dyn           = P_plus;
+  Q1 P_minus_dyn          = P_minus;  
   Q1 mass_dyn             = mass;
   Q1 Z_dyn                = Z;
-  Q0 sol_onehalf_incr_dyn = sol_onehalf_incr;
+  Q0 sol_onehalf_dyn      = sol_onehalf;
+
+  std::vector<std::array<double,4>> incr_anti_diff_dyn = incr_anti_diff;
 
   
   TG2_scheme stp(sol_dyn, 
                  sold_dyn, 
                  soldd_dyn, 
                  incr_dyn, 
-                 sol_onehalf_incr_dyn, 
+                 incr_anti_diff_dyn,
+                 P_plus_dyn, 
+                 P_minus_dyn, 
+                 sol_onehalf_dyn, 
+                 mass_dyn,
                  ordh, ordUx, ordUy, 
                  Z_dyn, 
                  DELTAT, h_min, is_non_reflBC, 
@@ -722,10 +766,16 @@ main (int argc, char **argv)
   {
     
     
-    // Reset increment
+    // Reset increment, and limiter terms
     TIC();
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
+
+    P_plus_dyn.get_owned_data ().assign (P_plus_dyn.get_owned_data ().size (), 0.0);
+    P_plus_dyn.assemble (replace_op);
+
+    P_minus_dyn.get_owned_data ().assign (P_minus_dyn.get_owned_data ().size (), 0.0);
+    P_minus_dyn.assemble (replace_op);
     TOC("Reset");
     TIC();
     
@@ -791,7 +841,28 @@ main (int argc, char **argv)
       stp.first_step(quadrant);
     }
     
+
+    // 
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    {
+      stp.compute_nodal_anti_diffusive_fluxes(quadrant);
+    }
+    incr_dyn.assemble ();
+    P_plus_dyn.assemble ();
+    P_minus_dyn.assemble ();
+
+    // low order solution
+    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
+    {
+      sol_dyn.get_owned_data ()[kk] += stp.dt * incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
+    }
+
+    incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
+    incr_dyn.assemble (replace_op);
     
+    //return 0;
+
     // second step!
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -799,19 +870,19 @@ main (int argc, char **argv)
       stp.second_step(quadrant);
     }
     incr_dyn.assemble ();
-    TOC("Compute step");
-
 
     stp.set_times(time, time_old, time_oldd);
     soldd_dyn = sold_dyn;
     sold_dyn  = sol_dyn;
+    TOC("Compute step");
+
+
     
     
 
     TIC();
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
     {
-      // this is the increment, sol.get_owned_data () is a vector probably because it has .assign function
       sol_dyn.get_owned_data ()[kk] += stp.dt * incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
     }
 
@@ -862,285 +933,306 @@ main (int argc, char **argv)
       tmsh.octbin_export (filename, Z_dyn);
       savecount = 0.0;
       TOC("Exporting solution");
-      
-      if (is_space_adaptivity)// && count%10==0) //(is_space_adaptivity && count==3)
+
+    }
+    
+    if (is_space_adaptivity && std::fmod(time,SPACE_ADAPTDT)==0)// && count%10==0) //(is_space_adaptivity && count==3)
+    {
+        
+      TIC();
+      std::vector<double> result(gn_nodes * 3);
+      std::vector<double> only_h (gn_nodes);
+      std::vector<double> only_Ux(gn_nodes);
+      std::vector<double> only_Uy(gn_nodes);
+      for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx)
       {
-          
-        TIC();
-        std::vector<double> result(gn_nodes * 3);
-	std::vector<double> only_h (gn_nodes);
-        std::vector<double> only_Ux(gn_nodes);
-        std::vector<double> only_Uy(gn_nodes);
-        for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx)
-        {
-          result[idx] = sol_dyn(idx);
+        result[idx] = sol_dyn(idx);
 
-          if (idx%3 == 0)
-          {
-            const int idx_h = idx/3.;
-            only_h[idx_h] = sol_dyn(idx);
+        if (idx%3 == 0)
+        {
+          const int idx_h = idx/3.;
+          only_h[idx_h] = sol_dyn(idx);
+        }
+
+        if (idx%3 == 1)
+        {
+          const int idx_Ux = (idx-1)/3.;
+          only_Ux[idx_Ux] = sol_dyn(idx);
+        }
+
+        if (idx%3 == 2)
+        {
+          const int idx_Uy = (idx-2)/3.;
+          only_Uy[idx_Uy] = sol_dyn(idx);
+        }
+      }
+
+      MPI_Allreduce (MPI_IN_PLACE, result.data (),
+                     result.size (), MPI_DOUBLE,
+                     MPI_SUM, MPI_COMM_WORLD);
+
+      MPI_Allreduce (MPI_IN_PLACE, only_h.data (),
+                     only_h.size (), MPI_DOUBLE,
+                     MPI_SUM, MPI_COMM_WORLD);
+
+      MPI_Allreduce (MPI_IN_PLACE, only_Ux.data (),
+                     only_Ux.size (), MPI_DOUBLE,
+                     MPI_SUM, MPI_COMM_WORLD);
+
+      MPI_Allreduce (MPI_IN_PLACE, only_Uy.data (),
+                     only_Uy.size (), MPI_DOUBLE,
+                     MPI_SUM, MPI_COMM_WORLD);       
+      
+      
+      std::vector<double> result_d(gn_nodes * 3);
+      for (int idx = sold_dyn.get_range_start (); idx < sold_dyn.get_range_end (); ++idx)
+      {
+        result_d[idx] = sold_dyn(idx);
+      }
+      MPI_Allreduce (MPI_IN_PLACE, result_d.data (),
+                     result_d.size (), MPI_DOUBLE,
+                     MPI_SUM, MPI_COMM_WORLD);
+      
+      
+      std::vector<double> result_dd(gn_nodes * 3);
+      for (int idx = soldd_dyn.get_range_start (); idx < soldd_dyn.get_range_end (); ++idx)
+      {
+        result_dd[idx] = soldd_dyn(idx);
+      }
+      MPI_Allreduce (MPI_IN_PLACE, result_dd.data (),
+                     result_dd.size (), MPI_DOUBLE,
+                     MPI_SUM, MPI_COMM_WORLD);
+      TOC("get global sol.");
+
+      TIC();
+      std::set<int> global_index_quad;
+      for (auto q = tmsh.begin_quadrant_sweep ();
+           q != tmsh.end_quadrant_sweep ();
+           ++q)
+      {
+        quadrant_marker_list(q, only_h,  only_Ux, only_Uy, stp.dt, global_index_quad);
+      }      
+      TOC("front track.");  
+      
+      
+      TIC();
+      double tol = 1e-5;
+      auto dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
+      //q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
+      TOC ("gradient and hstar");
+      
+      TIC();
+      // auto estimator = [& h_star, & only_h] (tmesh::quadrant_iterator q)
+      // {
+      //   return estimator_sol (q, h_star, only_h);
+      // };
+      auto estimator = [& dh, & only_h] (tmesh::quadrant_iterator q)
+      {
+        return estimator_grad(q, dh, only_h);
+      };
+
+      // auto estimator_flux = [& h_star, & only_h] (tmesh::quadrant_iterator q)
+      // {
+      //   std::array<double,4> h_mesh = {0,0,0,0};
+      //   for (int ii = 0; ii < 4; ++ii)
+      //   {
+      //     if (! q->is_hanging (ii)){
+      //       h_mesh[ii] = only_h[q->gt (ii)];
+      //     }
+      //     else
+      //     {
+      //       h_mesh[ii] = .5 * ( only_h[q->gparent(0,ii)] + only_h[q->gparent(1,ii)] );
+      //     } 
+      //   }
+
+      //   const auto basin_check = ((h_mesh[0]+h_mesh[1]+h_mesh[2]+h_mesh[3])>0 && (h_mesh[0]*h_mesh[1]*h_mesh[2]*h_mesh[3])==0) ? 1 : 0; 
+      //   //const auto basin_check = ((h_mesh[0]+h_mesh[1]+h_mesh[2]+h_mesh[3])>h_min && (h_mesh[0]*h_mesh[1]*h_mesh[2]*h_mesh[3])<=h_min) ? 1 : 0; 
+
+      //   return (basin_check); 
+      // };
+
+
+      auto estimator_flux = [& global_index_quad] (tmesh::quadrant_iterator q)
+      {
+        if ( global_index_quad.find(q->get_global_quad_idx ()) != global_index_quad.end() )
+        {
+          return 1;
+        }
+        return 0;
+      };
+
+
+      auto dry_function = [& only_h] (tmesh::quadrant_iterator q)
+      {
+
+        std::array<double,4> h_mesh = {0,0,0,0};
+        for (int ii = 0; ii < 4; ++ii)
+        {
+          if (! q->is_hanging (ii)){
+            h_mesh[ii] = only_h[q->gt (ii)];
           }
-
-          if (idx%3 == 1)
+          else
           {
-            const int idx_Ux = (idx-1)/3.;
-            only_Ux[idx_Ux] = sol_dyn(idx);
-          }
-
-          if (idx%3 == 2)
-          {
-            const int idx_Uy = (idx-2)/3.;
-            only_Uy[idx_Uy] = sol_dyn(idx);
-          }
-        }
-
-        MPI_Allreduce (MPI_IN_PLACE, result.data (),
-                       result.size (), MPI_DOUBLE,
-                       MPI_SUM, MPI_COMM_WORLD);
-
-	MPI_Allreduce (MPI_IN_PLACE, only_h.data (),
-                       only_h.size (), MPI_DOUBLE,
-                       MPI_SUM, MPI_COMM_WORLD);
-
-        MPI_Allreduce (MPI_IN_PLACE, only_Ux.data (),
-                       only_Ux.size (), MPI_DOUBLE,
-                       MPI_SUM, MPI_COMM_WORLD);
-
-	MPI_Allreduce (MPI_IN_PLACE, only_Uy.data (),
-                       only_Uy.size (), MPI_DOUBLE,
-                       MPI_SUM, MPI_COMM_WORLD);       
-        
-        
-        std::vector<double> result_d(gn_nodes * 3);
-        for (int idx = sold_dyn.get_range_start (); idx < sold_dyn.get_range_end (); ++idx)
-        {
-          result_d[idx] = sold_dyn(idx);
-        }
-        MPI_Allreduce (MPI_IN_PLACE, result_d.data (),
-                       result_d.size (), MPI_DOUBLE,
-                       MPI_SUM, MPI_COMM_WORLD);
-        
-        
-        std::vector<double> result_dd(gn_nodes * 3);
-        for (int idx = soldd_dyn.get_range_start (); idx < soldd_dyn.get_range_end (); ++idx)
-        {
-          result_dd[idx] = soldd_dyn(idx);
-        }
-        MPI_Allreduce (MPI_IN_PLACE, result_dd.data (),
-                       result_dd.size (), MPI_DOUBLE,
-                       MPI_SUM, MPI_COMM_WORLD);
-        TOC("get global sol.");
-
-        TIC();
-        std::set<int> global_index_quad;
-        for (auto q = tmsh.begin_quadrant_sweep ();
-             q != tmsh.end_quadrant_sweep ();
-             ++q)
-        {
-          quadrant_marker_list(q, only_h,  only_Ux, only_Uy, stp.dt, global_index_quad);
-        }      
-        TOC("front track.");  
-        
-        
-        TIC();
-        double tol = 1e-5;
-        auto dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
-        //q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
-        TOC ("gradient and hstar");
-        
-        TIC();
-        // auto estimator = [& h_star, & only_h] (tmesh::quadrant_iterator q)
-        // {
-        //   return estimator_sol (q, h_star, only_h);
-        // };
-        auto estimator = [& dh, & only_h] (tmesh::quadrant_iterator q)
-        {
-          return estimator_grad(q, dh, only_h);
-        };
-
-        // auto estimator_flux = [& h_star, & only_h] (tmesh::quadrant_iterator q)
-        // {
-        //   std::array<double,4> h_mesh = {0,0,0,0};
-        //   for (int ii = 0; ii < 4; ++ii)
-        //   {
-        //     if (! q->is_hanging (ii)){
-        //       h_mesh[ii] = only_h[q->gt (ii)];
-        //     }
-        //     else
-        //     {
-        //       h_mesh[ii] = .5 * ( only_h[q->gparent(0,ii)] + only_h[q->gparent(1,ii)] );
-        //     } 
-        //   }
-
-        //   const auto basin_check = ((h_mesh[0]+h_mesh[1]+h_mesh[2]+h_mesh[3])>0 && (h_mesh[0]*h_mesh[1]*h_mesh[2]*h_mesh[3])==0) ? 1 : 0; 
-        //   //const auto basin_check = ((h_mesh[0]+h_mesh[1]+h_mesh[2]+h_mesh[3])>h_min && (h_mesh[0]*h_mesh[1]*h_mesh[2]*h_mesh[3])<=h_min) ? 1 : 0; 
-
-        //   return (basin_check); 
-        // };
-
-
-        auto estimator_flux = [& global_index_quad] (tmesh::quadrant_iterator q)
-        {
-          if ( global_index_quad.find(q->get_global_quad_idx ()) != global_index_quad.end() )
-          {
-            return 1;
-          }
-          return 0;
-        };
-
-
-        auto dry_function = [& only_h] (tmesh::quadrant_iterator q)
-        {
-
-          std::array<double,4> h_mesh = {0,0,0,0};
-          for (int ii = 0; ii < 4; ++ii)
-          {
-            if (! q->is_hanging (ii)){
-              h_mesh[ii] = only_h[q->gt (ii)];
-            }
-            else
-            {
-              h_mesh[ii] = .5 * ( only_h[q->gparent(0,ii)] + only_h[q->gparent(1,ii)] );
-            }
-          }
-
-          const auto basin_check = ((h_mesh[0]+h_mesh[1]+h_mesh[2]+h_mesh[3])<h_min && (h_mesh[0]*h_mesh[1]*h_mesh[2]*h_mesh[3])<h_min) ? 1 : 0; 
-          //const auto basin_check = ((h_mesh[0]+h_mesh[1]+h_mesh[2]+h_mesh[3])==0 && (h_mesh[0]*h_mesh[1]*h_mesh[2]*h_mesh[3])==0) ? 1 : 0; 
-
-          return (basin_check); 
-        };
-
-
-        tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
-        //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1); 
-        tmsh.metrics_refine (1e9);  // RAFFINAMENTO (arg is max element)
-
-        // tmsh.set_coarsen_marker (coarsen_function);
-        // tmsh.set_refine_marker  (refine_function);
-        // tmsh.coarsen (recursive, 1, 0);
-        // tmsh.refine  (recursive, 1);
-        TOC ("refine");
-
-        // Ottengo i parametri della mesh corrente
-        TIC();
-        gn_nodes    = tmsh.num_global_nodes ();
-        ln_nodes    = tmsh.num_owned_nodes ();
-        ln_elements = tmsh.num_local_quadrants ();
-        gn_elements = tmsh.num_global_quadrants ();
-        TOC ("Obtaining new parameters");
-        
-        
-        // Interpolo sol sulla nuova mesh
-        TIC();
-        std::vector<double> sol_new_global (gn_nodes * 3);
-        interpolate_vector (tmsh, result, sol_new_global, ordh);
-        interpolate_vector (tmsh, result, sol_new_global, ordUx);
-        interpolate_vector (tmsh, result, sol_new_global, ordUy);
-        Q1 sol (ln_nodes * 3);
-        sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
-        for (int idx = sol.get_range_start (); idx < sol.get_range_end (); ++idx)
-        {
-          sol (idx) = sol_new_global [idx];
-        }
-        sol.assemble (replace_op);
-        
-        std::vector<double> sold_new_global (gn_nodes * 3);
-        interpolate_vector (tmsh, result_d, sold_new_global, ordh);
-        interpolate_vector (tmsh, result_d, sold_new_global, ordUx);
-        interpolate_vector (tmsh, result_d, sold_new_global, ordUy);
-        Q1 sold (ln_nodes * 3);
-        sold.get_owned_data ().assign (sold.get_owned_data ().size (), 0.0);
-        for (int idx = sold.get_range_start (); idx < sold.get_range_end (); ++idx)
-        {
-          sold (idx) = sold_new_global [idx];
-        }
-        sold.assemble (replace_op);
-        
-        std::vector<double> soldd_new_global (gn_nodes * 3);
-        interpolate_vector (tmsh, result_dd, soldd_new_global, ordh);
-        interpolate_vector (tmsh, result_dd, soldd_new_global, ordUy);
-        interpolate_vector (tmsh, result_dd, soldd_new_global, ordUx);
-        Q1 soldd (ln_nodes * 3);
-        soldd.get_owned_data ().assign (soldd.get_owned_data ().size (), 0.0);
-        for (int idx = soldd.get_range_start (); idx < soldd.get_range_end (); ++idx)
-        {
-          soldd (idx) = soldd_new_global [idx];
-        }
-        soldd.assemble (replace_op);
-        
-        
-        Q1 incr (ln_nodes * 3);
-        incr.get_owned_data ().assign (incr.get_owned_data ().size(), 0.0);
-        incr.assemble ();
-        
-        Q1 mass (ln_nodes * 3);
-        bim2a_mass_vector (tmsh, mass, ordh);
-        bim2a_mass_vector (tmsh, mass, ordUx);
-        bim2a_mass_vector (tmsh, mass, ordUy);
-        mass.assemble ();
-        
-        Q0 sol_onehalf_incr (ln_elements * 3);
-        sol_onehalf_incr.assign (sol_onehalf_incr.size(), 0.0);
-        
-        
-
-
-        Q1 Z (ln_nodes);
-        for (auto quadrant = tmsh.begin_quadrant_sweep ();
-             quadrant != tmsh.end_quadrant_sweep ();
-             ++quadrant)
-        {
-          
-          for (int ii = 0; ii < 4; ++ii)
-          {
-            if (! quadrant->is_hanging (ii)){
-              double xx=quadrant->p(0,ii);
-              double yy=quadrant->p(1,ii);
-              Z[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; //orography_fun(xx, yy, L, H); //dem[global_coord_2_raster(xx,yy)[0]];
-            }
-             
-            else
-            {
-              Z[quadrant->gparent(0,ii)] += 0.;
-              Z[quadrant->gparent(1,ii)] += 0.;
-            }
+            h_mesh[ii] = .5 * ( only_h[q->gparent(0,ii)] + only_h[q->gparent(1,ii)] );
           }
         }
+
+        const auto basin_check = ((h_mesh[0]+h_mesh[1]+h_mesh[2]+h_mesh[3])<h_min && (h_mesh[0]*h_mesh[1]*h_mesh[2]*h_mesh[3])<h_min) ? 1 : 0; 
+        //const auto basin_check = ((h_mesh[0]+h_mesh[1]+h_mesh[2]+h_mesh[3])==0 && (h_mesh[0]*h_mesh[1]*h_mesh[2]*h_mesh[3])==0) ? 1 : 0; 
+
+        return (basin_check); 
+      };
+
+
+      tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
+      //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1); 
+      tmsh.metrics_refine (1e10);  // RAFFINAMENTO (arg is max element)
+
+      // tmsh.set_coarsen_marker (coarsen_function);
+      // tmsh.set_refine_marker  (refine_function);
+      // tmsh.coarsen (recursive, 1, 0);
+      // tmsh.refine  (recursive, 1);
+      TOC ("refine");
+
+      // Ottengo i parametri della mesh corrente
+      TIC();
+      gn_nodes    = tmsh.num_global_nodes ();
+      ln_nodes    = tmsh.num_owned_nodes ();
+      ln_elements = tmsh.num_local_quadrants ();
+      gn_elements = tmsh.num_global_quadrants ();
+      TOC ("Obtaining new parameters");
+      
+      
+      // Interpolo sol sulla nuova mesh
+      TIC();
+      std::vector<double> sol_new_global (gn_nodes * 3);
+      interpolate_vector (tmsh, result, sol_new_global, ordh);
+      interpolate_vector (tmsh, result, sol_new_global, ordUx);
+      interpolate_vector (tmsh, result, sol_new_global, ordUy);
+      Q1 sol (ln_nodes * 3);
+      sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
+      for (int idx = sol.get_range_start (); idx < sol.get_range_end (); ++idx)
+      {
+        sol (idx) = sol_new_global [idx];
+      }
+      sol.assemble (replace_op);
+      
+      std::vector<double> sold_new_global (gn_nodes * 3);
+      interpolate_vector (tmsh, result_d, sold_new_global, ordh);
+      interpolate_vector (tmsh, result_d, sold_new_global, ordUx);
+      interpolate_vector (tmsh, result_d, sold_new_global, ordUy);
+      Q1 sold (ln_nodes * 3);
+      sold.get_owned_data ().assign (sold.get_owned_data ().size (), 0.0);
+      for (int idx = sold.get_range_start (); idx < sold.get_range_end (); ++idx)
+      {
+        sold (idx) = sold_new_global [idx];
+      }
+      sold.assemble (replace_op);
+      
+      std::vector<double> soldd_new_global (gn_nodes * 3);
+      interpolate_vector (tmsh, result_dd, soldd_new_global, ordh);
+      interpolate_vector (tmsh, result_dd, soldd_new_global, ordUy);
+      interpolate_vector (tmsh, result_dd, soldd_new_global, ordUx);
+      Q1 soldd (ln_nodes * 3);
+      soldd.get_owned_data ().assign (soldd.get_owned_data ().size (), 0.0);
+      for (int idx = soldd.get_range_start (); idx < soldd.get_range_end (); ++idx)
+      {
+        soldd (idx) = soldd_new_global [idx];
+      }
+      soldd.assemble (replace_op);
+      
+      
+      Q1 incr (ln_nodes * 3);
+      incr.get_owned_data ().assign (incr.get_owned_data ().size(), 0.0);
+      incr.assemble ();
+
+      std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 3);
+
+      Q1 P_plus (ln_nodes * 3);
+      P_plus.get_owned_data ().assign (P_plus.get_owned_data ().size(), 0.0);
+      P_plus.assemble ();  
+      
+      Q1 P_minus (ln_nodes * 3);
+      P_minus.get_owned_data ().assign (P_minus.get_owned_data ().size(), 0.0);
+      P_minus.assemble ();      
+      
+      Q1 mass (ln_nodes * 3);
+      bim2a_mass_vector (tmsh, mass, ordh);
+      bim2a_mass_vector (tmsh, mass, ordUx);
+      bim2a_mass_vector (tmsh, mass, ordUy);
+      mass.assemble ();
+      
+      Q0 sol_onehalf (ln_elements * 3);
+      sol_onehalf.assign (sol_onehalf.size(), 0.0);
+
+
+      Q1 Z (ln_nodes);
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+           quadrant != tmsh.end_quadrant_sweep ();
+           ++quadrant)
+      {
         
-        
-        
-        bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh,  false);
-        bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUx, false);
-        bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy);
-        
-        bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordh,  false);
-        bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordUx, false);
-        bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordUy);
-        
-        bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordh,  false);
-        bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUx, false);
-        bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUy);
-        
-        bim2a_solution_with_ghosts (tmsh, Z, replace_op);
-        
-        bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
-        bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
-        bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
-        
-         
-        sol_dyn              = sol;
-        sold_dyn             = sold;
-        soldd_dyn            = soldd;
-        incr_dyn             = incr;
-        mass_dyn             = mass;
-        sol_onehalf_incr_dyn = sol_onehalf_incr;
-        Z_dyn                = Z;
-        
-        TOC ("Interpolation");
-        
+        for (int ii = 0; ii < 4; ++ii)
+        {
+          if (! quadrant->is_hanging (ii)){
+            double xx=quadrant->p(0,ii);
+            double yy=quadrant->p(1,ii);
+            Z[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; //orography_fun(xx, yy, L, H); //dem[global_coord_2_raster(xx,yy)[0]];
+          }
+           
+          else
+          {
+            Z[quadrant->gparent(0,ii)] += 0.;
+            Z[quadrant->gparent(1,ii)] += 0.;
+          }
+        }
       }
       
+      
+      
+      bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh,  false);
+      bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUx, false);
+      bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy);
+      
+      bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordh,  false);
+      bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordUx, false);
+      bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordUy);
+      
+      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordh,  false);
+      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUx, false);
+      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUy);
+      
+      bim2a_solution_with_ghosts (tmsh, Z, replace_op);
+      
+      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
+      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
+      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
+
+      bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordh,  false);
+      bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordUx, false);
+      bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordUy);
+
+      bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordh,  false);
+      bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordUx, false);
+      bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordUy);
+      
+       
+      sol_dyn              = sol;
+      sold_dyn             = sold;
+      soldd_dyn            = soldd;
+      incr_dyn             = incr;
+      incr_anti_diff_dyn   = incr_anti_diff;
+      P_plus_dyn           = P_plus;
+      P_minus_dyn          = P_minus;
+      mass_dyn             = mass;
+      sol_onehalf_dyn      = sol_onehalf;
+      Z_dyn                = Z;
+      
+      TOC ("Interpolation");
+      
     }
+      
+    
     
     
   }
