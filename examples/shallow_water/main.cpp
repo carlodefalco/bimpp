@@ -39,16 +39,16 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-static constexpr double SPACE_ADAPTDT = .25;
-static constexpr double SAVEDT = 4.e-3;
+static constexpr double SPACE_ADAPTDT = 1.e-3;
+static constexpr double SAVEDT = 2.e-2;
 static constexpr double DELTAT = 1e-3;
 static constexpr double REDCDT = .5;
-static constexpr double T      = 10.;
+static constexpr double T      = 2.2;
 
 static constexpr bool is_time_adaptivity    = true;
 static constexpr bool is_initial_refinement = true;
 static constexpr bool is_space_adaptivity   = true;
-static constexpr bool is_non_reflBC         = false;
+static constexpr bool is_non_reflBC         = true;
 
 
 static constexpr double h_min = 1e-5;
@@ -61,7 +61,7 @@ static constexpr double yield_shear_stress = 0.0; // 1e3
 
 static constexpr double level_wet           = 10;
 static constexpr double level_interface     = 10; // minimum resolution!
-static constexpr double mesh_size_dry       = std::pow(2,level_interface); //res*std::pow(2,level_interface); 
+static constexpr double mesh_size_dry       = res*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
 static constexpr double mesh_size_wet       = mesh_size_dry/std::pow(2,level_wet); 
 static constexpr double mesh_size_interface = mesh_size_dry/std::pow(2,level_interface);
 
@@ -139,6 +139,8 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy, const double& L, const double& H, const std::vector<double>& basin_mask)  {
   
+  return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. );
+
   //return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 40 : 0);
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
   return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
@@ -553,7 +555,7 @@ main (int argc, char **argv)
 
     tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
     //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1);
-    tmsh.metrics_refine (1e10);  // RAFFINAMENTO (arg is max element)
+    tmsh.metrics_refine (1e12);  // RAFFINAMENTO (arg is max element)
 
     // tmsh.set_coarsen_marker (coarsen_function);
     // tmsh.set_refine_marker  (refine_function);
@@ -754,7 +756,7 @@ main (int argc, char **argv)
   }
   int count = 0;
   
-  double savecount = 0.0;
+  double savecount = 0.0, space_adapt_count = 0.0;
   
   if (rank == 0)
   {
@@ -820,8 +822,10 @@ main (int argc, char **argv)
     time_old = time;
     time += stp.dt; 
     savecount += stp.dt;
-    MPI_Bcast (static_cast<void*> (&time),      1, MPI_DOUBLE, 0, tmsh.comm);
-    MPI_Bcast (static_cast<void*> (&savecount), 1, MPI_DOUBLE, 0, tmsh.comm);
+    space_adapt_count += stp.dt;
+    MPI_Bcast (static_cast<void*> (&time),              1, MPI_DOUBLE, 0, tmsh.comm);
+    MPI_Bcast (static_cast<void*> (&savecount),         1, MPI_DOUBLE, 0, tmsh.comm);
+    MPI_Bcast (static_cast<void*> (&space_adapt_count), 1, MPI_DOUBLE, 0, tmsh.comm);
     MPI_Barrier (tmsh.comm); // tmsh.comm = MPI_COMM_WORLD
     
     // Print current time
@@ -935,10 +939,11 @@ main (int argc, char **argv)
       TOC("Exporting solution");
 
     }
+
     
-    if (is_space_adaptivity && std::fmod(time,SPACE_ADAPTDT)==0)// && count%10==0) //(is_space_adaptivity && count==3)
+    if (is_space_adaptivity && space_adapt_count >= SPACE_ADAPTDT)
     {
-        
+
       TIC();
       std::vector<double> result(gn_nodes * 3);
       std::vector<double> only_h (gn_nodes);
@@ -1086,7 +1091,7 @@ main (int argc, char **argv)
 
       tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
       //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1); 
-      tmsh.metrics_refine (1e10);  // RAFFINAMENTO (arg is max element)
+      tmsh.metrics_refine (1e12);  // RAFFINAMENTO (arg is max element)
 
       // tmsh.set_coarsen_marker (coarsen_function);
       // tmsh.set_refine_marker  (refine_function);
@@ -1227,6 +1232,8 @@ main (int argc, char **argv)
       mass_dyn             = mass;
       sol_onehalf_dyn      = sol_onehalf;
       Z_dyn                = Z;
+
+      space_adapt_count = 0.0;
       
       TOC ("Interpolation");
       
