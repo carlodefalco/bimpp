@@ -22,19 +22,19 @@
 // mpirun -np 4 main $PWD inputs/dem_ideal.octbin.gz inputs/mask_in.octbin.gz 
 
 static constexpr char VARNAME_1[255] = "dem";
-static constexpr char VARNAME_2[255] = "mask_in";  
+static constexpr char VARNAME_2[255] = "mask_in";   
 
 // properties of the input dem
 static constexpr double res = 5; // it is also the minimum resolution of the bim element
 static constexpr double Nx = 101; 
 static constexpr double Ny = 101;
 
-
+ 
 static constexpr double L = res*(Nx-1);
 static constexpr double H = res*(Ny-1);
 static std::vector<double>   dem;
 static std::vector<double>   basin_mask;
-static constexpr int NUM_REFINEMENTS  = 6; // 3, 6
+static constexpr int NUM_REFINEMENTS  = 7; // 3, 6
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
@@ -46,8 +46,8 @@ static constexpr double REDCDT = .5;
 static constexpr double T      = 2.2;
 
 static constexpr bool is_time_adaptivity    = true;
-static constexpr bool is_initial_refinement = true;
-static constexpr bool is_space_adaptivity   = true;
+static constexpr bool is_initial_refinement = false;
+static constexpr bool is_space_adaptivity   = false;
 static constexpr bool is_non_reflBC         = true;
 
 
@@ -61,7 +61,7 @@ static constexpr double yield_shear_stress = 0.0; // 1e3
 
 static constexpr double level_wet           = 10;
 static constexpr double level_interface     = 10; // minimum resolution!
-static constexpr double mesh_size_dry       = res*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
+static constexpr double mesh_size_dry       = 5*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
 static constexpr double mesh_size_wet       = mesh_size_dry/std::pow(2,level_wet); 
 static constexpr double mesh_size_interface = mesh_size_dry/std::pow(2,level_interface);
 
@@ -139,7 +139,9 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy, const double& L, const double& H, const std::vector<double>& basin_mask)  {
   
-  return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. );
+  return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 7. );
+
+  return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 7. );
 
   //return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 40 : 0);
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
@@ -856,16 +858,32 @@ main (int argc, char **argv)
     P_plus_dyn.assemble ();
     P_minus_dyn.assemble ();
 
+
+    stp.set_times(time, time_old, time_oldd);
+    soldd_dyn = sold_dyn;
+    sold_dyn  = sol_dyn;
+
+
     // low order solution
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
     {
       sol_dyn.get_owned_data ()[kk] += stp.dt * incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
     }
-
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
+    {
+      for (int ii = 0; ii < 4; ++ii)
+      {
+        if (! quadrant->is_hanging (ii)){
+          sol_dyn [ordh    (quadrant->gt (ii))] *= (sol_dyn [ordh (quadrant->gt (ii))]>0);
+        }
+      }
+    }
+    sol_dyn.assemble (replace_op);
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
     
-    //return 0;
 
     // second step!
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -874,10 +892,6 @@ main (int argc, char **argv)
       stp.second_step(quadrant);
     }
     incr_dyn.assemble ();
-
-    stp.set_times(time, time_old, time_oldd);
-    soldd_dyn = sold_dyn;
-    sold_dyn  = sol_dyn;
     TOC("Compute step");
 
 
@@ -902,8 +916,6 @@ main (int argc, char **argv)
         }
       }
     }
-    
-    
     sol_dyn.assemble (replace_op);
     TOC("Apply increment");
     
