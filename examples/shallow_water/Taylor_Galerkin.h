@@ -29,9 +29,12 @@ public:
              const ordering& oUx, 
              const ordering& oUy, 
              const Q1& Z,
+             const Q0& slope_x,
+             const Q0& slope_y,
              const double& DELTAT,
              const double& h_min,
              const bool& is_non_reflBC,
+             const bool& is_bed_friction,
              const double& density,
              const double& turbulence_coeff,
              const double& surface_pressure,
@@ -158,6 +161,8 @@ public:
   Q1& P_minus;
   Q0& sol_onehalf;
   const Q1& Z;
+  const Q0& slope_x;
+  const Q0& slope_y;
   const Q1& mass;
   
 private:
@@ -172,6 +177,7 @@ private:
   const double& DELTAT;
   const double& epsilon;
   const bool& is_non_reflBC;
+  const bool& is_bed_friction;
   const double& density;
   const double& turbulence_coeff;
   const double& surface_pressure;
