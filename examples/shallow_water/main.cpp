@@ -25,7 +25,7 @@ static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in";   
 
 // properties of the input dem
-static constexpr double res = 0.005; // it is also the minimum resolution of the bim element
+static constexpr double res = 0.005*500; // it is also the minimum resolution of the bim element
 static constexpr double Nx = 200;//188; // # columns
 static constexpr double Ny = 200;//180; // # rows
 
@@ -41,22 +41,22 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-static constexpr double SPACE_ADAPTDT = 2.e-2;
+static constexpr double SPACE_ADAPTDT = 0;
 static constexpr double SAVEDT = 1.e-2;
 static constexpr double DELTAT = 1.e-2;
 static constexpr double REDCDT = .5;
 static constexpr double T      = 5.;
  
 static constexpr bool is_time_adaptivity    = true;
-static constexpr bool is_initial_refinement = false;
-static constexpr bool is_space_adaptivity   = false;
+static constexpr bool is_initial_refinement = true;
+static constexpr bool is_space_adaptivity   = true;
 static constexpr bool is_non_reflBC         = true;
 static constexpr bool is_bed_friction       = false;
 
 
 static constexpr double h_min = 1e-5;
 static constexpr double density = 1400;  
-static constexpr double turbulence_coeff = 0.0; 
+static constexpr double turbulence_coeff = 1.0; 
 static constexpr double surface_pressure = 0.0; 
 static constexpr double bed_friction_angle_rad = 23*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 48;
@@ -64,7 +64,7 @@ static constexpr double yield_shear_stress = 1e3;
 
 static constexpr double level_wet           = 5;
 static constexpr double level_interface     = 6; // minimum resolution! 
-static constexpr double mesh_size_dry       = res*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
+static constexpr double mesh_size_dry       = res/5*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
 static constexpr double mesh_size_wet       = mesh_size_dry/std::pow(2,level_wet); 
 static constexpr double mesh_size_interface = mesh_size_dry/std::pow(2,level_interface);
 
@@ -146,9 +146,12 @@ double h0_fun (const double& xx, const double& yy)
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
   //return(xx<=L/2. ? 70 : 7. ); 
 
-  const double HH = 5.;
-  const double omega = (std::pow((xx-.5),2.) + std::pow((yy-.5),2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5))),2.) ? 1. : 0.;
-  return(std::max (0., std::min (60.-(100 - 100 * xx), HH)) * omega); 
+  const auto xx_ = xx/500;
+  const auto yy_ = yy/500;
+  const double HH = .13;
+  const double omega = (std::pow((xx_-.5),2.) + std::pow((yy_-.5),2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy_-.5))),2.) ? 1. : 0.;
+  return(std::max (0., std::min (60.-(100 - 100 * xx_), HH)) * HH * omega * 500*8); 
+  return(/*std::max (0., std::min (60.-(100 - 100 * xx), HH))*/ HH * omega); 
 
   
  
