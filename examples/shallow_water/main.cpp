@@ -16,18 +16,18 @@
 #include <tmesh.h>
 #include <quad_operators.h>
 
-#include "Taylor_Galerkin.h" 
+#include "Taylor_Galerkin.h"
 
 
 // mpirun -np 4 main $PWD inputs/dem_ideal.octbin.gz inputs/mask_in.octbin.gz 
 
 static constexpr char VARNAME_1[255] = "dem";
-static constexpr char VARNAME_2[255] = "mask_in";   
+static constexpr char VARNAME_2[255] = "mask_in";
 
 // properties of the input dem
-static constexpr double res = 0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 200;//188; // # columns
-static constexpr double Ny = 200;//180; // # rows
+static constexpr double res = 5;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 101;//188; // # columns
+static constexpr double Ny = 101;//180; // # rows
 
  
 static constexpr double L = res*(Nx-1);
@@ -41,11 +41,11 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-static constexpr double SPACE_ADAPTDT = 0;
-static constexpr double SAVEDT = 1.e-2;
+static constexpr double SPACE_ADAPTDT = 1e-2; // put zero if you want at each time step
+static constexpr double SAVEDT = 1.e-1;
 static constexpr double DELTAT = 1.e-2;
-static constexpr double REDCDT = .5;
-static constexpr double T      = 5.;
+static constexpr double REDCDT = .5; 
+static constexpr double T      = 1.7;
  
 static constexpr bool is_time_adaptivity    = true;
 static constexpr bool is_initial_refinement = true;
@@ -62,11 +62,11 @@ static constexpr double bed_friction_angle_rad = 23*M_PI/180; //0.0; //23*M_PI/1
 static constexpr double fluid_viscosity = 48;
 static constexpr double yield_shear_stress = 1e3;
 
-static constexpr double level_wet           = 5;
+static constexpr double level_wet           = 3; 
 static constexpr double level_interface     = 6; // minimum resolution! 
-static constexpr double mesh_size_dry       = res/5*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = mesh_size_dry/std::pow(2,level_wet); 
-static constexpr double mesh_size_interface = mesh_size_dry/std::pow(2,level_interface);
+static constexpr double mesh_size_dry       = 100;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
+static constexpr double mesh_size_wet       = res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = res/60;//mesh_size_dry/std::pow(2,level_interface);
 
 
 // Connectivity of local element
@@ -142,7 +142,7 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  //return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 7. );
+  return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 0. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
   //return(xx<=L/2. ? 70 : 7. ); 
 
@@ -151,7 +151,6 @@ double h0_fun (const double& xx, const double& yy)
   const double HH = .13;
   const double omega = (std::pow((xx_-.5),2.) + std::pow((yy_-.5),2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy_-.5))),2.) ? 1. : 0.;
   return(std::max (0., std::min (60.-(100 - 100 * xx_), HH)) * HH * omega * 500*8); 
-  return(/*std::max (0., std::min (60.-(100 - 100 * xx), HH))*/ HH * omega); 
 
   
  
@@ -987,12 +986,8 @@ main (int argc, char **argv)
       stp.set_dt( std::min(std::isnan(candidate_dt) ? max_dt : candidate_dt, max_dt) );
     }
 
-
-
-    {
-      const double candidate_dt = time+stp.dt-T;
-      stp.set_dt(candidate_dt>std::numeric_limits<double>::epsilon() ? candidate_dt : stp.dt);
-    }
+    // check save with given frequency
+    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? stp.dt - std::fmod(savecount+stp.dt,SAVEDT) : stp.dt);
     
 
     time_oldd = time_old;
