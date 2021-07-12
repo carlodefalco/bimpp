@@ -41,7 +41,7 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-static constexpr double SPACE_ADAPTDT = 1e-2; // put zero if you want at each time step
+static constexpr double SPACE_ADAPTDT = 0;//1e-2; // put zero if you want at each time step
 static constexpr double SAVEDT = 1.e-1;
 static constexpr double DELTAT = 1.e-2;
 static constexpr double REDCDT = .5; 
@@ -50,7 +50,7 @@ static constexpr double T      = 1.7;
 static constexpr bool is_time_adaptivity    = true;
 static constexpr bool is_initial_refinement = true;
 static constexpr bool is_space_adaptivity   = true;
-static constexpr bool is_non_reflBC         = true;
+static constexpr bool is_non_reflBC         = true; 
 static constexpr bool is_bed_friction       = false;
 
 
@@ -62,12 +62,12 @@ static constexpr double bed_friction_angle_rad = 23*M_PI/180; //0.0; //23*M_PI/1
 static constexpr double fluid_viscosity = 48;
 static constexpr double yield_shear_stress = 1e3;
 
-static constexpr double level_wet           = 3; 
+static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
-static constexpr double mesh_size_dry       = 100;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = res/60;//mesh_size_dry/std::pow(2,level_interface);
-
+static constexpr double mesh_size_dry       = 30;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
+static constexpr double mesh_size_wet       = res/290;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = res/300;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+ 
 
 // Connectivity of local element
 constexpr p4est_topidx_t simple_conn_num_vertices = 4;
@@ -142,12 +142,13 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
+  //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 0. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
   //return(xx<=L/2. ? 70 : 7. ); 
 
   const auto xx_ = xx/500;
-  const auto yy_ = yy/500;
+  const auto yy_ = yy/500; 
   const double HH = .13;
   const double omega = (std::pow((xx_-.5),2.) + std::pow((yy_-.5),2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy_-.5))),2.) ? 1. : 0.;
   return(std::max (0., std::min (60.-(100 - 100 * xx_), HH)) * HH * omega * 500*8); 
@@ -632,25 +633,19 @@ main (int argc, char **argv)
   {
     
     TIC();
-    std::vector<double> result(gn_nodes * 3);
-    std::vector<double> only_h (gn_nodes);
+    Q1 result(gn_nodes * 3);
+    Q1 only_h (gn_nodes);
     for (int idx = sol.get_range_start (); idx < sol.get_range_end (); ++idx)
     {
-      result[idx] = sol(idx);
-
-      if (idx%3 == 0)
-      {
-        const int idx_h = idx/3.;
-        only_h[idx_h] = sol(idx);
-      }
+      result(idx) = sol(idx);
     }
-    MPI_Allreduce (MPI_IN_PLACE, result.data (),
-                   result.size (), MPI_DOUBLE,
-                   MPI_SUM, MPI_COMM_WORLD);
+    result.assemble();
 
-    MPI_Allreduce (MPI_IN_PLACE, only_h.data (),
-                   only_h.size (), MPI_DOUBLE,
-                   MPI_SUM, MPI_COMM_WORLD);
+    for (int idx = 0; idx < gn_nodes; ++idx)
+    {
+      only_h (idx) = result(ordh (idx));
+    }
+    only_h.assemble(replace_op);
     TOC("get global sol.");
 
   
@@ -1127,68 +1122,41 @@ main (int argc, char **argv)
     {
 
       TIC();
-      std::vector<double> result(gn_nodes * 3);
-      std::vector<double> only_h (gn_nodes);
-      std::vector<double> only_Ux(gn_nodes);
-      std::vector<double> only_Uy(gn_nodes);
-      for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx)
+      Q1 result(gn_nodes * 3);
+      Q1 only_h (gn_nodes); 
+      Q1 only_Ux(gn_nodes);
+      Q1 only_Uy(gn_nodes);
+      for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx) 
       {
-        result[idx] = sol_dyn(idx);
-
-        if (idx%3 == 0)
-        {
-          const int idx_h = idx/3.;
-          only_h[idx_h] = sol_dyn(idx);
-        }
-
-        if (idx%3 == 1)
-        {
-          const int idx_Ux = (idx-1)/3.;
-          only_Ux[idx_Ux] = sol_dyn(idx);
-        }
-
-        if (idx%3 == 2)
-        {
-          const int idx_Uy = (idx-2)/3.;
-          only_Uy[idx_Uy] = sol_dyn(idx);
-        }
+        result(idx) = sol_dyn(idx);
       }
+      result.assemble();
 
-      MPI_Allreduce (MPI_IN_PLACE, result.data (),
-                     result.size (), MPI_DOUBLE,
-                     MPI_SUM, MPI_COMM_WORLD);
-
-      MPI_Allreduce (MPI_IN_PLACE, only_h.data (),
-                     only_h.size (), MPI_DOUBLE,
-                     MPI_SUM, MPI_COMM_WORLD);
-
-      MPI_Allreduce (MPI_IN_PLACE, only_Ux.data (),
-                     only_Ux.size (), MPI_DOUBLE,
-                     MPI_SUM, MPI_COMM_WORLD);
-
-      MPI_Allreduce (MPI_IN_PLACE, only_Uy.data (),
-                     only_Uy.size (), MPI_DOUBLE,
-                     MPI_SUM, MPI_COMM_WORLD);       
-      
-      
-      std::vector<double> result_d(gn_nodes * 3);
-      for (int idx = sold_dyn.get_range_start (); idx < sold_dyn.get_range_end (); ++idx)
+      for (int idx = 0; idx < gn_nodes; ++idx)
       {
-        result_d[idx] = sold_dyn(idx);
+        only_h (idx) = result(ordh (idx));
+        only_Ux(idx) = result(ordUx(idx));
+        only_Uy(idx) = result(ordUy(idx));
       }
-      MPI_Allreduce (MPI_IN_PLACE, result_d.data (),
-                     result_d.size (), MPI_DOUBLE,
-                     MPI_SUM, MPI_COMM_WORLD);
+      only_h.assemble(replace_op);
+      only_Ux.assemble(replace_op);
+      only_Uy.assemble(replace_op);
+
+
+      Q1 result_d(gn_nodes * 3);
+      for (int idx = sold_dyn.get_range_start (); idx < sold_dyn.get_range_end (); ++idx) 
+      {
+        result_d(idx) = sold_dyn(idx);
+      }
+      result_d.assemble(replace_op);
       
       
-      std::vector<double> result_dd(gn_nodes * 3);
+      Q1 result_dd(gn_nodes * 3);
       for (int idx = soldd_dyn.get_range_start (); idx < soldd_dyn.get_range_end (); ++idx)
       {
-        result_dd[idx] = soldd_dyn(idx);
+        result_dd(idx) = soldd_dyn(idx);
       }
-      MPI_Allreduce (MPI_IN_PLACE, result_dd.data (),
-                     result_dd.size (), MPI_DOUBLE,
-                     MPI_SUM, MPI_COMM_WORLD);
+      result_dd.assemble(replace_op);
       TOC("get global sol.");
 
       TIC();
@@ -1292,7 +1260,7 @@ main (int argc, char **argv)
       
       // Interpolo sol sulla nuova mesh
       TIC();
-      std::vector<double> sol_new_global (gn_nodes * 3);
+      Q1 sol_new_global (gn_nodes * 3);
       interpolate_vector (tmsh, result, sol_new_global, ordh);
       interpolate_vector (tmsh, result, sol_new_global, ordUx);
       interpolate_vector (tmsh, result, sol_new_global, ordUy);
@@ -1304,7 +1272,7 @@ main (int argc, char **argv)
       }
       sol.assemble (replace_op);
       
-      std::vector<double> sold_new_global (gn_nodes * 3);
+      Q1 sold_new_global (gn_nodes * 3);
       interpolate_vector (tmsh, result_d, sold_new_global, ordh);
       interpolate_vector (tmsh, result_d, sold_new_global, ordUx);
       interpolate_vector (tmsh, result_d, sold_new_global, ordUy);
@@ -1312,11 +1280,12 @@ main (int argc, char **argv)
       sold.get_owned_data ().assign (sold.get_owned_data ().size (), 0.0);
       for (int idx = sold.get_range_start (); idx < sold.get_range_end (); ++idx)
       {
-        sold (idx) = sold_new_global [idx];
+        sold (idx) = sold_new_global (idx);
       }
       sold.assemble (replace_op);
       
-      std::vector<double> soldd_new_global (gn_nodes * 3);
+      //std::vector<double> soldd_new_global (gn_nodes * 3);
+      Q1 soldd_new_global (gn_nodes * 3);
       interpolate_vector (tmsh, result_dd, soldd_new_global, ordh);
       interpolate_vector (tmsh, result_dd, soldd_new_global, ordUy);
       interpolate_vector (tmsh, result_dd, soldd_new_global, ordUx);
@@ -1324,7 +1293,7 @@ main (int argc, char **argv)
       soldd.get_owned_data ().assign (soldd.get_owned_data ().size (), 0.0);
       for (int idx = soldd.get_range_start (); idx < soldd.get_range_end (); ++idx)
       {
-        soldd (idx) = soldd_new_global [idx];
+        soldd (idx) = soldd_new_global (idx);
       }
       soldd.assemble (replace_op);
       
