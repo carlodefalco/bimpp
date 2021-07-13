@@ -35,6 +35,7 @@ public:
              const double& h_min,
              const bool& is_non_reflBC,
              const bool& is_bed_friction,
+             const double& grav,
              const double& density,
              const double& turbulence_coeff,
              const double& surface_pressure,
@@ -166,7 +167,6 @@ public:
   const Q1& mass;
   
 private:
-  static constexpr double grav = 9.81;
 
   std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y;
   std::array<double, 2> grad_cell_h, grad_cell_Ux, grad_cell_Uy;
@@ -178,6 +178,7 @@ private:
   const double& epsilon;
   const bool& is_non_reflBC;
   const bool& is_bed_friction;
+  const double& grav;
   const double& density;
   const double& turbulence_coeff;
   const double& surface_pressure;

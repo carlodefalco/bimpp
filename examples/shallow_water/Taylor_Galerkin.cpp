@@ -21,6 +21,7 @@ TG2_scheme::TG2_scheme(const Q1& sol,
                        const double& h_min,
                        const bool& is_non_reflBC,
                        const bool& is_bed_friction,
+                       const double& grav,
                        const double& density,
                        const double& turbulence_coeff,
                        const double& surface_pressure, 
@@ -28,7 +29,7 @@ TG2_scheme::TG2_scheme(const Q1& sol,
                        const double& fluid_viscosity,
                        const double& yield_shear_stress)
 : sol(sol), sold(sold), soldd(soldd), incr(incr), incr_anti_diff(incr_anti_diff), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass),
-  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), slope_x(slope_x), slope_y(slope_y), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction),
+  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), slope_x(slope_x), slope_y(slope_y), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), grav(grav),
   density(density), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress)
 { }
 
@@ -728,9 +729,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     flux_limiter(Uy_min[ii], Uy_max[ii], Uydof[ii], P_plus_Uy_dof[ii], P_minus_Uy_dof [ii], flux_on_the_node_Uy, vel_square_rusanov_cell, phi_cell_Uy);
   }
 
-  const double & h_cell    = sol_onehalf[ordh    (index_quadrant)];
-  const double & Ux_cell   = sol_onehalf[ordUx   (index_quadrant)];
-  const double & Uy_cell   = sol_onehalf[ordUy   (index_quadrant)];
+
 
   for (int ii = 0; ii < 4; ++ii){
  
