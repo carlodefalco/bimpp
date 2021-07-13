@@ -36,7 +36,7 @@ static std::vector<double>   dem;
 static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
-static constexpr int NUM_REFINEMENTS  = 8; // 3, 6
+static constexpr int NUM_REFINEMENTS  = 7; // 3, 6
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
@@ -45,7 +45,7 @@ static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at 
 static constexpr double SAVEDT = 1.e-1; // must never be null 
 static constexpr double DELTAT = 4.e-2;
 static constexpr double REDCDT = .5; 
-static constexpr double T      = 0.8;
+static constexpr double T      = 1.;
  
 static constexpr bool is_time_adaptivity    = true;
 static constexpr bool is_initial_refinement = true;
@@ -635,18 +635,19 @@ main (int argc, char **argv)
     
     TIC();
     Q1 result(gn_nodes * 3);
-    Q1 only_h (gn_nodes);
+    Q1 only_h(gn_nodes);
     for (int idx = sol.get_range_start (); idx < sol.get_range_end (); ++idx)
     {
       result(idx) = sol(idx);
+
+      if (idx%3 == 0)
+      {
+        const int idx_h = idx/3.;
+        only_h(idx_h) = sol(idx);
+      }
     }
     result.assemble();
-
-    for (int idx = 0; idx < gn_nodes; ++idx)
-    {
-      only_h (idx) = result(ordh (idx));
-    }
-    only_h.assemble(replace_op);
+    only_h.assemble();
     TOC("get global sol.");
 
   
@@ -1127,24 +1128,45 @@ main (int argc, char **argv)
 
       TIC();
       Q1 result(gn_nodes * 3);
-      Q1 only_h (gn_nodes); 
+      Q1 only_h (gn_nodes);
       Q1 only_Ux(gn_nodes);
       Q1 only_Uy(gn_nodes);
       for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx) 
       {
         result(idx) = sol_dyn(idx);
+
+        if (idx%3 == 0)
+        {
+          const int idx_h = idx/3.;
+          only_h(idx_h) = sol_dyn(idx);
+        }
+
+        if (idx%3 == 1)
+        {
+          const int idx_Ux = (idx-1)/3.;
+          only_Ux(idx_Ux) = sol_dyn(idx);
+        }
+
+        if (idx%3 == 2)
+        {
+          const int idx_Uy = (idx-2)/3.;
+          only_Uy(idx_Uy) = sol_dyn(idx);
+        }
       }
       result.assemble();
+      only_h.assemble();
+      only_Ux.assemble();
+      only_Uy.assemble();
 
-      for (int idx = 0; idx < gn_nodes; ++idx)
-      {
-        only_h (idx) = result(ordh (idx));
-        only_Ux(idx) = result(ordUx(idx));
-        only_Uy(idx) = result(ordUy(idx));
-      }
-      only_h.assemble(replace_op);
-      only_Ux.assemble(replace_op);
-      only_Uy.assemble(replace_op);
+      // for (int idx = 0; idx < gn_nodes; ++idx)
+      // {
+      //   only_h (idx) = result(ordh (idx));
+      //   only_Ux(idx) = result(ordUx(idx));
+      //   only_Uy(idx) = result(ordUy(idx));
+      // }
+      // only_h.assemble(replace_op);
+      // only_Ux.assemble(replace_op);
+      // only_Uy.assemble(replace_op);
 
 
       Q1 result_d(gn_nodes * 3);
@@ -1152,7 +1174,7 @@ main (int argc, char **argv)
       {
         result_d(idx) = sold_dyn(idx);
       }
-      result_d.assemble(replace_op);
+      result_d.assemble();
       
       
       Q1 result_dd(gn_nodes * 3);
@@ -1160,7 +1182,7 @@ main (int argc, char **argv)
       {
         result_dd(idx) = soldd_dyn(idx);
       }
-      result_dd.assemble(replace_op);
+      result_dd.assemble();
       TOC("get global sol.");
 
       TIC();
