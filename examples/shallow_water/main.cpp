@@ -635,24 +635,37 @@ main (int argc, char **argv)
     
     TIC();
     Q1 result(gn_nodes * 3);
-    Q1 only_h(gn_nodes);
     for (int idx = sol.get_range_start (); idx < sol.get_range_end (); ++idx)
     {
       result(idx) = sol(idx);
+    }
+    result.assemble();
+
+    // Q1 only_h(gn_nodes);
+    // for (int idx = 0; idx < gn_nodes; ++idx)
+    // {
+    //   only_h (idx) = result(ordh (idx));
+    // }
+    // only_h.assemble(replace_op);
+
+    std::vector<double> only_h(gn_nodes);
+    for (int idx = sol.get_range_start (); idx < sol.get_range_end (); ++idx)
+    {
 
       if (idx%3 == 0)
       {
         const int idx_h = idx/3.;
-        only_h(idx_h) = sol(idx);
+        only_h[idx_h] = sol(idx);
       }
     }
-    result.assemble();
-    only_h.assemble();
+    MPI_Allreduce (MPI_IN_PLACE, only_h.data (),
+                   only_h.size (), MPI_DOUBLE,
+                   MPI_SUM, MPI_COMM_WORLD);
     TOC("get global sol.");
 
   
   
-  
+   
     TIC();
     double tol = 1e-5;
     auto dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
@@ -1128,36 +1141,16 @@ main (int argc, char **argv)
 
       TIC();
       Q1 result(gn_nodes * 3);
-      Q1 only_h (gn_nodes);
-      Q1 only_Ux(gn_nodes);
-      Q1 only_Uy(gn_nodes);
       for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx) 
       {
         result(idx) = sol_dyn(idx);
-
-        if (idx%3 == 0)
-        {
-          const int idx_h = idx/3.;
-          only_h(idx_h) = sol_dyn(idx);
-        }
-
-        if (idx%3 == 1)
-        {
-          const int idx_Ux = (idx-1)/3.;
-          only_Ux(idx_Ux) = sol_dyn(idx);
-        }
-
-        if (idx%3 == 2)
-        {
-          const int idx_Uy = (idx-2)/3.;
-          only_Uy(idx_Uy) = sol_dyn(idx);
-        }
       }
       result.assemble();
-      only_h.assemble();
-      only_Ux.assemble();
-      only_Uy.assemble();
 
+
+      // Q1 only_h (gn_nodes);
+      // Q1 only_Ux(gn_nodes);
+      // Q1 only_Uy(gn_nodes);
       // for (int idx = 0; idx < gn_nodes; ++idx)
       // {
       //   only_h (idx) = result(ordh (idx));
@@ -1167,6 +1160,44 @@ main (int argc, char **argv)
       // only_h.assemble(replace_op);
       // only_Ux.assemble(replace_op);
       // only_Uy.assemble(replace_op);
+
+
+      std::vector<double> only_h (gn_nodes);
+      std::vector<double> only_Ux(gn_nodes);
+      std::vector<double> only_Uy(gn_nodes);
+      for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx)
+      {
+        if (idx%3 == 0)
+        {
+          const int idx_h = idx/3.;
+          only_h[idx_h] = sol_dyn(idx);
+        }
+
+        if (idx%3 == 1)
+        {
+          const int idx_Ux = (idx-1)/3.;
+          only_Ux[idx_Ux] = sol_dyn(idx);
+        }
+
+        if (idx%3 == 2)
+        {
+          const int idx_Uy = (idx-2)/3.;
+          only_Uy[idx_Uy] = sol_dyn(idx);
+        }
+      }
+
+      MPI_Allreduce (MPI_IN_PLACE, only_h.data (),
+                     only_h.size (), MPI_DOUBLE,
+                     MPI_SUM, MPI_COMM_WORLD);
+
+      MPI_Allreduce (MPI_IN_PLACE, only_Ux.data (),
+                     only_Ux.size (), MPI_DOUBLE,
+                     MPI_SUM, MPI_COMM_WORLD);
+
+      MPI_Allreduce (MPI_IN_PLACE, only_Uy.data (),
+                     only_Uy.size (), MPI_DOUBLE,
+                     MPI_SUM, MPI_COMM_WORLD);    
+
 
 
       Q1 result_d(gn_nodes * 3);
