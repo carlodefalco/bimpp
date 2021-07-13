@@ -66,8 +66,8 @@ static constexpr double yield_shear_stress = 1e3;
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
 static constexpr double mesh_size_dry       = res*2;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res/60;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = res/60;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+static constexpr double mesh_size_wet       = res/40;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = res/40;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
 // Connectivity of local element
