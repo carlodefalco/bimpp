@@ -36,7 +36,7 @@ static std::vector<double>   dem;
 static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
-static constexpr int NUM_REFINEMENTS  = 7; // 3, 6
+static constexpr int NUM_REFINEMENTS  = 7; // 8
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
@@ -634,44 +634,21 @@ main (int argc, char **argv)
   {
     
     TIC();
-    Q1 result(gn_nodes * 3);
-    for (int idx = sol.get_range_start (); idx < sol.get_range_end (); ++idx)
+    Q1 only_h (ln_nodes);
+    bim2a_solution_with_ghosts (tmsh, only_h);
+    for (auto idx = only_h.get_range_start (); idx != only_h.get_range_end (); ++idx)
     {
-      result(idx) = sol(idx);
+      only_h(idx) = sol(ordh(idx));
     }
-    result.assemble();
-
-    // Q1 only_h(gn_nodes);
-    // for (int idx = 0; idx < gn_nodes; ++idx)
-    // {
-    //   only_h (idx) = result(ordh (idx));
-    // }
-    // only_h.assemble(replace_op);
-
-    std::vector<double> only_h(gn_nodes);
-    for (int idx = sol.get_range_start (); idx < sol.get_range_end (); ++idx)
-    {
-
-      if (idx%3 == 0)
-      {
-        const int idx_h = idx/3.;
-        only_h[idx_h] = sol(idx);
-      }
-    }
-    MPI_Allreduce (MPI_IN_PLACE, only_h.data (),
-                   only_h.size (), MPI_DOUBLE,
-                   MPI_SUM, MPI_COMM_WORLD);
-    TOC("get global sol.");
+    only_h.assemble (replace_op);
+    TOC("get separated sol.");
 
   
   
    
     TIC();
-    double tol = 1e-5;
     auto dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
     //q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
-  
-  
     TOC ("gradient and hstar");
 
 
@@ -1140,81 +1117,30 @@ main (int argc, char **argv)
     {
 
       TIC();
-      Q1 result(gn_nodes * 3);
-      for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx) 
+      Q1 only_h (ln_nodes);
+      bim2a_solution_with_ghosts (tmsh, only_h);
+      for (auto idx = only_h.get_range_start (); idx != only_h.get_range_end (); ++idx)
       {
-        result(idx) = sol_dyn(idx);
+        only_h(idx) = sol_dyn(ordh(idx));
       }
-      result.assemble();
+      only_h.assemble (replace_op);
 
-
-      // Q1 only_h (gn_nodes);
-      // Q1 only_Ux(gn_nodes);
-      // Q1 only_Uy(gn_nodes);
-      // for (int idx = 0; idx < gn_nodes; ++idx)
-      // {
-      //   only_h (idx) = result(ordh (idx));
-      //   only_Ux(idx) = result(ordUx(idx));
-      //   only_Uy(idx) = result(ordUy(idx));
-      // }
-      // only_h.assemble(replace_op);
-      // only_Ux.assemble(replace_op);
-      // only_Uy.assemble(replace_op);
-
-
-      std::vector<double> only_h (gn_nodes);
-      std::vector<double> only_Ux(gn_nodes);
-      std::vector<double> only_Uy(gn_nodes);
-      for (int idx = sol_dyn.get_range_start (); idx < sol_dyn.get_range_end (); ++idx)
+      Q1 only_Ux (ln_nodes);
+      bim2a_solution_with_ghosts (tmsh, only_Ux);
+      for (auto idx = only_Ux.get_range_start (); idx != only_Ux.get_range_end (); ++idx)
       {
-        if (idx%3 == 0)
-        {
-          const int idx_h = idx/3.;
-          only_h[idx_h] = sol_dyn(idx);
-        }
-
-        if (idx%3 == 1)
-        {
-          const int idx_Ux = (idx-1)/3.;
-          only_Ux[idx_Ux] = sol_dyn(idx);
-        }
-
-        if (idx%3 == 2)
-        {
-          const int idx_Uy = (idx-2)/3.;
-          only_Uy[idx_Uy] = sol_dyn(idx);
-        }
+        only_Ux(idx) = sol_dyn(ordUx(idx));
       }
+      only_Ux.assemble (replace_op);
 
-      MPI_Allreduce (MPI_IN_PLACE, only_h.data (),
-                     only_h.size (), MPI_DOUBLE,
-                     MPI_SUM, MPI_COMM_WORLD);
-
-      MPI_Allreduce (MPI_IN_PLACE, only_Ux.data (),
-                     only_Ux.size (), MPI_DOUBLE,
-                     MPI_SUM, MPI_COMM_WORLD);
-
-      MPI_Allreduce (MPI_IN_PLACE, only_Uy.data (),
-                     only_Uy.size (), MPI_DOUBLE,
-                     MPI_SUM, MPI_COMM_WORLD);    
-
-
-
-      Q1 result_d(gn_nodes * 3);
-      for (int idx = sold_dyn.get_range_start (); idx < sold_dyn.get_range_end (); ++idx) 
+      Q1 only_Uy (ln_nodes);
+      bim2a_solution_with_ghosts (tmsh, only_Uy);
+      for (auto idx = only_Uy.get_range_start (); idx != only_Uy.get_range_end (); ++idx)
       {
-        result_d(idx) = sold_dyn(idx);
+        only_Uy(idx) = sol_dyn(ordUy(idx));
       }
-      result_d.assemble();
-      
-      
-      Q1 result_dd(gn_nodes * 3);
-      for (int idx = soldd_dyn.get_range_start (); idx < soldd_dyn.get_range_end (); ++idx)
-      {
-        result_dd(idx) = soldd_dyn(idx);
-      }
-      result_dd.assemble();
-      TOC("get global sol.");
+      only_Uy.assemble (replace_op);      
+      TOC("get separated sol.");
 
       TIC();
       std::set<int> global_index_quad;
@@ -1228,7 +1154,6 @@ main (int argc, char **argv)
       
       
       TIC();
-      double tol = 1e-5;
       auto dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
       //q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
       TOC ("gradient and hstar");
@@ -1317,42 +1242,33 @@ main (int argc, char **argv)
       
       // Interpolo sol sulla nuova mesh
       TIC();
-      Q1 sol_new_global (gn_nodes * 3);
-      interpolate_vector (tmsh, result, sol_new_global, ordh);
-      interpolate_vector (tmsh, result, sol_new_global, ordUx);
-      interpolate_vector (tmsh, result, sol_new_global, ordUy);
       Q1 sol (ln_nodes * 3);
-      sol.get_owned_data ().assign (sol.get_owned_data ().size (), 0.0);
-      for (int idx = sol.get_range_start (); idx < sol.get_range_end (); ++idx)
-      {
-        sol (idx) = sol_new_global [idx];
-      }
-      sol.assemble (replace_op);
+      bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh,  false);
+      bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUx, false);
+      bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy);
+      interpolate_vector (tmsh, sol_dyn, sol, ordh);
+      interpolate_vector (tmsh, sol_dyn, sol, ordUx);
+      interpolate_vector (tmsh, sol_dyn, sol, ordUy);
+      //sol.assemble (replace_op);
       
-      Q1 sold_new_global (gn_nodes * 3);
-      interpolate_vector (tmsh, result_d, sold_new_global, ordh);
-      interpolate_vector (tmsh, result_d, sold_new_global, ordUx);
-      interpolate_vector (tmsh, result_d, sold_new_global, ordUy);
       Q1 sold (ln_nodes * 3);
-      sold.get_owned_data ().assign (sold.get_owned_data ().size (), 0.0);
-      for (int idx = sold.get_range_start (); idx < sold.get_range_end (); ++idx)
-      {
-        sold (idx) = sold_new_global (idx);
-      }
-      sold.assemble (replace_op);
+      bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordh,  false);
+      bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordUx, false);
+      bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordUy);
+      interpolate_vector (tmsh, sold_dyn, sold, ordh);
+      interpolate_vector (tmsh, sold_dyn, sold, ordUx);
+      interpolate_vector (tmsh, sold_dyn, sold, ordUy);
+      //sold.assemble (replace_op);
       
-      //std::vector<double> soldd_new_global (gn_nodes * 3);
-      Q1 soldd_new_global (gn_nodes * 3);
-      interpolate_vector (tmsh, result_dd, soldd_new_global, ordh);
-      interpolate_vector (tmsh, result_dd, soldd_new_global, ordUy);
-      interpolate_vector (tmsh, result_dd, soldd_new_global, ordUx);
+      
       Q1 soldd (ln_nodes * 3);
-      soldd.get_owned_data ().assign (soldd.get_owned_data ().size (), 0.0);
-      for (int idx = soldd.get_range_start (); idx < soldd.get_range_end (); ++idx)
-      {
-        soldd (idx) = soldd_new_global (idx);
-      }
-      soldd.assemble (replace_op);
+      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordh,  false);
+      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUx, false);
+      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUy);
+      interpolate_vector (tmsh, soldd_dyn, soldd, ordh);
+      interpolate_vector (tmsh, soldd_dyn, soldd, ordUy);
+      interpolate_vector (tmsh, soldd_dyn, soldd, ordUx);
+      //soldd.assemble (replace_op);
       
       
       Q1 incr (ln_nodes * 3);
@@ -1410,18 +1326,6 @@ main (int argc, char **argv)
       }
       
       
-      
-      bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh,  false);
-      bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUx, false);
-      bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy);
-      
-      bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordh,  false);
-      bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordUx, false);
-      bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordUy);
-      
-      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordh,  false);
-      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUx, false);
-      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUy);
       
       bim2a_solution_with_ghosts (tmsh, Z, replace_op);
       
