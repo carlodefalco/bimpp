@@ -35,6 +35,7 @@ public:
              const double& h_min,
              const bool& is_non_reflBC,
              const bool& is_bed_friction,
+             const bool& is_stress_tensor,
              const double& grav,
              const double& density,
              const double& turbulence_coeff,
@@ -118,6 +119,7 @@ public:
   std::array<double, 4> fluxx_Uy_node   = {0, 0, 0, 0}, fluxy_Uy_node   = {0, 0, 0, 0};
   
   
+  std::array<double, 3> sigma_stress = {0., 0., 0.};
   
   
   // flux functions
@@ -138,6 +140,28 @@ public:
   
   double
   Uy_flux_formula_y (const double& h, const double& Ux, const double& Uy);
+
+
+  // stress functions
+  double
+  Ux_stress_formula_x (const double& h, const double& Ux, const double& Uy);
+  
+  double
+  Ux_stress_formula_y (const double& h, const double& Ux, const double& Uy);
+  
+  double
+  Uy_stress_formula_x (const double& h, const double& Ux, const double& Uy);
+  
+  double
+  Uy_stress_formula_y (const double& h, const double& Ux, const double& Uy);
+
+
+  std::array<double,3>
+  compute_nodal_stress (const double& h, const double& Ux, const double& Uy, const std::array<double,2>& grad_cell_ux, const std::array<double,2>& grad_cell_uy);
+
+  std::array<double,6>
+  compute_nodal_def_grad (const double& h, const double& Ux, const double& Uy, const std::array<double,2>& grad_cell_ux, const std::array<double,2>& grad_cell_uy);
+
 
   
   // source terms
@@ -169,7 +193,7 @@ public:
 private:
 
   std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y;
-  std::array<double, 2> grad_cell_h, grad_cell_Ux, grad_cell_Uy;
+  std::array<double, 2> grad_cell_h, grad_cell_Ux, grad_cell_Uy, grad_cell_ux, grad_cell_uy;
   
   const ordering& ordh;
   const ordering& ordUx;
@@ -178,6 +202,7 @@ private:
   const double& epsilon;
   const bool& is_non_reflBC;
   const bool& is_bed_friction;
+  const bool& is_stress_tensor;
   const double& grav;
   const double& density;
   const double& turbulence_coeff;

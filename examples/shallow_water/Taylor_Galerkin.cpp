@@ -1,6 +1,6 @@
 #include "Taylor_Galerkin.h"
 #include <algorithm>
-
+#include <cassert>
 
 TG2_scheme::TG2_scheme(const Q1& sol,
                        const Q1& sold,
@@ -21,6 +21,7 @@ TG2_scheme::TG2_scheme(const Q1& sol,
                        const double& h_min,
                        const bool& is_non_reflBC,
                        const bool& is_bed_friction,
+                       const bool& is_stress_tensor,
                        const double& grav,
                        const double& density,
                        const double& turbulence_coeff,
@@ -29,7 +30,7 @@ TG2_scheme::TG2_scheme(const Q1& sol,
                        const double& fluid_viscosity,
                        const double& yield_shear_stress)
 : sol(sol), sold(sold), soldd(soldd), incr(incr), incr_anti_diff(incr_anti_diff), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass),
-  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), slope_x(slope_x), slope_y(slope_y), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), grav(grav),
+  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), slope_x(slope_x), slope_y(slope_y), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), grav(grav),
   density(density), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress)
 { }
 
@@ -115,7 +116,7 @@ TG2_scheme::compute_dt_adaptive (tmesh::quadrant_iterator quadrant)
     a_coeff = h1+h2+h3;
     b_coeff = - (h1*(time+timed) + h2*(time+timedd) + h3*(timed+timedd));
     
-    Nu_hmean_cell += std::pow(time-timed,2.)*(4./3.*a_coeff*a_coeff*(time*time+time*timed+timed*timed) + 2.*a_coeff*(b_coeff-dh_t)*(time+timed)+std::pow(b_coeff-dh_t,2.));
+    Nu_hmean_cell += (time-timed)*(4./3.*a_coeff*a_coeff*(time*time+time*timed+timed*timed) + 2.*a_coeff*(b_coeff-dh_t)*(time+timed)+std::pow(b_coeff-dh_t,2.));
     
   }
   Nu_hmean_cell /= 4.;
@@ -262,6 +263,9 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   grad_cell_Ux   = {.5 * ( (Uxdof[3] - Uxdof[2]) + (Uxdof[1] - Uxdof[0]) ), .5 * ( (Uxdof[2] - Uxdof[0]) + (Uxdof[3] - Uxdof[1]) )};
   grad_cell_Uy   = {.5 * ( (Uydof[3] - Uydof[2]) + (Uydof[1] - Uydof[0]) ), .5 * ( (Uydof[2] - Uydof[0]) + (Uydof[3] - Uydof[1]) )};
 
+  grad_cell_ux   = {.5 * ( (hdof[3]>epsilon ? Uxdof[3]/hdof[3] : 0. - hdof[2]>epsilon ? Uxdof[2]/hdof[2] : 0.) + (hdof[1]>epsilon ? Uxdof[1]/hdof[1] : 0. - hdof[0]>epsilon ? Uxdof[0]/hdof[0] : 0.) )/Dx, .5 * ( (hdof[2]>epsilon ? Uxdof[2]/hdof[2] : 0. - hdof[0]>epsilon ? Uxdof[0]/hdof[0] : 0.) + (hdof[3]>epsilon ? Uxdof[3]/hdof[3] : 0. - hdof[1]>epsilon ? Uxdof[1]/hdof[1] : 0.) )/Dy};
+  grad_cell_uy   = {.5 * ( (hdof[3]>epsilon ? Uydof[3]/hdof[3] : 0. - hdof[2]>epsilon ? Uydof[2]/hdof[2] : 0.) + (hdof[1]>epsilon ? Uydof[1]/hdof[1] : 0. - hdof[0]>epsilon ? Uydof[0]/hdof[0] : 0.) )/Dx, .5 * ( (hdof[2]>epsilon ? Uydof[2]/hdof[2] : 0. - hdof[0]>epsilon ? Uydof[0]/hdof[0] : 0.) + (hdof[3]>epsilon ? Uydof[3]/hdof[3] : 0. - hdof[1]>epsilon ? Uydof[1]/hdof[1] : 0.) )/Dy};
+
 
   
 
@@ -292,15 +296,30 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
 
 
+
+
+
   for (int ii = 0; ii < 4; ++ii){
     
-    const auto h_  = der_coeffs_x[ii] * F_star_h_x  + der_coeffs_y[ii] * F_star_h_y;
-    const auto Ux_ = der_coeffs_x[ii] * F_star_Ux_x + der_coeffs_y[ii] * F_star_Ux_y + .25*area*isdof_or_hanging[ii]*Ux_src_formula(h_cell, Ux_cell, Uy_cell, slope_x[index_quadrant]);
-    const auto Uy_ = der_coeffs_x[ii] * F_star_Uy_x + der_coeffs_y[ii] * F_star_Uy_y + .25*area*isdof_or_hanging[ii]*Uy_src_formula(h_cell, Ux_cell, Uy_cell, slope_y[index_quadrant]);
+
+    sigma_stress = is_stress_tensor ? compute_nodal_stress (hdof[ii], Uxdof[ii], Uydof[ii], grad_cell_ux, grad_cell_uy) : sigma_stress;
+    
+
+    const auto D_Ux_x = Ux_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
+    const auto D_Ux_y = Ux_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
+
+    const auto D_Uy_x = Uy_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
+    const auto D_Uy_y = Uy_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
+
+
+
+    const auto h_  = der_coeffs_x[ii]*F_star_h_x +der_coeffs_y[ii]*F_star_h_y;
+    const auto Ux_ = der_coeffs_x[ii]*F_star_Ux_x+der_coeffs_y[ii]*F_star_Ux_y + der_coeffs_x[ii]*(1./3.)*D_Ux_x+der_coeffs_y[ii]*(1./3.)*D_Ux_y + .25*area*isdof_or_hanging[ii]*Ux_src_formula(h_cell, Ux_cell, Uy_cell, slope_x[index_quadrant]);
+    const auto Uy_ = der_coeffs_x[ii]*F_star_Uy_x+der_coeffs_y[ii]*F_star_Uy_y + der_coeffs_x[ii]*(1./3.)*D_Uy_x+der_coeffs_y[ii]*(1./3.)*D_Uy_y + .25*area*isdof_or_hanging[ii]*Uy_src_formula(h_cell, Ux_cell, Uy_cell, slope_y[index_quadrant]);
     
     const auto h_al  = der_coeffs_x[ii] * diff_term_h_x  + der_coeffs_y[ii] * diff_term_h_y;
     const auto Ux_al = der_coeffs_x[ii] * diff_term_Ux_x + der_coeffs_y[ii] * diff_term_Ux_y;
-    const auto Uy_al = der_coeffs_x[ii] * diff_term_Uy_x + der_coeffs_y[ii] * diff_term_Uy_y; 
+    const auto Uy_al = der_coeffs_x[ii] * diff_term_Uy_x + der_coeffs_y[ii] * diff_term_Uy_y;
 
     incr_anti_diff[ordh (index_quadrant)][ii] = h_al;
     incr_anti_diff[ordUx(index_quadrant)][ii] = Ux_al;
@@ -338,17 +357,17 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
         F_star_Ux_y_b = Ux_flux_formula_y(h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, Uy_cell);
 
         F_star_Uy_x_b = Uy_flux_formula_x(h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, Uy_cell);
-        F_star_Uy_y_b = Uy_flux_formula_y(h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, Uy_cell); 
+        F_star_Uy_y_b = Uy_flux_formula_y(h_cell, is_non_reflBC ? Ux_cell : -Ux_cell, Uy_cell);
     
         
         
-        auto h_b    = -der_coeffs_x[ii] * F_star_h_x_b  + der_coeffs_y[ii] * F_star_h_y_b;
-        auto Ux_b   = -der_coeffs_x[ii] * F_star_Ux_x_b + der_coeffs_y[ii] * F_star_Ux_y_b;
-        auto Uy_b   = -der_coeffs_x[ii] * F_star_Uy_x_b + der_coeffs_y[ii] * F_star_Uy_y_b;
+        auto h_b  = -der_coeffs_x[ii]*F_star_h_x_b  + der_coeffs_y[ii]*F_star_h_y_b;
+        auto Ux_b = -der_coeffs_x[ii]*F_star_Ux_x_b + der_coeffs_y[ii]*F_star_Ux_y_b;
+        auto Uy_b = -der_coeffs_x[ii]*F_star_Uy_x_b + der_coeffs_y[ii]*F_star_Uy_y_b;
 
-        auto h_a    = -der_coeffs_x[ii] * diff_term_h_x  + der_coeffs_y[ii] * diff_term_h_y;
-        auto Ux_a   = -der_coeffs_x[ii] * diff_term_Ux_x + der_coeffs_y[ii] * diff_term_Ux_y;
-        auto Uy_a   = -der_coeffs_x[ii] * diff_term_Uy_x + der_coeffs_y[ii] * diff_term_Uy_y;
+        auto h_a  = -der_coeffs_x[ii]*diff_term_h_x  + der_coeffs_y[ii]*diff_term_h_y;
+        auto Ux_a = -der_coeffs_x[ii]*diff_term_Ux_x + der_coeffs_y[ii]*diff_term_Ux_y;
+        auto Uy_a = -der_coeffs_x[ii]*diff_term_Uy_x + der_coeffs_y[ii]*diff_term_Uy_y;
         
         
         
@@ -708,7 +727,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
 
   
-  // compute flux limiter, grad limiter
+  // compute flux correction
   double phi_cell_h = 1., phi_cell_Ux = 1., phi_cell_Uy = 1.;
   for (int ii = 0; ii < 4; ++ii){
 
@@ -795,27 +814,108 @@ TG2_scheme::get_dt ()
 // flux functions
 double
 TG2_scheme::h_flux_formula_x (const double& h, const double& Ux, const double& Uy)
-{ return h > epsilon ? Ux : 0.; }
+{ return Ux; }
 
 double
 TG2_scheme::h_flux_formula_y (const double& h, const double& Ux, const double& Uy)
-{ return h > epsilon ? Uy : 0.; }
+{ return Uy; }
 
 double
 TG2_scheme::Ux_flux_formula_x (const double& h, const double& Ux, const double& Uy)
-{ return h > epsilon ?  (Ux*Ux/h + grav*h*h/2.) : 0.; }
-
+{ return (h>epsilon ? Ux*Ux/h + grav*h*h/2. : 0.); }
+ 
 double
 TG2_scheme::Ux_flux_formula_y (const double& h, const double& Ux, const double& Uy)
-{ return h > epsilon ? (Uy*Ux/h) : 0.; }
+{ return (h>epsilon ? Uy*Ux/h : 0.); }
 
 double
 TG2_scheme::Uy_flux_formula_x (const double& h, const double& Ux, const double& Uy)
-{ return h > epsilon ? (Uy*Ux/h) : 0.; }
+{ return (h>epsilon ? Uy*Ux/h : 0.); }
 
 double
 TG2_scheme::Uy_flux_formula_y (const double& h, const double& Ux, const double& Uy)
-{ return h > epsilon ? (Uy*Uy/h + grav*h*h/2.) : 0.; }
+{ return (h>epsilon ? Uy*Uy/h + grav*h*h/2. : 0.); }
+
+
+// stress functions
+double
+TG2_scheme::Ux_stress_formula_x (const double& h, const double& Ux, const double& Uy)
+{ return (sigma_stress[0]*h/density); }
+
+double
+TG2_scheme::Ux_stress_formula_y (const double& h, const double& Ux, const double& Uy)
+{ return (sigma_stress[2]*h/density); }
+
+double
+TG2_scheme::Uy_stress_formula_x (const double& h, const double& Ux, const double& Uy)
+{ return (sigma_stress[2]*h/density); }
+
+double
+TG2_scheme::Uy_stress_formula_y (const double& h, const double& Ux, const double& Uy)
+{ return (sigma_stress[1]*h/density); }
+
+
+std::array<double,3>
+TG2_scheme::compute_nodal_stress (const double& h, const double& Ux, const double& Uy, const std::array<double,2>& grad_cell_ux, const std::array<double,2>& grad_cell_uy)
+{
+  // compute \sigma_xx, ...
+
+  // def_grad = [D11, D22, D33, D12, D23, D31]
+  // sigma = [sigma_11, sigma_22, sigma_12]
+
+  std::array<double,6> def_grad = compute_nodal_def_grad (h, Ux, Uy, grad_cell_ux, grad_cell_uy);
+
+  const double second_invariant = def_grad[0]*def_grad[1] + def_grad[1]*def_grad[2] + def_grad[0]*def_grad[2] 
+                                - def_grad[3]*def_grad[3] - def_grad[4]*def_grad[4] - def_grad[5]*def_grad[5];
+
+  const double viscos = second_invariant!=0 ? yield_shear_stress/std::sqrt(second_invariant) + 2*fluid_viscosity : 0.;
+
+//std::cout << viscos << std::endl;//def_grad[0] << " " << def_grad[1] << " " << def_grad[2] << std::endl;
+  return(std::array<double,3>{{viscos*def_grad[0], viscos*def_grad[1], viscos*def_grad[2]}});
+}
+
+std::array<double,6>
+TG2_scheme::compute_nodal_def_grad (const double& h, const double& Ux, const double& Uy, const std::array<double,2>& grad_cell_ux, const std::array<double,2>& grad_cell_uy)
+{
+
+  // def_grad = [D11, D22, D33, D12, D23, D31]
+
+  // compute \zeta
+  const double vel_x = h>epsilon ? Ux/h : 0.;
+  const double vel_y = h>epsilon ? Uy/h : 0.;
+  const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
+  const double aa = h>epsilon ? 6*fluid_viscosity*abs_vel/h/yield_shear_stress : 0.;
+
+  const double a = 3./2.;
+  const double c = 65./32.;
+  const double b = -(114./32.+aa);
+  const double Delta = b*b-4*a*c;
+
+  const double zeta_1 = (-b + std::sqrt(Delta))/2./a;
+  const double zeta_2 = (-b - std::sqrt(Delta))/2./a;
+
+  if ( std::abs(zeta_1 - .5)<=.5 && std::abs(zeta_2 - .5)<=.5)
+  {
+    std::cout << "Two valid roots, look at compute_nodal_def_grad, " << zeta_1 << " " << zeta_2 << ", STOP!" << std::endl;
+    exit(1.);
+  }
+
+  const double zeta = std::abs(zeta_1 - .5)<=.5 ? zeta_1 : zeta_2;
+
+  const auto & partial_x_ux = grad_cell_ux[0];
+  const auto & partial_y_ux = grad_cell_ux[1];
+  const auto   partial_z_ux = h>epsilon ? 3./(2.+zeta)*vel_x/h : 0.;
+
+  const auto & partial_x_uy = grad_cell_uy[0];
+  const auto & partial_y_uy = grad_cell_uy[1];
+  const auto   partial_z_uy = h>epsilon ? 3./(2.+zeta)*vel_y/h : 0.;
+
+  const auto partial_x_uz = 0.; // steady state simple shear flow
+  const auto partial_y_uz = 0.; // steady state simple shear flow
+  const auto partial_z_uz = -(grad_cell_ux[0]+grad_cell_uy[1]);
+  
+  return(std::array<double,6>{{partial_x_ux, partial_y_uy, partial_z_uz, .5*(partial_x_uy+partial_y_ux), .5*(partial_z_uy+partial_y_uz), .5*(partial_z_ux+partial_x_uz)}});
+}
 
 
 // source terms
@@ -826,20 +926,29 @@ TG2_scheme::h_src_formula (const double& h, const double& Ux, const double& Uy)
 double
 TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdx)
 {
-  const double bed_pressure = density*grav*h - surface_pressure;
-  const double abs_vel = h > epsilon ? std::sqrt( std::pow((Ux/h),2.) + std::pow((Uy/h),2.) ) : 0.;
+  const double bed_pressure = grav*h - surface_pressure/density;
+  const double vel_x = Ux/(h+epsilon);
+  const double vel_y = Uy/(h+epsilon);
+  const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
 
-  const double bed_fric_contr = is_bed_friction ? (grav*abs_vel/turbulence_coeff + h > epsilon ? bed_pressure*std::tan(bed_friction_angle_rad)/abs_vel/density : 0.)*(h>epsilon ? Ux/h : 0.) : 0.;
+  const double vel_x_sign = abs_vel!=0 ? vel_x/abs_vel : 0.;
+
+  const double bed_fric_contr = is_bed_friction ? vel_x_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
+
   return (-grav*h*dZdx - bed_fric_contr);
 }
 
 double
 TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdy)
 {
-  const double bed_pressure = density*grav*h - surface_pressure;
-  const double abs_vel = h > epsilon ? std::sqrt( std::pow((Ux/h),2.) + std::pow((Uy/h),2.) ) : 0.;
+  const double bed_pressure = grav*h - surface_pressure/density;
+  const double vel_x = h>epsilon ? Ux/h : 0.;
+  const double vel_y = h>epsilon ? Uy/h : 0.;
+  const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
 
-  const double bed_fric_contr = is_bed_friction ? (grav*abs_vel/turbulence_coeff + h > epsilon ? bed_pressure*std::tan(bed_friction_angle_rad)/abs_vel/density : 0.)*(h>epsilon ? Uy/h : 0.) : 0.;
+  const double vel_y_sign = abs_vel!=0 ? vel_y/abs_vel : 0.;
+
+  const double bed_fric_contr = is_bed_friction ? vel_y_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
   return (-grav*h*dZdy - bed_fric_contr);
 }
 

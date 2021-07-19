@@ -25,9 +25,9 @@ static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in";
 
 // properties of the input dem
-static constexpr double res = 5e-2;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 101;//188; // # columns
-static constexpr double Ny = 101;//180; // # rows
+static constexpr double res = 2.5e-2;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 201;//188; // # columns
+static constexpr double Ny = 201;//180; // # rows
 
  
 static constexpr double L = res*(Nx-1);
@@ -36,7 +36,7 @@ static std::vector<double>   dem;
 static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
-static constexpr int NUM_REFINEMENTS  = 7; // 8
+static constexpr int NUM_REFINEMENTS  = 6; // 8
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
@@ -45,19 +45,20 @@ static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at 
 static constexpr double SAVEDT = 1.e-1; // must never be null 
 static constexpr double DELTAT = 4.e-2;
 static constexpr double REDCDT = .5; 
-static constexpr double T      = 1.;
+static constexpr double T      = 1.; 
  
 static constexpr bool is_time_adaptivity    = true;
 static constexpr bool is_initial_refinement = true;
 static constexpr bool is_space_adaptivity   = true;
-static constexpr bool is_non_reflBC         = false; 
-static constexpr bool is_bed_friction       = false;
+static constexpr bool is_non_reflBC         = true; 
+static constexpr bool is_bed_friction       = true;
+static constexpr bool is_stress_tensor      = false;
 
 
 static constexpr double h_min = 1e-5;
 static constexpr double grav = 1.;
 static constexpr double density = 1400;  
-static constexpr double turbulence_coeff = 1.0; 
+static constexpr double turbulence_coeff = 500.0; 
 static constexpr double surface_pressure = 0.0; 
 static constexpr double bed_friction_angle_rad = 23*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 48;
@@ -66,7 +67,7 @@ static constexpr double yield_shear_stress = 1e3;
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
 static constexpr double mesh_size_dry       = res*2;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res/40;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_wet       = res/30;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
 static constexpr double mesh_size_interface = res/40;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
@@ -145,15 +146,13 @@ double h0_fun (const double& xx, const double& yy)
 {
   //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 0. );
-  return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. ); 
+  //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. ); 
   //return(xx<=L/2. ? 70 : 7. ); 
 
-  const auto xx_ = xx/500;
-  const auto yy_ = yy/500; 
-  const double HH = .13;
-  const double omega = (std::pow((xx_-.5),2.) + std::pow((yy_-.5),2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy_-.5))),2.) ? 1. : 0.;
-  return(std::max (0., std::min (60.-(100 - 100 * xx_), HH)) * HH * omega * 500*8); 
 
+  const double HH = 5.;
+  const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
+  return(std::max (0., std::min (60.-(100 - 100 * xx/L), HH)) * omega); 
   
  
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
@@ -575,8 +574,6 @@ main (int argc, char **argv)
     slope_x[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
     slope_y[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
     
-    // std::cout << quadrant->get_forest_quad_idx () << " " << ordh  (quadrant->get_forest_quad_idx ()) << " " 
-    // << ordUx (quadrant->get_forest_quad_idx ()) << " " << ordUy (quadrant->get_forest_quad_idx ()) <<std::endl;
 
     for (int ii = 0; ii < 4; ++ii)
     {
@@ -705,7 +702,7 @@ main (int argc, char **argv)
 
     tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
     //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1);
-    tmsh.metrics_refine (1e12);  // RAFFINAMENTO (arg is max element)
+    tmsh.metrics_refine (1e7);  // RAFFINAMENTO (arg is max element)
 
     // tmsh.set_coarsen_marker (coarsen_function);
     // tmsh.set_refine_marker  (refine_function);
@@ -856,7 +853,7 @@ main (int argc, char **argv)
                  Z_dyn, 
                  slope_x_dyn,
                  slope_y_dyn,
-                 DELTAT, h_min, is_non_reflBC, is_bed_friction, grav,
+                 DELTAT, h_min, is_non_reflBC, is_bed_friction, is_stress_tensor, grav,
                  density, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress);
   
   
@@ -970,7 +967,7 @@ main (int argc, char **argv)
         stp.compute_dt_adaptive(quadrant);
       }
       MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
-      const double rho_h = (1./(stp.time-stp.timed))*std::sqrt(stp.nu_htot);
+      const double rho_h = stp.nu_htot/((stp.time-stp.timed)*(stp.time-stp.timed));
 
       const auto candidate_dt = (5e-3/(rho_h+1e-7))*std::sqrt(1./(stp.time-stp.timed));
       stp.set_dt( std::min(std::isnan(candidate_dt) ? max_dt : candidate_dt, max_dt) );
@@ -1223,7 +1220,7 @@ main (int argc, char **argv)
 
       tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
       //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1); 
-      tmsh.metrics_refine (1e12);  // RAFFINAMENTO (arg is max element)
+      tmsh.metrics_refine (1e7);  // RAFFINAMENTO (arg is max element)
 
       // tmsh.set_coarsen_marker (coarsen_function);
       // tmsh.set_refine_marker  (refine_function);
