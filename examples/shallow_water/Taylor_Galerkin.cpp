@@ -107,7 +107,7 @@ TG2_scheme::compute_dt_adaptive (tmesh::quadrant_iterator quadrant)
       hdof_oldd = .5 * (soldd [ordh  (quadrant->gparent (0, ii) )] +
                         soldd [ordh  (quadrant->gparent (1, ii) )]);
     }
-    dh_t = (hdof -  hdof_old)/(time - timed);
+    dh_t = (hdof - hdof_old)/(time - timed);
     
     h1   = hdof_oldd/((timedd - timed )*(timedd - time ));
     h2   = hdof_old /((timed  - timedd)*(timed  - time ));
@@ -116,11 +116,11 @@ TG2_scheme::compute_dt_adaptive (tmesh::quadrant_iterator quadrant)
     a_coeff = h1+h2+h3;
     b_coeff = - (h1*(time+timed) + h2*(time+timedd) + h3*(timed+timedd));
     
-    Nu_hmean_cell += (time-timed)*(4./3.*a_coeff*a_coeff*(time*time+time*timed+timed*timed) + 2.*a_coeff*(b_coeff-dh_t)*(time+timed)+std::pow(b_coeff-dh_t,2.));
+    Nu_hmean_cell += (1./3.*a_coeff*a_coeff*(time*time+time*timed+timed*timed) + a_coeff*(b_coeff-dh_t)*(time+timed) + (b_coeff-dh_t)*(b_coeff-dh_t));
     
   }
   Nu_hmean_cell /= 4.;
-  nu_htot += Nu_hmean_cell;
+  nu_htot += Nu_hmean_cell*(time-timed);
   
 }
 
