@@ -41,7 +41,7 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at each time step
+static constexpr double SPACE_ADAPTDT = 5e-2;//1e-2; // put zero if you want at each time step
 static constexpr double SAVEDT = 1.e-1; // must never be null 
 static constexpr double DELTAT = 4.e-2;
 static constexpr double REDCDT = .5; 
@@ -49,7 +49,7 @@ static constexpr double T      = 1.;
  
 static constexpr bool is_time_adaptivity    = true;
 static constexpr bool is_initial_refinement = true;
-static constexpr bool is_space_adaptivity   = true;
+static constexpr bool is_space_adaptivity   = false;
 static constexpr bool is_non_reflBC         = true; 
 static constexpr bool is_bed_friction       = true;
 static constexpr bool is_stress_tensor      = false;
@@ -66,7 +66,7 @@ static constexpr double yield_shear_stress = 1e3;
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
-static constexpr double mesh_size_dry       = res*2;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
+static constexpr double mesh_size_dry       = res*100;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
 static constexpr double mesh_size_wet       = res/30;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
 static constexpr double mesh_size_interface = res/40;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
@@ -150,7 +150,7 @@ double h0_fun (const double& xx, const double& yy)
   //return(xx<=L/2. ? 70 : 7. ); 
 
 
-  const double HH = 5.;
+  const double HH = 1.;
   const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
   return(std::max (0., std::min (60.-(100 - 100 * xx/L), HH)) * omega); 
   
@@ -968,6 +968,8 @@ main (int argc, char **argv)
       }
       MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
       const double rho_h = stp.nu_htot/((stp.time-stp.timed)*(stp.time-stp.timed));
+
+      //std::cout << stp.nu_htot << " " << rank << std::endl;
 
       const auto candidate_dt = (5e-3/(rho_h+1e-7))*std::sqrt(1./(stp.time-stp.timed));
       stp.set_dt( std::min(std::isnan(candidate_dt) ? max_dt : candidate_dt, max_dt) );
