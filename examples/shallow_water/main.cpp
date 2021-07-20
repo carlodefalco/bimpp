@@ -41,15 +41,15 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-static constexpr double SPACE_ADAPTDT = 5e-2;//1e-2; // put zero if you want at each time step
+static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at each time step
 static constexpr double SAVEDT = 1.e-1; // must never be null 
 static constexpr double DELTAT = 4.e-2;
 static constexpr double REDCDT = .5; 
-static constexpr double T      = 1.; 
+static constexpr double T      = .5; 
  
 static constexpr bool is_time_adaptivity    = true;
 static constexpr bool is_initial_refinement = true;
-static constexpr bool is_space_adaptivity   = false;
+static constexpr bool is_space_adaptivity   = true;
 static constexpr bool is_non_reflBC         = true; 
 static constexpr bool is_bed_friction       = true;
 static constexpr bool is_stress_tensor      = false;
@@ -58,7 +58,7 @@ static constexpr bool is_stress_tensor      = false;
 static constexpr double h_min = 1e-5;
 static constexpr double grav = 1.;
 static constexpr double density = 1400;  
-static constexpr double turbulence_coeff = 500.0; 
+static constexpr double turbulence_coeff = 600.0; 
 static constexpr double surface_pressure = 0.0; 
 static constexpr double bed_friction_angle_rad = 23*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 48;
@@ -67,8 +67,8 @@ static constexpr double yield_shear_stress = 1e3;
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
 static constexpr double mesh_size_dry       = res*100;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res/30;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = res/40;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+static constexpr double mesh_size_wet       = res/10;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = res/20;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
 // Connectivity of local element
@@ -973,6 +973,7 @@ main (int argc, char **argv)
 
       const auto candidate_dt = (5e-3/(rho_h+1e-7))*std::sqrt(1./(stp.time-stp.timed));
       stp.set_dt( std::min(std::isnan(candidate_dt) ? max_dt : candidate_dt, max_dt) );
+      stp.set_dt( candidate_dt<=0. ? max_dt : stp.dt );
     }
 
     // check save with given frequency
