@@ -41,7 +41,7 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-static constexpr double SPACE_ADAPTDT = 1.e-3;//4e-2;//1e-2; // put zero if you want at each time step
+static constexpr double SPACE_ADAPTDT = 1.e-2;//4e-2;//1e-2; // put zero if you want at each time step
 static constexpr double SAVEDT = 1.e-1; // must never be null 
 static constexpr double DELTAT = 1.e-3;
 static constexpr double REDCDT = 5e-1; 
@@ -67,8 +67,8 @@ static constexpr double yield_shear_stress = .5*density*grav*38*std::sin(bed_fri
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
 static constexpr double mesh_size_dry       = 1e5;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = .05;//res/10;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = .05;//res/20;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+static constexpr double mesh_size_wet       = .5;//res/10;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = .5;//res/20;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
 // Connectivity of local element
@@ -628,7 +628,7 @@ main (int argc, char **argv)
 
     tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
     //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1);
-    tmsh.metrics_refine (1e7);  // RAFFINAMENTO (arg is max element)
+    tmsh.metrics_refine (1e5);  // RAFFINAMENTO (arg is max element)
 
     // tmsh.set_coarsen_marker (coarsen_function);
     // tmsh.set_refine_marker  (refine_function);
@@ -805,15 +805,15 @@ main (int argc, char **argv)
   sprintf(filename, arr, 0); 
   tmsh.octbin_export (filename, Z_dyn);
 
-  str = std::string(SAVE_DIR) + "/results/swe_s_x_%4.4d";
-  strcpy(arr, str.c_str());
-  sprintf(filename, arr, 0); 
-  tmsh.octbin_export (filename, slope_x_dyn);
+  // str = std::string(SAVE_DIR) + "/results/swe_s_x_%4.4d";
+  // strcpy(arr, str.c_str());
+  // sprintf(filename, arr, 0); 
+  // tmsh.octbin_export (filename, slope_x_dyn);
 
-  str = std::string(SAVE_DIR) + "/results/swe_s_y_%4.4d";
-  strcpy(arr, str.c_str());
-  sprintf(filename, arr, 0); 
-  tmsh.octbin_export (filename, slope_y_dyn);
+  // str = std::string(SAVE_DIR) + "/results/swe_s_y_%4.4d";
+  // strcpy(arr, str.c_str());
+  // sprintf(filename, arr, 0); 
+  // tmsh.octbin_export (filename, slope_y_dyn);
   
   // MPI_Barrier (MPI_COMM_WORLD);
   // if (rank == 0) { print_timing_report (); }
@@ -1044,15 +1044,15 @@ main (int argc, char **argv)
       sprintf(filename, arr,  count);
       tmsh.octbin_export (filename, Z_dyn);
 
-      str = std::string(SAVE_DIR) + "/results/swe_s_x_%4.4d";
-      strcpy(arr, str.c_str());
-      sprintf(filename, arr,  count);
-      tmsh.octbin_export (filename, slope_x_dyn);
+      // str = std::string(SAVE_DIR) + "/results/swe_s_x_%4.4d";
+      // strcpy(arr, str.c_str());
+      // sprintf(filename, arr,  count);
+      // tmsh.octbin_export (filename, slope_x_dyn);
 
-      str = std::string(SAVE_DIR) + "/results/swe_s_y_%4.4d";
-      strcpy(arr, str.c_str());
-      sprintf(filename, arr,  count);
-      tmsh.octbin_export (filename, slope_y_dyn);
+      // str = std::string(SAVE_DIR) + "/results/swe_s_y_%4.4d";
+      // strcpy(arr, str.c_str());
+      // sprintf(filename, arr,  count);
+      // tmsh.octbin_export (filename, slope_y_dyn);
 
       savecount = 0.0;
       TOC("Exporting solution");
@@ -1170,7 +1170,7 @@ main (int argc, char **argv)
 
       tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
       //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1); 
-      tmsh.metrics_refine (1e7);  // RAFFINAMENTO (arg is max element)
+      tmsh.metrics_refine (1e5);  // RAFFINAMENTO (arg is max element)
 
       // tmsh.set_coarsen_marker (coarsen_function);
       // tmsh.set_refine_marker  (refine_function);
