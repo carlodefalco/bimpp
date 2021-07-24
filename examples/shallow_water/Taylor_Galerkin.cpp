@@ -39,6 +39,9 @@ TG2_scheme::TG2_scheme(const Q1& sol,
 void
 TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
 {
+
+  const auto & index_quadrant = quadrant->get_forest_quad_idx (); 
+
   for (int ii = 0; ii < 4; ++ii)
   {
     xn[ii] = quadrant->p (0, ii); 
@@ -47,7 +50,8 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
   
   Dx = xn[1] - xn[0];
   Dy = yn[2] - yn[0];
-  
+
+  std::array<double,4> vel_x, vel_y;  
   for (int ii = 0; ii < 4; ++ii)
   {
     if (! quadrant->is_hanging (ii) )
@@ -65,23 +69,62 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
       Uydof[ii] = .5 * (sol [ordUy (quadrant->gparent (0, ii) )] +
                         sol [ordUy (quadrant->gparent (1, ii) )]);
     }
+
+    const auto & hpoint = hdof[ii];
+    vel_x[ii] = hpoint>epsilon ? Uxdof[ii]/hpoint : 0.;
+    vel_y[ii] = hpoint>epsilon ? Uydof[ii]/hpoint : 0.;
   }
   
+  grad_cell_ux = {.5 * ( (vel_x[3] - vel_x[2]) + (vel_x[1] - vel_x[0]) )/Dx, .5 * ( (vel_x[2] - vel_x[0]) + (vel_x[3] - vel_x[1]) )/Dy};
+  grad_cell_uy = {.5 * ( (vel_y[3] - vel_y[2]) + (vel_y[1] - vel_y[0]) )/Dx, .5 * ( (vel_y[2] - vel_y[0]) + (vel_y[3] - vel_y[1]) )/Dy};
+  
   for (int ii = 0; ii < 4; ++ii){
-    const auto& hpoint = hdof[ii];
+    const auto & hpoint  = hdof [ii];
+    const auto & Uxpoint = Uxdof[ii];
+    const auto & Uypoint = Uydof[ii];
+
+    const auto & vel_x_point = vel_x[ii];
+    const auto & vel_y_point = vel_y[ii];
     const auto celerity = std::sqrt(grav*hpoint);
     
-    const auto vel_rusanov_cell_x = hpoint>epsilon ? std::abs(Uxdof[ii]/hpoint)+celerity : 0.;
-    const auto vel_rusanov_cell_y = hpoint>epsilon ? std::abs(Uydof[ii]/hpoint)+celerity : 0.;
+    const auto vel_rusanov_x = hpoint>epsilon ? std::abs(vel_x_point)+celerity : 0.;
+    const auto vel_rusanov_y = hpoint>epsilon ? std::abs(vel_y_point)+celerity : 0.;
     
-    const auto dtoptx = hpoint>epsilon ? Dx/vel_rusanov_cell_x : DELTAT;
-    const auto dtopty = hpoint>epsilon ? Dy/vel_rusanov_cell_y : DELTAT;
-    const auto dtopt = dtoptx > dtopty ? dtopty : dtoptx;
+    const auto dtx_adv = hpoint>epsilon ? Dx/vel_rusanov_x : dt; //dt; // DELTAT;
+    const auto dty_adv = hpoint>epsilon ? Dy/vel_rusanov_y : dt; //dt; // DELTAT;
 
+    // std::array<double,6> def_grad = compute_nodal_def_grad (hpoint, Uxpoint, Uypoint, grad_cell_ux, grad_cell_uy);
+
+    // double second_invariant = 0.;
+    // for (int i_def = 0; i_def < 6; i_def++)
+    // {
+    //   second_invariant += def_grad[i_def]*def_grad[i_def];
+    // }
+    // second_invariant *= .5;
+
+    // const double viscos = second_invariant!=0 ? .5*(yield_shear_stress/std::sqrt(second_invariant) + 2*fluid_viscosity)/density : 0.;
+
+    // const auto dtx_dif = viscos!=0 ? Dx*Dx*.5/viscos : dt; //dt; // DELTAT;
+    // const auto dty_dif = viscos!=0 ? Dy*Dy*.5/viscos : dt; //dt; // DELTAT;
+
+    const auto dtoptx = dtx_adv; //std::min( dtx_adv, 2.*std::abs(Uxpoint)/std::abs(Ux_src_formula(hpoint, Uxpoint, Uypoint, slope_x[index_quadrant])) );///(dtx_adv + dtx_dif); //hpoint>epsilon ? Dx/vel_rusanov_x : dt;
+    const auto dtopty = dty_adv; //std::min( dty_adv, 2.*std::abs(Uypoint)/std::abs(Uy_src_formula(hpoint, Uxpoint, Uypoint, slope_y[index_quadrant])) );//(dty_adv * dty_dif)/(dty_adv + dty_dif);///(dty_adv + dty_dif); //hpoint>epsilon ? Dy/vel_rusanov_y : dt;
+    const auto dtopt = dtoptx > dtopty ? dtopty : dtoptx;
     if (dt > dtopt) set_dt (dtopt);
     
+    //std::cout << dt << std::endl;
+    //if (dtx_dif!=dt || dty_dif!=dt)
+
+    // if (dt<=0.)
+    // {
+    //   std::cout << dt << " " << viscos << " " << dtx_dif << " " << dty_dif << " " << dtx_adv << " " << dty_adv << " " << 2.*Uypoint/std::abs(Uy_src_formula(hpoint, Uxpoint, Uypoint, slope_y[index_quadrant])) << std::endl;
+    //   exit(1);
+    // }
+    
+
     
   }
+
 }
 
 void
@@ -178,9 +221,9 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
     fluxy_Uy_node[ii] = Uy_flux_formula_y  (hdof_c, Uxdof_c, Uydof_c);
 
   }
-  h_cell_average    /= 4.;
-  Ux_cell_average   /= 4.;
-  Uy_cell_average   /= 4.;
+  h_cell_average  /= 4.;
+  Ux_cell_average /= 4.;
+  Uy_cell_average /= 4.;
   
   source_Ux_cell_average /= 4.;
   source_Uy_cell_average /= 4.;
@@ -198,9 +241,9 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const auto div_FUy_y = .5*((fluxy_Uy_node[2]-fluxy_Uy_node[0]) + (fluxy_Uy_node[3]-fluxy_Uy_node[1]));
   const auto div_FUy_cell = Dy*div_FUy_x + Dx*div_FUy_y;
   
-  sol_onehalf[ordh    (index_quadrant)] = h_cell_average    - dt / 2. * div_Fh_cell    / area;
-  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average   - dt / 2. * div_FUx_cell   / area + dt / 2. * source_Ux_cell_average;
-  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average   - dt / 2. * div_FUy_cell   / area + dt / 2. * source_Uy_cell_average;
+  sol_onehalf[ordh  (index_quadrant)] = h_cell_average  - dt / 2. * div_Fh_cell  / area;
+  sol_onehalf[ordUx (index_quadrant)] = Ux_cell_average - dt / 2. * div_FUx_cell / area + dt / 2. * source_Ux_cell_average;
+  sol_onehalf[ordUy (index_quadrant)] = Uy_cell_average - dt / 2. * div_FUy_cell / area + dt / 2. * source_Uy_cell_average;
   
 
 
@@ -249,29 +292,30 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   der_coeffs_y = {-Dx/2.*isdof_or_hanging[0], -Dx/2.*isdof_or_hanging[1],
     +Dx/2.*isdof_or_hanging[2], +Dx/2.*isdof_or_hanging[3]};
 
+  std::array<double,4> vel_x, vel_y;
   double vel_rusanov_cell_x = 0., vel_rusanov_cell_y = 0.;
   for (int ii = 0; ii < 4; ++ii){
     const auto& hpoint = hdof[ii];
     const auto celerity = std::sqrt(grav*hpoint);
-    vel_rusanov_cell_x += hpoint>epsilon ? std::abs(Uxdof[ii]/hpoint)+celerity : 0.;
-    vel_rusanov_cell_y += hpoint>epsilon ? std::abs(Uydof[ii]/hpoint)+celerity : 0.;
+    vel_x[ii] = hpoint>epsilon ? Uxdof[ii]/hpoint : 0.;
+    vel_y[ii] = hpoint>epsilon ? Uydof[ii]/hpoint : 0.;
+    vel_rusanov_cell_x += hpoint>epsilon ? std::abs(vel_x[ii])+celerity : 0.;
+    vel_rusanov_cell_y += hpoint>epsilon ? std::abs(vel_y[ii])+celerity : 0.;
   }
   vel_rusanov_cell_x /= 4.;
   vel_rusanov_cell_y /= 4.; 
 
-  grad_cell_h    = {.5 * ( (hdof [3] - hdof [2]) + (hdof [1] - hdof [0]) ), .5 * ( (hdof [2] - hdof [0]) + (hdof [3] - hdof [1]) )};
-  grad_cell_Ux   = {.5 * ( (Uxdof[3] - Uxdof[2]) + (Uxdof[1] - Uxdof[0]) ), .5 * ( (Uxdof[2] - Uxdof[0]) + (Uxdof[3] - Uxdof[1]) )};
-  grad_cell_Uy   = {.5 * ( (Uydof[3] - Uydof[2]) + (Uydof[1] - Uydof[0]) ), .5 * ( (Uydof[2] - Uydof[0]) + (Uydof[3] - Uydof[1]) )};
+  grad_cell_h  = {.5 * ( (hdof [3] - hdof [2]) + (hdof [1] - hdof [0]) )   , .5 * ( (hdof [2] - hdof [0]) + (hdof [3] - hdof [1]) )};
+  grad_cell_Ux = {.5 * ( (Uxdof[3] - Uxdof[2]) + (Uxdof[1] - Uxdof[0]) )   , .5 * ( (Uxdof[2] - Uxdof[0]) + (Uxdof[3] - Uxdof[1]) )};
+  grad_cell_Uy = {.5 * ( (Uydof[3] - Uydof[2]) + (Uydof[1] - Uydof[0]) )   , .5 * ( (Uydof[2] - Uydof[0]) + (Uydof[3] - Uydof[1]) )};
 
-  grad_cell_ux   = {.5 * ( (hdof[3]>epsilon ? Uxdof[3]/hdof[3] : 0. - hdof[2]>epsilon ? Uxdof[2]/hdof[2] : 0.) + (hdof[1]>epsilon ? Uxdof[1]/hdof[1] : 0. - hdof[0]>epsilon ? Uxdof[0]/hdof[0] : 0.) )/Dx, .5 * ( (hdof[2]>epsilon ? Uxdof[2]/hdof[2] : 0. - hdof[0]>epsilon ? Uxdof[0]/hdof[0] : 0.) + (hdof[3]>epsilon ? Uxdof[3]/hdof[3] : 0. - hdof[1]>epsilon ? Uxdof[1]/hdof[1] : 0.) )/Dy};
-  grad_cell_uy   = {.5 * ( (hdof[3]>epsilon ? Uydof[3]/hdof[3] : 0. - hdof[2]>epsilon ? Uydof[2]/hdof[2] : 0.) + (hdof[1]>epsilon ? Uydof[1]/hdof[1] : 0. - hdof[0]>epsilon ? Uydof[0]/hdof[0] : 0.) )/Dx, .5 * ( (hdof[2]>epsilon ? Uydof[2]/hdof[2] : 0. - hdof[0]>epsilon ? Uydof[0]/hdof[0] : 0.) + (hdof[3]>epsilon ? Uydof[3]/hdof[3] : 0. - hdof[1]>epsilon ? Uydof[1]/hdof[1] : 0.) )/Dy};
-
-
+  grad_cell_ux = {.5 * ( (vel_x[3] - vel_x[2]) + (vel_x[1] - vel_x[0]) )/Dx, .5 * ( (vel_x[2] - vel_x[0]) + (vel_x[3] - vel_x[1]) )/Dy};
+  grad_cell_uy = {.5 * ( (vel_y[3] - vel_y[2]) + (vel_y[1] - vel_y[0]) )/Dx, .5 * ( (vel_y[2] - vel_y[0]) + (vel_y[3] - vel_y[1]) )/Dy};
   
 
-  const double & h_cell    = sol_onehalf[ordh    (index_quadrant)];
-  const double & Ux_cell   = sol_onehalf[ordUx   (index_quadrant)];
-  const double & Uy_cell   = sol_onehalf[ordUy   (index_quadrant)];
+  const double & h_cell  = sol_onehalf[ordh  (index_quadrant)];
+  const double & Ux_cell = sol_onehalf[ordUx (index_quadrant)];
+  const double & Uy_cell = sol_onehalf[ordUy (index_quadrant)];
 
 
   const auto diff_term_h_x  = grad_cell_h [0] * vel_rusanov_cell_y;
@@ -302,16 +346,21 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   for (int ii = 0; ii < 4; ++ii){
     
 
-    sigma_stress = is_stress_tensor ? compute_nodal_stress (hdof[ii], Uxdof[ii], Uydof[ii], grad_cell_ux, grad_cell_uy) : sigma_stress;
+    sigma_stress = is_stress_tensor ? compute_nodal_stress (hdof[ii], Uxdof[ii], Uydof[ii], grad_cell_ux, grad_cell_uy) : std::array<double,3>{{0., 0., 0.}};
     
 
-    const auto D_Ux_x = Ux_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
-    const auto D_Ux_y = Ux_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
+    const double D_Ux_x = is_stress_tensor ? Ux_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]) : 0.;
+    const double D_Ux_y = is_stress_tensor ? Ux_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]) : 0.;
 
-    const auto D_Uy_x = Uy_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
-    const auto D_Uy_y = Uy_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
+    const double D_Uy_x = is_stress_tensor ? Uy_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]) : 0.;
+    const double D_Uy_y = is_stress_tensor ? Uy_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]) : 0.;
 
-
+    if (std::isnan(D_Ux_x) || std::isnan(D_Ux_y) || std::isnan(D_Uy_x) || std::isnan(D_Uy_y))
+    {
+      std::cout << D_Ux_x << " " << D_Ux_y << " " << D_Uy_x << " " << D_Uy_y << std::endl;
+      exit(1);
+    }
+    
 
     const auto h_  = der_coeffs_x[ii]*F_star_h_x +der_coeffs_y[ii]*F_star_h_y;
     const auto Ux_ = der_coeffs_x[ii]*F_star_Ux_x+der_coeffs_y[ii]*F_star_Ux_y + der_coeffs_x[ii]*(1./3.)*D_Ux_x+der_coeffs_y[ii]*(1./3.)*D_Ux_y + .25*area*isdof_or_hanging[ii]*Ux_src_formula(h_cell, Ux_cell, Uy_cell, slope_x[index_quadrant]);
@@ -371,21 +420,21 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
         
         
         
-        incr [ordh    (quadrant->gt (ii))] += h_b;
-        incr [ordUx   (quadrant->gt (ii))] += Ux_b;
-        incr [ordUy   (quadrant->gt (ii))] += Uy_b;
+        incr [ordh  (quadrant->gt (ii))] += h_b;
+        incr [ordUx (quadrant->gt (ii))] += Ux_b;
+        incr [ordUy (quadrant->gt (ii))] += Uy_b;
 
-        incr_anti_diff[ordh (index_quadrant)][ii] += h_a;
-        incr_anti_diff[ordUx(index_quadrant)][ii] += Ux_a;
-        incr_anti_diff[ordUy(index_quadrant)][ii] += Uy_a;
+        incr_anti_diff[ordh  (index_quadrant)][ii] += h_a;
+        incr_anti_diff[ordUx (index_quadrant)][ii] += Ux_a;
+        incr_anti_diff[ordUy (index_quadrant)][ii] += Uy_a;
 
-        P_plus [ordh    (quadrant->gt (ii))] += std::max(0., h_a );
-        P_plus [ordUx   (quadrant->gt (ii))] += std::max(0., Ux_a);
-        P_plus [ordUy   (quadrant->gt (ii))] += std::max(0., Uy_a);
+        P_plus [ordh  (quadrant->gt (ii))] += std::max(0., h_a );
+        P_plus [ordUx (quadrant->gt (ii))] += std::max(0., Ux_a);
+        P_plus [ordUy (quadrant->gt (ii))] += std::max(0., Uy_a);
 
-        P_minus [ordh    (quadrant->gt (ii))] += std::min(0., h_a );
-        P_minus [ordUx   (quadrant->gt (ii))] += std::min(0., Ux_a);
-        P_minus [ordUy   (quadrant->gt (ii))] += std::min(0., Uy_a);
+        P_minus [ordh  (quadrant->gt (ii))] += std::min(0., h_a );
+        P_minus [ordUx (quadrant->gt (ii))] += std::min(0., Ux_a);
+        P_minus [ordUy (quadrant->gt (ii))] += std::min(0., Uy_a);
         
         
         for (int jj = 0; jj < 4; ++jj){
@@ -405,9 +454,9 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
             incr [ordUx (quadrant->gt (ii))] += Ux_b;
             incr [ordUy (quadrant->gt (ii))] += Uy_b;
 
-            incr_anti_diff[ordh (index_quadrant)][ii] += h_a;
-            incr_anti_diff[ordUx(index_quadrant)][ii] += Ux_a;
-            incr_anti_diff[ordUy(index_quadrant)][ii] += Uy_a;
+            incr_anti_diff[ordh  (index_quadrant)][ii] += h_a;
+            incr_anti_diff[ordUx (index_quadrant)][ii] += Ux_a;
+            incr_anti_diff[ordUy (index_quadrant)][ii] += Uy_a;
             
             P_plus [ordh  (quadrant->gt (ii))] += std::max(0., h_a );
             P_plus [ordUx (quadrant->gt (ii))] += std::max(0., Ux_a); 
@@ -429,14 +478,14 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
         double F_star_h_x_b = 0., F_star_h_y_b = 0.,
         F_star_Ux_x_b = 0., F_star_Ux_y_b = 0., F_star_Uy_x_b = 0., F_star_Uy_y_b = 0.;
         
-        F_star_h_x_b    = h_flux_formula_x (h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
-        F_star_h_y_b    = h_flux_formula_y (h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+        F_star_h_x_b  = h_flux_formula_x (h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+        F_star_h_y_b  = h_flux_formula_y (h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
 
-        F_star_Ux_x_b   = Ux_flux_formula_x(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
-        F_star_Ux_y_b   = Ux_flux_formula_y(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+        F_star_Ux_x_b = Ux_flux_formula_x(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+        F_star_Ux_y_b = Ux_flux_formula_y(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
 
-        F_star_Uy_x_b   = Uy_flux_formula_x(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
-        F_star_Uy_y_b   = Uy_flux_formula_y(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+        F_star_Uy_x_b = Uy_flux_formula_x(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
+        F_star_Uy_y_b = Uy_flux_formula_y(h_cell, Ux_cell, is_non_reflBC ? Uy_cell : -Uy_cell);
         
         
         auto h_b    = der_coeffs_x[ii] * F_star_h_x_b    - der_coeffs_y[ii] * F_star_h_y_b;
@@ -530,9 +579,9 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
         incr [ordUx   (quadrant->gt (ii))] += Ux_b;
         incr [ordUy   (quadrant->gt (ii))] += Uy_b;
 
-        incr_anti_diff[ordh (index_quadrant)][ii] += h_a;
-        incr_anti_diff[ordUx(index_quadrant)][ii] += Ux_a;
-        incr_anti_diff[ordUy(index_quadrant)][ii] += Uy_a;
+        incr_anti_diff[ordh  (index_quadrant)][ii] += h_a;
+        incr_anti_diff[ordUx (index_quadrant)][ii] += Ux_a;
+        incr_anti_diff[ordUy (index_quadrant)][ii] += Uy_a;
 
         P_plus [ordh    (quadrant->gt (ii))] += std::max(0., h_a );
         P_plus [ordUx   (quadrant->gt (ii))] += std::max(0., Ux_a);
@@ -840,19 +889,19 @@ TG2_scheme::Uy_flux_formula_y (const double& h, const double& Ux, const double& 
 // stress functions
 double
 TG2_scheme::Ux_stress_formula_x (const double& h, const double& Ux, const double& Uy)
-{ return (sigma_stress[0]*h/density); }
+{ return (-sigma_stress[0]*h/density); }
 
 double
 TG2_scheme::Ux_stress_formula_y (const double& h, const double& Ux, const double& Uy)
-{ return (sigma_stress[2]*h/density); }
+{ return (-sigma_stress[2]*h/density); }
 
 double
 TG2_scheme::Uy_stress_formula_x (const double& h, const double& Ux, const double& Uy)
-{ return (sigma_stress[2]*h/density); }
+{ return (-sigma_stress[2]*h/density); }
 
 double
 TG2_scheme::Uy_stress_formula_y (const double& h, const double& Ux, const double& Uy)
-{ return (sigma_stress[1]*h/density); }
+{ return (-sigma_stress[1]*h/density); }
 
 
 std::array<double,3>
@@ -865,13 +914,23 @@ TG2_scheme::compute_nodal_stress (const double& h, const double& Ux, const doubl
 
   std::array<double,6> def_grad = compute_nodal_def_grad (h, Ux, Uy, grad_cell_ux, grad_cell_uy);
 
-  const double second_invariant = def_grad[0]*def_grad[1] + def_grad[1]*def_grad[2] + def_grad[0]*def_grad[2] 
-                                - def_grad[3]*def_grad[3] - def_grad[4]*def_grad[4] - def_grad[5]*def_grad[5];
+
+  double second_invariant = 0.;
+  for (int i_def = 0; i_def < 6; i_def++)
+  {
+    second_invariant += def_grad[i_def]*def_grad[i_def];
+  }
+  second_invariant *= .5;
 
   const double viscos = second_invariant!=0 ? yield_shear_stress/std::sqrt(second_invariant) + 2*fluid_viscosity : 0.;
 
-//std::cout << viscos << std::endl;//def_grad[0] << " " << def_grad[1] << " " << def_grad[2] << std::endl;
-  return(std::array<double,3>{{viscos*def_grad[0], viscos*def_grad[1], viscos*def_grad[2]}});
+  if (std::isnan(def_grad[0]) || std::isnan(def_grad[1]) || std::isnan(def_grad[2]) || std::isnan(viscos))
+  {
+    std::cout << grad_cell_ux[0] << " " << grad_cell_ux[1] << " " << viscos << " " << second_invariant << " " << def_grad[0] << " " << def_grad[1] << " " << def_grad[2] << " " << def_grad[3] << " " << def_grad[4] << " " << def_grad[5] << std::endl;
+    exit(1);
+  }
+  //std::cout << viscos << " " << second_invariant << " " << def_grad[0] << " " << def_grad[1] << " " << def_grad[2] << std::endl;
+  return(std::array<double,3>{{viscos*def_grad[0], viscos*def_grad[1], viscos*def_grad[3]}});
 }
 
 std::array<double,6>
@@ -927,14 +986,17 @@ double
 TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdx)
 {
   const double bed_pressure = grav*h - surface_pressure/density;
-  const double vel_x = Ux/(h+epsilon);
-  const double vel_y = Uy/(h+epsilon);
+  const double vel_x = h>epsilon*2 ? Ux/h : 0.;
+  const double vel_y = h>epsilon*2 ? Uy/h : 0.;
   const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
 
   const double vel_x_sign = abs_vel!=0 ? vel_x/abs_vel : 0.;
 
-  const double bed_fric_contr = is_bed_friction ? vel_x_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
+  //if (abs_vel!=0)
+  //std::cout << abs_vel*vel_x << std::endl;
+  //if (Ux!=0) std::cout << Ux/turbulence_coeff/(h+epsilon)/(h+epsilon)*grav*std::sqrt(Ux*Ux + Uy*Uy) << std::endl;
 
+  const double bed_fric_contr = is_bed_friction ? (grav*abs_vel*vel_x/turbulence_coeff*0 + vel_x_sign*bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
   return (-grav*h*dZdx - bed_fric_contr);
 }
 
@@ -942,13 +1004,13 @@ double
 TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdy)
 {
   const double bed_pressure = grav*h - surface_pressure/density;
-  const double vel_x = h>epsilon ? Ux/h : 0.;
-  const double vel_y = h>epsilon ? Uy/h : 0.;
+  const double vel_x = h>epsilon*2 ? Ux/h : 0.;
+  const double vel_y = h>epsilon*2 ? Uy/h : 0.;
   const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
 
   const double vel_y_sign = abs_vel!=0 ? vel_y/abs_vel : 0.;
 
-  const double bed_fric_contr = is_bed_friction ? vel_y_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
+  const double bed_fric_contr = is_bed_friction ? (grav*abs_vel*vel_y/turbulence_coeff*0 + vel_y_sign*bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
   return (-grav*h*dZdy - bed_fric_contr);
 }
 
