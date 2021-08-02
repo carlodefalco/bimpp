@@ -25,9 +25,9 @@ static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in";
 
 // properties of the input dem
-static constexpr double res = 5;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 165; // # columns
-static constexpr double Ny = 175; // # rows
+static constexpr double res = 2.5e-2;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 201;//188; // # columns
+static constexpr double Ny = 201;//180; // # rows
 
  
 static constexpr double L = res*(Nx-1);
@@ -41,40 +41,40 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-static constexpr double SPACE_ADAPTDT = 1.e-2;//4e-2;//1e-2; // put zero if you want at each time step
+static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at each time step
 static constexpr double SAVEDT = 1.e-1; // must never be null 
-static constexpr double DELTAT = 1.e-3;
-static constexpr double REDCDT = 5e-1; 
-static constexpr double T      = 1.;
-
+static constexpr double DELTAT = 4.e-2;
+static constexpr double REDCDT = .5; 
+static constexpr double T      = .5; 
+ 
 static constexpr bool is_time_adaptivity    = true;
 static constexpr bool is_initial_refinement = true;
 static constexpr bool is_space_adaptivity   = true;
-static constexpr bool is_non_reflBC         = true;
+static constexpr bool is_non_reflBC         = true; 
 static constexpr bool is_bed_friction       = true;
-static constexpr bool is_stress_tensor      = true;
+static constexpr bool is_stress_tensor      = false;
 
 
 static constexpr double h_min = 1e-5;
-static constexpr double grav = 9.81;
-static constexpr double density = 1291.;
-static constexpr double turbulence_coeff = 6.e2;
-static constexpr double surface_pressure = 101325.;
-static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double fluid_viscosity = 1e2;
-static constexpr double yield_shear_stress = .5*density*grav*38*std::sin(bed_friction_angle_rad);
+static constexpr double grav = 1.;
+static constexpr double density = 1400;  
+static constexpr double turbulence_coeff = 600.0; 
+static constexpr double surface_pressure = 0.0; 
+static constexpr double bed_friction_angle_rad = 23*M_PI/180; //0.0; //23*M_PI/180; 
+static constexpr double fluid_viscosity = 48;
+static constexpr double yield_shear_stress = 1e3;
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
-static constexpr double mesh_size_dry       = 1e5;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = .5;//res/10;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = .5;//res/20;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+static constexpr double mesh_size_dry       = res*100;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
+static constexpr double mesh_size_wet       = res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
 // Connectivity of local element
 constexpr p4est_topidx_t simple_conn_num_vertices = 4;
 constexpr p4est_topidx_t simple_conn_num_trees = 1;
-const double simple_conn_p[simple_conn_num_vertices*2] = 
+const double simple_conn_p[simple_conn_num_vertices*2] =
   {0,  0,
    0,  H,
    L,  0,
@@ -118,16 +118,6 @@ raster_2_vector(const double& i_x,
   return(ii);
 }
 
-static int
-raster_2_vector_slope(const double& i_x,
-                      const double& i_y)
-{
-  static int ii;
-  ii = i_y + (Ny-1)*i_x;
-  
-  return(ii);
-}
-
 static std::array<int,3>
 global_coord_2_raster(const double& x,
                       const double& y)
@@ -146,23 +136,6 @@ global_coord_2_raster(const double& x,
   return(std::array<int,3>{{ ii,int(i_x),int(i_y) }});
 }
 
-static std::array<int,3>
-global_coord_2_raster_slope(const double& x,
-                            const double& y)
-{
-  static double i_x;
-  static double i_y;
-  static int ii;
-  
-  
-  // nearest neighbor
-  i_x =   std::round((x-res/2.) / res);
-  i_y = - std::round((y-res/2.) / res) + (Ny-2);
-  
-  ii = raster_2_vector_slope(i_x,i_y);
-  
-  return(std::array<int,3>{{ ii,int(i_x),int(i_y) }});
-}
 
 
 using Q1  = q1_vec<distributed_vector>;  // Typedef for distributed q_1 vector
@@ -177,14 +150,14 @@ double h0_fun (const double& xx, const double& yy)
   //return(xx<=L/2. ? 70 : 7. ); 
 
 
-  //const double HH = 1.;
-  //const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
-  //return(std::max (0., std::min (60.-(100 - 100 * xx/L), HH)) * omega); 
+  const double HH = 1.;
+  const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
+  return(std::max (0., std::min (60.-(100 - 100 * xx/L), HH)) * omega); 
   
  
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
 
-  return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38. : 0.);
+  return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 40 : 0.);
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
   return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 0.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
@@ -245,22 +218,128 @@ void
 compute_slope()
 {
 
-
   int ii, jj;
-  for (ii=0; ii<(Ny-1); ii++)
+  for (ii=1; ii<(Ny-1); ii++)
   {
-    for (jj=0; jj<(Nx-1); jj++)
+    for (jj=1; jj<(Nx-1); jj++)
     {
-      const auto i_vec = raster_2_vector_slope(jj,ii);
+      const auto i_vec = raster_2_vector(jj,ii);
 
-      const auto i_vec_1 = raster_2_vector(jj  ,ii  );
-      const auto i_vec_2 = raster_2_vector(jj+1,ii  );
-      const auto i_vec_3 = raster_2_vector(jj  ,ii+1);
-      const auto i_vec_4 = raster_2_vector(jj+1,ii+1);
+      const auto i_vec_north = raster_2_vector(jj,ii-1);
+      const auto i_vec_south = raster_2_vector(jj,ii+1);
 
-      dem_slope_x[i_vec] = ( (dem[i_vec_2 ]-dem[i_vec_1]) + (dem[i_vec_4 ]-dem[i_vec_3]) )/res*.5;
-      dem_slope_y[i_vec] = ( (dem[i_vec_3 ]-dem[i_vec_1]) + (dem[i_vec_4 ]-dem[i_vec_2]) )/res*.5;
+      const auto i_vec_east = raster_2_vector(jj+1,ii);
+      const auto i_vec_west = raster_2_vector(jj-1,ii);
+
+      dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec_west ])/(2*res);
+      dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec_south])/(2*res);
     }
+  }
+
+  ii = 0;
+  for (jj=1; jj<(Nx-1); jj++)
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_south = raster_2_vector(jj,ii+1);
+
+    const auto i_vec_east = raster_2_vector(jj+1,ii);
+    const auto i_vec_west = raster_2_vector(jj-1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec_west ])/(2*res);
+    dem_slope_y[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
+  }
+
+  ii = Ny-1;
+  for (jj=1; jj<(Nx-1); jj++)
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_north = raster_2_vector(jj,ii-1);
+
+    const auto i_vec_east = raster_2_vector(jj+1,ii);
+    const auto i_vec_west = raster_2_vector(jj-1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec_west ])/(2*res);
+    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
+  }
+
+  jj = 0;
+  for (ii=1; ii<(Ny-1); ii++)
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_north = raster_2_vector(jj,ii-1);
+    const auto i_vec_south = raster_2_vector(jj,ii+1);
+
+    const auto i_vec_east = raster_2_vector(jj+1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
+    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec_south])/(2*res);
+  }
+
+  jj = Nx-1;
+  for (ii=1; ii<(Ny-1); ii++)
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_north = raster_2_vector(jj,ii-1);
+    const auto i_vec_south = raster_2_vector(jj,ii+1);
+
+    const auto i_vec_west = raster_2_vector(jj-1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec ]-dem[i_vec_west ])/res;
+    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec_south])/(2*res);
+  }
+
+
+  // compute corner points
+  ii = 0; jj = 0;
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_south = raster_2_vector(jj,ii+1);
+
+    const auto i_vec_east = raster_2_vector(jj+1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
+    dem_slope_x[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
+  }
+
+  ii = Ny-1; jj = 0;
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_north = raster_2_vector(jj,ii-1);
+
+    const auto i_vec_east = raster_2_vector(jj+1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
+    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
+  }
+
+  ii = 0; jj = Nx-1;
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_south = raster_2_vector(jj,ii+1);
+
+    const auto i_vec_west = raster_2_vector(jj-1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec]-dem[i_vec_west ])/res;
+    dem_slope_y[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
+  }  
+
+  ii = Ny-1; jj = Nx-1;
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_north = raster_2_vector(jj,ii-1);
+
+    const auto i_vec_west = raster_2_vector(jj-1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec]-dem[i_vec_west ])/res;
+    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
   }
 
 }
@@ -477,8 +556,8 @@ main (int argc, char **argv)
   TOC("Load data matrix");
   
   // compute raster slope
-  dem_slope_x.resize((Nx-1)*(Ny-1));
-  dem_slope_y.resize((Nx-1)*(Ny-1));
+  dem_slope_x.resize(Nx*Ny);
+  dem_slope_y.resize(Nx*Ny);
   compute_slope();
 
 
@@ -492,8 +571,8 @@ main (int argc, char **argv)
     double xx_c=quadrant->centroid(0);
     double yy_c=quadrant->centroid(1); 
 
-    slope_x[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster_slope(xx_c,yy_c)[0]];
-    slope_y[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster_slope(xx_c,yy_c)[0]];
+    slope_x[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
+    slope_y[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
     
 
     for (int ii = 0; ii < 4; ++ii)
@@ -506,12 +585,7 @@ main (int argc, char **argv)
         sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
         sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
         
-        Z[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]];
-
-        //if (dem[global_coord_2_raster(xx,yy)[0]]==0 || yy==H || xx==L)
-        //{
-        //  std::cout << Nx*Ny << " " << xx << " " << yy << " " << global_coord_2_raster(xx,yy)[0] << " " << global_coord_2_raster(xx,yy)[1] << " " << global_coord_2_raster(xx,yy)[2] << std::endl;
-        //} 
+        Z[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; 
         
       }
       
@@ -628,7 +702,7 @@ main (int argc, char **argv)
 
     tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
     //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1);
-    tmsh.metrics_refine (1e5);  // RAFFINAMENTO (arg is max element)
+    tmsh.metrics_refine (1e7);  // RAFFINAMENTO (arg is max element)
 
     // tmsh.set_coarsen_marker (coarsen_function);
     // tmsh.set_refine_marker  (refine_function);
@@ -683,8 +757,8 @@ main (int argc, char **argv)
       double xx_c=quadrant->centroid(0);
       double yy_c=quadrant->centroid(1); 
 
-      slope_x_[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster_slope(xx_c,yy_c)[0]];
-      slope_y_[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster_slope(xx_c,yy_c)[0]];
+      slope_x_[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
+      slope_y_[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
       
       for (int ii = 0; ii < 4; ++ii)
       {
@@ -804,16 +878,6 @@ main (int argc, char **argv)
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0); 
   tmsh.octbin_export (filename, Z_dyn);
-
-  // str = std::string(SAVE_DIR) + "/results/swe_s_x_%4.4d";
-  // strcpy(arr, str.c_str());
-  // sprintf(filename, arr, 0); 
-  // tmsh.octbin_export (filename, slope_x_dyn);
-
-  // str = std::string(SAVE_DIR) + "/results/swe_s_y_%4.4d";
-  // strcpy(arr, str.c_str());
-  // sprintf(filename, arr, 0); 
-  // tmsh.octbin_export (filename, slope_y_dyn);
   
   // MPI_Barrier (MPI_COMM_WORLD);
   // if (rank == 0) { print_timing_report (); }
@@ -834,8 +898,7 @@ main (int argc, char **argv)
   double time_oldd = 0.0;
 
   
-  //stp.set_dt (DELTAT);
-  stp.set_dt (1e6);
+  stp.set_dt (DELTAT);
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
   {
@@ -883,8 +946,7 @@ main (int argc, char **argv)
     
   
     // compute time step, 
-    //stp.set_dt (DELTAT);
-    stp.set_dt (1e6);
+    stp.set_dt (DELTAT);
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
     {
@@ -914,10 +976,8 @@ main (int argc, char **argv)
       stp.set_dt( candidate_dt<=0. ? max_dt : stp.dt );
     }
 
-    //std::cout << (savecount+stp.dt)/SAVEDT << " " << stp.dt - std::fmod(savecount+stp.dt,SAVEDT)-SAVEDT*std::floor(savecount+stp.dt/SAVEDT)  << " " << std::fmod(savecount+stp.dt,SAVEDT) << " " << stp.dt << std::endl;
-    
     // check save with given frequency
-    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1) : stp.dt);
+    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? stp.dt - std::fmod(savecount+stp.dt,SAVEDT) : stp.dt);
     
 
     time_oldd = time_old;
@@ -936,6 +996,8 @@ main (int argc, char **argv)
       std::cout << "TIME = " << time << ", dt = " << stp.dt << std::endl;
       full_time_vector.push_back (time);
     }
+    
+    
     
     
     // first step!
@@ -991,6 +1053,8 @@ main (int argc, char **argv)
     }
     incr_dyn.assemble ();
     TOC("Compute step");
+
+
     
     
 
@@ -1043,17 +1107,6 @@ main (int argc, char **argv)
       strcpy(arr, str.c_str());
       sprintf(filename, arr,  count);
       tmsh.octbin_export (filename, Z_dyn);
-
-      // str = std::string(SAVE_DIR) + "/results/swe_s_x_%4.4d";
-      // strcpy(arr, str.c_str());
-      // sprintf(filename, arr,  count);
-      // tmsh.octbin_export (filename, slope_x_dyn);
-
-      // str = std::string(SAVE_DIR) + "/results/swe_s_y_%4.4d";
-      // strcpy(arr, str.c_str());
-      // sprintf(filename, arr,  count);
-      // tmsh.octbin_export (filename, slope_y_dyn);
-
       savecount = 0.0;
       TOC("Exporting solution");
 
@@ -1170,7 +1223,7 @@ main (int argc, char **argv)
 
       tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
       //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1); 
-      tmsh.metrics_refine (1e5);  // RAFFINAMENTO (arg is max element)
+      tmsh.metrics_refine (1e7);  // RAFFINAMENTO (arg is max element)
 
       // tmsh.set_coarsen_marker (coarsen_function);
       // tmsh.set_refine_marker  (refine_function);
@@ -1253,8 +1306,8 @@ main (int argc, char **argv)
         double xx_c=quadrant->centroid(0);
         double yy_c=quadrant->centroid(1); 
 
-        slope_x[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster_slope(xx_c,yy_c)[0]];
-        slope_y[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster_slope(xx_c,yy_c)[0]];
+        slope_x[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
+        slope_y[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
         
         for (int ii = 0; ii < 4; ++ii)
         {
