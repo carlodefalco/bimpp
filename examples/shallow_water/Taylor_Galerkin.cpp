@@ -840,19 +840,19 @@ TG2_scheme::Uy_flux_formula_y (const double& h, const double& Ux, const double& 
 // stress functions
 double
 TG2_scheme::Ux_stress_formula_x (const double& h, const double& Ux, const double& Uy)
-{ return (sigma_stress[0]*h/density); }
+{ return (-sigma_stress[0]*h/density); }
 
 double
 TG2_scheme::Ux_stress_formula_y (const double& h, const double& Ux, const double& Uy)
-{ return (sigma_stress[2]*h/density); }
+{ return (-sigma_stress[2]*h/density); }
 
 double
 TG2_scheme::Uy_stress_formula_x (const double& h, const double& Ux, const double& Uy)
-{ return (sigma_stress[2]*h/density); }
+{ return (-sigma_stress[2]*h/density); }
 
 double
 TG2_scheme::Uy_stress_formula_y (const double& h, const double& Ux, const double& Uy)
-{ return (sigma_stress[1]*h/density); }
+{ return (-sigma_stress[1]*h/density); }
 
 
 std::array<double,3>
@@ -865,13 +865,17 @@ TG2_scheme::compute_nodal_stress (const double& h, const double& Ux, const doubl
 
   std::array<double,6> def_grad = compute_nodal_def_grad (h, Ux, Uy, grad_cell_ux, grad_cell_uy);
 
-  const double second_invariant = def_grad[0]*def_grad[1] + def_grad[1]*def_grad[2] + def_grad[0]*def_grad[2] 
-                                - def_grad[3]*def_grad[3] - def_grad[4]*def_grad[4] - def_grad[5]*def_grad[5];
+  double second_invariant = 0.;
+  for (int i_def = 0; i_def < 6; i_def++)
+  {
+    second_invariant += def_grad[i_def]*def_grad[i_def];
+  }
+  second_invariant *= .5;
 
   const double viscos = second_invariant!=0 ? yield_shear_stress/std::sqrt(second_invariant) + 2*fluid_viscosity : 0.;
 
 //std::cout << viscos << std::endl;//def_grad[0] << " " << def_grad[1] << " " << def_grad[2] << std::endl;
-  return(std::array<double,3>{{viscos*def_grad[0], viscos*def_grad[1], viscos*def_grad[2]}});
+  return(std::array<double,3>{{viscos*def_grad[0], viscos*def_grad[1], viscos*def_grad[3]}});
 }
 
 std::array<double,6>
