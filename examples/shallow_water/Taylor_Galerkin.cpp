@@ -198,9 +198,9 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const auto div_FUy_y = .5*((fluxy_Uy_node[2]-fluxy_Uy_node[0]) + (fluxy_Uy_node[3]-fluxy_Uy_node[1]));
   const auto div_FUy_cell = Dy*div_FUy_x + Dx*div_FUy_y;
   
-  sol_onehalf[ordh    (index_quadrant)] = h_cell_average    - dt / 2. * div_Fh_cell    / area;
-  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average   - dt / 2. * div_FUx_cell   / area + dt / 2. * source_Ux_cell_average;
-  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average   - dt / 2. * div_FUy_cell   / area + dt / 2. * source_Uy_cell_average;
+  sol_onehalf[ordh    (index_quadrant)] = h_cell_average  - dt / 2. * div_Fh_cell  / area;
+  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average - dt / 2. * div_FUx_cell / area + dt / 2. * source_Ux_cell_average;
+  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average - dt / 2. * div_FUy_cell / area + dt / 2. * source_Uy_cell_average;
   
 
 
@@ -311,6 +311,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
     const auto D_Uy_x = Uy_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
     const auto D_Uy_y = Uy_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
 
+    //std::cout << D_Ux_x << " " << D_Ux_y << " " << D_Uy_x << " " << D_Uy_y << std::endl;
 
 
     const auto h_  = der_coeffs_x[ii]*F_star_h_x +der_coeffs_y[ii]*F_star_h_y;
@@ -822,7 +823,10 @@ TG2_scheme::h_flux_formula_y (const double& h, const double& Ux, const double& U
 
 double
 TG2_scheme::Ux_flux_formula_x (const double& h, const double& Ux, const double& Uy)
-{ return (h>epsilon ? Ux*Ux/h + grav*h*h/2. : 0.); }
+{ 
+  const auto vel_x = h>epsilon ? Ux/h : 0.;
+  return (Ux*vel_x + grav*h*h/2.); 
+}
  
 double
 TG2_scheme::Ux_flux_formula_y (const double& h, const double& Ux, const double& Uy)
@@ -834,7 +838,10 @@ TG2_scheme::Uy_flux_formula_x (const double& h, const double& Ux, const double& 
 
 double
 TG2_scheme::Uy_flux_formula_y (const double& h, const double& Ux, const double& Uy)
-{ return (h>epsilon ? Uy*Uy/h + grav*h*h/2. : 0.); }
+{ 
+  const auto vel_y = h>epsilon ? Uy/h : 0.;
+  return (Uy*vel_y + grav*h*h/2.); 
+}
 
 
 // stress functions
@@ -930,22 +937,31 @@ TG2_scheme::h_src_formula (const double& h, const double& Ux, const double& Uy)
 double
 TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdx)
 {
-  const double bed_pressure = grav*h - surface_pressure/density;
-  const double vel_x = Ux/(h+epsilon);
-  const double vel_y = Uy/(h+epsilon);
+  const double bed_pressure = grav*h - surface_pressure/density; // occhio se va in negativo!!
+  const double vel_x = h>epsilon ? Ux/h : 0.;
+  const double vel_y = h>epsilon ? Uy/h : 0.;
   const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
 
   const double vel_x_sign = abs_vel!=0 ? vel_x/abs_vel : 0.;
 
   const double bed_fric_contr = is_bed_friction ? vel_x_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
 
-  return (-grav*h*dZdx - bed_fric_contr);
+  const double bed_fric_contr_one = is_bed_friction ? vel_x*grav*abs_vel/turbulence_coeff : 0.;
+  const double bed_fric_contr_two = is_bed_friction ? vel_x_sign*bed_pressure*std::tan(bed_friction_angle_rad) : 0.;
+
+  //if (abs_vel>100)//(std::abs(bed_fric_contr_one)>std::abs(bed_fric_contr_two))
+  //{
+    //std::cout << abs_vel << " " << Ux << " " << bed_fric_contr_one << " " << vel_x*grav/turbulence_coeff << " " << bed_fric_contr_two << " " << bed_fric_contr_one+bed_fric_contr_two << std::endl;
+    //exit(1);
+  //}
+
+  return (-grav*h*dZdx - bed_fric_contr_one - bed_fric_contr_two);
 }
 
 double
 TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdy)
 {
-  const double bed_pressure = grav*h - surface_pressure/density;
+  const double bed_pressure = grav*h - surface_pressure/density; // occhio se va in negativo!!
   const double vel_x = h>epsilon ? Ux/h : 0.;
   const double vel_y = h>epsilon ? Uy/h : 0.;
   const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
@@ -953,7 +969,13 @@ TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy,
   const double vel_y_sign = abs_vel!=0 ? vel_y/abs_vel : 0.;
 
   const double bed_fric_contr = is_bed_friction ? vel_y_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
-  return (-grav*h*dZdy - bed_fric_contr);
+
+  const double bed_fric_contr_one = is_bed_friction ? vel_y*grav*abs_vel/turbulence_coeff : 0.;
+  const double bed_fric_contr_two = is_bed_friction ? vel_y_sign*bed_pressure*std::tan(bed_friction_angle_rad) : 0.;
+
+  //std::cout << bed_pressure << std::endl;
+
+  return (-grav*h*dZdy - bed_fric_contr_one - bed_fric_contr_two);
 }
 
 

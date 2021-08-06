@@ -25,9 +25,9 @@ static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in";
 
 // properties of the input dem
-static constexpr double res = 2.5e-2;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 201;//188; // # columns
-static constexpr double Ny = 201;//180; // # rows
+static constexpr double res = 5;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 165;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 175;//101;//175;//201;//180; // # rows
 
  
 static constexpr double L = res*(Nx-1);
@@ -45,24 +45,25 @@ static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at 
 static constexpr double SAVEDT = 1.e-1; // must never be null 
 static constexpr double DELTAT = 4.e-2;
 static constexpr double REDCDT = .5; 
-static constexpr double T      = .5; 
+static constexpr double T      = 1.; 
  
 static constexpr bool is_time_adaptivity    = true;
 static constexpr bool is_initial_refinement = true;
 static constexpr bool is_space_adaptivity   = true;
 static constexpr bool is_non_reflBC         = true; 
-static constexpr bool is_bed_friction       = true;
-static constexpr bool is_stress_tensor      = false;
+static constexpr bool is_bed_friction       = true; 
+static constexpr bool is_stress_tensor      = true;
+
 
 
 static constexpr double h_min = 1e-5;
-static constexpr double grav = 1.;
-static constexpr double density = 1400;  
-static constexpr double turbulence_coeff = 600.0; 
-static constexpr double surface_pressure = 0.0; 
-static constexpr double bed_friction_angle_rad = 23*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double fluid_viscosity = 48;
-static constexpr double yield_shear_stress = 1e3;
+static constexpr double grav = 9.81;
+static constexpr double density = 1291.;
+static constexpr double turbulence_coeff = 1.e7;
+static constexpr double surface_pressure = 0.;//101325.;
+static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //0.0; //23*M_PI/180; 
+static constexpr double fluid_viscosity = 1e2;
+static constexpr double yield_shear_stress = .5*density*grav*38*std::sin(bed_friction_angle_rad);
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
@@ -150,14 +151,14 @@ double h0_fun (const double& xx, const double& yy)
   //return(xx<=L/2. ? 70 : 7. ); 
 
 
-  const double HH = 1.;
-  const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
-  return(std::max (0., std::min (60.-(100 - 100 * xx/L), HH)) * omega); 
+  // const double HH = 1.;
+  // const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
+  // return(std::max (0., std::min (60.-(100 - 100 * xx/L), HH)) * omega); 
   
- 
+  
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
 
-  return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 40 : 0.);
+  return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38 : 0.);
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
   return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 0.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
