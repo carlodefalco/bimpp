@@ -48,8 +48,8 @@ static constexpr double REDCDT = .5;
 static constexpr double T      = 3.; 
  
 static constexpr bool is_time_adaptivity    = true;
-static constexpr bool is_initial_refinement = true;
-static constexpr bool is_space_adaptivity   = true;
+static constexpr bool is_initial_refinement = false;
+static constexpr bool is_space_adaptivity   = false;
 static constexpr bool is_non_reflBC         = true; 
 static constexpr bool is_bed_friction       = true; 
 static constexpr bool is_stress_tensor      = true;
@@ -68,8 +68,8 @@ static constexpr double yield_shear_stress = 2e3;//.5*density*grav*38*std::sin(b
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
 static constexpr double mesh_size_dry       = res*100;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = res/10;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+static constexpr double mesh_size_wet       = res/2;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = res/20;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
 // Connectivity of local element
@@ -987,9 +987,13 @@ main (int argc, char **argv)
       exit( -1. );
     }
 
+    //std::cout << stp.dt << " " << (savecount+stp.dt)/SAVEDT << " ";
+
     // check save with given frequency
-    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1) : stp.dt);
+    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1))-SAVEDT : stp.dt);
     //stp.set_dt((time+stp.dt)>T ? T-(time+stp.dt) : stp.dt);
+
+    //std::cout << stp.dt << std::endl;
 
     time_oldd = time_old;
     time_old = time;
