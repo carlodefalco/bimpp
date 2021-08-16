@@ -68,8 +68,8 @@ static constexpr double yield_shear_stress = 2e3;//.5*density*grav*38*std::sin(b
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
 static constexpr double mesh_size_dry       = res*100;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res/10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = res/30;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+static constexpr double mesh_size_wet       = res;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = res/10;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
 // Connectivity of local element
@@ -989,7 +989,7 @@ main (int argc, char **argv)
 
     // check save with given frequency
     stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1) : stp.dt);
-    stp.set_dt((time+stp.dt)>T ? T-(time+stp.dt) : stp.dt);
+    //stp.set_dt((time+stp.dt)>T ? T-(time+stp.dt) : stp.dt);
 
     time_oldd = time_old;
     time_old = time;
