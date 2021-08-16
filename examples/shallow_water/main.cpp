@@ -48,8 +48,8 @@ static constexpr double REDCDT = .5;
 static constexpr double T      = 3.; 
  
 static constexpr bool is_time_adaptivity    = true;
-static constexpr bool is_initial_refinement = false;
-static constexpr bool is_space_adaptivity   = false;
+static constexpr bool is_initial_refinement = true;
+static constexpr bool is_space_adaptivity   = true;
 static constexpr bool is_non_reflBC         = true; 
 static constexpr bool is_bed_friction       = true; 
 static constexpr bool is_stress_tensor      = true;
@@ -61,7 +61,7 @@ static constexpr double grav = 9.81;
 static constexpr double density = 1291.;
 static constexpr double turbulence_coeff = 1.e8;
 static constexpr double surface_pressure = 0;//101325.;
-static constexpr double bed_friction_angle_rad = 25.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
+static constexpr double bed_friction_angle_rad = 22.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 5e1;
 static constexpr double yield_shear_stress = 2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
