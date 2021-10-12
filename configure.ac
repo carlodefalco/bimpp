@@ -135,8 +135,8 @@ AC_ARG_WITH([mumps-home],
             [MUMPS_HOME=/usr])
 
 MUMPS_CPPFLAGS="-I$MUMPS_HOME/include "
-MUMPS_LDFLAGS="-L$MUMPS_HOME/lib -L$MUMPS_HOME/PORD/lib"
-MUMPS_LIBS="-ldmumps -lmumps_common -lpord"
+MUMPS_LDFLAGS="-L$MUMPS_HOME/lib"
+MUMPS_LIBS="-ldmumps -lmumps_common"
 
 AC_ARG_WITH([mumps-extra-libs],
             [AS_HELP_STRING([--with-mumps-extra-libs=DIR],
