@@ -12,7 +12,7 @@ AUTOMAKE_OPTIONS = nostdinc
 CLEANFILES = 
 
 
-check_PROGRAMS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 bim3_stationary_test \
+check_PROGRAMS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 bim3_stationary_test linear_solver_test_simple \
                  bim3_stationary_test2 bim3_stationary_test2_osc bim3_stationary_test3 \
                  bim3_stationary_test3_osc bim3_stationary_test4 bim3_timedependent_test \
                  bim3_timedependent_test2 bim3_timedependent_test2_osc bim3_timedependent_test3 \
@@ -115,8 +115,12 @@ if HAVE_LIS
   CLEANFILES += Lis_Solution_TimeTest.txt
 
   linear_solver_test_SOURCES = linear_solver_test.cpp
-  linear_solver_test_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMMUMPSLIB) $(BIMLINALGLIB) $(BIMIOLIB)
+  linear_solver_test_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMLINALGLIB) $(BIMLISLIB) $(BIMMUMPSLIB) 
   CLEANFILES += MUMPS_solution.txt LIS_solution.txt
+
+  linear_solver_test_simple_SOURCES = linear_solver_test_simple.cpp
+  linear_solver_test_simple_LDADD =  $(BIMMUMPSLIB) @MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@
+  CLEANFILES += MUMPS_solution_simple.txt LIS_solution_simple.txt
 
   linear_solver_test_repeated_SOURCES = linear_solver_test_repeated.cpp
   linear_solver_test_repeated_LDADD = $(BIMLIB) $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLINALGLIB) $(BIMIOLIB)
@@ -302,7 +306,7 @@ TESTS += p4est_quad_index_test p4est_conn_test_hanging p4est_hanging_test_2 p4es
          p4est_neighbor_iterator_test p4est_up_test \
          tmesh_3d_test p4est_load_save_test_3d p4est_up_test_3d \
          p4est_refine_segment_test_3d p4est_refine_segment_test_3d_mpi.mpi p4est_ref_test_3d \
-         p4est_coarsen_test_3d p4est_hanging_test_3d p4est_operator_test_3d 
+         p4est_coarsen_test_3d p4est_hanging_test_3d p4est_operator_test_3d linear_solver_test_simple
 
 endif
 
