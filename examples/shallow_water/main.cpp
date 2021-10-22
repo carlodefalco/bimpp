@@ -954,8 +954,6 @@ main (int argc, char **argv)
       stp.compute_dt(quadrant);
     }
     max_dt = REDCDT * stp.dt;
-    stp.set_dt(max_dt); // deltat max
-    MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
     
     
     // time adaptivity
@@ -973,12 +971,13 @@ main (int argc, char **argv)
       //std::cout << stp.nu_htot << " " << rank << std::endl;
 
       const auto candidate_dt = (5e-3/(rho_h+1e-7))*std::sqrt(1./(stp.time-stp.timed));
-      stp.set_dt( std::min(std::isnan(candidate_dt) ? max_dt : candidate_dt, max_dt) );
-      //stp.set_dt( candidate_dt<=0. ? max_dt : stp.dt );
+      max_dt = std::min(std::isnan(candidate_dt) ? max_dt : candidate_dt, max_dt);
+      //stp.set_dt( std::min(std::isnan(candidate_dt) ? stp.dt : candidate_dt, stp.dt) );
     }
 
-    // check save with given frequency
-    //stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? stp.dt - std::fmod(savecount+stp.dt,SAVEDT) : stp.dt);
+    stp.set_dt(max_dt); // deltat max
+    MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
+
     
 
     if (stp.dt == 0 && rank == 0)
@@ -987,23 +986,22 @@ main (int argc, char **argv)
       exit( -1. );
     }
 
-    //std::cout << stp.dt << " " << (savecount+stp.dt)/SAVEDT << " ";
-
     // check save with given frequency
     stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1))-SAVEDT : stp.dt);
     //stp.set_dt((time+stp.dt)>T ? T-(time+stp.dt) : stp.dt);
 
-    //std::cout << stp.dt << std::endl;
 
     time_oldd = time_old;
     time_old = time;
     time += stp.dt; 
     savecount += stp.dt;
     space_adapt_count += stp.dt;
-    MPI_Bcast (static_cast<void*> (&time),              1, MPI_DOUBLE, 0, tmsh.comm);
-    MPI_Bcast (static_cast<void*> (&savecount),         1, MPI_DOUBLE, 0, tmsh.comm);
-    MPI_Bcast (static_cast<void*> (&space_adapt_count), 1, MPI_DOUBLE, 0, tmsh.comm);
-    MPI_Barrier (tmsh.comm); // tmsh.comm = MPI_COMM_WORLD
+
+    // credo questi qui non servano
+    // MPI_Bcast (static_cast<void*> (&time),              1, MPI_DOUBLE, 0, tmsh.comm);
+    // MPI_Bcast (static_cast<void*> (&savecount),         1, MPI_DOUBLE, 0, tmsh.comm);
+    // MPI_Bcast (static_cast<void*> (&space_adapt_count), 1, MPI_DOUBLE, 0, tmsh.comm);
+    // MPI_Barrier (tmsh.comm); // tmsh.comm = MPI_COMM_WORLD
     
     // Print current time
     if(rank==0) 
