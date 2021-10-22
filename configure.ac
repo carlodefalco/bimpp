@@ -266,6 +266,7 @@ AC_CONFIG_FILES([src/bim_config_pre.h
                  examples/tmesh_2d/Makefile
                  examples/tmesh_3d/Makefile
                  examples/adaptive_adr_3d/Makefile
-                 examples/shallow_water/Makefile])
+                 examples/shallow_water/Makefile
+                 examples/smartsed/Makefile])
 AC_OUTPUT
 
