@@ -937,14 +937,14 @@ TG2_scheme::h_src_formula (const double& h, const double& Ux, const double& Uy)
 double
 TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdx)
 {
-  const double bed_pressure = grav*h - surface_pressure/density; // occhio se va in negativo!!
+  const double bed_pressure = grav*h + surface_pressure/density; // occhio se va in negativo!!
   const double vel_x = h>epsilon ? Ux/h : 0.;
   const double vel_y = h>epsilon ? Uy/h : 0.;
   const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
 
   const double vel_x_sign = abs_vel!=0 ? vel_x/abs_vel : 0.;
 
-  const double bed_fric_contr = is_bed_friction ? vel_x_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
+  //const double bed_fric_contr = is_bed_friction ? vel_x_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
 
   const double bed_fric_contr_one = is_bed_friction ? vel_x*grav*abs_vel/turbulence_coeff : 0.;
   const double bed_fric_contr_two = is_bed_friction ? vel_x_sign*bed_pressure*std::tan(bed_friction_angle_rad) : 0.;
@@ -961,14 +961,14 @@ TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy,
 double
 TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdy)
 {
-  const double bed_pressure = grav*h - surface_pressure/density; // occhio se va in negativo!!
+  const double bed_pressure = grav*h + surface_pressure/density; // occhio se va in negativo!!
   const double vel_x = h>epsilon ? Ux/h : 0.;
   const double vel_y = h>epsilon ? Uy/h : 0.;
   const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
 
   const double vel_y_sign = abs_vel!=0 ? vel_y/abs_vel : 0.;
 
-  const double bed_fric_contr = is_bed_friction ? vel_y_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
+  //const double bed_fric_contr = is_bed_friction ? vel_y_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
 
   const double bed_fric_contr_one = is_bed_friction ? vel_y*grav*abs_vel/turbulence_coeff : 0.;
   const double bed_fric_contr_two = is_bed_friction ? vel_y_sign*bed_pressure*std::tan(bed_friction_angle_rad) : 0.;
