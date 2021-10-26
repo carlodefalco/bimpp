@@ -26,8 +26,8 @@ static constexpr char VARNAME_2[255] = "mask_in";
 
 // properties of the input dem
 static constexpr double res = 5;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 165;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 175;//101;//175;//201;//180; // # rows
+static constexpr double Nx = 201;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 201;//101;//175;//201;//180; // # rows
 
  
 static constexpr double L = res*(Nx-1);
@@ -52,7 +52,7 @@ static constexpr bool is_initial_refinement = true;
 static constexpr bool is_space_adaptivity   = true;
 static constexpr bool is_non_reflBC         = true; 
 static constexpr bool is_bed_friction       = true; 
-static constexpr bool is_stress_tensor      = true;
+static constexpr bool is_stress_tensor      = false;
 
 
 
@@ -61,15 +61,15 @@ static constexpr double grav = 9.81;
 static constexpr double density = 1291.;
 static constexpr double turbulence_coeff = 1.e8;
 static constexpr double surface_pressure = 0;//101325.;
-static constexpr double bed_friction_angle_rad = 22.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
+static constexpr double bed_friction_angle_rad = 23.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 5e1;
 static constexpr double yield_shear_stress = 2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
 static constexpr double mesh_size_dry       = res*100;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res/2;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = res/20;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+static constexpr double mesh_size_wet       = res/20;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = res/30;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
 // Connectivity of local element
@@ -954,8 +954,11 @@ main (int argc, char **argv)
       stp.compute_dt(quadrant);
     }
     max_dt = REDCDT * stp.dt;
+
+    stp.set_dt(max_dt); // deltat max
+    MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
     
-    
+
     // time adaptivity
     if (is_time_adaptivity)
     {
@@ -966,17 +969,9 @@ main (int argc, char **argv)
         stp.compute_dt_adaptive(quadrant);
       }
       MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
-      const double rho_h = stp.nu_htot/((stp.time-stp.timed)*(stp.time-stp.timed));
-
-      //std::cout << stp.nu_htot << " " << rank << std::endl;
-
-      const auto candidate_dt = (5e-3/(rho_h+1e-7))*std::sqrt(1./(stp.time-stp.timed));
-      max_dt = std::min(std::isnan(candidate_dt) ? max_dt : candidate_dt, max_dt);
-      //stp.set_dt( std::min(std::isnan(candidate_dt) ? stp.dt : candidate_dt, stp.dt) );
+      const double candidate_dt = 5e-3/std::sqrt(stp.nu_htot)*(stp.time-stp.timed);
+      stp.set_dt( stp.nu_htot>0 ? candidate_dt : stp.dt );
     }
-
-    stp.set_dt(max_dt); // deltat max
-    MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
 
     
 

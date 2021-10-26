@@ -120,7 +120,7 @@ TG2_scheme::compute_dt_adaptive (tmesh::quadrant_iterator quadrant)
     
   }
   Nu_hmean_cell /= 4.;
-  nu_htot += Nu_hmean_cell*(time-timed);
+  nu_htot += Nu_hmean_cell*(time-timed)*(time-timed); // the dimension is L^2, this is eta^2
   
 }
 
