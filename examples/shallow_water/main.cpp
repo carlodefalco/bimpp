@@ -55,7 +55,7 @@ static constexpr bool is_bed_friction       = true;
 static constexpr bool is_stress_tensor      = false;
 
 
-
+static constexpr double local_estimator_time_tolerance = 5e-3;
 static constexpr double h_min = 1e-5;
 static constexpr double grav = 9.81;
 static constexpr double density = 1291.;
@@ -151,9 +151,9 @@ double h0_fun (const double& xx, const double& yy)
   //return(xx<=L/2. ? 70 : 7. ); 
 
 
-  // const double HH = 1.;
-  // const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
-  // return(std::max (0., std::min (60.-(100 - 100 * xx/L), HH)) * omega); 
+  const double HH = 30.;
+  const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
+  return(std::max (0., std::min (.6*500-(500 - 500 * xx/L), HH)) * omega); 
   
   
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
@@ -969,7 +969,7 @@ main (int argc, char **argv)
         stp.compute_dt_adaptive(quadrant);
       }
       MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
-      const double candidate_dt = 5e-3/std::sqrt(stp.nu_htot)*(stp.time-stp.timed);
+      const double candidate_dt = local_estimator_time_tolerance/std::sqrt(stp.nu_htot)*(stp.time-stp.timed);
       stp.set_dt( stp.nu_htot>0 ? candidate_dt : stp.dt );
     }
 
