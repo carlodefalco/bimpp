@@ -937,7 +937,7 @@ TG2_scheme::h_src_formula (const double& h, const double& Ux, const double& Uy)
 double
 TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdx)
 {
-  const double bed_pressure = grav*h + surface_pressure/density; // occhio se va in negativo!!
+  const double bed_pressure = grav*h + surface_pressure/density; 
   const double vel_x = h>epsilon ? Ux/h : 0.;
   const double vel_y = h>epsilon ? Uy/h : 0.;
   const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
@@ -961,7 +961,7 @@ TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy,
 double
 TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdy)
 {
-  const double bed_pressure = grav*h + surface_pressure/density; // occhio se va in negativo!!
+  const double bed_pressure = grav*h + surface_pressure/density;
   const double vel_x = h>epsilon ? Ux/h : 0.;
   const double vel_y = h>epsilon ? Uy/h : 0.;
   const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );

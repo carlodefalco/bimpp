@@ -26,8 +26,8 @@ static constexpr char VARNAME_2[255] = "mask_in";
 
 // properties of the input dem
 static constexpr double res = 5;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 201;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 201;//101;//175;//201;//180; // # rows
+static constexpr double Nx = 165;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 175;//101;//175;//201;//180; // # rows
 
  
 static constexpr double L = res*(Nx-1);
@@ -42,26 +42,25 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = 1.e-1; // must never be null 
+static constexpr double SAVEDT = .5; // must never be null 
 static constexpr double DELTAT = 4.e-2;
 static constexpr double REDCDT = .5; 
-static constexpr double T      = 3.; 
+static constexpr double T      = 20.;
  
-static constexpr bool is_time_adaptivity    = true;
+static constexpr bool is_time_adaptivity    = false;
 static constexpr bool is_initial_refinement = true;
 static constexpr bool is_space_adaptivity   = true;
 static constexpr bool is_non_reflBC         = true; 
 static constexpr bool is_bed_friction       = true; 
-static constexpr bool is_stress_tensor      = false;
+static constexpr bool is_stress_tensor      = true;
 
 
-static constexpr double local_estimator_time_tolerance = 5e-3;
 static constexpr double h_min = 1e-5;
 static constexpr double grav = 9.81;
 static constexpr double density = 1291.;
 static constexpr double turbulence_coeff = 1.e8;
 static constexpr double surface_pressure = 0;//101325.;
-static constexpr double bed_friction_angle_rad = 23.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
+static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 5e1;
 static constexpr double yield_shear_stress = 2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
@@ -151,11 +150,13 @@ double h0_fun (const double& xx, const double& yy)
   //return(xx<=L/2. ? 70 : 7. ); 
 
 
-  const double HH = 30.;
-  const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
-  return(std::max (0., std::min (.6*500-(500 - 500 * xx/L), HH)) * omega); 
+  //const double HH = 30.;
+  //const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
+  //return(std::max (0., std::min (.6*500-(500 - 500 * xx/L), HH)) * omega); 
   
-  
+ 
+
+
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
 
   return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38 : 0.);
@@ -957,11 +958,17 @@ main (int argc, char **argv)
 
     stp.set_dt(max_dt); // deltat max
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
-    
+ 
+    // Print current time
+    if(rank==0)
+    {
+      std::cout << "MAXIMUM TIME STEP = " << stp.dt << std::endl;
+    }   
 
     // time adaptivity
     if (is_time_adaptivity)
-    {
+    { 
+    
       stp.nu_htot = 0.;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -969,8 +976,12 @@ main (int argc, char **argv)
         stp.compute_dt_adaptive(quadrant);
       }
       MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
+
+      const double local_estimator_time_tolerance = 5e-3*(stp.time-stp.timed)*std::sqrt(stp.time-stp.timed)/std::sqrt(stp.nu_htot);
+
       const double candidate_dt = local_estimator_time_tolerance/std::sqrt(stp.nu_htot)*(stp.time-stp.timed);
-      stp.set_dt( stp.nu_htot>0 ? candidate_dt : stp.dt );
+      stp.set_dt( (stp.nu_htot>0 && candidate_dt<stp.dt) ? candidate_dt : stp.dt );
+      //stp.set_dt( (stp.nu_htot>0 && candidate_dt<stp.dt) ? std::max(candidate_dt, stp.dt/2.) : stp.dt ); // we set a minimum dt (std::max(,)), stp.dt/2.
     }
 
     
