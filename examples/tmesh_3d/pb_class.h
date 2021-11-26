@@ -14,11 +14,27 @@ const double p4esttol = 1 / std::pow (2, P8EST_QMAXLEVEL);
 #include <string>
 #include <vector>
 
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
+
+//#include "pqr_parser.cpp"
+#include "nanoshaper.h"
+
+// Problem parameters
+constexpr double e_0 = 8.85418781762e-12;	//Dielectric void const [F/m]
+constexpr double kb = 1.380649e-23;		//Boltzmann constant [J/K]
+constexpr double T = 273.15 + 25;		//Temperature [K]
+constexpr double e = 1.602176634e-19;  	//Charge of an electron [C]
+constexpr double N_av = 6.022e23;      	//Avogadro Number [mol^-1]
+constexpr double Angs = 1e-10;         	//Angstrom [m]
+constexpr double pi = 3.14159265358979323846; 
 
 struct
 poisson_boltzmann
 {
-
+/*
   struct
   ion
   {
@@ -29,14 +45,16 @@ poisson_boltzmann
     ion (const std::array<double, 3>& c,
          const double& r)
       : center (c), radius (r) {};
-  };
+  };*/
 
   static constexpr p4est_topidx_t simple_conn_num_vertices = 8;
   static constexpr p4est_topidx_t simple_conn_num_trees = 1;
   std::array <double, simple_conn_num_vertices*3>  simple_conn_p;
   std::array <p4est_topidx_t, simple_conn_num_trees*9>  simple_conn_t;
 
-  std::vector<ion> ions;
+  //std::vector<ion> ions;
+  
+  std::vector<NS::Atom> atoms;
 
   double ll;
   double rr;
@@ -54,13 +72,14 @@ poisson_boltzmann
   std::string lsfilename;
   std::string markerfilename;
 
-  std::vector<double> marker;
-  std::vector<double> epsilon;
-  std::vector<double> rho_fixed;
-  std::vector<double> reaction;
+  std::vector<double> marker; //vettore che mi dice se sono dentro o fuori dalla molecola
+  std::vector<double> epsilon; //Vettore che vale e_in se dentro molecola, e_out altrimenti
+  std::vector<double> rho_fixed; //vettore delle cariche fisse
+  std::vector<double> reaction; //vettore del termine di reazione: eps(r)*k^2 (k=A^2/lambda^2)
+  //k2 è nullo dentro la molecola e nello stern layer 
 
-  poisson_boltzmann (int maxlevel_ = 8, int minlevel_ = 3,
-                     double decay_ = -1.5, double e_in_ = 4.0,
+  poisson_boltzmann (int maxlevel_ = 4, int minlevel_ = 3, //maxlevel_ = 8, minlevel_ = 3
+                     double decay_ = -1.5, double e_in_ = 2.0, //e_in_ = 4.0
                      double e_out_ = 80.0, double k2_ = 1.0,
                      MPI_Comm mpicomm_ = MPI_COMM_WORLD)
     : maxlevel(maxlevel_),
@@ -72,6 +91,8 @@ poisson_boltzmann
       mpicomm(mpicomm_),
       tmsh(mpicomm)
   {  };
+  //minlevel = numero di raffinamenti uniformi (è nella funzione init mesh)
+  //maxlevel - minlevel = numero di raffinamenti adattivi (in refine surface) ??
 
   double
   levelsetfun (double x, double y, double z);
@@ -82,7 +103,7 @@ poisson_boltzmann
 
   void
   read_csv ( );
-
+  
   void
   parse_options (int argc, char **argv);
 
@@ -90,7 +111,7 @@ poisson_boltzmann
   init_tmesh ();
 
   bool
-  is_in (const ion& i, tmesh_3d::quadrant_iterator q);
+  is_in (const NS::Atom& i, tmesh_3d::quadrant_iterator q); //(const ion& i, tmesh_3d::quadrant_iterator q);
 
   void
   refine_surface ();
