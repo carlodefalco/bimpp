@@ -19,15 +19,11 @@ main (int argc, char **argv)
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
  
-  
   poisson_boltzmann pb;
   
-  std::string filename = "1CCM.pqr";
-  //std::cout << "Write the file name: ";
-  //std::cin >> filename ;
+  pb.parse_options (argc, argv);
 
-  std::ifstream inputfile (filename);
-  //std::vector<Atom> atoms;
+  std::ifstream inputfile (pb.pqrfilename);
   read_atoms_from_pqr (inputfile, pb.atoms);
   inputfile.close ();
   
@@ -37,12 +33,10 @@ main (int argc, char **argv)
   //std::cout << "std::vector<Atom> : " << std::endl << std::endl;
   //for (auto &ii : atoms)
   //    ii.print ();
-  
-  pb.parse_options (argc, argv);
 
   TIC ();
-  pb.read_csv ();
-  TOC ("read geometry");
+  pb.create_mesh ();
+  TOC ("create_mesh");
 
   TIC ();
   pb.init_tmesh ();
