@@ -13,11 +13,11 @@
 
 #include <p8est.h>
 
-
+/*
 void
 poisson_boltzmann::read_csv ()
 {
-  /*std::string filename = csvfilename;
+  std::string filename = csvfilename;
   std::ifstream in;
   std::string buf;
 
@@ -54,17 +54,13 @@ poisson_boltzmann::read_csv ()
                 << " while reading file "
                 << filename << std::endl;
       exit (1);
-    } */
+    } 
   
 
-  //auto comp = [] (const ion &i1, const ion &i2) -> bool { return i1.radius < i2.radius; }; //comparison function
-  //double maxradius = std::max_element (ions.begin (), ions.end (), comp)->radius; //trovo lo ione con raggio massimo
+  auto comp = [] (const ion &i1, const ion &i2) -> bool { return i1.radius < i2.radius; }; //comparison function
+  double maxradius = std::max_element (ions.begin (), ions.end (), comp)->radius; //trovo lo ione con raggio massimo
   
-  auto comp = [] (const NS::Atom &a1, const NS::Atom &a2) -> bool { return a1.radius < a2.radius; }; 
-  double maxradius = std::max_element (atoms.begin (), atoms.end (), comp)->radius; 
-  std::cout << "HERE" << std::endl;
-
-  /*
+  
   ll = 0; rr = 0;
   auto it = [this] (const ion &i1)
     {
@@ -79,7 +75,23 @@ poisson_boltzmann::read_csv ()
   std::for_each (ions.begin (), ions.end (), it);
   ll -= 3*maxradius;
   rr += 3*maxradius;
-  */
+  
+
+  simple_conn_p = {ll, ll, ll, rr, ll, ll, ll, rr, ll, rr, rr, ll,
+                   ll, ll, rr, rr, ll, rr, ll, rr, rr, rr, rr, rr}; //coordinate nello spazio??
+
+  simple_conn_t = {1, 2, 3, 4, 5, 6, 7, 8, 1};
+  tmsh.read_connectivity (simple_conn_p.data (), simple_conn_num_vertices,
+                          simple_conn_t.data (), simple_conn_num_trees);
+
+}*/
+
+void
+poisson_boltzmann::create_cubic_mesh ()
+{
+  
+  auto comp = [] (const NS::Atom &a1, const NS::Atom &a2) -> bool { return a1.radius < a2.radius; }; 
+  double maxradius = std::max_element (atoms.begin (), atoms.end (), comp)->radius; 
   
   ll = 0; rr = 0;  
   auto it = [this] (const NS::Atom &a1)
@@ -97,7 +109,7 @@ poisson_boltzmann::read_csv ()
   rr += 3*maxradius;
 
   simple_conn_p = {ll, ll, ll, rr, ll, ll, ll, rr, ll, rr, rr, ll,
-                   ll, ll, rr, rr, ll, rr, ll, rr, rr, rr, rr, rr}; //coordinate nello spazio??
+                   ll, ll, rr, rr, ll, rr, ll, rr, rr, rr, rr, rr}; 
 
   simple_conn_t = {1, 2, 3, 4, 5, 6, 7, 8, 1};
   tmsh.read_connectivity (simple_conn_p.data (), simple_conn_num_vertices,
@@ -106,23 +118,49 @@ poisson_boltzmann::read_csv ()
 }
 
 
+void
+poisson_boltzmann::create_mesh ()
+{
+  
+  auto comp = [] (const NS::Atom &a1, const NS::Atom &a2) -> bool { return a1.radius < a2.radius; }; 
+  double maxradius = std::max_element (atoms.begin (), atoms.end (), comp)->radius; 
+  
+  l_c[0] = 0.0; l_c[1] = 0.0; l_c[2] = 0.0; 
+  r_c[0] = 0.0; r_c[1] = 0.0; r_c[1] = 0.0;
+  auto it = [this] (const NS::Atom &a1)
+    {
+      for (int kk = 0; kk < 3; ++kk)
+        {
+          if (a1.pos[kk] > this->r_c[kk])
+            this->r_c[kk] = a1.pos[kk]; 
+          else if (a1.pos[kk] < this->l_c[kk])
+            this->l_c[kk] = a1.pos[kk]; //trovo il punto più a sx
+        }
+    };
+  std::for_each (atoms.begin (), atoms.end (), it);
+  l_c[0] -= 3*maxradius; l_c[1] -= 3*maxradius; l_c[2] -= 3*maxradius;
+  r_c[0] += 3*maxradius; r_c[1] += 3*maxradius; r_c[2] += 3*maxradius;
+
+  simple_conn_p = {l_c[0], l_c[1], l_c[2], r_c[0], l_c[1], l_c[2], l_c[0], r_c[1], l_c[2], r_c[0], r_c[1], l_c[2],
+                   l_c[0], l_c[1], r_c[2], r_c[0], l_c[1], r_c[2], l_c[0], r_c[1], r_c[2], r_c[0], r_c[1], r_c[2]}; 
+
+  simple_conn_t = {1, 2, 3, 4, 5, 6, 7, 8, 1};
+  tmsh.read_connectivity (simple_conn_p.data (), simple_conn_num_vertices,
+                          simple_conn_t.data (), simple_conn_num_trees);
+
+}
+
 double
 poisson_boltzmann::levelsetfun (double x, double y, double z)
 {
   double dist = 0.0;
-  for (const NS::Atom& i : atoms) //(const ion& i : ions)
+  for (const NS::Atom& i : atoms)
     {
 
-      /*dist += std::exp (decay * ((std::pow (x - i.center[0], 2) +
-                                  std::pow (y - i.center[1], 2) +
-                                  std::pow (z - i.center[2], 2)) /
-                                 std::pow (i.radius, 2) - 1.0));*/
       dist += std::exp (decay * ((std::pow (x - i.pos[0], 2) +
                                   std::pow (y - i.pos[1], 2) +
                                   std::pow (z - i.pos[2], 2)) /
                                   i.radius2 - 1.0));
-      //restituisce somma di exp{-1.5 * ((somma dei quadrati delle distanze tra posizione x,y,z e il centro atomi)/raggio atomo al quadrato - 1) 
-
       if (dist > 1.5)
         break;
 
@@ -137,6 +175,7 @@ poisson_boltzmann::parse_options (int argc, char **argv)
 {
   GetPot g (argc, argv);
   csvfilename = g ("csvfilename", "benzene.csv");
+  pqrfilename = g ("pqrfilename", "1CCM.pqr");
   p4estfilename = g ("p4estfilename", "poisson_boltzmann_p4est");
   markerfilename = g ("markerfilename", "poisson_boltzmann_marker_0");
   lsfilename = g ("lsfilename", "poisson_boltzmann_levelset_0");
@@ -145,7 +184,7 @@ poisson_boltzmann::parse_options (int argc, char **argv)
   decay    = g ("decay", decay);
   e_in     = g ("e_in", e_in);
   e_out    = g ("e_out", e_out);
-  k2       = g ("k2", k2);
+  I        = g ("I", I);
 }
 
 void
@@ -161,7 +200,6 @@ poisson_boltzmann::init_tmesh ()
 bool
 poisson_boltzmann::is_in (const NS::Atom& i,
                           tmesh_3d::quadrant_iterator q) 
-                          //(const poisson_boltzmann::ion& i, tmesh_3d::quadrant_iterator q)
 { 
   double tol =  p4esttol * (rr-ll);
   bool retval = false;
@@ -188,9 +226,6 @@ poisson_boltzmann::is_in (const NS::Atom& i,
 
     }
 
-  //retval =           (i.center[0] > l - tol) && (i.center[0] <= r  - tol);
-  //retval = retval && (i.center[1] > f - tol) && (i.center[1] <= bk - tol);
-  //retval = retval && (i.center[2] > b - tol) && (i.center[2] <= t  - tol);
   retval =           (i.pos[0] > l - tol) && (i.pos[0] <= r  - tol);
   retval = retval && (i.pos[1] > f - tol) && (i.pos[1] <= bk - tol);
   retval = retval && (i.pos[2] > b - tol) && (i.pos[2] <= t  - tol);
@@ -232,7 +267,7 @@ poisson_boltzmann::refine_surface ()
           {
             int currentlevel = static_cast<int> (q->the_quadrant->level);
             int retval = 1.0;
-            double min = 100.0 * this->atoms.size (); //this->ions.size ();
+            double min = 100.0 * this->atoms.size (); 
             double max = 0.0;
             double tmp = 0.0;
 
@@ -255,7 +290,7 @@ poisson_boltzmann::refine_surface ()
                 if (max > 1.0 && min < 1.0)
                   retval = this->maxlevel - currentlevel;
                 else
-                  for (const NS::Atom& i : atoms) //(const ion& i : ions)
+                  for (const NS::Atom& i : atoms) 
                     if (is_in (i, q))
                       {
                         retval = this->maxlevel - currentlevel;
@@ -297,7 +332,7 @@ poisson_boltzmann::refine_surface ()
           {
             int currentlevel = static_cast<int> (q->the_quadrant->level);
             int retval = 0;
-            double min = 100.0 * this->atoms.size (); //this->ions.size ();
+            double min = 100.0 * this->atoms.size (); 
             double max = 0.0;
             double tmp = 0.0;
 
@@ -321,7 +356,7 @@ poisson_boltzmann::refine_surface ()
                 if (min > 1.0 || max < 1.0)
                   retval = currentlevel - this->minlevel;
 
-                for (const NS::Atom& i : atoms) //(const ion& i : ions)
+                for (const NS::Atom& i : atoms) 
                   if (is_in (i, q))
                     {
                       retval = 0;
@@ -341,9 +376,8 @@ poisson_boltzmann::refine_surface ()
 void
 poisson_boltzmann::create_markers ()
 {
-  this->marker.assign (this->tmsh.num_local_quadrants (), 0.0); //metto tutti i marker a zero (=tutto in molecola)
-  //this->rho_fixed.assign (this->tmsh.num_local_quadrants (), 1.0); //faccio rho lungo quanto i quad e assegno 1 come carica 
-  this->rho_fixed.assign (this->tmsh.num_local_quadrants (), 0.0); //faccio rho lungo quanto i quad e assegno 0 
+  this->marker.assign (this->tmsh.num_local_quadrants (), 0.0);
+  this->rho_fixed.assign (this->tmsh.num_local_quadrants (), 0.0);  
   
   for (auto quadrant = this->tmsh.begin_quadrant_sweep ();
        quadrant != this->tmsh.end_quadrant_sweep ();
@@ -431,9 +465,8 @@ poisson_boltzmann::compute_electric_potential ()
   epsilon.assign (tmsh.num_local_quadrants (), eps_in); //e_in
   
   //reaction 
-  double I = 1.0; //ionic strenght [molar concentration]
   double C_0 = 1.0e3*N_av*I; //Bulk concentration of monovalent species
-  k2 = 2.0*C_0*Angs*Angs*e*e/(e_0*e_out*kb*T); 
+  double k2 = 2.0*C_0*Angs*Angs*e*e/(e_0*e_out*kb*T); 
   
   for (auto epsp = epsilon.begin (), mp = marker.begin ();
        epsp != epsilon.end () || mp != marker.end ();
@@ -472,7 +505,7 @@ poisson_boltzmann::compute_electric_potential ()
   bim3a_solution_with_ghosts (tmsh, ones, replace_op);
   
   bim3a_advection_diffusion (tmsh, epsilon, psi, A); //diffusion con i suoi coeff epsilon (e_in dentro, e_out fuori)
-  bim3a_reaction (tmsh, reaction, ones, A); //reaction (reazione è 0 dentro, fuori k2)
+  bim3a_reaction (tmsh, reaction, ones, A); //reaction (reazione è 0 dentro, fuori eps*k2)
   
   A.assemble (); //Assemblo la matrice con diffusione e reazione 
 
