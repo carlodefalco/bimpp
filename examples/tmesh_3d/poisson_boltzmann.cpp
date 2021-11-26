@@ -1,6 +1,8 @@
 #include <mpi.h>
 
 #include "pb_class.h"
+#include "pqr_parser.cpp"
+
 static char filename[255];
 
 int
@@ -12,12 +14,30 @@ main (int argc, char **argv)
   int                   recursive, partforcoarsen, balance;
   MPI_Comm              mpicomm = MPI_COMM_WORLD;  
   int                   rank, size;
-
+  tmesh_3d              tmsh;
 
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
-
+ 
+  
   poisson_boltzmann pb;
+  
+  std::string filename = "1CCM.pqr";
+  //std::cout << "Write the file name: ";
+  //std::cin >> filename ;
+
+  std::ifstream inputfile (filename);
+  //std::vector<Atom> atoms;
+  read_atoms_from_pqr (inputfile, pb.atoms);
+  inputfile.close ();
+  
+  std::cout << "std::vector<Atom> : " << std::endl << std::endl;
+  write_atoms_to_pqr (std::cout, pb.atoms);
+
+  //std::cout << "std::vector<Atom> : " << std::endl << std::endl;
+  //for (auto &ii : atoms)
+  //    ii.print ();
+  
   pb.parse_options (argc, argv);
 
   TIC ();
@@ -43,7 +63,7 @@ main (int argc, char **argv)
   TIC ();
   pb.export_marked_tmesh ();
   TOC ("export marked tmesh");
-
+  
   TIC ();
   pb.compute_electric_potential ();
   TOC ("compute electric potential");
@@ -57,6 +77,6 @@ main (int argc, char **argv)
   
   MPI_Finalize ();
   return 0;
-
+  
 }
 
