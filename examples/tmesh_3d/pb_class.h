@@ -34,40 +34,30 @@ constexpr double pi = 3.14159265358979323846;
 struct
 poisson_boltzmann
 {
-/*
-  struct
-  ion
-  {
-    std::array<double, 3> center;
-    double radius;
-    double charge;
-
-    ion (const std::array<double, 3>& c,
-         const double& r)
-      : center (c), radius (r) {};
-  };*/
 
   static constexpr p4est_topidx_t simple_conn_num_vertices = 8;
   static constexpr p4est_topidx_t simple_conn_num_trees = 1;
   std::array <double, simple_conn_num_vertices*3>  simple_conn_p;
   std::array <p4est_topidx_t, simple_conn_num_trees*9>  simple_conn_t;
-
-  //std::vector<ion> ions;
   
   std::vector<NS::Atom> atoms;
 
-  double ll;
-  double rr;
+  double ll; //min value between all the coordinates 
+  double rr; //max value between all the coordinate
+  
+  double l_c[3]; //min x, y, z value
+  double r_c[3]; //max x, y, z value
 
   int maxlevel;
   int minlevel;
   double decay;
-  double e_in, e_out, k2;
+  double e_in, e_out, I; //I:ionic strength [M]
 
   MPI_Comm mpicomm;
   tmesh_3d tmsh;
 
   std::string csvfilename;
+  std::string pqrfilename;
   std::string p4estfilename;
   std::string lsfilename;
   std::string markerfilename;
@@ -78,21 +68,19 @@ poisson_boltzmann
   std::vector<double> reaction; //vettore del termine di reazione: eps(r)*k^2 (k=A^2/lambda^2)
   //k2 è nullo dentro la molecola e nello stern layer 
 
-  poisson_boltzmann (int maxlevel_ = 4, int minlevel_ = 3, //maxlevel_ = 8, minlevel_ = 3
+  poisson_boltzmann (int maxlevel_ = 6, int minlevel_ = 4, 
                      double decay_ = -1.5, double e_in_ = 2.0, //e_in_ = 4.0
-                     double e_out_ = 80.0, double k2_ = 1.0,
+                     double e_out_ = 80.0, double I_ = 0.145,
                      MPI_Comm mpicomm_ = MPI_COMM_WORLD)
     : maxlevel(maxlevel_),
       minlevel(minlevel_),
       decay(decay_),
       e_in(e_in_),
       e_out(e_out_),
-      k2(k2_),
+      I(I_),
       mpicomm(mpicomm_),
       tmsh(mpicomm)
   {  };
-  //minlevel = numero di raffinamenti uniformi (è nella funzione init mesh)
-  //maxlevel - minlevel = numero di raffinamenti adattivi (in refine surface) ??
 
   double
   levelsetfun (double x, double y, double z);
@@ -101,8 +89,14 @@ poisson_boltzmann
   uniform_refinement (tmesh_3d::quadrant_iterator quadrant)
   { return 1; }
 
+  //void 
+  //read_csv ();
+  
   void
-  read_csv ( );
+  create_cubic_mesh ();
+  
+  void
+  create_mesh ();
   
   void
   parse_options (int argc, char **argv);
@@ -111,7 +105,7 @@ poisson_boltzmann
   init_tmesh ();
 
   bool
-  is_in (const NS::Atom& i, tmesh_3d::quadrant_iterator q); //(const ion& i, tmesh_3d::quadrant_iterator q);
+  is_in (const NS::Atom& i, tmesh_3d::quadrant_iterator q); 
 
   void
   refine_surface ();
