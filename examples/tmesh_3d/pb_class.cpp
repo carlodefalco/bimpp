@@ -1,11 +1,10 @@
 #include "pb_class.h"
 #include "GetPot"
 
-
 #include <bim_distributed_vector.h>
 #include <quad_operators_3d.h>
 #include <mumps_class.h>
-
+#include <lis_class.h>
 
 #include <cmath>
 #include <cstdio>
@@ -514,7 +513,7 @@ poisson_boltzmann::compute_electric_potential ()
   tmsh.octbin_export ("rhs_0", rhs);
 
   mumps mumps_solver;
-
+  
   std::vector<double> vals;
   std::vector<int> irow, jcol;
 
@@ -541,4 +540,87 @@ poisson_boltzmann::compute_electric_potential ()
   tmsh.octbin_export ("phi_0", phi);
 
   mumps_solver.cleanup ();
+  
+  //lis:
+  std::cout << "\nStarting lis solution" << std::endl; 
+  sparse_matrix A_lis;
+  A_lis.resize (tmsh.num_global_nodes ());
+  std::vector<double> rhs_lis(tmsh.num_global_nodes (), 0.0);
+  std::vector<double> xa;
+  
+  std::cout << "\nSolver" << std::endl; 
+  lis lis_solver;
+  //lis_solver.set_iterative_method("conjugate gradient"); //metodo del gradiente coniugato
+  //lis_solver.set_tolerance (1e-14); //tolleranza 
+  //lis_solver.set_max_iterations (500); //number of iterations
+  lis_solver.set_preconditioner ("jacobi"); //non credo ci sia Cholesky, c'è una LU inesatta ILU
+  
+  int rank;
+  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+  
+  int base = lis_solver.get_index_base ();
+  
+  if(rank == 0)
+  {
+  
+  std::string prec;
+  lis_solver.get_preconditioner (prec);
+  std::cout << "Using solver of type "
+            << lis_solver.solver_type ()
+            << " named "
+            << lis_solver.solver_name ()
+            << " with preconditioner "
+            << prec
+            << std::endl;  
+            
+  std::vector<double> psi_lis(tmsh.num_local_quadrants (), 0.0); 
+  std::vector<double> ones_lis(tmsh.num_local_quadrants (), 1.0);
+            
+  std::cout << "\nStructure" << std::endl; 
+  bim3a_structure (tmsh, A_lis);
+  
+  std::cout << "\nAdvection" << std::endl; 
+  bim3a_advection_diffusion (tmsh, epsilon, psi_lis, A_lis);
+  
+  std::cout << "\nReaction" << std::endl; 
+  bim3a_reaction (tmsh, reaction, ones_lis, A_lis);
+  
+  std::cout << "\nRhs" << std::endl; 
+  bim3a_rhs (tmsh, rho_fixed, ones_lis, rhs_lis);
+  
+  A_lis.aij (xa, irow, jcol, base);
+  
+  linear_solver::matrix_format_t mf = linear_solver::matrix_format_t::aij; //csr o aij??
+  std::cout << "\nlhs struct" << std::endl; 
+  lis_solver.set_lhs_structure (A_lis.rows (), irow, jcol, mf);
+  std::cout << "\nlhs data" << std::endl; 
+  lis_solver.set_lhs_data (vals);
+  std::cout << "\nrhs" << std::endl; 
+  lis_solver.set_rhs (rhs_lis);
+  
+  std::cout << "\nlis_solver.analyze () = "
+            << lis_solver.analyze ()
+            << std::endl;
+  std::cout << "lis_solver.factorize () = "
+            << lis_solver.factorize ()
+            << std::endl;
+  }
+  std::cout << "lis_solver.solve () = "
+            << lis_solver.solve ()
+            << std::endl;
+  
+  std::cout << "\nResult of PBE with lis \nwill be written in "
+            << lis_solver.solver_name () << "_solution.txt"
+            << std::endl;
+            
+  std::cout << "OFSTREAM" << std::endl;
+  std::ofstream fout ((lis_solver.solver_name () +
+                     std::string ("_solution.txt")).c_str ());
+  fout << std::endl;
+
+  std::cout << "clean" << std::endl;
+  lis_solver.cleanup ();
+ 
+  std::cout << "end" << std::endl;
+  
 }
