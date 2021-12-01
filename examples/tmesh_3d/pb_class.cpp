@@ -543,6 +543,7 @@ poisson_boltzmann::compute_electric_potential ()
   
   //lis:
   std::cout << "\nStarting lis solution" << std::endl; 
+  
   sparse_matrix A_lis;
   A_lis.resize (tmsh.num_global_nodes ());
   std::vector<double> rhs_lis(tmsh.num_global_nodes (), 0.0);
@@ -550,18 +551,12 @@ poisson_boltzmann::compute_electric_potential ()
   
   std::cout << "\nSolver" << std::endl; 
   lis lis_solver;
-  //lis_solver.set_iterative_method("conjugate gradient"); //metodo del gradiente coniugato
+  lis_solver.set_iterative_method("Conjugate Gradient"); //metodo del gradiente coniugato
   //lis_solver.set_tolerance (1e-14); //tolleranza 
   //lis_solver.set_max_iterations (500); //number of iterations
-  lis_solver.set_preconditioner ("jacobi"); //non credo ci sia Cholesky, c'è una LU inesatta ILU
-  
-  int rank;
-  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+  lis_solver.set_preconditioner ("jacobi"); //non credo ci sia Cholesky, c'è lu o ilu o jacobi
   
   int base = lis_solver.get_index_base ();
-  
-  if(rank == 0)
-  {
   
   std::string prec;
   lis_solver.get_preconditioner (prec);
@@ -575,27 +570,20 @@ poisson_boltzmann::compute_electric_potential ()
             
   std::vector<double> psi_lis(tmsh.num_local_quadrants (), 0.0); 
   std::vector<double> ones_lis(tmsh.num_local_quadrants (), 1.0);
-            
-  std::cout << "\nStructure" << std::endl; 
+ 
   bim3a_structure (tmsh, A_lis);
   
-  std::cout << "\nAdvection" << std::endl; 
   bim3a_advection_diffusion (tmsh, epsilon, psi_lis, A_lis);
   
-  std::cout << "\nReaction" << std::endl; 
   bim3a_reaction (tmsh, reaction, ones_lis, A_lis);
   
-  std::cout << "\nRhs" << std::endl; 
   bim3a_rhs (tmsh, rho_fixed, ones_lis, rhs_lis);
   
   A_lis.aij (xa, irow, jcol, base);
   
   linear_solver::matrix_format_t mf = linear_solver::matrix_format_t::aij; //csr o aij??
-  std::cout << "\nlhs struct" << std::endl; 
   lis_solver.set_lhs_structure (A_lis.rows (), irow, jcol, mf);
-  std::cout << "\nlhs data" << std::endl; 
-  lis_solver.set_lhs_data (vals);
-  std::cout << "\nrhs" << std::endl; 
+  lis_solver.set_lhs_data (xa);
   lis_solver.set_rhs (rhs_lis);
   
   std::cout << "\nlis_solver.analyze () = "
@@ -604,23 +592,30 @@ poisson_boltzmann::compute_electric_potential ()
   std::cout << "lis_solver.factorize () = "
             << lis_solver.factorize ()
             << std::endl;
-  }
   std::cout << "lis_solver.solve () = "
             << lis_solver.solve ()
             << std::endl;
   
   std::cout << "\nResult of PBE with lis \nwill be written in "
-            << lis_solver.solver_name () << "_solution.txt"
+            << "Compare_solution.txt"
             << std::endl;
-            
-  std::cout << "OFSTREAM" << std::endl;
-  std::ofstream fout ((lis_solver.solver_name () +
-                     std::string ("_solution.txt")).c_str ());
+
+  std::ofstream fout ((std::string ("Compare_solution.txt")).c_str ());
   fout << std::endl;
 
-  std::cout << "clean" << std::endl;
-  lis_solver.cleanup ();
- 
-  std::cout << "end" << std::endl;
+  for (unsigned int k = 0; k < rhs_lis.size (); ++k)
+  	fout << "mumps: " << rhs[k] 
+  	     << "	lis: " << rhs_lis[k] 
+  	     << "	diff: " << rhs[k] - rhs_lis[k] << std::endl;
   
+  fout.close ();
+
+  lis_solver.cleanup ();
+  
+  // CON DISTRIBUTED STRUCTURES:
+  //distributed_sparse_matrix A_lis;
+  //A_lis.set_ranges (tmsh.num_owned_nodes ());
+  //A_lis.resize (tmsh.num_global_nodes ());
+  //distributed_vector  rhs_lis (tmsh.num_global_nodes ()); //vettore del rhs
+
 }
