@@ -159,7 +159,8 @@ poisson_boltzmann::levelsetfun (double x, double y, double z)
       dist += std::exp (decay * ((std::pow (x - i.pos[0], 2) +
                                   std::pow (y - i.pos[1], 2) +
                                   std::pow (z - i.pos[2], 2)) /
-                                  i.radius2 - 1.0));
+                                  (i.radius*i.radius) - 1.0));
+                                 
       if (dist > 1.5)
         break;
 
@@ -391,7 +392,7 @@ poisson_boltzmann::create_markers ()
             //this->rho_fixed[quadrant->get_forest_quad_idx ()] = i.charge / volume; 
             //assegno carica_corrispondente/volume al quadrante come valore di rho corrispondente
             //rendo adimensionale:
-            this->rho_fixed[quadrant->get_forest_quad_idx ()] = -(i.charge / volume)*4.0*pi*Angs*Angs*Angs/e; 
+            this->rho_fixed[quadrant->get_forest_quad_idx ()] = -(i.charge / volume)*4.0*pi;  //*Angs*Angs*Angs/e;
             //con il meno se è a dx 
             break;
           }
@@ -541,6 +542,16 @@ poisson_boltzmann::compute_electric_potential ()
 
   mumps_solver.cleanup ();
   
+  /*
+  std::ofstream fout ((std::string ("Sol_mumps.txt")).c_str ());
+  fout << std::endl;
+
+  for (unsigned int k = 0; k < phi.size (); ++k)
+  	fout << "mumps: " << phi[k] << std::endl;
+  
+  fout.close ();
+  
+  
   //lis:
   std::cout << "\nStarting lis solution" << std::endl; 
   
@@ -611,6 +622,7 @@ poisson_boltzmann::compute_electric_potential ()
   fout.close ();
 
   lis_solver.cleanup ();
+  */
   
   // CON DISTRIBUTED STRUCTURES:
   //distributed_sparse_matrix A_lis;
