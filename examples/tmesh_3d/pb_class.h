@@ -135,7 +135,10 @@ poisson_boltzmann
   export_p4est ();
 
   void
-  compute_electric_potential ();
+  mumps_compute_electric_potential ();
+  
+  void
+  lis_compute_electric_potential ();
 
 };
 
