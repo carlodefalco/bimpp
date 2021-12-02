@@ -426,7 +426,7 @@ poisson_boltzmann::export_p4est ()
 }
 
 void
-poisson_boltzmann::compute_electric_potential ()
+poisson_boltzmann::mumps_compute_electric_potential ()
 {
   // diffusion
   double eps_in = 4.0*pi*e_0*e_in*kb*T*Angs/(e*e);   //adim e_in
@@ -510,7 +510,13 @@ poisson_boltzmann::compute_electric_potential ()
   tmsh.octbin_export ("phi_0", phi);
 
   mumps_solver.cleanup ();
-  
+
+}
+
+
+void
+poisson_boltzmann::lis_compute_electric_potential ()
+{
   /*
   std::ofstream fout ((std::string ("Sol_mumps.txt")).c_str ());
   fout << std::endl;
