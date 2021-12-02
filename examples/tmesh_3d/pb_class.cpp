@@ -12,79 +12,6 @@
 
 #include <p8est.h>
 
-/*
-void
-poisson_boltzmann::read_csv ()
-{
-  std::string filename = csvfilename;
-  std::ifstream in;
-  std::string buf;
-
-  in.open (filename);
-  if (! in) std::cerr << "could not open file " << filename << std::endl;
-  try
-    {
-      while (std::getline (in, buf, ','))
-        {
-          double x = stod (buf);
-          ions.push_back (ion ({x, .0, .0}, .0));
-
-          std::getline (in, buf, ',');
-          x = stod (buf);
-          ions.back ().center[1] = x;
-
-          std::getline (in, buf, ',');
-          x = stod (buf);
-          ions.back ().center[2] = x;
-
-          std::getline (in, buf, ',');
-          x = stod (buf);
-          ions.back ().radius = x;
-
-          std::getline (in, buf);
-          x = stod (buf);
-          ions.back ().charge = x;
-        }
-    }
-  catch(std::exception &e)
-    {
-      std::cerr << "encountered exception "
-                << e.what ()
-                << " while reading file "
-                << filename << std::endl;
-      exit (1);
-    } 
-  
-
-  auto comp = [] (const ion &i1, const ion &i2) -> bool { return i1.radius < i2.radius; }; //comparison function
-  double maxradius = std::max_element (ions.begin (), ions.end (), comp)->radius; //trovo lo ione con raggio massimo
-  
-  
-  ll = 0; rr = 0;
-  auto it = [this] (const ion &i1)
-    {
-      for (int kk = 0; kk < 3; ++kk)
-        {
-          if (i1.center[kk] > this->rr)
-            this->rr = i1.center[kk]; //trovo il punto più a dx
-          else if (i1.center[kk] < this->ll)
-            this->ll = i1.center[kk]; //trovo il punto più a sx
-        }
-    };
-  std::for_each (ions.begin (), ions.end (), it);
-  ll -= 3*maxradius;
-  rr += 3*maxradius;
-  
-
-  simple_conn_p = {ll, ll, ll, rr, ll, ll, ll, rr, ll, rr, rr, ll,
-                   ll, ll, rr, rr, ll, rr, ll, rr, rr, rr, rr, rr}; //coordinate nello spazio??
-
-  simple_conn_t = {1, 2, 3, 4, 5, 6, 7, 8, 1};
-  tmsh.read_connectivity (simple_conn_p.data (), simple_conn_num_vertices,
-                          simple_conn_t.data (), simple_conn_num_trees);
-
-}*/
-
 void
 poisson_boltzmann::create_cubic_mesh ()
 {
@@ -170,21 +97,63 @@ poisson_boltzmann::levelsetfun (double x, double y, double z)
 }
 
 
-void
+int
 poisson_boltzmann::parse_options (int argc, char **argv)
 {
   GetPot g (argc, argv);
-  csvfilename = g ("csvfilename", "benzene.csv");
-  pqrfilename = g ("pqrfilename", "1CCM.pqr");
-  p4estfilename = g ("p4estfilename", "poisson_boltzmann_p4est");
-  markerfilename = g ("markerfilename", "poisson_boltzmann_marker_0");
-  lsfilename = g ("lsfilename", "poisson_boltzmann_levelset_0");
-  minlevel = g ("minlevel", minlevel);
-  maxlevel = g ("maxlevel", maxlevel);
-  decay    = g ("decay", decay);
-  e_in     = g ("e_in", e_in);
-  e_out    = g ("e_out", e_out);
-  I        = g ("I", I);
+  optionsfile = g ("filepot", "../options.pot");
+  pqrfile = g ("pqrfilename", "1CCM.pqr");
+  
+  // controlla che i file esistano  
+  std::ifstream check1(optionsfile);
+  if(!check1)
+  {
+  	std::cerr << "Cannot find the options file" << std::endl;
+  	return 1;
+  }
+  
+  std::ifstream check2(pqrfile);
+  if(!check2)
+  {
+  	std::cerr << "Cannot find the pqr file" << std::endl;
+  	return 1;
+  }
+  
+  // leggi dal file le opzioni
+  GetPot g2 (optionsfile.c_str ());
+  
+  const std::string mesh_options = "mesh/";
+  maxlevel = g2 ((mesh_options + "maxlevel").c_str (),  6);
+  minlevel = g2 ((mesh_options + "minlevel").c_str (),  4);
+  
+  const std::string model_options = "model/";
+  linearized = g2 ((model_options + "linear_solver").c_str (),  1);
+  ionic_strength = g2 ((model_options + "ionic_strength").c_str (),  0.145);
+  e_in = g2 ((model_options + "molecular_dielectric_constant").c_str (),  2.);
+  e_out = g2 ((model_options + "solvent_dielectric_constant").c_str (),  78.54);
+  decay    = g2 ((model_options + "decay").c_str (), -1.5);
+  
+  const std::string alg_options = "algorithm/";
+  linear_solver_name = g2 ((alg_options + "linear_solver").c_str (),  "mumps");
+  linear_solver_options = g2 ((alg_options + "solver_options").c_str (),  "");
+
+  const std::string out_options = "output/";
+  p4estfilename = g2 ((out_options + "p4estfilename").c_str (), "poisson_boltzmann_p4est");
+  markerfilename = g2 ((out_options + "markerfilename").c_str (), "poisson_boltzmann_marker_0");
+  lsfilename = g2 ((out_options + "lsfilename").c_str (), "poisson_boltzmann_levelset_0");
+  
+  return 0;
+}
+
+void 
+poisson_boltzmann::print_options ()
+{
+  std::cout << "\nChoosen options: " << std::endl;
+  std::cout << "maxlevel = " << maxlevel <<  "; minlevel = " << minlevel << std::endl;
+  std::cout << "Linearized model = " << linearized << "; e_in = " << e_in << "; e_out = " << e_out << 
+  		"\nionic_strenght = " << ionic_strength << "; decay = " << decay << std::endl;
+  std::cout << "Linear solver = " << linear_solver_name << std::endl;
+  std::cout << "Linear solver options = " << linear_solver_options << "\n" << std::endl;
 }
 
 void
@@ -465,7 +434,7 @@ poisson_boltzmann::compute_electric_potential ()
   epsilon.assign (tmsh.num_local_quadrants (), eps_in); //e_in
   
   //reaction 
-  double C_0 = 1.0e3*N_av*I; //Bulk concentration of monovalent species
+  double C_0 = 1.0e3*N_av*ionic_strength; //Bulk concentration of monovalent species
   double k2 = 2.0*C_0*Angs*Angs*e*e/(e_0*e_out*kb*T); 
   
   for (auto epsp = epsilon.begin (), mp = marker.begin ();
@@ -512,7 +481,7 @@ poisson_boltzmann::compute_electric_potential ()
   bim3a_rhs (tmsh, rho_fixed, ones, rhs); //rhs (vale rho_fixed o zero)
   
   tmsh.octbin_export ("rhs_0", rhs);
-
+  
   mumps mumps_solver;
   
   std::vector<double> vals;
