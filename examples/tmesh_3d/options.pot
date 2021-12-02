@@ -1,0 +1,21 @@
+#Parameters file
+
+[mesh]
+minlevel = 4					#max mesh refinement level
+maxlevel = 6					#min mesh refinement level 
+
+[model]
+linear_solver = 1				#1 for linearized model
+decay = -1.5					#decay parameter for Blobby surface
+molecular_dielectric_constant = 2		#molecular relative dielectric constant 
+solvent_dielectric_constant = 80		#solvent relative dielectric constant
+ionic_strength = 0.145				#ionic strength expressend in molar concentration
+
+[algorithm]
+linear_solver = mumps				#mumps = direct solver, lis = iterative solver
+solver_options = none			
+
+[output]
+p4estfilename = poisson_boltzmann_p4est	#file name for p4forest output
+markerfilename = poisson_boltzmann_marker_0	#file name for marker output
+lsfilename = poisson_boltzmann_levelset_0	#file name for levelset output
