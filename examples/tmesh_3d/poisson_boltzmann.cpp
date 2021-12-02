@@ -62,7 +62,10 @@ main (int argc, char **argv)
   TOC ("export marked tmesh");
   
   TIC ();
-  pb.compute_electric_potential ();
+  if(pb.linear_solver_name == "mumps")
+  	pb.mumps_compute_electric_potential ();
+  else if(pb.linear_solver_name == "lis")
+  	pb.lis_compute_electric_potential ();
   TOC ("compute electric potential");
   
   TIC ();
