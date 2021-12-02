@@ -21,9 +21,10 @@ main (int argc, char **argv)
  
   poisson_boltzmann pb;
   
-  pb.parse_options (argc, argv);
+  if(pb.parse_options (argc, argv))
+    return 1;
 
-  std::ifstream inputfile (pb.pqrfilename);
+  std::ifstream inputfile (pb.pqrfile);
   read_atoms_from_pqr (inputfile, pb.atoms);
   inputfile.close ();
   
@@ -33,6 +34,8 @@ main (int argc, char **argv)
   //std::cout << "std::vector<Atom> : " << std::endl << std::endl;
   //for (auto &ii : atoms)
   //    ii.print ();
+  
+  pb.print_options ();
 
   TIC ();
   pb.create_mesh ();
