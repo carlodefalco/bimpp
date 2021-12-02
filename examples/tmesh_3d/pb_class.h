@@ -47,17 +47,25 @@ poisson_boltzmann
   
   double l_c[3]; //min x, y, z value
   double r_c[3]; //max x, y, z value
-
+  
+  //mesh 
   int maxlevel;
   int minlevel;
+  
+  //model:
+  int linearized;
   double decay;
-  double e_in, e_out, I; //I:ionic strength [M]
+  double e_in, e_out, ionic_strength; //[M]
+  
+  //algorithm
+  std::string linear_solver_name;
+  std::string linear_solver_options;
 
   MPI_Comm mpicomm;
   tmesh_3d tmsh;
 
-  std::string csvfilename;
-  std::string pqrfilename;
+  std::string optionsfile;
+  std::string pqrfile;
   std::string p4estfilename;
   std::string lsfilename;
   std::string markerfilename;
@@ -68,16 +76,20 @@ poisson_boltzmann
   std::vector<double> reaction; //vettore del termine di reazione: eps(r)*k^2 (k=A^2/lambda^2)
   //k2 è nullo dentro la molecola e nello stern layer 
 
-  poisson_boltzmann (int maxlevel_ = 6, int minlevel_ = 4, 
-                     double decay_ = -1.5, double e_in_ = 2.0, //e_in_ = 4.0
-                     double e_out_ = 80.0, double I_ = 0.145,
+  poisson_boltzmann (int maxlevel_ = 4, int minlevel_ = 3, 
+                     int linearized_ = 1, double decay_ = -1.5,
+                     double e_in_ = 2.0, double e_out_ = 80.0, double ionic_strength_ = 0.145,
+                     std::string linear_solver_name_ = "mumps", std::string linear_solver_options_ = "",
                      MPI_Comm mpicomm_ = MPI_COMM_WORLD)
     : maxlevel(maxlevel_),
       minlevel(minlevel_),
+      linearized(linearized_),
       decay(decay_),
       e_in(e_in_),
       e_out(e_out_),
-      I(I_),
+      ionic_strength(ionic_strength_),
+      linear_solver_name(linear_solver_name_),
+      linear_solver_options(linear_solver_options_),
       mpicomm(mpicomm_),
       tmsh(mpicomm)
   {  };
@@ -88,9 +100,6 @@ poisson_boltzmann
   static int
   uniform_refinement (tmesh_3d::quadrant_iterator quadrant)
   { return 1; }
-
-  //void 
-  //read_csv ();
   
   void
   create_cubic_mesh ();
@@ -98,8 +107,11 @@ poisson_boltzmann
   void
   create_mesh ();
   
-  void
+  int
   parse_options (int argc, char **argv);
+  
+  void 
+  print_options ();
 
   void
   init_tmesh ();
