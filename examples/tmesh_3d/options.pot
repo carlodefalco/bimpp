@@ -1,8 +1,9 @@
 #Parameters file
 
 [mesh]
-minlevel = 4					#max mesh refinement level
-maxlevel = 6					#min mesh refinement level 
+minlevel = 3					#max mesh refinement level
+maxlevel = 4					#min mesh refinement level 
+mesh_shape = 0					#1 for "stratched" mesh, 0 for cubic mesh
 
 [model]
 linear_solver = 1				#1 for linearized model
@@ -13,7 +14,7 @@ ionic_strength = 0.145				#ionic strength expressend in molar concentration
 
 [algorithm]
 linear_solver = mumps				#mumps = direct solver, lis = iterative solver
-solver_options = none			
+solver_options = none				#solver options		
 
 [output]
 p4estfilename = poisson_boltzmann_p4est	#file name for p4forest output
