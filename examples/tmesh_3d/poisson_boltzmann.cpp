@@ -24,7 +24,7 @@ main (int argc, char **argv)
   if(pb.parse_options (argc, argv))
     return 1;
 
-  std::ifstream inputfile (pb.pqrfile);
+  std::ifstream inputfile (pb.pqrfilename);
   read_atoms_from_pqr (inputfile, pb.atoms);
   inputfile.close ();
   
