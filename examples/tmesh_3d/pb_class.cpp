@@ -25,9 +25,9 @@ poisson_boltzmann::create_cubic_mesh ()
       for (int kk = 0; kk < 3; ++kk)
         {
           if (a1.pos[kk] > this->rr)
-            this->rr = a1.pos[kk]; //trovo il punto più a dx
+            this->rr = a1.pos[kk]; 
           else if (a1.pos[kk] < this->ll)
-            this->ll = a1.pos[kk]; //trovo il punto più a sx
+            this->ll = a1.pos[kk]; 
         }
     };
   std::for_each (atoms.begin (), atoms.end (), it);
@@ -60,7 +60,7 @@ poisson_boltzmann::create_mesh ()
           if (a1.pos[kk] > this->r_c[kk])
             this->r_c[kk] = a1.pos[kk]; 
           else if (a1.pos[kk] < this->l_c[kk])
-            this->l_c[kk] = a1.pos[kk]; //trovo il punto più a sx
+            this->l_c[kk] = a1.pos[kk]; 
         }
     };
   std::for_each (atoms.begin (), atoms.end (), it);
@@ -92,7 +92,7 @@ poisson_boltzmann::levelsetfun (double x, double y, double z)
         break;
 
     }
-
+    
   return dist;
 }
 
@@ -101,26 +101,26 @@ int
 poisson_boltzmann::parse_options (int argc, char **argv)
 {
   GetPot g (argc, argv);
-  optionsfile = g ("filepot", "../options.pot");
-  pqrfile = g ("pqrfilename", "1CCM.pqr");
+  optionsfilename = g ("potfile", "../options.pot");
+  pqrfilename = g ("pqrfile", "1CCM.pqr");
   
-  // controlla che i file esistano  
-  std::ifstream check1(optionsfile);
-  if(!check1)
+  //Check that the input files exist 
+  std::ifstream optionsfile(optionsfilename);
+  if(!optionsfile)
   {
   	std::cerr << "Cannot find the options file" << std::endl;
   	return 1;
   }
   
-  std::ifstream check2(pqrfile);
-  if(!check2)
+  std::ifstream pqrfile(pqrfilename);
+  if(!pqrfile)
   {
   	std::cerr << "Cannot find the pqr file" << std::endl;
   	return 1;
   }
   
-  // leggi dal file le opzioni
-  GetPot g2 (optionsfile.c_str ());
+  //Read the options from the file
+  GetPot g2 (optionsfilename.c_str ());
   
   const std::string mesh_options = "mesh/";
   maxlevel = g2 ((mesh_options + "maxlevel").c_str (),  6);
@@ -149,9 +149,9 @@ void
 poisson_boltzmann::print_options ()
 {
   std::cout << "\nChoosen options: " << std::endl;
-  std::cout << "maxlevel = " << maxlevel <<  "; minlevel = " << minlevel << std::endl;
-  std::cout << "Linearized model = " << linearized << "; e_in = " << e_in << "; e_out = " << e_out << 
-  		"\nionic_strenght = " << ionic_strength << "; decay = " << decay << std::endl;
+  std::cout << "minlevel = " << minlevel <<  "\nmaxlevel = " << maxlevel << std::endl;
+  std::cout << "Linearized model = " << linearized << "\ne_in = " << e_in << "\ne_out = " << e_out << 
+  		"\nionic_strenght = " << ionic_strength << "\ndecay = " << decay << std::endl;
   std::cout << "Linear solver = " << linear_solver_name << std::endl;
   std::cout << "Linear solver options = " << linear_solver_options << "\n" << std::endl;
 }
@@ -352,17 +352,13 @@ poisson_boltzmann::create_markers ()
        quadrant != this->tmsh.end_quadrant_sweep ();
        ++quadrant)
     {
-      for (const NS::Atom& i : atoms) //(const ion& i : ions)
-        if (is_in (i, quadrant)) //Se un atomo è nel quadrante che sto considerando:
+      for (const NS::Atom& i : atoms) 
+        if (is_in (i, quadrant)) 
           {
             double volume = (quadrant->p(0, 7) - quadrant->p(0, 0)) *
               (quadrant->p(1, 7) - quadrant->p(1, 0)) *
-              (quadrant->p(2, 7) - quadrant->p(2, 0)); //calcolo il volume del quadrante 
-            //this->rho_fixed[quadrant->get_forest_quad_idx ()] = i.charge / volume; 
-            //assegno carica_corrispondente/volume al quadrante come valore di rho corrispondente
-            //rendo adimensionale:
-            this->rho_fixed[quadrant->get_forest_quad_idx ()] = -(i.charge / volume)*4.0*pi;  //*Angs*Angs*Angs/e;
-            //con il meno se è a dx 
+              (quadrant->p(2, 7) - quadrant->p(2, 0)); //volume
+            this->rho_fixed[quadrant->get_forest_quad_idx ()] = -(i.charge / volume)*4.0*pi;
             break;
           }
 
@@ -370,21 +366,20 @@ poisson_boltzmann::create_markers ()
       int num_hanging = 0;
       for (int ii = 0; ii < 8; ++ii)
         {
-          if (! quadrant->is_hanging (ii)) //se il quadrante corrente NON è stato "appeso"
+          if (! quadrant->is_hanging (ii)) 
             {
               if (this->levelsetfun (quadrant->p (0, ii),
                                      quadrant->p (1, ii),
                                      quadrant->p (2, ii)) > 1.0)
-                //restituisce una distanza per capire se sono dentro o fuori dalla molecola. Se > 1.0 -> Dentro
-                ++num_int_nodes; //aumento numero dei nodi dentro la molecola 
+                ++num_int_nodes; 
             }
           else
-            ++num_hanging; //aumento numero hanging 
+            ++num_hanging; 
         }
-      if (num_int_nodes == 0)  //se non ho nodi dentro
-        this->marker[quadrant->get_forest_quad_idx ()] = 1.0; //assegno al marker del quadrante 1.0 -> fuori
-      else if (num_int_nodes < (8 - num_hanging)) //se numero di nodi interni è meno di quelli fuori 
-        this->marker[quadrant->get_forest_quad_idx ()] = 1.0/2.0; //assegno a quel quad 1/2 
+      if (num_int_nodes == 0)  
+        this->marker[quadrant->get_forest_quad_idx ()] = 1.0; 
+      else if (num_int_nodes < (8 - num_hanging)) 
+        this->marker[quadrant->get_forest_quad_idx ()] = 1.0/2.0; 
     }
 }
 
@@ -428,6 +423,7 @@ poisson_boltzmann::export_p4est ()
 void
 poisson_boltzmann::mumps_compute_electric_potential ()
 {
+  std::cout << "\nMUMPS SOLVER" << std::endl;
   // diffusion
   double eps_in = 4.0*pi*e_0*e_in*kb*T*Angs/(e*e);   //adim e_in
   double eps_out = 4.0*pi*e_0*e_out*kb*T*Angs/(e*e); //adim e_out
@@ -439,46 +435,46 @@ poisson_boltzmann::mumps_compute_electric_potential ()
   
   for (auto epsp = epsilon.begin (), mp = marker.begin ();
        epsp != epsilon.end () || mp != marker.end ();
-       ++epsp, ++mp) //scorro vettore delle epsilon e dei marker
-    if ((*mp) == 0.0) //se marker vale zero -> sono dentro -> e_in
-      (*epsp) = eps_in; //e_in
-    else //se marker è diverso da zero -> e_out 
-      (*epsp) = eps_out; //e_out
+       ++epsp, ++mp) 
+    if ((*mp) == 0.0)
+      (*epsp) = eps_in; 
+    else  
+      (*epsp) = eps_out; 
 
   reaction.assign (tmsh.num_local_quadrants (), 0.0);
   for (auto rp = reaction.begin (), mp = marker.begin ();
        rp != reaction.end () || mp != marker.end ();
        ++rp, ++mp)
-    if ((*mp) != 0.0) //se marker è diverso da zero -> sono fuori (o il quad è più fuori che dentro) -> ho k^2*eps_out
-      (*rp) = -eps_out*k2; //dentro è sempre 0.0, con il meno se è a sx
+    if ((*mp) != 0.0) 
+      (*rp) = -eps_out*k2; 
 
   tmsh.octbin_export_quadrant ("epsilon_0", epsilon);
   tmsh.octbin_export_quadrant ("rho_0", rho_fixed);
   tmsh.octbin_export_quadrant ("reaction_0", reaction);
 
-  distributed_sparse_matrix A; //matrice A per diffusione 
+  distributed_sparse_matrix A;  
   A.set_ranges (tmsh.num_owned_nodes ());
   
   A.resize (tmsh.num_global_nodes ());
   
-  distributed_vector  rhs (tmsh.num_global_nodes ()); //vettore del rhs
+  distributed_vector  rhs (tmsh.num_global_nodes ()); 
 
   distributed_vector  psi (tmsh.num_global_nodes ());
-  psi.get_owned_data ().assign (psi.get_owned_data ().size (), 0.0); //creo psi nulla (no trasporto)
+  psi.get_owned_data ().assign (psi.get_owned_data ().size (), 0.0); 
   
   bim3a_solution_with_ghosts (tmsh, psi);
   
   distributed_vector ones (tmsh.num_global_nodes ());
-  ones.get_owned_data ().assign (ones.get_owned_data ().size (), 1.0); //vettore di 1.0
+  ones.get_owned_data ().assign (ones.get_owned_data ().size (), 1.0); 
   
   bim3a_solution_with_ghosts (tmsh, ones, replace_op);
   
-  bim3a_advection_diffusion (tmsh, epsilon, psi, A); //diffusion con i suoi coeff epsilon (e_in dentro, e_out fuori)
-  bim3a_reaction (tmsh, reaction, ones, A); //reaction (reazione è 0 dentro, fuori eps*k2)
+  bim3a_advection_diffusion (tmsh, epsilon, psi, A);
+  bim3a_reaction (tmsh, reaction, ones, A); 
   
-  A.assemble (); //Assemblo la matrice con diffusione e reazione 
+  A.assemble (); 
 
-  bim3a_rhs (tmsh, rho_fixed, ones, rhs); //rhs (vale rho_fixed o zero)
+  bim3a_rhs (tmsh, rho_fixed, ones, rhs);
   
   tmsh.octbin_export ("rhs_0", rhs);
   
@@ -517,6 +513,7 @@ poisson_boltzmann::mumps_compute_electric_potential ()
 void
 poisson_boltzmann::lis_compute_electric_potential ()
 {
+  std::cout << "\nLIS SOLVER" << std::endl; 
   /*
   std::ofstream fout ((std::string ("Sol_mumps.txt")).c_str ());
   fout << std::endl;
