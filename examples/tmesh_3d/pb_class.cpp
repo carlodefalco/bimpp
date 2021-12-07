@@ -125,6 +125,7 @@ poisson_boltzmann::parse_options (int argc, char **argv)
   const std::string mesh_options = "mesh/";
   maxlevel = g2 ((mesh_options + "maxlevel").c_str (),  6);
   minlevel = g2 ((mesh_options + "minlevel").c_str (),  4);
+  mesh_shape = g2 ((mesh_options + "mesh_shape").c_str (),  1);
   
   const std::string model_options = "model/";
   linearized = g2 ((model_options + "linear_solver").c_str (),  1);
@@ -150,6 +151,10 @@ poisson_boltzmann::print_options ()
 {
   std::cout << "\nChoosen options: " << std::endl;
   std::cout << "minlevel = " << minlevel <<  "\nmaxlevel = " << maxlevel << std::endl;
+  if(mesh_shape == 1)
+  	std::cout << "Mesh shape = stretched" << std::endl;
+  else
+  	std::cout << "Mesh shape = cubic" << std::endl;
   std::cout << "Linearized model = " << linearized << "\ne_in = " << e_in << "\ne_out = " << e_out << 
   		"\nionic_strenght = " << ionic_strength << "\ndecay = " << decay << std::endl;
   std::cout << "Linear solver = " << linear_solver_name << std::endl;
