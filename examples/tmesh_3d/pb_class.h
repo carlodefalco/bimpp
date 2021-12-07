@@ -53,6 +53,7 @@ poisson_boltzmann
   //mesh:
   int maxlevel;
   int minlevel;
+  int mesh_shape;
   
   //model:
   int linearized;
@@ -77,13 +78,14 @@ poisson_boltzmann
   std::vector<double> rho_fixed; 
   std::vector<double> reaction; 
 
-  poisson_boltzmann (int maxlevel_ = 4, int minlevel_ = 3, 
+  poisson_boltzmann (int maxlevel_ = 4, int minlevel_ = 3, int mesh_shape_ = 1,
                      int linearized_ = 1, double decay_ = -1.5,
                      double e_in_ = 2.0, double e_out_ = 80.0, double ionic_strength_ = 0.145,
                      std::string linear_solver_name_ = "mumps", std::string linear_solver_options_ = "",
                      MPI_Comm mpicomm_ = MPI_COMM_WORLD)
     : maxlevel(maxlevel_),
       minlevel(minlevel_),
+      mesh_shape(mesh_shape_),
       linearized(linearized_),
       decay(decay_),
       e_in(e_in_),
