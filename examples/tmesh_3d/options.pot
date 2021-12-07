@@ -14,7 +14,7 @@ ionic_strength = 0.145				#ionic strength expressend in molar concentration
 
 [algorithm]
 linear_solver = mumps				#mumps = direct solver, lis = iterative solver
-solver_options = none				#solver options		
+solver_options = none				#solver options
 
 [output]
 p4estfilename = poisson_boltzmann_p4est	#file name for p4forest output
