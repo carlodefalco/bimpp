@@ -3,7 +3,7 @@
 [mesh]
 minlevel = 5					#max mesh refinement level
 maxlevel = 7					#min mesh refinement level 
-mesh_shape = 1					#1 for "stratched" mesh, 0 for cubic mesh
+mesh_shape = 1					#1 for "stretched" mesh, 0 for cubic mesh
 
 [model]
 linear_solver = 1				#1 for linearized model
