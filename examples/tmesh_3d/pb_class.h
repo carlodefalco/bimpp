@@ -42,13 +42,15 @@ poisson_boltzmann
   
   std::vector<NS::Atom> atoms;
 
+  //Cubic mesh:
   double ll; //min value between all the coordinates 
-  double rr; //max value between all the coordinate
+  double rr; //max value between all the coordinates
   
+  //Stretched mesh:
   double l_c[3]; //min x, y, z value
   double r_c[3]; //max x, y, z value
   
-  //mesh 
+  //mesh:
   int maxlevel;
   int minlevel;
   
@@ -57,24 +59,23 @@ poisson_boltzmann
   double decay;
   double e_in, e_out, ionic_strength; //[M]
   
-  //algorithm
+  //algorithm:
   std::string linear_solver_name;
   std::string linear_solver_options;
 
   MPI_Comm mpicomm;
   tmesh_3d tmsh;
 
-  std::string optionsfile;
-  std::string pqrfile;
+  std::string optionsfilename;
+  std::string pqrfilename;
   std::string p4estfilename;
-  std::string lsfilename;
+  std::string lsfilename; 
   std::string markerfilename;
 
-  std::vector<double> marker; //vettore che mi dice se sono dentro o fuori dalla molecola
-  std::vector<double> epsilon; //Vettore che vale e_in se dentro molecola, e_out altrimenti
-  std::vector<double> rho_fixed; //vettore delle cariche fisse
-  std::vector<double> reaction; //vettore del termine di reazione: eps(r)*k^2 (k=A^2/lambda^2)
-  //k2 è nullo dentro la molecola e nello stern layer 
+  std::vector<double> marker; 
+  std::vector<double> epsilon; 
+  std::vector<double> rho_fixed; 
+  std::vector<double> reaction; 
 
   poisson_boltzmann (int maxlevel_ = 4, int minlevel_ = 3, 
                      int linearized_ = 1, double decay_ = -1.5,
