@@ -38,7 +38,10 @@ main (int argc, char **argv)
   pb.print_options ();
 
   TIC ();
-  pb.create_mesh ();
+  if(pb.mesh_shape == 1)
+  	pb.create_mesh ();
+  else if(pb.mesh_shape == 0)
+  	pb.create_cubic_mesh ();
   TOC ("create_mesh");
 
   TIC ();
