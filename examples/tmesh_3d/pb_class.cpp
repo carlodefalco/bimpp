@@ -428,7 +428,7 @@ poisson_boltzmann::export_p4est ()
 void
 poisson_boltzmann::mumps_compute_electric_potential ()
 {
-  std::cout << "\nMUMPS SOLVER" << std::endl;
+  std::cout << "\nStarting MUMPS solution" << std::endl;
   // diffusion
   double eps_in = 4.0*pi*e_0*e_in*kb*T*Angs/(e*e);   //adim e_in
   double eps_out = 4.0*pi*e_0*e_out*kb*T*Angs/(e*e); //adim e_out
@@ -518,20 +518,192 @@ poisson_boltzmann::mumps_compute_electric_potential ()
 void
 poisson_boltzmann::lis_compute_electric_potential ()
 {
-  std::cout << "\nLIS SOLVER" << std::endl; 
-  /*
-  std::ofstream fout ((std::string ("Sol_mumps.txt")).c_str ());
-  fout << std::endl;
+  std::cout << "\nStarting LIS solution" << std::endl;
+  // diffusion
+  double eps_in = 4.0*pi*e_0*e_in*kb*T*Angs/(e*e);   //adim e_in
+  double eps_out = 4.0*pi*e_0*e_out*kb*T*Angs/(e*e); //adim e_out
+  epsilon.assign (tmsh.num_local_quadrants (), eps_in); //e_in
+  
+  //reaction 
+  double C_0 = 1.0e3*N_av*ionic_strength; //Bulk concentration of monovalent species
+  double k2 = 2.0*C_0*Angs*Angs*e*e/(e_0*e_out*kb*T); 
+  
+  for (auto epsp = epsilon.begin (), mp = marker.begin ();
+       epsp != epsilon.end () || mp != marker.end ();
+       ++epsp, ++mp) 
+    if ((*mp) == 0.0)
+      (*epsp) = eps_in; 
+    else  
+      (*epsp) = eps_out; 
 
-  for (unsigned int k = 0; k < phi.size (); ++k)
-  	fout << "mumps: " << phi[k] << std::endl;
+  reaction.assign (tmsh.num_local_quadrants (), 0.0);
+  for (auto rp = reaction.begin (), mp = marker.begin ();
+       rp != reaction.end () || mp != marker.end ();
+       ++rp, ++mp)
+    if ((*mp) != 0.0) 
+      (*rp) = -eps_out*k2; 
+
+  tmsh.octbin_export_quadrant ("epsilon_0", epsilon);
+  tmsh.octbin_export_quadrant ("rho_0", rho_fixed);
+  tmsh.octbin_export_quadrant ("reaction_0", reaction);
   
-  fout.close ();
+  distributed_sparse_matrix A; 
+  A.set_ranges (tmsh.num_owned_nodes ());
+  A.resize (tmsh.num_global_nodes ());
+  
+  distributed_vector  rhs (tmsh.num_global_nodes ()); 
+
+  distributed_vector  psi (tmsh.num_global_nodes ());
+  psi.get_owned_data ().assign (psi.get_owned_data ().size (), 0.0); 
+  
+  bim3a_solution_with_ghosts (tmsh, psi);
+  
+  distributed_vector ones (tmsh.num_global_nodes ());
+  ones.get_owned_data ().assign (ones.get_owned_data ().size (), 1.0); 
+  
+  bim3a_solution_with_ghosts (tmsh, ones, replace_op);
+  
+  bim3a_advection_diffusion (tmsh, epsilon, psi, A);
+  bim3a_reaction (tmsh, reaction, ones, A); 
+  
+  A.assemble (); 
+
+  bim3a_rhs (tmsh, rho_fixed, ones, rhs);
+  
+  tmsh.octbin_export ("rhs_0", rhs);  
+  
+  std::vector<double> vals;
+  std::vector<int> irow, jcol;
+
+  A.csr(vals, jcol, irow);
   
   
-  //lis:
-  std::cout << "\nStarting lis solution" << std::endl; 
+  // lis RHS
+  LIS_INT i,is,ie,n_rhs, ln; /* or LIS_INT i,ln,is,ie; */
+  LIS_VECTOR rhs_lis;
+  n_rhs = tmsh.num_global_nodes();
+  ln = tmsh.num_local_nodes();
   
+  lis_vector_create(mpicomm,&rhs_lis);
+  lis_vector_set_size(rhs_lis,ln,0);
+  //lis_vector_set_size(rhs_lis,0,n_rhs);
+  lis_vector_get_range(rhs_lis,&is,&ie);
+  
+  for(i=is; i<ie; i++)
+  {
+        lis_vector_set_value(LIS_INS_VALUE,i,rhs.get_owned_data()[i],rhs_lis);
+     //std::cout << "rhs[" << i << "] = " << rhs.get_owned_data()[i] << std::endl;
+  }
+  
+  //lis_vector_print(rhs_lis);
+  std::cout << "Created rhs vector" << std::endl;
+  
+  
+  // lis PHI
+  LIS_VECTOR phi_lis;
+  
+  lis_vector_create(mpicomm,&phi_lis);
+  lis_vector_set_size(phi_lis,ln,0);
+  lis_vector_get_range(phi_lis,&is,&ie);
+  
+  // lis MATRIX
+  LIS_INT n,nnz; //n: matrix dim ; nnz: numb of non zero elems 
+  LIS_INT *index; //array of integer containing the col index of non zero elems
+  LIS_INT *ptr; //array of integer with starting points of rows 
+  LIS_SCALAR *value; //array of double stores non-zero elements of matrix A along the row
+  LIS_MATRIX A_lis; //array of integer containing the col index of non zero elems 
+  
+  n = tmsh.num_global_nodes(); //just one processor
+  nnz = A.owned_nnz();
+  
+  std::cout << "n and nnz assigned. n = " << n << " ; nnz = " << nnz << std::endl;
+  
+  ptr = (LIS_INT *)malloc( (n+1)*sizeof(LIS_INT) );
+  index = (LIS_INT *)malloc( nnz*sizeof(LIS_INT) );
+  value = (LIS_SCALAR *)malloc( nnz*sizeof(LIS_SCALAR) );
+  
+  //lis_matrix_create(0,&A); 
+  lis_matrix_create(mpicomm,&A_lis);
+  
+  lis_matrix_set_size(A_lis,0,n);
+  
+  std::cout << "A size" << std::endl;
+  std::cout << "vals size: " << vals.size() << std::endl;
+  std::cout << "jcol size: " << jcol.size() << std::endl;
+  std::cout << "irow size: " << irow.size() << std::endl;
+
+  for(i = 0; i < n+1; i++)
+     ptr[i] = irow[i];  
+  
+  for(i = 0; i < nnz; i++)
+  {
+     index[i] = jcol[i];
+     value[i] = vals[i];
+  }
+  
+  lis_matrix_set_csr(nnz,ptr,index,value,A_lis);
+  
+  lis_matrix_assemble(A_lis);
+  
+  //Solve linear system
+  LIS_SOLVER solver;
+  
+  lis_solver_create(&solver);
+  lis_solver_set_option("-i cg -p jacobi",solver);
+  //lis_solver_set_option("-tol 1.0e-12",solver);
+  lis_solve(A_lis,rhs_lis,phi_lis,solver);
+
+  distributed_vector phi (tmsh.num_global_nodes ()); 
+  
+  auto phip = phi.get_owned_data ().begin ();
+  for (i=is, phip = phi.get_owned_data ().begin (); i < ie || phip != phi.get_owned_data ().end (); i++, phip++)
+     lis_vector_get_value(phi_lis, i, &phi.get_owned_data ()[i]);
+  
+  bim3a_solution_with_ghosts (tmsh, phi);
+
+  tmsh.octbin_export ("phi_0", phi);
+  
+  
+  
+  
+  /*
+  //COO
+  std::vector<double> vals;
+  std::vector<int> irow, jcol;
+  
+  distributed_sparse_matrix A; 
+  A.aij (vals, irow, jcol); //mumps_solver.get_index_base ()
+  
+   std::cout << "A distrib" << std::endl;
+  
+  LIS_INT n,nnz;
+  LIS_INT *row,*col;
+  LIS_SCALAR *value;
+  LIS_MATRIX A_lis;
+  
+  n = 4; nnz = 8;
+  row = (LIS_INT *)malloc( nnz*sizeof(LIS_INT) );
+  col = (LIS_INT *)malloc( nnz*sizeof(LIS_INT) );
+  value = (LIS_SCALAR *)malloc( nnz*sizeof(LIS_SCALAR) );
+  
+  lis_matrix_create(mpicomm,&A_lis);
+  lis_matrix_set_size(A_lis,0,n);
+
+  row[0] = 0; row[1] = 1; row[2] = 3; row[3] = 1;
+  row[4] = 2; row[5] = 2; row[6] = 3; row[7] = 3;
+  col[0] = 0; col[1] = 0; col[2] = 0; col[3] = 1;
+  col[4] = 1; col[5] = 2; col[6] = 2; col[7] = 3;
+  value[0] = 11; value[1] = 21; value[2] = 41; value[3] = 22;
+  value[4] = 32; value[5] = 33; value[6] = 43; value[7] = 44;
+
+  lis_matrix_set_coo(nnz,row,col,value,A_lis);
+  
+  std::cout << "A setted" << std::endl;
+   
+  lis_matrix_assemble(A_lis);
+  */ //end COO
+  
+  /*
   sparse_matrix A_lis;
   A_lis.resize (tmsh.num_global_nodes ());
   std::vector<double> rhs_lis(tmsh.num_global_nodes (), 0.0);
