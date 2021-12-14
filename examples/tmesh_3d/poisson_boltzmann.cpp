@@ -42,6 +42,11 @@ main (int argc, char **argv)
   	pb.create_mesh ();
   else if(pb.mesh_shape == 0)
   	pb.create_cubic_mesh ();
+  else 
+  {
+  	std::cerr << "Invalid mesh shape selected" << std::endl;
+  	return 1;
+  }
   TOC ("create_mesh");
 
   TIC ();
@@ -69,6 +74,11 @@ main (int argc, char **argv)
   	pb.mumps_compute_electric_potential ();
   else if(pb.linear_solver_name == "lis")
   	pb.lis_compute_electric_potential ();
+  else 
+  {
+  	std::cerr << "Invalid solver selected" << std::endl;
+  	return 1;
+  }
   TOC ("compute electric potential");
   
   TIC ();
