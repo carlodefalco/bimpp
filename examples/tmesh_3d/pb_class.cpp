@@ -572,22 +572,135 @@ poisson_boltzmann::lis_compute_electric_potential ()
   
   tmsh.octbin_export ("rhs_0", rhs);  
   
+  //CSR
   std::vector<double> vals;
   std::vector<int> irow, jcol;
 
   A.csr(vals, jcol, irow);
+
+  // lis RHS
+  LIS_INT i, is, ie, n_rhs, ln; 
+  LIS_VECTOR rhs_lis;
+  n_rhs = tmsh.num_global_nodes();
+  //ln = tmsh.num_local_nodes();
+  ln = irow.size() - 1 ;
   
+  lis_vector_create(mpicomm, &rhs_lis);
+  lis_vector_set_size(rhs_lis, ln, 0);
+  //lis_vector_set_size(rhs_lis, 0, n_rhs);
+  lis_vector_get_range(rhs_lis, &is, &ie);
+  
+  for(i=is; i<ie; i++)
+  {
+     //std::cout << "rhs[" << i << "] = " << rhs.get_owned_data()[i] << std::endl;
+     //std::cout << "rhs size " << rhs.get_owned_data().size() << std::endl;
+     lis_vector_set_value(LIS_INS_VALUE, i, rhs.get_owned_data()[i], rhs_lis);
+  }
+  
+  std::cout << "rhs size " << rhs.size() << std::endl; 
+  std::cout << "rhs size owned " << rhs.get_owned_data().size() << std::endl;
+  //lis_vector_print(rhs_lis);
+  std::cout << "Created rhs vector" << std::endl;
+  
+  // lis PHI
+  LIS_VECTOR phi_lis;
+  
+  lis_vector_create(mpicomm, &phi_lis);
+  lis_vector_set_size(phi_lis, ln, 0);
+  //lis_vector_set_size(phi_lis, 0, n_rhs);
+  lis_vector_get_range(phi_lis, &is, &ie); //NOTA: sto utilizzando gli stessi is, ie del rhs (sovrascritto)
+  
+  // lis MATRIX
+  LIS_INT n, nnz; //n: matrix dim ; nnz: numb of non zero elems 
+  LIS_INT *index; //array of integer containing the col index of non zero elems
+  LIS_INT *ptr; //array of integer with starting points of rows 
+  LIS_SCALAR *value; //array of double stores non-zero elements of matrix A along the row
+  LIS_MATRIX A_lis; //array of integer containing the col index of non zero elems 
+  
+  //n = tmsh.num_local_nodes(); //ok con 1 processore
+  n = irow.size() - 1 ;
+  nnz = A.owned_nnz();
+  
+  std::cout << "n and nnz assigned" << std::endl;
+  std::cout << "n_global = " << tmsh.num_global_nodes() << std::endl;
+  std::cout << "n_local = " << tmsh.num_local_nodes() << std::endl;
+  std::cout << "nnz = " << nnz << std::endl;
+  std::cout << "n = " << n << std::endl;
+  
+  ptr = (LIS_INT *)malloc( (n+1)*sizeof(LIS_INT) );
+  index = (LIS_INT *)malloc( nnz*sizeof(LIS_INT) );
+  value = (LIS_SCALAR *)malloc( nnz*sizeof(LIS_SCALAR) );
+  
+  //lis_matrix_create(0,&A); 
+  lis_matrix_create(mpicomm, &A_lis);
+  
+  lis_matrix_set_size(A_lis, n, 0);
+  
+  std::cout << "A size:" << std::endl;
+  std::cout << "vals size: " << vals.size() << std::endl;
+  std::cout << "jcol size: " << jcol.size() << std::endl;
+  std::cout << "irow size: " << irow.size() << std::endl;
+
+  for(i = 0; i < n+1; i++)
+     ptr[i] = irow[i];  
+  
+  for(i = 0; i < nnz; i++)
+  {
+     index[i] = jcol[i];
+     value[i] = vals[i];
+  }
+  
+  lis_matrix_set_csr(nnz, ptr, index, value, A_lis);
+  
+  lis_matrix_assemble(A_lis);
+  
+  //Solve linear system
+  LIS_SOLVER solver;
+  
+  lis_solver_create(&solver);
+  lis_solver_set_option("-i cg -p jacobi", solver);
+  //lis_solver_set_option("-tol 1.0e-12", solver);
+  lis_solve(A_lis, rhs_lis, phi_lis, solver);
+
+  distributed_vector phi (tmsh.num_global_nodes ()); 
+
+  //std::cout << "phi length = "<< phi.get_owned_data ().size() << std::endl; 
+  //LIS_INT local, global;
+  //lis_vector_get_size(phi_lis, &local, &global);
+  //std::cout << "phi_lis global length = "<< global << std::endl; 
+  //std::cout << "phi_lis local length = "<< local << std::endl; 
+  
+  std::cout << "is: " << is << " ; ie: " << ie << std::endl;  
+  for (i = is; i < ie; i++)
+  {
+  	//if (
+     lis_vector_get_value(phi_lis, i, &phi.get_owned_data ()[i]);
+  }
+  
+  bim3a_solution_with_ghosts (tmsh, phi);
+
+  tmsh.octbin_export ("phi_0", phi); 
+  //end CSR
+  
+  
+  /*
+  //COO
+  std::vector<double> vals;
+  std::vector<int> irow, jcol;
+  
+  A.aij (vals, irow, jcol);  
   
   // lis RHS
-  LIS_INT i,is,ie,n_rhs, ln; /* or LIS_INT i,ln,is,ie; */
+  LIS_INT i, is, ie, n_rhs, ln; // or LIS_INT i,ln,is,ie; 
   LIS_VECTOR rhs_lis;
+  
   n_rhs = tmsh.num_global_nodes();
   ln = tmsh.num_local_nodes();
   
-  lis_vector_create(mpicomm,&rhs_lis);
-  lis_vector_set_size(rhs_lis,ln,0);
-  //lis_vector_set_size(rhs_lis,0,n_rhs);
-  lis_vector_get_range(rhs_lis,&is,&ie);
+  lis_vector_create(mpicomm, &rhs_lis);
+  lis_vector_set_size(rhs_lis, ln, 0);
+  //lis_vector_set_size(rhs_lis, 0, n_rhs);
+  lis_vector_get_range(rhs_lis, &is, &ie);
   
   for(i=is; i<ie; i++)
   {
@@ -602,15 +715,16 @@ poisson_boltzmann::lis_compute_electric_potential ()
   // lis PHI
   LIS_VECTOR phi_lis;
   
-  lis_vector_create(mpicomm,&phi_lis);
-  lis_vector_set_size(phi_lis,ln,0);
-  lis_vector_get_range(phi_lis,&is,&ie);
+  lis_vector_create(mpicomm, &phi_lis);
+  lis_vector_set_size(phi_lis, ln, 0);
+  lis_vector_get_range(phi_lis, &is, &ie);
   
-  // lis MATRIX
-  LIS_INT n,nnz; //n: matrix dim ; nnz: numb of non zero elems 
-  LIS_INT *index; //array of integer containing the col index of non zero elems
-  LIS_INT *ptr; //array of integer with starting points of rows 
-  LIS_SCALAR *value; //array of double stores non-zero elements of matrix A along the row
+  
+  // lis MATRIX (ONE PROCESSOR!) 
+  LIS_INT n, nnz; //n: matrix dim ; nnz: numb of non zero elems 
+  LIS_INT *row; //array of integer containing the row index of non zero elems
+  LIS_INT *col; //array of integer containing the col index of non zero elems
+  LIS_SCALAR *value; //array of double stores non-zero elements
   LIS_MATRIX A_lis; //array of integer containing the col index of non zero elems 
   
   n = tmsh.num_global_nodes(); //just one processor
@@ -618,40 +732,43 @@ poisson_boltzmann::lis_compute_electric_potential ()
   
   std::cout << "n and nnz assigned. n = " << n << " ; nnz = " << nnz << std::endl;
   
-  ptr = (LIS_INT *)malloc( (n+1)*sizeof(LIS_INT) );
-  index = (LIS_INT *)malloc( nnz*sizeof(LIS_INT) );
+  row = (LIS_INT *)malloc( nnz*sizeof(LIS_INT) );
+  col = (LIS_INT *)malloc( nnz*sizeof(LIS_INT) );
   value = (LIS_SCALAR *)malloc( nnz*sizeof(LIS_SCALAR) );
   
-  //lis_matrix_create(0,&A); 
-  lis_matrix_create(mpicomm,&A_lis);
+  lis_matrix_create(mpicomm, &A_lis);
   
-  lis_matrix_set_size(A_lis,0,n);
+  lis_matrix_set_size(A_lis, 0, n);
   
   std::cout << "A size" << std::endl;
   std::cout << "vals size: " << vals.size() << std::endl;
   std::cout << "jcol size: " << jcol.size() << std::endl;
-  std::cout << "irow size: " << irow.size() << std::endl;
-
-  for(i = 0; i < n+1; i++)
-     ptr[i] = irow[i];  
+  std::cout << "irow size: " << irow.size() << std::endl; 
   
   for(i = 0; i < nnz; i++)
   {
-     index[i] = jcol[i];
+     row[i] = irow[i]; 
+     col[i] = jcol[i];
      value[i] = vals[i];
   }
   
-  lis_matrix_set_csr(nnz,ptr,index,value,A_lis);
+  lis_matrix_set_coo(nnz, row, col, value, A_lis);
+  std::cout << "Set coo" << std::endl;
   
   lis_matrix_assemble(A_lis);
+  std::cout << "Assemble" << std::endl;   
   
-  //Solve linear system
+  //Solve linear system  
+  LIS_INT matrix_type;
+  lis_matrix_get_type(A_lis, &matrix_type);
+  std::cout << "Mat type : " << matrix_type << std::endl;
+  
   LIS_SOLVER solver;
   
   lis_solver_create(&solver);
-  lis_solver_set_option("-i cg -p jacobi",solver);
-  //lis_solver_set_option("-tol 1.0e-12",solver);
-  lis_solve(A_lis,rhs_lis,phi_lis,solver);
+  lis_solver_set_option("-i cg -p jacobi", solver);
+  lis_solver_set_option("-storage 10", solver); //10 is the coo matrix format 
+  lis_solve(A_lis, rhs_lis, phi_lis, solver);  //err: lis_matrix_g2l : error NOT_IMPLEMENTED :not implemented
 
   distributed_vector phi (tmsh.num_global_nodes ()); 
   
@@ -662,121 +779,7 @@ poisson_boltzmann::lis_compute_electric_potential ()
   bim3a_solution_with_ghosts (tmsh, phi);
 
   tmsh.octbin_export ("phi_0", phi);
-  
-  
-  
-  
-  /*
-  //COO
-  std::vector<double> vals;
-  std::vector<int> irow, jcol;
-  
-  distributed_sparse_matrix A; 
-  A.aij (vals, irow, jcol); //mumps_solver.get_index_base ()
-  
-   std::cout << "A distrib" << std::endl;
-  
-  LIS_INT n,nnz;
-  LIS_INT *row,*col;
-  LIS_SCALAR *value;
-  LIS_MATRIX A_lis;
-  
-  n = 4; nnz = 8;
-  row = (LIS_INT *)malloc( nnz*sizeof(LIS_INT) );
-  col = (LIS_INT *)malloc( nnz*sizeof(LIS_INT) );
-  value = (LIS_SCALAR *)malloc( nnz*sizeof(LIS_SCALAR) );
-  
-  lis_matrix_create(mpicomm,&A_lis);
-  lis_matrix_set_size(A_lis,0,n);
-
-  row[0] = 0; row[1] = 1; row[2] = 3; row[3] = 1;
-  row[4] = 2; row[5] = 2; row[6] = 3; row[7] = 3;
-  col[0] = 0; col[1] = 0; col[2] = 0; col[3] = 1;
-  col[4] = 1; col[5] = 2; col[6] = 2; col[7] = 3;
-  value[0] = 11; value[1] = 21; value[2] = 41; value[3] = 22;
-  value[4] = 32; value[5] = 33; value[6] = 43; value[7] = 44;
-
-  lis_matrix_set_coo(nnz,row,col,value,A_lis);
-  
-  std::cout << "A setted" << std::endl;
-   
-  lis_matrix_assemble(A_lis);
-  */ //end COO
-  
-  /*
-  sparse_matrix A_lis;
-  A_lis.resize (tmsh.num_global_nodes ());
-  std::vector<double> rhs_lis(tmsh.num_global_nodes (), 0.0);
-  std::vector<double> xa;
-  
-  std::cout << "\nSolver" << std::endl; 
-  lis lis_solver;
-  lis_solver.set_iterative_method("Conjugate Gradient"); //metodo del gradiente coniugato
-  //lis_solver.set_tolerance (1e-14); //tolleranza 
-  //lis_solver.set_max_iterations (500); //number of iterations
-  lis_solver.set_preconditioner ("jacobi"); //non credo ci sia Cholesky, c'è lu o ilu o jacobi
-  
-  int base = lis_solver.get_index_base ();
-  
-  std::string prec;
-  lis_solver.get_preconditioner (prec);
-  std::cout << "Using solver of type "
-            << lis_solver.solver_type ()
-            << " named "
-            << lis_solver.solver_name ()
-            << " with preconditioner "
-            << prec
-            << std::endl;  
-            
-  std::vector<double> psi_lis(tmsh.num_local_quadrants (), 0.0); 
-  std::vector<double> ones_lis(tmsh.num_local_quadrants (), 1.0);
- 
-  bim3a_structure (tmsh, A_lis);
-  
-  bim3a_advection_diffusion (tmsh, epsilon, psi_lis, A_lis);
-  
-  bim3a_reaction (tmsh, reaction, ones_lis, A_lis);
-  
-  bim3a_rhs (tmsh, rho_fixed, ones_lis, rhs_lis);
-  
-  A_lis.aij (xa, irow, jcol, base);
-  
-  linear_solver::matrix_format_t mf = linear_solver::matrix_format_t::aij; //csr o aij??
-  lis_solver.set_lhs_structure (A_lis.rows (), irow, jcol, mf);
-  lis_solver.set_lhs_data (xa);
-  lis_solver.set_rhs (rhs_lis);
-  
-  std::cout << "\nlis_solver.analyze () = "
-            << lis_solver.analyze ()
-            << std::endl;
-  std::cout << "lis_solver.factorize () = "
-            << lis_solver.factorize ()
-            << std::endl;
-  std::cout << "lis_solver.solve () = "
-            << lis_solver.solve ()
-            << std::endl;
-  
-  std::cout << "\nResult of PBE with lis \nwill be written in "
-            << "Compare_solution.txt"
-            << std::endl;
-
-  std::ofstream fout ((std::string ("Compare_solution.txt")).c_str ());
-  fout << std::endl;
-
-  for (unsigned int k = 0; k < rhs_lis.size (); ++k)
-  	fout << "mumps: " << rhs[k] 
-  	     << "	lis: " << rhs_lis[k] 
-  	     << "	diff: " << rhs[k] - rhs_lis[k] << std::endl;
-  
-  fout.close ();
-
-  lis_solver.cleanup ();
   */
+  //end COO
   
-  // CON DISTRIBUTED STRUCTURES:
-  //distributed_sparse_matrix A_lis;
-  //A_lis.set_ranges (tmsh.num_owned_nodes ());
-  //A_lis.resize (tmsh.num_global_nodes ());
-  //distributed_vector  rhs_lis (tmsh.num_global_nodes ()); //vettore del rhs
-
 }
