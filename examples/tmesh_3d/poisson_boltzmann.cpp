@@ -76,7 +76,7 @@ main (int argc, char **argv)
   	pb.lis_compute_electric_potential ();
   else 
   {
-  	std::cerr << "Invalid solver selected" << std::endl;
+  	std::cerr << "Invalid linear solver selected" << std::endl;
   	return 1;
   }
   TOC ("compute electric potential");
