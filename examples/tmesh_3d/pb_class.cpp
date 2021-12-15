@@ -460,16 +460,18 @@ poisson_boltzmann::mumps_compute_electric_potential ()
   distributed_sparse_matrix A;  
   A.set_ranges (tmsh.num_owned_nodes ());
   
-  A.resize (tmsh.num_global_nodes ());
+  //A.resize (tmsh.num_global_nodes ()); //old
   
-  distributed_vector  rhs (tmsh.num_global_nodes ()); 
+  //distributed_vector  rhs (tmsh.num_global_nodes ()); //old
+  distributed_vector  rhs (tmsh.num_owned_nodes (), mpicomm); //new
+  std::cout << "new rhs" << std::endl;
 
   distributed_vector  psi (tmsh.num_global_nodes ());
   psi.get_owned_data ().assign (psi.get_owned_data ().size (), 0.0); 
-  
+
   bim3a_solution_with_ghosts (tmsh, psi);
   
-  distributed_vector ones (tmsh.num_global_nodes ());
+  distributed_vector ones (tmsh.num_global_nodes ()); 
   ones.get_owned_data ().assign (ones.get_owned_data ().size (), 1.0); 
   
   bim3a_solution_with_ghosts (tmsh, ones, replace_op);
@@ -478,6 +480,7 @@ poisson_boltzmann::mumps_compute_electric_potential ()
   bim3a_reaction (tmsh, reaction, ones, A); 
   
   A.assemble (); 
+  rhs.assemble();
 
   bim3a_rhs (tmsh, rho_fixed, ones, rhs);
   
@@ -549,24 +552,27 @@ poisson_boltzmann::lis_compute_electric_potential ()
   
   distributed_sparse_matrix A; 
   A.set_ranges (tmsh.num_owned_nodes ());
-  A.resize (tmsh.num_global_nodes ());
   
-  distributed_vector  rhs (tmsh.num_global_nodes ()); 
+  //A.resize (tmsh.num_global_nodes ()); //old
+  
+  //distributed_vector  rhs (tmsh.num_global_nodes ()); //old
+  distributed_vector  rhs (tmsh.num_owned_nodes (), mpicomm); //new
 
   distributed_vector  psi (tmsh.num_global_nodes ());
-  psi.get_owned_data ().assign (psi.get_owned_data ().size (), 0.0); 
-  
+  psi.get_owned_data ().assign (psi.get_owned_data ().size (), 0.0);
+
   bim3a_solution_with_ghosts (tmsh, psi);
   
-  distributed_vector ones (tmsh.num_global_nodes ());
+  distributed_vector ones (tmsh.num_global_nodes ()); 
   ones.get_owned_data ().assign (ones.get_owned_data ().size (), 1.0); 
   
   bim3a_solution_with_ghosts (tmsh, ones, replace_op);
   
   bim3a_advection_diffusion (tmsh, epsilon, psi, A);
   bim3a_reaction (tmsh, reaction, ones, A); 
-  
+
   A.assemble (); 
+  rhs.assemble();
 
   bim3a_rhs (tmsh, rho_fixed, ones, rhs);
   
@@ -583,7 +589,8 @@ poisson_boltzmann::lis_compute_electric_potential ()
   LIS_VECTOR rhs_lis;
   n_rhs = tmsh.num_global_nodes();
   //ln = tmsh.num_local_nodes();
-  ln = irow.size() - 1 ;
+  //ln = irow.size() - 1 ;
+  ln = rhs.get_owned_data().size() ;
   
   lis_vector_create(mpicomm, &rhs_lis);
   lis_vector_set_size(rhs_lis, ln, 0);
@@ -592,9 +599,8 @@ poisson_boltzmann::lis_compute_electric_potential ()
   
   for(i=is; i<ie; i++)
   {
-     //std::cout << "rhs[" << i << "] = " << rhs.get_owned_data()[i] << std::endl;
-     //std::cout << "rhs size " << rhs.get_owned_data().size() << std::endl;
-     lis_vector_set_value(LIS_INS_VALUE, i, rhs.get_owned_data()[i], rhs_lis);
+     //std::cout << "rhs[" << i << "] = " << rhs.get_owned_data()[i-is] << std::endl;
+     lis_vector_set_value(LIS_INS_VALUE, i, rhs.get_owned_data()[i-is], rhs_lis);
   }
   
   std::cout << "rhs size " << rhs.size() << std::endl; 
@@ -662,7 +668,8 @@ poisson_boltzmann::lis_compute_electric_potential ()
   //lis_solver_set_option("-tol 1.0e-12", solver);
   lis_solve(A_lis, rhs_lis, phi_lis, solver);
 
-  distributed_vector phi (tmsh.num_global_nodes ()); 
+  //distributed_vector phi (tmsh.num_global_nodes ()); //old
+  distributed_vector phi (tmsh.num_owned_nodes (), mpicomm); 
 
   //std::cout << "phi length = "<< phi.get_owned_data ().size() << std::endl; 
   //LIS_INT local, global;
@@ -672,11 +679,8 @@ poisson_boltzmann::lis_compute_electric_potential ()
   
   std::cout << "is: " << is << " ; ie: " << ie << std::endl;  
   for (i = is; i < ie; i++)
-  {
-  	//if (
-     lis_vector_get_value(phi_lis, i, &phi.get_owned_data ()[i]);
-  }
-  
+     lis_vector_get_value(phi_lis, i, &phi.get_owned_data ()[i-is]);
+
   bim3a_solution_with_ghosts (tmsh, phi);
 
   tmsh.octbin_export ("phi_0", phi); 
