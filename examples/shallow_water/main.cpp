@@ -41,9 +41,9 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at each time step
+static constexpr double SPACE_ADAPTDT = 1e-1;//1e-2; // put zero if you want at each time step
 static constexpr double SAVEDT = .5; // must never be null 
-static constexpr double DELTAT = 4.e-2;
+static constexpr double DELTAT = 1.e-1;
 static constexpr double REDCDT = .5; 
 static constexpr double T      = 20.;
  
@@ -929,7 +929,7 @@ main (int argc, char **argv)
   }
   
   
-  while (time < T)
+  while ((T-time)>std::numeric_limits<double>::epsilon()*T)
   {
     
     
@@ -1100,7 +1100,8 @@ main (int argc, char **argv)
     
     
     // Save solution
-    if (savecount >= SAVEDT) {
+    if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) //(savecount >= SAVEDT) 
+    {
       TIC();
       if (rank == 0)
         std::cout << "savecount = " << savecount << std::endl;
@@ -1132,7 +1133,7 @@ main (int argc, char **argv)
     }
 
     
-    if (is_space_adaptivity && space_adapt_count >= SPACE_ADAPTDT)
+    if (is_space_adaptivity && ((space_adapt_count-SPACE_ADAPTDT) >= -std::numeric_limits<double>::epsilon()*SPACE_ADAPTDT))
     {
 
       TIC();
