@@ -124,9 +124,13 @@ poisson_boltzmann::parse_options (int argc, char **argv)
   
   const std::string mesh_options = "mesh/";
   maxlevel = g2 ((mesh_options + "maxlevel").c_str (),  6);
-  minlevel = g2 ((mesh_options + "minlevel").c_str (),  4);
-  mesh_shape = g2 ((mesh_options + "mesh_shape").c_str (),  1);
+  std::cout << (mesh_options + "maxlevel").c_str () << std::endl;
+  std::cout << maxlevel << std::endl;
   
+  minlevel = g2 ((mesh_options + "minlevel").c_str (),  4);
+  std::cout << (mesh_options + "minlevel").c_str () << std::endl;
+  std::cout << minlevel << std::endl;
+
   const std::string model_options = "model/";
   linearized = g2 ((model_options + "linear_solver").c_str (),  1);
   ionic_strength = g2 ((model_options + "ionic_strength").c_str (),  0.145);
