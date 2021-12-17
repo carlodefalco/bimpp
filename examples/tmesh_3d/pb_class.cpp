@@ -130,6 +130,8 @@ poisson_boltzmann::parse_options (int argc, char **argv)
   minlevel = g2 ((mesh_options + "minlevel").c_str (),  4);
   std::cout << (mesh_options + "minlevel").c_str () << std::endl;
   std::cout << minlevel << std::endl;
+  
+  mesh_shape = g2 ((mesh_options + "mesh_shape").c_str (),  1);
 
   const std::string model_options = "model/";
   linearized = g2 ((model_options + "linear_solver").c_str (),  1);
@@ -582,7 +584,7 @@ poisson_boltzmann::lis_compute_electric_potential ()
   
   tmsh.octbin_export ("rhs_0", rhs);  
   
-  //CSR
+  //CSR  
   std::vector<double> vals;
   std::vector<int> irow, jcol;
 
@@ -593,24 +595,16 @@ poisson_boltzmann::lis_compute_electric_potential ()
   LIS_VECTOR rhs_lis;
   n_rhs = tmsh.num_global_nodes();
   //ln = tmsh.num_local_nodes();
-  //ln = irow.size() - 1 ;
-  ln = rhs.get_owned_data().size() ;
+  ln = rhs.get_owned_data().size();
+  ln = tmsh.num_owned_nodes();
   
   lis_vector_create(mpicomm, &rhs_lis);
   lis_vector_set_size(rhs_lis, ln, 0);
-  //lis_vector_set_size(rhs_lis, 0, n_rhs);
+  //lis_vector_set_size(rhs_lis, 0, n_rhs); 
   lis_vector_get_range(rhs_lis, &is, &ie);
   
-  for(i=is; i<ie; i++)
-  {
-     //std::cout << "rhs[" << i << "] = " << rhs.get_owned_data()[i-is] << std::endl;
-     lis_vector_set_value(LIS_INS_VALUE, i, rhs.get_owned_data()[i-is], rhs_lis);
-  }
-  
-  std::cout << "rhs size " << rhs.size() << std::endl; 
-  std::cout << "rhs size owned " << rhs.get_owned_data().size() << std::endl;
+  lis_vector_set_values2(LIS_INS_VALUE, is, ln, &(rhs.get_owned_data()[0]), rhs_lis); //pass values to rhs_lis 
   //lis_vector_print(rhs_lis);
-  std::cout << "Created rhs vector" << std::endl;
   
   // lis PHI
   LIS_VECTOR phi_lis;
@@ -618,7 +612,7 @@ poisson_boltzmann::lis_compute_electric_potential ()
   lis_vector_create(mpicomm, &phi_lis);
   lis_vector_set_size(phi_lis, ln, 0);
   //lis_vector_set_size(phi_lis, 0, n_rhs);
-  lis_vector_get_range(phi_lis, &is, &ie); //NOTA: sto utilizzando gli stessi is, ie del rhs (sovrascritto)
+  lis_vector_get_range(phi_lis, &is, &ie); //is, ie assigned again
   
   // lis MATRIX
   LIS_INT n, nnz; //n: matrix dim ; nnz: numb of non zero elems 
@@ -627,38 +621,31 @@ poisson_boltzmann::lis_compute_electric_potential ()
   LIS_SCALAR *value; //array of double stores non-zero elements of matrix A along the row
   LIS_MATRIX A_lis; //array of integer containing the col index of non zero elems 
   
-  //n = tmsh.num_local_nodes(); //ok con 1 processore
-  n = irow.size() - 1 ;
   nnz = A.owned_nnz();
+  n = tmsh.num_owned_nodes ();
   
-  std::cout << "n and nnz assigned" << std::endl;
+  //Some prints:
+  /*
   std::cout << "n_global = " << tmsh.num_global_nodes() << std::endl;
   std::cout << "n_local = " << tmsh.num_local_nodes() << std::endl;
   std::cout << "nnz = " << nnz << std::endl;
   std::cout << "n = " << n << std::endl;
-  
-  ptr = (LIS_INT *)malloc( (n+1)*sizeof(LIS_INT) );
-  index = (LIS_INT *)malloc( nnz*sizeof(LIS_INT) );
-  value = (LIS_SCALAR *)malloc( nnz*sizeof(LIS_SCALAR) );
-  
-  //lis_matrix_create(0,&A); 
-  lis_matrix_create(mpicomm, &A_lis);
-  
-  lis_matrix_set_size(A_lis, n, 0);
-  
-  std::cout << "A size:" << std::endl;
   std::cout << "vals size: " << vals.size() << std::endl;
   std::cout << "jcol size: " << jcol.size() << std::endl;
   std::cout << "irow size: " << irow.size() << std::endl;
-
-  for(i = 0; i < n+1; i++)
-     ptr[i] = irow[i];  
+  */
+    
+  //ptr = (LIS_INT *)malloc( (n+1)*sizeof(LIS_INT) );
+  //index = (LIS_INT *)malloc( nnz*sizeof(LIS_INT) );
+  //value = (LIS_SCALAR *)malloc( nnz*sizeof(LIS_SCALAR) );
   
-  for(i = 0; i < nnz; i++)
-  {
-     index[i] = jcol[i];
-     value[i] = vals[i];
-  }
+  lis_matrix_create(mpicomm, &A_lis);
+  
+  lis_matrix_set_size(A_lis, n, 0);
+
+  ptr = &irow[0];
+  index = &jcol[0];
+  value = &vals[0];
   
   lis_matrix_set_csr(nnz, ptr, index, value, A_lis);
   
@@ -668,31 +655,29 @@ poisson_boltzmann::lis_compute_electric_potential ()
   LIS_SOLVER solver;
   
   lis_solver_create(&solver);
-  lis_solver_set_option("-i cg -p jacobi", solver);
-  //lis_solver_set_option("-tol 1.0e-12", solver);
+  
+  std::string opts = "-i cg -p jacobi"; // -tol 1.0e-12
+  lis_solver_set_option(&opts[0], solver);
+  
   lis_solve(A_lis, rhs_lis, phi_lis, solver);
 
-  //distributed_vector phi (tmsh.num_global_nodes ()); //old
   distributed_vector phi (tmsh.num_owned_nodes (), mpicomm); 
 
-  //std::cout << "phi length = "<< phi.get_owned_data ().size() << std::endl; 
-  //LIS_INT local, global;
-  //lis_vector_get_size(phi_lis, &local, &global);
-  //std::cout << "phi_lis global length = "<< global << std::endl; 
-  //std::cout << "phi_lis local length = "<< local << std::endl; 
-  
-  std::cout << "is: " << is << " ; ie: " << ie << std::endl;  
-  for (i = is; i < ie; i++)
-     lis_vector_get_value(phi_lis, i, &phi.get_owned_data ()[i-is]);
+  lis_vector_get_values(phi_lis, is, ln, &(phi.get_owned_data ()[0]));
 
   bim3a_solution_with_ghosts (tmsh, phi);
 
   tmsh.octbin_export ("phi_0", phi); 
+  
   //end CSR
   
   
-  /*
   //COO
+  /*
+  if (linear_solver_options == "coo")
+  {
+  std::cout << "COO" << std::endl;
+  
   std::vector<double> vals;
   std::vector<int> irow, jcol;
   
@@ -703,7 +688,7 @@ poisson_boltzmann::lis_compute_electric_potential ()
   LIS_VECTOR rhs_lis;
   
   n_rhs = tmsh.num_global_nodes();
-  ln = tmsh.num_local_nodes();
+  ln = rhs.get_owned_data().size();
   
   lis_vector_create(mpicomm, &rhs_lis);
   lis_vector_set_size(rhs_lis, ln, 0);
@@ -712,8 +697,8 @@ poisson_boltzmann::lis_compute_electric_potential ()
   
   for(i=is; i<ie; i++)
   {
-        lis_vector_set_value(LIS_INS_VALUE,i,rhs.get_owned_data()[i],rhs_lis);
-     //std::cout << "rhs[" << i << "] = " << rhs.get_owned_data()[i] << std::endl;
+     //std::cout << "rhs[" << i << "] = " << rhs.get_owned_data()[i-is] << std::endl;
+     lis_vector_set_value(LIS_INS_VALUE, i, rhs.get_owned_data()[i-is], rhs_lis);
   }
   
   //lis_vector_print(rhs_lis);
@@ -735,7 +720,7 @@ poisson_boltzmann::lis_compute_electric_potential ()
   LIS_SCALAR *value; //array of double stores non-zero elements
   LIS_MATRIX A_lis; //array of integer containing the col index of non zero elems 
   
-  n = tmsh.num_global_nodes(); //just one processor
+  n = tmsh.num_local_nodes(); 
   nnz = A.owned_nnz();
   
   std::cout << "n and nnz assigned. n = " << n << " ; nnz = " << nnz << std::endl;
@@ -746,7 +731,7 @@ poisson_boltzmann::lis_compute_electric_potential ()
   
   lis_matrix_create(mpicomm, &A_lis);
   
-  lis_matrix_set_size(A_lis, 0, n);
+  lis_matrix_set_size(A_lis, n, 0);
   
   std::cout << "A size" << std::endl;
   std::cout << "vals size: " << vals.size() << std::endl;
@@ -763,7 +748,7 @@ poisson_boltzmann::lis_compute_electric_potential ()
   lis_matrix_set_coo(nnz, row, col, value, A_lis);
   std::cout << "Set coo" << std::endl;
   
-  lis_matrix_assemble(A_lis);
+  lis_matrix_assemble(A_lis); //err: lis_matrix_g2l : error NOT_IMPLEMENTED :not implemented
   std::cout << "Assemble" << std::endl;   
   
   //Solve linear system  
@@ -778,16 +763,18 @@ poisson_boltzmann::lis_compute_electric_potential ()
   lis_solver_set_option("-storage 10", solver); //10 is the coo matrix format 
   lis_solve(A_lis, rhs_lis, phi_lis, solver);  //err: lis_matrix_g2l : error NOT_IMPLEMENTED :not implemented
 
-  distributed_vector phi (tmsh.num_global_nodes ()); 
+  //distributed_vector phi (tmsh.num_global_nodes ()); //old
+  distributed_vector phi (tmsh.num_owned_nodes (), mpicomm); 
   
-  auto phip = phi.get_owned_data ().begin ();
-  for (i=is, phip = phi.get_owned_data ().begin (); i < ie || phip != phi.get_owned_data ().end (); i++, phip++)
-     lis_vector_get_value(phi_lis, i, &phi.get_owned_data ()[i]);
+  std::cout << "is: " << is << " ; ie: " << ie << std::endl;  
+  for (i = is; i < ie; i++)
+     lis_vector_get_value(phi_lis, i, &phi.get_owned_data ()[i-is]);
   
   bim3a_solution_with_ghosts (tmsh, phi);
 
   tmsh.octbin_export ("phi_0", phi);
+  
+  }//end COO
   */
-  //end COO
   
 }
