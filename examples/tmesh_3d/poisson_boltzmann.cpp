@@ -21,31 +21,29 @@ main (int argc, char **argv)
  
   poisson_boltzmann pb;
   
-  if(pb.parse_options (argc, argv))
+  if (pb.parse_options (argc, argv))
     return 1;
 
   std::ifstream inputfile (pb.pqrfilename);
   read_atoms_from_pqr (inputfile, pb.atoms);
   inputfile.close ();
   
-  std::cout << "std::vector<Atom> : " << std::endl << std::endl;
-  write_atoms_to_pqr (std::cout, pb.atoms);
-
-  //std::cout << "std::vector<Atom> : " << std::endl << std::endl;
-  //for (auto &ii : atoms)
-  //    ii.print ();
-  
-  pb.print_options ();
+  if (rank == 0)
+  {
+     std::cout << "Atom : " << std::endl;
+     write_atoms_to_pqr (std::cout, pb.atoms);
+     pb.print_options ();
+  }
 
   TIC ();
-  if(pb.mesh_shape == 1)
-  	pb.create_mesh ();
-  else if(pb.mesh_shape == 0)
-  	pb.create_cubic_mesh ();
+  if (pb.mesh_shape == 1)
+     pb.create_mesh ();
+  else if (pb.mesh_shape == 0)
+     pb.create_cubic_mesh ();
   else 
   {
-  	std::cerr << "Invalid mesh shape selected" << std::endl;
-  	return 1;
+     std::cerr << "Invalid mesh shape selected" << std::endl;
+     return 1;
   }
   TOC ("create_mesh");
 
@@ -70,14 +68,14 @@ main (int argc, char **argv)
   TOC ("export marked tmesh");
   
   TIC ();
-  if(pb.linear_solver_name == "mumps")
-  	pb.mumps_compute_electric_potential ();
-  else if(pb.linear_solver_name == "lis")
-  	pb.lis_compute_electric_potential ();
+  if (pb.linear_solver_name == "mumps")
+     pb.mumps_compute_electric_potential ();
+  else if (pb.linear_solver_name == "lis")
+     pb.lis_compute_electric_potential ();
   else 
   {
-  	std::cerr << "Invalid linear solver selected" << std::endl;
-  	return 1;
+     std::cerr << "Invalid linear solver selected" << std::endl;
+     return 1;
   }
   TOC ("compute electric potential");
   
