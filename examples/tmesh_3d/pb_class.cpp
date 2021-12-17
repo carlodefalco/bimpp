@@ -435,7 +435,11 @@ poisson_boltzmann::export_p4est ()
 void
 poisson_boltzmann::mumps_compute_electric_potential ()
 {
-  std::cout << "\nStarting MUMPS solution" << std::endl;
+  int rank;
+  MPI_Comm_rank (mpicomm, &rank);
+  if (rank == 0)
+     std::cout << "\nStarting MUMPS solution" << std::endl;
+     
   // diffusion
   double eps_in = 4.0*pi*e_0*e_in*kb*T*Angs/(e*e);   //adim e_in
   double eps_out = 4.0*pi*e_0*e_out*kb*T*Angs/(e*e); //adim e_out
@@ -467,11 +471,9 @@ poisson_boltzmann::mumps_compute_electric_potential ()
   distributed_sparse_matrix A;  
   A.set_ranges (tmsh.num_owned_nodes ());
   
-  //A.resize (tmsh.num_global_nodes ()); //old
+  A.resize (tmsh.num_global_nodes ());
   
-  //distributed_vector  rhs (tmsh.num_global_nodes ()); //old
-  distributed_vector  rhs (tmsh.num_owned_nodes (), mpicomm); //new
-  std::cout << "new rhs" << std::endl;
+  distributed_vector  rhs (tmsh.num_global_nodes ());
 
   distributed_vector  psi (tmsh.num_global_nodes ());
   psi.get_owned_data ().assign (psi.get_owned_data ().size (), 0.0); 
@@ -528,7 +530,11 @@ poisson_boltzmann::mumps_compute_electric_potential ()
 void
 poisson_boltzmann::lis_compute_electric_potential ()
 {
-  std::cout << "\nStarting LIS solution" << std::endl;
+  int rank;
+  MPI_Comm_rank (mpicomm, &rank);
+  if (rank == 0)
+     std::cout << "\nStarting LIS solution" << std::endl;
+     
   // diffusion
   double eps_in = 4.0*pi*e_0*e_in*kb*T*Angs/(e*e);   //adim e_in
   double eps_out = 4.0*pi*e_0*e_out*kb*T*Angs/(e*e); //adim e_out
