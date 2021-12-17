@@ -25,9 +25,9 @@ static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in";
 
 // properties of the input dem
-static constexpr double res = 5;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 165;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 175;//101;//175;//201;//180; // # rows
+static constexpr double res = 2.5;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 201;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 201;//101;//175;//201;//180; // # rows
 
  
 static constexpr double L = res*(Nx-1);
@@ -48,10 +48,10 @@ static constexpr double REDCDT = .5;
 static constexpr double T      = 20.;
  
 static constexpr bool is_time_adaptivity    = false;
-static constexpr bool is_initial_refinement = true;
-static constexpr bool is_space_adaptivity   = true;
+static constexpr bool is_initial_refinement = false;
+static constexpr bool is_space_adaptivity   = false;
 static constexpr bool is_non_reflBC         = true; 
-static constexpr bool is_bed_friction       = true; 
+static constexpr bool is_bed_friction       = false; 
 static constexpr bool is_stress_tensor      = true;
 
 
@@ -147,7 +147,7 @@ double h0_fun (const double& xx, const double& yy)
   //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 0. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. ); 
-  //return(xx<=L/2. ? 70 : 7. ); 
+  return(xx<=L/2. ? 70 : 7. ); 
 
 
   //const double HH = 30.;
@@ -928,8 +928,9 @@ main (int argc, char **argv)
     std::cout << "start loop" << std::endl;
   }
   
+  const int numberOfSavingSteps = int(std::floor(T/SAVEDT));
   
-  while ((T-time)>std::numeric_limits<double>::epsilon()*T)
+  do 
   {
     
     
@@ -1016,7 +1017,7 @@ main (int argc, char **argv)
       full_time_vector.push_back (time);
     }
     
-    
+
     
     
     // first step!
@@ -1384,7 +1385,7 @@ main (int argc, char **argv)
     
     
     
-  }
+  } while (count!=numberOfSavingSteps);
   
   
   if (rank == 0)
