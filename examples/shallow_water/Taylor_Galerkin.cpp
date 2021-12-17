@@ -298,25 +298,37 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
 
 
+  std::array<double,4> D_Ux_x, D_Ux_y, D_Uy_x, D_Uy_y;
 
   for (int ii = 0; ii < 4; ++ii){
     
-
     sigma_stress = is_stress_tensor ? compute_nodal_stress (hdof[ii], Uxdof[ii], Uydof[ii], grad_cell_ux, grad_cell_uy) : sigma_stress;
     
 
-    const auto D_Ux_x = Ux_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
-    const auto D_Ux_y = Ux_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
+    D_Ux_x[ii] = Ux_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
+    D_Ux_y[ii] = Ux_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
 
-    const auto D_Uy_x = Uy_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
-    const auto D_Uy_y = Uy_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
+    D_Uy_x[ii] = Uy_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
+    D_Uy_y[ii] = Uy_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
 
-    //std::cout << D_Ux_x << " " << D_Ux_y << " " << D_Uy_x << " " << D_Uy_y << std::endl;
+  }
 
+  for (int ii = 0; ii < 4; ++ii){
+
+    const double den1 = ii<2 ? 2. : 1.;
+    const double den2 = ii<2 ? 1. : 2.;
+    const double den3 = ii%2==1 ? 2. : 1.; 
+    const double den4 = ii%2==1 ? 1. : 2.;
 
     const auto h_  = der_coeffs_x[ii]*F_star_h_x +der_coeffs_y[ii]*F_star_h_y;
-    const auto Ux_ = der_coeffs_x[ii]*F_star_Ux_x+der_coeffs_y[ii]*F_star_Ux_y + der_coeffs_x[ii]*(1./3.)*D_Ux_x+der_coeffs_y[ii]*(1./3.)*D_Ux_y + .25*area*isdof_or_hanging[ii]*Ux_src_formula(h_cell, Ux_cell, Uy_cell, slope_x[index_quadrant]);
-    const auto Uy_ = der_coeffs_x[ii]*F_star_Uy_x+der_coeffs_y[ii]*F_star_Uy_y + der_coeffs_x[ii]*(1./3.)*D_Uy_x+der_coeffs_y[ii]*(1./3.)*D_Uy_y + .25*area*isdof_or_hanging[ii]*Uy_src_formula(h_cell, Ux_cell, Uy_cell, slope_y[index_quadrant]);
+
+    const auto Ux_ = der_coeffs_x[ii]*F_star_Ux_x+der_coeffs_y[ii]*F_star_Ux_y + 
+                     der_coeffs_x[ii]*(1./3.)*(D_Ux_x[0]/den2+D_Ux_x[1]/den2+D_Ux_x[2]/den1+D_Ux_x[3]/den1)+der_coeffs_y[ii]*(1./3.)*(D_Ux_y[0]/den3+D_Ux_y[1]/den4+D_Ux_y[2]/den3+D_Ux_y[3]/den4) + 
+                     .25*area*isdof_or_hanging[ii]*Ux_src_formula(h_cell, Ux_cell, Uy_cell, slope_x[index_quadrant]);
+
+    const auto Uy_ = der_coeffs_x[ii]*F_star_Uy_x+der_coeffs_y[ii]*F_star_Uy_y + 
+                     der_coeffs_x[ii]*(1./3.)*(D_Uy_x[0]/den2+D_Uy_x[1]/den2+D_Uy_x[2]/den1+D_Uy_x[3]/den1)+der_coeffs_y[ii]*(1./3.)*(D_Uy_y[0]/den3+D_Uy_y[1]/den4+D_Uy_y[2]/den3+D_Uy_y[3]/den4) + 
+                     .25*area*isdof_or_hanging[ii]*Uy_src_formula(h_cell, Ux_cell, Uy_cell, slope_y[index_quadrant]);
     
     const auto h_al  = der_coeffs_x[ii] * diff_term_h_x  + der_coeffs_y[ii] * diff_term_h_y;
     const auto Ux_al = der_coeffs_x[ii] * diff_term_Ux_x + der_coeffs_y[ii] * diff_term_Ux_y;
