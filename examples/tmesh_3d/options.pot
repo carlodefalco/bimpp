@@ -18,7 +18,7 @@ ionic_strength = 0.145				#ionic strength expressend in molar concentration
 linear_solver = lis				#mumps = direct solver, lis = iterative solver
 solver_options = cg				#cg = conjugate gradient 
 preconditioner = ilu 				#jacobi, ilu, ... (none if no preconditioner is required)
-#preconditioner_options = 0			#fill level for ilu
+preconditioner_options = 0			#fill level for ilu
 tol = 1.0e-12					#tolerance 
 [../]
 
