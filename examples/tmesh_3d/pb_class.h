@@ -63,6 +63,9 @@ poisson_boltzmann
   //algorithm:
   std::string linear_solver_name;
   std::string linear_solver_options;
+  std::string linear_solver_preconditioner;
+  std::string linear_solver_precond_opts;
+  std::string linear_solver_tol;
 
   MPI_Comm mpicomm;
   tmesh_3d tmsh;
