@@ -124,13 +124,7 @@ poisson_boltzmann::parse_options (int argc, char **argv)
   
   const std::string mesh_options = "mesh/";
   maxlevel = g2 ((mesh_options + "maxlevel").c_str (),  6);
-  std::cout << (mesh_options + "maxlevel").c_str () << std::endl;
-  std::cout << maxlevel << std::endl;
-  
   minlevel = g2 ((mesh_options + "minlevel").c_str (),  4);
-  std::cout << (mesh_options + "minlevel").c_str () << std::endl;
-  std::cout << minlevel << std::endl;
-  
   mesh_shape = g2 ((mesh_options + "mesh_shape").c_str (),  1);
 
   const std::string model_options = "model/";
@@ -142,7 +136,10 @@ poisson_boltzmann::parse_options (int argc, char **argv)
   
   const std::string alg_options = "algorithm/";
   linear_solver_name = g2 ((alg_options + "linear_solver").c_str (),  "mumps");
-  linear_solver_options = g2 ((alg_options + "solver_options").c_str (),  "");
+  linear_solver_options = g2 ((alg_options + "solver_options").c_str (),  "cg");
+  linear_solver_preconditioner = g2 ((alg_options + "preconditioner").c_str (),  "ilu");
+  linear_solver_precond_opts = g2 ((alg_options + "preconditioner_options").c_str (),  "0");
+  linear_solver_tol = g2 ((alg_options + "tol").c_str (),  "1.e-12");
 
   const std::string out_options = "output/";
   p4estfilename = g2 ((out_options + "p4estfilename").c_str (), "poisson_boltzmann_p4est");
@@ -164,7 +161,11 @@ poisson_boltzmann::print_options ()
   std::cout << "Linearized model = " << linearized << "\ne_in = " << e_in << "\ne_out = " << e_out << 
   		"\nionic_strenght = " << ionic_strength << "\ndecay = " << decay << std::endl;
   std::cout << "Linear solver = " << linear_solver_name << std::endl;
-  std::cout << "Linear solver options = " << linear_solver_options << "\n" << std::endl;
+  std::cout << "Linear solver options = " << linear_solver_options << std::endl;
+  std::cout << "Preconditioner = " << linear_solver_preconditioner << std::endl;
+  if (linear_solver_preconditioner == "ilu")
+     std::cout << "ilu fill level selected = " <<  linear_solver_precond_opts << std::endl;
+  std::cout << "Choosen tolerance = " << linear_solver_tol << "\n" << std::endl;
 }
 
 void
@@ -595,8 +596,7 @@ poisson_boltzmann::lis_compute_electric_potential ()
   LIS_VECTOR rhs_lis;
   n_rhs = tmsh.num_global_nodes();
   //ln = tmsh.num_local_nodes();
-  ln = rhs.get_owned_data().size();
-  ln = tmsh.num_owned_nodes();
+  ln = rhs.get_owned_data().size(); //equivalent to: tmsh.num_owned_nodes();
   
   lis_vector_create(mpicomm, &rhs_lis);
   lis_vector_set_size(rhs_lis, ln, 0);
@@ -656,8 +656,19 @@ poisson_boltzmann::lis_compute_electric_potential ()
   
   lis_solver_create(&solver);
   
-  std::string opts = "-i cg -p jacobi"; // -tol 1.0e-12
+  std::string opts = "-i " + linear_solver_options + " -p " + linear_solver_preconditioner;
+  if (linear_solver_preconditioner == "ilu" && linear_solver_precond_opts != "")
+     opts += " -ilu_fill [" + linear_solver_precond_opts + "]";
+     
+  opts += " -tol " + linear_solver_tol;
+  
+  //std::cout << "opts : " << opts << std::endl;
   lis_solver_set_option(&opts[0], solver);
+  
+  //LIS_INT s, p;
+  //lis_solver_get_solver(solver, &s);
+  //lis_solver_get_precon(solver, &p);
+  //std::cout << "Solver = " << s << " ; precon = " << p << std::endl;
   
   lis_solve(A_lis, rhs_lis, phi_lis, solver);
 
@@ -668,113 +679,5 @@ poisson_boltzmann::lis_compute_electric_potential ()
   bim3a_solution_with_ghosts (tmsh, phi);
 
   tmsh.octbin_export ("phi_0", phi); 
-  
-  //end CSR
-  
-  
-  //COO
-  /*
-  if (linear_solver_options == "coo")
-  {
-  std::cout << "COO" << std::endl;
-  
-  std::vector<double> vals;
-  std::vector<int> irow, jcol;
-  
-  A.aij (vals, irow, jcol);  
-  
-  // lis RHS
-  LIS_INT i, is, ie, n_rhs, ln; // or LIS_INT i,ln,is,ie; 
-  LIS_VECTOR rhs_lis;
-  
-  n_rhs = tmsh.num_global_nodes();
-  ln = rhs.get_owned_data().size();
-  
-  lis_vector_create(mpicomm, &rhs_lis);
-  lis_vector_set_size(rhs_lis, ln, 0);
-  //lis_vector_set_size(rhs_lis, 0, n_rhs);
-  lis_vector_get_range(rhs_lis, &is, &ie);
-  
-  for(i=is; i<ie; i++)
-  {
-     //std::cout << "rhs[" << i << "] = " << rhs.get_owned_data()[i-is] << std::endl;
-     lis_vector_set_value(LIS_INS_VALUE, i, rhs.get_owned_data()[i-is], rhs_lis);
-  }
-  
-  //lis_vector_print(rhs_lis);
-  std::cout << "Created rhs vector" << std::endl;
-  
-  
-  // lis PHI
-  LIS_VECTOR phi_lis;
-  
-  lis_vector_create(mpicomm, &phi_lis);
-  lis_vector_set_size(phi_lis, ln, 0);
-  lis_vector_get_range(phi_lis, &is, &ie);
-  
-  
-  // lis MATRIX (ONE PROCESSOR!) 
-  LIS_INT n, nnz; //n: matrix dim ; nnz: numb of non zero elems 
-  LIS_INT *row; //array of integer containing the row index of non zero elems
-  LIS_INT *col; //array of integer containing the col index of non zero elems
-  LIS_SCALAR *value; //array of double stores non-zero elements
-  LIS_MATRIX A_lis; //array of integer containing the col index of non zero elems 
-  
-  n = tmsh.num_local_nodes(); 
-  nnz = A.owned_nnz();
-  
-  std::cout << "n and nnz assigned. n = " << n << " ; nnz = " << nnz << std::endl;
-  
-  row = (LIS_INT *)malloc( nnz*sizeof(LIS_INT) );
-  col = (LIS_INT *)malloc( nnz*sizeof(LIS_INT) );
-  value = (LIS_SCALAR *)malloc( nnz*sizeof(LIS_SCALAR) );
-  
-  lis_matrix_create(mpicomm, &A_lis);
-  
-  lis_matrix_set_size(A_lis, n, 0);
-  
-  std::cout << "A size" << std::endl;
-  std::cout << "vals size: " << vals.size() << std::endl;
-  std::cout << "jcol size: " << jcol.size() << std::endl;
-  std::cout << "irow size: " << irow.size() << std::endl; 
-  
-  for(i = 0; i < nnz; i++)
-  {
-     row[i] = irow[i]; 
-     col[i] = jcol[i];
-     value[i] = vals[i];
-  }
-  
-  lis_matrix_set_coo(nnz, row, col, value, A_lis);
-  std::cout << "Set coo" << std::endl;
-  
-  lis_matrix_assemble(A_lis); //err: lis_matrix_g2l : error NOT_IMPLEMENTED :not implemented
-  std::cout << "Assemble" << std::endl;   
-  
-  //Solve linear system  
-  LIS_INT matrix_type;
-  lis_matrix_get_type(A_lis, &matrix_type);
-  std::cout << "Mat type : " << matrix_type << std::endl;
-  
-  LIS_SOLVER solver;
-  
-  lis_solver_create(&solver);
-  lis_solver_set_option("-i cg -p jacobi", solver);
-  lis_solver_set_option("-storage 10", solver); //10 is the coo matrix format 
-  lis_solve(A_lis, rhs_lis, phi_lis, solver);  //err: lis_matrix_g2l : error NOT_IMPLEMENTED :not implemented
-
-  //distributed_vector phi (tmsh.num_global_nodes ()); //old
-  distributed_vector phi (tmsh.num_owned_nodes (), mpicomm); 
-  
-  std::cout << "is: " << is << " ; ie: " << ie << std::endl;  
-  for (i = is; i < ie; i++)
-     lis_vector_get_value(phi_lis, i, &phi.get_owned_data ()[i-is]);
-  
-  bim3a_solution_with_ghosts (tmsh, phi);
-
-  tmsh.octbin_export ("phi_0", phi);
-  
-  }//end COO
-  */
   
 }
