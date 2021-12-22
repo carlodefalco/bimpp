@@ -101,10 +101,11 @@ main (int argc, char **argv)
   tmsh.set_refine_marker (refine_right_half);
   tmsh.refine (0);
   */
-  tmesh::idx_t gn_nodes    = tmsh.num_global_nodes ();
-  tmesh::idx_t ln_nodes    = tmsh.num_owned_nodes ();
-  tmesh::idx_t ln_elements = tmsh.num_local_quadrants ();
+  tmesh::idx_t gn_nodes    = tmsh.num_global_nodes (); // Return total number of nodes owned by all process
+  tmesh::idx_t ln_nodes    = tmsh.num_owned_nodes (); // Return number of nodes owned by local process
+  tmesh::idx_t ln_elements = tmsh.num_local_quadrants ();   // Return number of quadrants owned by local process across all trees
 
+  tmesh::idx_t gn_elements = tmsh.num_global_quadrants ();     // Return number of quadrants owned by all processes across all trees
  
   Q1 sol  (ln_nodes * 3);
   Q1 incr (ln_nodes * 3);
@@ -116,6 +117,8 @@ main (int argc, char **argv)
   bim2a_mass_vector (tmsh, mass, ordUx);
   bim2a_mass_vector (tmsh, mass, ordUy);
   mass.assemble ();
+  
+  
 
   Q0 flux (ln_elements * 3);
   flux.assign (flux.size (), 0.0);
@@ -255,7 +258,7 @@ main (int argc, char **argv)
       for (auto kk = 0; kk < incr.get_owned_data ().size (); kk++)
         sol.get_owned_data ()[kk] += deltat * incr.get_owned_data ()[kk] / mass.get_owned_data ()[kk];
       
-
+ 
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep (); ++quadrant) {
         auto tree_idx = quadrant->get_tree_idx ();
@@ -269,7 +272,7 @@ main (int argc, char **argv)
             
             // If current node is on boundary 
             if (boundary_idx != tmesh::quadrant_t::NOT_ON_BOUNDARY) {
-
+ 
               // Loop over all the boundary conditions on h.
               for (size_t bc = 0; bc < bcsh.size (); ++bc)
                 // If this boundary condition matches with

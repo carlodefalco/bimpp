@@ -110,7 +110,7 @@ refine_function (tmesh::quadrant_iterator quadrant)
   static double res_x, res_y;
   static double Dx_bim, Dy_bim;
   
-  static double const toll = 0.00;//0.002; //0.2
+  static double const toll = 0.2;//0.002; //0.2
   
   x_minus = quadrant->p (0, 0);
   x_plus  = quadrant->p (0, 1);
@@ -396,11 +396,12 @@ main (int argc, char **argv)
       if (! quadrant->is_hanging (ii)){
         double xx=quadrant->p(0,ii);
         double yy=quadrant->p(1,ii);
-        sol[ord0(quadrant->gt (ii))] = error_slope(quadrant); //dem[global_coord_2_raster(xx,yy)[0]];
+        sol[ord0(quadrant->gt (ii))] = dem[global_coord_2_raster(xx,yy)[0]]; //error_slope(quadrant); //dem[global_coord_2_raster(xx,yy)[0]];
       }
       
       else
       {
+        // gli hanging node non sono dof
         sol[ord0(quadrant->gparent(0,ii))] +=0.;
         sol[ord0(quadrant->gparent(1,ii))] +=0.;
       }
@@ -435,8 +436,8 @@ main (int argc, char **argv)
         if (! quadrant->is_hanging (ii)){
           double xx=quadrant->p(0,ii);
           double yy=quadrant->p(1,ii);
-//          sol[ord0(quadrant->gt (ii))] = dem[global_coord_2_raster(xx,yy)[0]];
-          sol[ord0(quadrant->gt (ii))] = error_slope(quadrant); //dem[global_coord_2_raster(xx,yy)[0]];
+          sol[ord0(quadrant->gt (ii))] = dem[global_coord_2_raster(xx,yy)[0]];
+//          sol[ord0(quadrant->gt (ii))] = error_slope(quadrant);
         }
         
         else

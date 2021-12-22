@@ -21,6 +21,7 @@ public:
              const Q1& soldd,
              Q1& incr,
              std::vector<std::array<double,4>>& incr_anti_diff,
+             Q1& stress_initial_step,
              Q1& P_plus,
              Q1& P_minus,
              Q0& sol_onehalf,
@@ -182,6 +183,7 @@ public:
   const Q1& soldd;
   Q1& incr;
   std::vector<std::array<double,4>>& incr_anti_diff;
+  Q1& stress_initial_step;
   Q1& P_plus;
   Q1& P_minus;
   Q0& sol_onehalf;

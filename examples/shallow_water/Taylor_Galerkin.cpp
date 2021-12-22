@@ -198,9 +198,9 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const auto div_FUy_y = .5*((fluxy_Uy_node[2]-fluxy_Uy_node[0]) + (fluxy_Uy_node[3]-fluxy_Uy_node[1]));
   const auto div_FUy_cell = Dy*div_FUy_x + Dx*div_FUy_y;
   
-  sol_onehalf[ordh    (index_quadrant)] = h_cell_average  - dt / 2. * div_Fh_cell  / area;
-  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average - dt / 2. * div_FUx_cell / area + dt / 2. * source_Ux_cell_average;
-  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average - dt / 2. * div_FUy_cell / area + dt / 2. * source_Uy_cell_average;
+  sol_onehalf[ordh    (index_quadrant)] = h_cell_average  - dt/2.*div_Fh_cell /area;
+  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average - dt/2.*div_FUx_cell/area + dt/2.*source_Ux_cell_average;
+  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average - dt/2.*div_FUy_cell/area + dt/2.*source_Uy_cell_average;
   
 
 
@@ -274,14 +274,14 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   const double & Uy_cell   = sol_onehalf[ordUy   (index_quadrant)];
 
 
-  const auto diff_term_h_x  = grad_cell_h [0] * vel_rusanov_cell_y;
-  const auto diff_term_h_y  = grad_cell_h [1] * vel_rusanov_cell_x;
+  const auto diff_term_h_x  = grad_cell_h [0]*vel_rusanov_cell_y;
+  const auto diff_term_h_y  = grad_cell_h [1]*vel_rusanov_cell_x;
 
-  const auto diff_term_Ux_x = grad_cell_Ux[0] * vel_rusanov_cell_y;
-  const auto diff_term_Ux_y = grad_cell_Ux[1] * vel_rusanov_cell_x;
+  const auto diff_term_Ux_x = grad_cell_Ux[0]*vel_rusanov_cell_y;
+  const auto diff_term_Ux_y = grad_cell_Ux[1]*vel_rusanov_cell_x;
 
-  const auto diff_term_Uy_x = grad_cell_Uy[0] * vel_rusanov_cell_y;
-  const auto diff_term_Uy_y = grad_cell_Uy[1] * vel_rusanov_cell_x;
+  const auto diff_term_Uy_x = grad_cell_Uy[0]*vel_rusanov_cell_y;
+  const auto diff_term_Uy_y = grad_cell_Uy[1]*vel_rusanov_cell_x;
   
 
 
@@ -315,8 +315,8 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
   for (int ii = 0; ii < 4; ++ii){
 
-    const double den1 = ii<2 ? 2. : 1.;
-    const double den2 = ii<2 ? 1. : 2.;
+    const double den1 = ii<2    ? 2. : 1.;
+    const double den2 = ii<2    ? 1. : 2.;
     const double den3 = ii%2==1 ? 2. : 1.; 
     const double den4 = ii%2==1 ? 1. : 2.;
 

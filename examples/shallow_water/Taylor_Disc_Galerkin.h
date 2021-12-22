@@ -9,27 +9,24 @@
  
 
 
-class TG2_scheme 
+class TG2_scheme
 {
   using Q1  = q1_vec<distributed_vector>;
   using Q0  = std::vector<double>;
   
 public:
   
-  TG2_scheme(const Q1& sol,
-             const Q1& sold,
-             const Q1& soldd,
-             Q1& incr,
-             Q1& incr_source,
-             std::vector<std::array<double,4>>& incr_anti_diff,
-             Q1& stress_step,
-             Q1& P_plus,
-             Q1& P_minus,
+  TG2_scheme(const distributed_vector& dg_coefficients,
+             const distributed_vector& dg_coefficients_old,
+             const distributed_vector& dg_coefficients_oldold,
+             distributed_vector& incr_dg_coefficients,
              Q0& sol_onehalf,
-             const Q1& mass,
              const ordering& oh,
-             const ordering& oUx, 
-             const ordering& oUy, 
+             const ordering& oUx,
+             const ordering& oUy,
+             const ordering& oh_nodal,
+             const ordering& oUx_nodal,
+             const ordering& oUy_nodal,
              const Q1& Z,
              const Q0& slope_x,
              const Q0& slope_y,
@@ -41,7 +38,7 @@ public:
              const double& grav,
              const double& density,
              const double& turbulence_coeff,
-             const double& surface_pressure,
+             const double& surface_pressure, 
              const double& bed_friction_angle_rad,
              const double& fluid_viscosity,
              const double& yield_shear_stress);
@@ -59,22 +56,17 @@ public:
   
   void
   first_step (tmesh::quadrant_iterator quadrant);
-
-  void
-  compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadrant);
-
-  void
-  loop_step (tmesh::quadrant_iterator quadrant);
   
   void
   second_step (tmesh::quadrant_iterator quadrant);
   
   void
-  flux_limiter(const double& Q_min, const double& Q_max, const double& Q_dof, const double& P_plus_Q, const double& P_minus_Q, const double& flux_on_the_node, const double& mass_node, double& phi_cell_Q);
+  minmod_modified_tvb(const double& a, const double& b, const double& c, const double& Dx, const double& K);
   
-  void
-  set_initialCondition(const Q1& current_initial_sol);
-
+  double
+  minmod(const double& a, const double& b, const double& c);
+  
+  
   void
   set_dt (const double dt_);
   
@@ -110,12 +102,6 @@ public:
   std::array<double, 4> Uxdof   = {0, 0, 0, 0};
   std::array<double, 4> Uydof   = {0, 0, 0, 0};
   std::array<double, 4> Z_node  = {0, 0, 0, 0};
-  std::array<double, 4> P_plus_h_dof   = {0, 0, 0, 0};
-  std::array<double, 4> P_minus_h_dof  = {0, 0, 0, 0};
-  std::array<double, 4> P_plus_Ux_dof  = {0, 0, 0, 0};
-  std::array<double, 4> P_minus_Ux_dof = {0, 0, 0, 0};
-  std::array<double, 4> P_plus_Uy_dof  = {0, 0, 0, 0};
-  std::array<double, 4> P_minus_Uy_dof = {0, 0, 0, 0};
   
   // std::array<double, 4> source_h_node  = {0, 0, 0, 0};
   // std::array<double, 4> source_Ux_node = {0, 0, 0, 0};
@@ -184,31 +170,26 @@ public:
   double time, timed, timedd;
   double nu_htot = 0.;
   
-  const Q1& sol_initial_step;
-  const Q1& sol;
-  const Q1& sold;
-  const Q1& soldd;
-  Q1& incr;
-  Q1& incr_source;
-  std::vector<std::array<double,4>>& incr_anti_diff;
-  Q1& P_plus;
-  Q1& P_minus;
+  const distributed_vector& dg_coefficients;
+  const distributed_vector& dg_coefficients_old;
+  const distributed_vector& dg_coefficients_oldold;
+  distributed_vector& incr_dg_coefficients;
   Q0& sol_onehalf;
   const Q1& Z;
-  const Q1& stress_step;
   const Q0& slope_x;
   const Q0& slope_y;
-  const Q1& mass;
   
 private:
 
   std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y;
   std::array<double, 2> grad_cell_h, grad_cell_Ux, grad_cell_Uy, grad_cell_ux, grad_cell_uy;
-  std::array<double, 4> D_Ux_x, D_Ux_y, D_Uy_x, D_Uy_y;
   
   const ordering& ordh;
   const ordering& ordUx;
   const ordering& ordUy;
+  const ordering& ordh_nodal;
+  const ordering& ordUx_nodal;
+  const ordering& ordUy_nodal;
   const double& DELTAT;
   const double& epsilon;
   const bool& is_non_reflBC;
@@ -224,7 +205,8 @@ private:
   
 };
 
-
+double
+signum (const double& x);
 
 
 #endif

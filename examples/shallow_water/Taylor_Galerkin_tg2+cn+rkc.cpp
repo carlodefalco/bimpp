@@ -8,6 +8,7 @@ TG2_scheme::TG2_scheme(const Q1& sol,
                        Q1& incr,
                        Q1& incr_source,
                        std::vector<std::array<double,4>>& incr_anti_diff,
+                       Q1& stress_step,
                        Q1& P_plus,
                        Q1& P_minus,
                        Q0& sol_onehalf,
@@ -16,7 +17,6 @@ TG2_scheme::TG2_scheme(const Q1& sol,
                        const ordering& oUx,
                        const ordering& oUy,
                        const Q1& Z,
-                       const std::vector<double>& nodal_error,
                        const Q0& slope_x,
                        const Q0& slope_y,
                        const double& DELTAT,
@@ -31,8 +31,8 @@ TG2_scheme::TG2_scheme(const Q1& sol,
                        const double& bed_friction_angle_rad,
                        const double& fluid_viscosity,
                        const double& yield_shear_stress)
-: sol(sol), sold(sold), soldd(soldd), incr(incr), incr_source(incr_source), incr_anti_diff(incr_anti_diff), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass),
-  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), nodal_error(nodal_error), slope_x(slope_x), slope_y(slope_y), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), grav(grav),
+: sol(sol), sold(sold), soldd(soldd), incr(incr), incr_source(incr_source), incr_anti_diff(incr_anti_diff), stress_step(stress_step), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass),
+  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), slope_x(slope_x), slope_y(slope_y), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), grav(grav),
   density(density), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress)
 { }
 
@@ -297,24 +297,42 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   const auto F_star_Uy_y = Uy_flux_formula_y(h_cell, Ux_cell, Uy_cell) - diff_term_Uy_y;
 
 
+  for (int ii = 0; ii < 4; ++ii){
+    
+    sigma_stress = is_stress_tensor ? compute_nodal_stress (hdof[ii], Uxdof[ii], Uydof[ii], grad_cell_ux, grad_cell_uy) : sigma_stress;
 
+    D_Ux_x[ii] = Ux_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
+    D_Ux_y[ii] = Ux_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
+
+    D_Uy_x[ii] = Uy_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
+    D_Uy_y[ii] = Uy_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
+
+  }
 
 
 
   for (int ii = 0; ii < 4; ++ii){
 
+    const double den1 = ii<2    ? 2. : 1.;
+    const double den2 = ii<2    ? 1. : 2.;
+    const double den3 = ii%2==1 ? 2. : 1.; 
+    const double den4 = ii%2==1 ? 1. : 2.;
+    
+
     const auto h_    = der_coeffs_x[ii]*F_star_h_x +der_coeffs_y[ii]*F_star_h_y;
     
     const auto Ux_   = der_coeffs_x[ii]*F_star_Ux_x+der_coeffs_y[ii]*F_star_Ux_y + 
+                       der_coeffs_x[ii]*(1./3.)*(D_Ux_x[0]/den2+D_Ux_x[1]/den2+D_Ux_x[2]/den1+D_Ux_x[3]/den1)+der_coeffs_y[ii]*(1./3.)*(D_Ux_y[0]/den3+D_Ux_y[1]/den4+D_Ux_y[2]/den3+D_Ux_y[3]/den4) +
                        .25*area*isdof_or_hanging[ii]*Ux_src_formula(h_cell, Ux_cell, Uy_cell, slope_x[index_quadrant])*.5; // .5 for the CN treatment
 
     const auto Uy_   = der_coeffs_x[ii]*F_star_Uy_x+der_coeffs_y[ii]*F_star_Uy_y + 
+                       der_coeffs_x[ii]*(1./3.)*(D_Uy_x[0]/den2+D_Uy_x[1]/den2+D_Uy_x[2]/den1+D_Uy_x[3]/den1)+der_coeffs_y[ii]*(1./3.)*(D_Uy_y[0]/den3+D_Uy_y[1]/den4+D_Uy_y[2]/den3+D_Uy_y[3]/den4) +
                        .25*area*isdof_or_hanging[ii]*Uy_src_formula(h_cell, Ux_cell, Uy_cell, slope_y[index_quadrant])*.5; // .5 for the CN treatment
     
 
-    const auto h_al  = der_coeffs_x[ii] * diff_term_h_x  + der_coeffs_y[ii] * diff_term_h_y; 
-    const auto Ux_al = der_coeffs_x[ii] * diff_term_Ux_x + der_coeffs_y[ii] * diff_term_Ux_y;
-    const auto Uy_al = der_coeffs_x[ii] * diff_term_Uy_x + der_coeffs_y[ii] * diff_term_Uy_y;
+    const auto h_al  = der_coeffs_x[ii]*diff_term_h_x  + der_coeffs_y[ii]*diff_term_h_y; 
+    const auto Ux_al = der_coeffs_x[ii]*diff_term_Ux_x + der_coeffs_y[ii]*diff_term_Ux_y;
+    const auto Uy_al = der_coeffs_x[ii]*diff_term_Uy_x + der_coeffs_y[ii]*diff_term_Uy_y;
 
     incr_anti_diff[ordh (index_quadrant)][ii] = h_al;
     incr_anti_diff[ordUx(index_quadrant)][ii] = Ux_al;
@@ -541,7 +559,8 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
       
       
     } else {
-      
+
+
       incr [ordh  (quadrant->gparent(0,ii))] += h_;
       incr [ordh  (quadrant->gparent(1,ii))] += h_;
       
@@ -580,6 +599,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
 }
 
+
 void
 TG2_scheme::loop_step (tmesh::quadrant_iterator quadrant)
 {
@@ -614,8 +634,8 @@ TG2_scheme::loop_step (tmesh::quadrant_iterator quadrant)
   for (int ii = 0; ii < 4; ++ii){
     
     const auto h_s_  = 0.;
-    const auto Ux_s_ = .25*area*isdof_or_hanging[ii]*Ux_src_formula(hdof[ii], Uxdof[ii], Uydof[ii], slope_x[index_quadrant])*.5;
-    const auto Uy_s_ = .25*area*isdof_or_hanging[ii]*Uy_src_formula(hdof[ii], Uxdof[ii], Uydof[ii], slope_y[index_quadrant])*.5;
+    const auto Ux_s_ = .25*area*isdof_or_hanging[ii]*Ux_src_formula(hdof[ii], Uxdof[ii], Uydof[ii], slope_x[index_quadrant])*.5; // .5 for CN
+    const auto Uy_s_ = .25*area*isdof_or_hanging[ii]*Uy_src_formula(hdof[ii], Uxdof[ii], Uydof[ii], slope_y[index_quadrant])*.5; // .5 for CN
 
     if (! quadrant->is_hanging (ii)){
 
@@ -635,6 +655,99 @@ TG2_scheme::loop_step (tmesh::quadrant_iterator quadrant)
       incr_source [ordUy (quadrant->gparent(1,ii))] += Uy_s_;
       
     }
+  }
+
+
+}
+
+
+void
+TG2_scheme::compute_nodal_stress (tmesh::quadrant_iterator quadrant)
+{
+
+  for (int ii = 0; ii < 4; ++ii) {
+    xn[ii] = quadrant->p(0, ii);
+    yn[ii] = quadrant->p(1, ii);
+  }
+  
+  Dx = xn[1]-xn[0];
+  Dy = yn[2]-yn[0];
+  area = Dx * Dy;
+
+  for (int ii = 0; ii < 4; ++ii){
+    if (! quadrant->is_hanging (ii)){
+      hdof[ii]    = sol [ordh    (quadrant->gt (ii))];
+      Uxdof[ii]   = sol [ordUx   (quadrant->gt (ii))];
+      Uydof[ii]   = sol [ordUy   (quadrant->gt (ii))];
+      
+      isdof_or_hanging[ii] = 1.;
+    } else {
+      hdof[ii]    = .5 * (sol [ordh  (quadrant->gparent(0,ii))] +
+                          sol [ordh  (quadrant->gparent(1,ii))]);
+      Uxdof[ii]   = .5 * (sol [ordUx (quadrant->gparent(0,ii))] +
+                          sol [ordUx (quadrant->gparent(1,ii))]);
+      Uydof[ii]   = .5 * (sol [ordUy (quadrant->gparent(0,ii))] +
+                          sol [ordUy (quadrant->gparent(1,ii))]);
+      
+      isdof_or_hanging[ii] = .5;
+    }
+  }
+
+  // weights coefficients for the flux term
+  der_coeffs_x = {-Dy/2.*isdof_or_hanging[0], +Dy/2.*isdof_or_hanging[1],
+    -Dy/2.*isdof_or_hanging[2], +Dy/2.*isdof_or_hanging[3]};
+  
+  der_coeffs_y = {-Dx/2.*isdof_or_hanging[0], -Dx/2.*isdof_or_hanging[1],
+    +Dx/2.*isdof_or_hanging[2], +Dx/2.*isdof_or_hanging[3]};
+
+
+  for (int ii = 0; ii < 4; ++ii){
+    
+    sigma_stress = is_stress_tensor ? compute_nodal_stress (hdof[ii], Uxdof[ii], Uydof[ii], grad_cell_ux, grad_cell_uy) : sigma_stress;
+
+    D_Ux_x[ii] = Ux_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
+    D_Ux_y[ii] = Ux_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
+
+    D_Uy_x[ii] = Uy_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
+    D_Uy_y[ii] = Uy_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
+
+  }
+
+
+
+
+  for (int ii = 0; ii < 4; ++ii){
+
+    const double den1 = ii<2    ? 2. : 1.;
+    const double den2 = ii<2    ? 1. : 2.;
+    const double den3 = ii%2==1 ? 2. : 1.; 
+    const double den4 = ii%2==1 ? 1. : 2.;
+    
+
+    const auto h_  = 0;
+    const auto Ux_ = der_coeffs_x[ii]*(1./3.)*(D_Ux_x[0]/den2+D_Ux_x[1]/den2+D_Ux_x[2]/den1+D_Ux_x[3]/den1)+der_coeffs_y[ii]*(1./3.)*(D_Ux_y[0]/den3+D_Ux_y[1]/den4+D_Ux_y[2]/den3+D_Ux_y[3]/den4);
+    const auto Uy_ = der_coeffs_x[ii]*(1./3.)*(D_Uy_x[0]/den2+D_Uy_x[1]/den2+D_Uy_x[2]/den1+D_Uy_x[3]/den1)+der_coeffs_y[ii]*(1./3.)*(D_Uy_y[0]/den3+D_Uy_y[1]/den4+D_Uy_y[2]/den3+D_Uy_y[3]/den4);
+
+
+    if (! quadrant->is_hanging (ii)){
+
+      stress_step [ordh  (quadrant->gt (ii))] += h_;
+      stress_step [ordUx (quadrant->gt (ii))] += Ux_;
+      stress_step [ordUy (quadrant->gt (ii))] += Uy_;
+
+    } else {
+
+      stress_step [ordh  (quadrant->gparent(0,ii))] += h_;
+      stress_step [ordh  (quadrant->gparent(1,ii))] += h_;
+      
+      stress_step [ordUx (quadrant->gparent(0,ii))] += Ux_;
+      stress_step [ordUx (quadrant->gparent(1,ii))] += Ux_;
+      
+      stress_step [ordUy (quadrant->gparent(0,ii))] += Uy_;
+      stress_step [ordUy (quadrant->gparent(1,ii))] += Uy_;
+      
+    }
+
   }
 
 
@@ -852,6 +965,24 @@ TG2_scheme::flux_limiter(const double& Q_min, const double& Q_max, const double&
 
 }
 
+void
+TG2_scheme::rkc(const int& j, const int& s, const int& kk)
+{
+  // kk is the current owned node
+
+  if (j == 1)
+  {
+    sol.get_owned_data ()[kk+1] = sold.get_owned_data ()[kk+1] + mu_fun_tilde(1, s)*dt*(incr.get_owned_data ()[kk+1] + incr_source.get_owned_data ()[kk+1])/mass.get_owned_data ()[kk+1];
+    sol.get_owned_data ()[kk+2] = sold.get_owned_data ()[kk+2] + mu_fun_tilde(1, s)*dt*(incr.get_owned_data ()[kk+2] + incr_source.get_owned_data ()[kk+2])/mass.get_owned_data ()[kk+2]; 
+  }
+  else
+  {
+    sol.get_owned_data ()[kk+1] = (1-mu_fun(j,s)-v_fun(j,s))*sold.get_owned_data ()[kk+1] + mu_fun(j, s)*sol.get_owned_data ()[kk+1] + 
+     v_fun(j, s)*rkc(j-2, s, dt, Un, F, vel) + mu_fun_tilde(j, s)*dt*F(vel, rkc(j-1, s, dt, Un, F, vel)) + 
+     gamma_tilde_fun(j, s)*dt*(incr.get_owned_data ()[kk+1] + incr_source.get_owned_data ()[kk+1])/mass.get_owned_data ()[kk+1];
+  }
+
+}
 
 
 void

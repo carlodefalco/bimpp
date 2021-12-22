@@ -16,20 +16,19 @@
 #include <tmesh.h>
 #include <quad_operators.h>
 
-#include "Taylor_Galerkin_tg2+cn+rkc.h"
+#include "Taylor_Disc_Galerkin.h"
 
 
-// mpirun -np 1 main $PWD inputs/dem_ideal.octbin.gz inputs/mask_in.octbin.gz inputs/mask_fin.octbin.gz 
-
+// mpirun -np 4 mainDG $PWD inputs/dem_real_vladi.octbin.gz inputs/mask_in_vladi.octbin.gz 
+// mpirun -np 4 mainDG $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_vladi.octbin.gz 
 
 static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in";
-static constexpr char VARNAME_3[255] = "mask_fin";
 
 // properties of the input dem
-static constexpr double res = 2.5;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 201;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 201;//101;//175;//201;//180; // # rows
+static constexpr double res = 2e-2;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
 
  
 static constexpr double L = res*(Nx-1);
@@ -38,41 +37,40 @@ static std::vector<double>   dem;
 static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
-static std::vector<double>   basin_mask_fin;
 static constexpr int NUM_REFINEMENTS  = 6; // 8
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
-static constexpr double toleranceCranckNicolson = 1.e-3;
 
 static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = .1; // must never be null 
-static constexpr double DELTAT = .1;
-static constexpr double REDCDT = 1.; 
-static constexpr double T      = 1.;
+static constexpr double SAVEDT = 1.e-2; // must never be null 
+static constexpr double DELTAT = 1.e-3;
+static constexpr double REDCDT = .5; 
+static constexpr double T      = .5; 
  
-static constexpr bool is_time_adaptivity    = false;
+static constexpr bool is_time_adaptivity    = false; 
 static constexpr bool is_initial_refinement = false;
 static constexpr bool is_space_adaptivity   = false;
 static constexpr bool is_non_reflBC         = true; 
-static constexpr bool is_bed_friction       = true;
+static constexpr bool is_bed_friction       = false; 
 static constexpr bool is_stress_tensor      = false;
+
 
 
 static constexpr double h_min = 1e-5;
 static constexpr double grav = 9.81;
 static constexpr double density = 1291.;
-static constexpr double turbulence_coeff = 1.e5;
+static constexpr double turbulence_coeff = 1.e8;
 static constexpr double surface_pressure = 0;//101325.;
-static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
+static constexpr double bed_friction_angle_rad = 22.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 5e1;
 static constexpr double yield_shear_stress = 2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
 static constexpr double mesh_size_dry       = res*100;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res/20;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = res/30;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+static constexpr double mesh_size_wet       = res/2;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = res/20;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
 // Connectivity of local element
@@ -148,22 +146,20 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
-  //return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 0. );
-  //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. ); 
-  return(xx<=L/2. ? 20 : 0. ); 
+  return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  //return( std::abs(xx-L/2.)<=L/2. && std::abs(yy-H/2.)<=L.2 ? 2 : 1. ); 
+  //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.25*std::min(L,H) ? 2. : 1. ); 
+  return(xx<=L/2. ? 2. : 1. ); 
 
 
-  //const double HH = 30.;
-  //const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
-  //return(std::max (0., std::min (.6*500-(500 - 500 * xx/L), HH)) * omega); 
+  // const double HH = 1.;
+  // const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
+  // return(std::max (0., std::min (60.-(100 - 100 * xx/L), HH)) * omega); 
   
- 
-
-
+  
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
 
-  return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38 : 0.);
+  return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38 : 0.); 
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
   return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 0.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
@@ -308,7 +304,7 @@ compute_slope()
 
     const auto i_vec_east = raster_2_vector(jj+1,ii);
 
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec])/res;
     dem_slope_x[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
   }
 
@@ -320,7 +316,7 @@ compute_slope()
 
     const auto i_vec_east = raster_2_vector(jj+1,ii);
 
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec])/res;
     dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
   }
 
@@ -446,11 +442,14 @@ int
 main (int argc, char **argv)
 {
   // Management of solutions ordering
-  ordering ordh  = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 0> (gt); };
-  ordering ordUx = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 1> (gt); };
-  ordering ordUy = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 2> (gt); };
+  ordering ordh  = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<12, 0> (gt); };
+  ordering ordUx = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<12, 4> (gt); };
+  ordering ordUy = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<12, 8> (gt); };
 
-  
+  // Management of solutions ordering
+  ordering ordh_nodal  = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 0> (gt); };
+  ordering ordUx_nodal = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 1> (gt); };
+  ordering ordUy_nodal = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 2> (gt); };
   
   // Initialize MPI
   MPI_Init (&argc, &argv);
@@ -458,9 +457,9 @@ main (int argc, char **argv)
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
-  if (argc != 5) 
+  if (argc != 4) 
   {
-    std::cerr << "You should provide as input respectively, save directory, dem directory, mask directory, mask final directory" << std::endl;
+    std::cerr << "You should provide as input respectively, save directory, dem directory, mask directory" << std::endl;
 
     // Close MPI and print report
     MPI_Barrier (MPI_COMM_WORLD);
@@ -469,10 +468,9 @@ main (int argc, char **argv)
     return 0;
   }
 
-  const auto SAVE_DIR    = argv[1];
-  const auto DEM_DIR     = argv[2]; 
-  const auto MASK_DIR    = argv[3];
-  const auto MASKFIN_DIR = argv[4];
+  const auto SAVE_DIR = argv[1];
+  const auto DEM_DIR  = argv[2]; 
+  const auto MASK_DIR = argv[3];
 
   
   /// Generate the mesh in 2d
@@ -504,37 +502,102 @@ main (int argc, char **argv)
   
 
   /// Allocate initial data container
-  Q1 sol  (ln_nodes * 3);
-  Q1 incr (ln_nodes * 3);
-  Q1 incr_source (ln_nodes * 3);
-  Q1 const_incr_u (ln_nodes * 3);
-  Q1 stress_step (ln_nodes * 3);
-  Q1 P_plus (ln_nodes * 3);
-  Q1 P_minus (ln_nodes * 3);
-  sol.get_owned_data  ().assign (sol.get_owned_data  ().size (), 0.0);
-  incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
-  const_incr_u.get_owned_data ().assign (const_incr_u.get_owned_data ().size (), 0.0);
-  incr_source.get_owned_data ().assign (incr_source.get_owned_data ().size (), 0.0);
-  stress_step.get_owned_data  ().assign (stress_step.get_owned_data  ().size (), 0.0);
-  P_plus.get_owned_data  ().assign (P_plus.get_owned_data  ().size (), 0.0);
-  P_minus.get_owned_data ().assign (P_minus.get_owned_data ().size (), 0.0);
-  
-  Q1 mass (ln_nodes * 3);
-  bim2a_mass_vector (tmsh, mass, ordh);
-  bim2a_mass_vector (tmsh, mass, ordUx);
-  bim2a_mass_vector (tmsh, mass, ordUy);
-  mass.assemble ();
-  
+
+  auto elemental_mass_matrix_inverted = [] (tmesh::quadrant_iterator quadrant)
+  {
+
+/*
+
+close all
+clear
+%clc
+
+wGP = .25*ones(4,1);
+xiGP = [(-1/sqrt(3)+1)/2, (-1/sqrt(3)+1)/2, (1/sqrt(3)+1)/2, (1/sqrt(3)+1)/2];
+yiGP = [(-1/sqrt(3)+1)/2, (1/sqrt(3)+1)/2, (-1/sqrt(3)+1)/2, (1/sqrt(3)+1)/2];
+
+figure()
+plot(xiGP, yiGP, 'o')
+axis([0 1 0 1])
+
+
+Me = zeros(4,4);
+for j=1:4
+    phi = BaseFunc(xiGP(j), yiGP(j));
+    for k=1:4
+        for l=1:4
+            Me(k,l) = Me(k,l) +wGP(j)*phi(k)*phi(l);
+        end
+    end 
+end
+% Inverse
+iMe = inv(Me)
+
+
+%% utils
+
+function phi = BaseFunc(x, y)
+% order as bimpp  
+phi(4) = x*y;
+phi(3) = (1-x)*y;
+phi(2) = (1-y)*x;
+phi(1) = (1-x)*(1-y);
+end
+
+
+
+*/
+
+
+
+
+    std::array<double,4> isdof_or_hanging;
+
+    double Dx, Dy, area;
+    Dx = quadrant->p (0, 1) - quadrant->p (0, 0);
+    Dy = quadrant->p (1, 2) - quadrant->p (1, 0);
+    area = Dx * Dy;
+
+    for (int ii = 0; ii < 4; ++ii){
+      if (! quadrant->is_hanging (ii)){
+        isdof_or_hanging[ii] = 1.;
+      } else {
+        isdof_or_hanging[ii] = .5;
+      }
+    }
+
+    std::array<std::array<double,4>, 4> iMe = {std::array<double,4>{{16., -8., -8., 4.}}, 
+                                               std::array<double,4>{{-8., 16., 4., -8.}},  
+                                               std::array<double,4>{{-8., 4., 16., -8.}}, 
+                                               std::array<double,4>{{4., -8., -8., 16.}}};
+
+    for (int ii = 0; ii < 4; ++ii)
+    {
+      for (int jj = 0; jj < 4; ++jj)
+      {
+        iMe[ii][jj] /= area*isdof_or_hanging[ii]*isdof_or_hanging[jj];
+      }
+    }
+
+    return (iMe); 
+  };
+
   Q0 sol_onehalf (ln_elements * 3);
   sol_onehalf.assign(sol_onehalf.size(), 0.0);
 
-  std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 3);
+  distributed_vector dg_coefficients (ln_elements * 4 * 3), incr_dg_coefficients(ln_elements * 4 * 3);
+  dg_coefficients.get_owned_data ().assign(dg_coefficients.size(), 0.);
+  incr_dg_coefficients.get_owned_data ().assign(incr_dg_coefficients.size(), 0.);
   
+  // for visualization
+  Q1 sol  (ln_nodes * 3);
+  sol.get_owned_data  ().assign (sol.get_owned_data  ().size (), 0.0);
+
+  Q1 soll(ln_nodes * 3);
+  soll.get_owned_data ().assign(soll.size(), 0.);
+
   Q1 Z (ln_nodes);
   Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
-
-  Q1 mask_fin (ln_nodes);
-  mask_fin.get_owned_data ().assign (mask_fin.get_owned_data ().size (), 0.0);
 
   Q0 slope_x (ln_elements);
   slope_x.assign (slope_x.size (), 0.0);
@@ -569,16 +632,6 @@ main (int argc, char **argv)
   M = v.matrix_value ();
   basin_mask.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask.begin ());
-
-  str = std::string(MASKFIN_DIR); 
-  strcpy(arr, str.c_str());
-  sprintf(filename, arr, 0);
-
-  octave_io_open (filename, m_in, &m_out);
-  octave_load (VARNAME_3, v);
-  M = v.matrix_value ();
-  basin_mask_fin.resize (M.numel ());
-  std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask_fin.begin ());
   TOC("Load data matrix");
   
   // compute raster slope
@@ -594,12 +647,95 @@ main (int argc, char **argv)
        quadrant != tmsh.end_quadrant_sweep ();
        ++quadrant)
   {
+
+    const auto iMe = elemental_mass_matrix_inverted(quadrant);
+
+    const auto Dx = quadrant->p(0, 1) - quadrant->p(0, 0);
+    const auto Dy = quadrant->p(1, 2) - quadrant->p(1, 0);
+    const auto area = Dx * Dy;
+
     double xx_c=quadrant->centroid(0);
     double yy_c=quadrant->centroid(1); 
 
     slope_x[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
     slope_y[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
+
+    std::array<double,4> dg_coeff_h = {0., 0., 0., 0.}, dg_coeff_Ux = {0., 0., 0., 0.}, dg_coeff_Uy = {0., 0., 0., 0.};
+    for (int kk = 0; kk < 4; ++kk)
+    {
+      for (int ii = 0; ii < 4; ++ii)
+      {
+        double xx=quadrant->p(0,ii);
+        double yy=quadrant->p(1,ii); 
+
+        // trapezoidal rule
+        if (! quadrant->is_hanging (ii)){
+          dg_coeff_h [kk] += .25 * area * h0_fun   (xx, yy) * 1. * (ii == kk);
+          dg_coeff_Ux[kk] += .25 * area * Ux0_fun  (xx, yy) * 1. * (ii == kk);
+          dg_coeff_Uy[kk] += .25 * area * Uy0_fun  (xx, yy) * 1. * (ii == kk);
+        }
+        else
+        {
+          dg_coeff_h [kk] += .25 * area * h0_fun   (xx, yy) * .5 * (ii == kk);
+          dg_coeff_Ux[kk] += .25 * area * Ux0_fun  (xx, yy) * .5 * (ii == kk);
+          dg_coeff_Uy[kk] += .25 * area * Uy0_fun  (xx, yy) * .5 * (ii == kk);
+        }
+        
+      }
+    }
+
+    std::array<double,4> dg_coeff_h_, dg_coeff_Ux_, dg_coeff_Uy_;
+    for (int kk = 0; kk < 4; ++kk)
+    {
+      const auto & iMe_kk = iMe[kk];
+
+      const double sum_iMe_kk = std::accumulate(iMe_kk.begin(), iMe_kk.end(), 0.);
+
+      // matrice consistente
+      // dg_coeff_h_ [kk] = std::inner_product(iMe_kk.begin(), iMe_kk.end(), dg_coeff_h .begin(), 0.); 
+      // dg_coeff_Ux_[kk] = std::inner_product(iMe_kk.begin(), iMe_kk.end(), dg_coeff_Ux.begin(), 0.); 
+      // dg_coeff_Uy_[kk] = std::inner_product(iMe_kk.begin(), iMe_kk.end(), dg_coeff_Uy.begin(), 0.); 
+
+      //std::cout << iMe[kk][0] << " " << iMe[kk][1] << " " << iMe[kk][2] << " " << iMe[kk][3] << " " << sum_iMe_kk << std::endl;
+
+      // matrice lumpata
+      dg_coeff_h_ [kk] = sum_iMe_kk*dg_coeff_h [kk]; 
+      dg_coeff_Ux_[kk] = sum_iMe_kk*dg_coeff_Ux[kk]; 
+      dg_coeff_Uy_[kk] = sum_iMe_kk*dg_coeff_Uy[kk]; 
+    }
+
+    for (int kk = 0; kk < 4; ++kk)
+    {
+      // if (dg_coeff_h_ [kk]!=0)
+      // std::cout << dg_coeff_h_ [0] << " " << dg_coeff_h_ [1] << " " << dg_coeff_h_ [2] << " " << dg_coeff_h_ [3] << std::endl;
+
+      dg_coefficients[ordh  (quadrant->get_global_quad_idx ()) + kk] = dg_coeff_h_ [kk];
+      dg_coefficients[ordUx (quadrant->get_global_quad_idx ()) + kk] = dg_coeff_Ux_[kk];
+      dg_coefficients[ordUy (quadrant->get_global_quad_idx ()) + kk] = dg_coeff_Uy_[kk];
+
+      incr_dg_coefficients[ordh  (quadrant->get_global_quad_idx ()) + kk] = 0.;
+      incr_dg_coefficients[ordUx (quadrant->get_global_quad_idx ()) + kk] = 0.;
+      incr_dg_coefficients[ordUy (quadrant->get_global_quad_idx ()) + kk] = 0.;
+    }
     
+
+
+    for (auto quadrant_nei = quadrant->begin_neighbor_sweep();
+         quadrant_nei != quadrant->end_neighbor_sweep (); ++quadrant_nei)
+    {
+      for (int kk = 0; kk < 4; ++kk)
+      {
+        dg_coefficients[ordh  (quadrant_nei->get_global_quad_idx ()) + kk] += 0.;
+        dg_coefficients[ordUx (quadrant_nei->get_global_quad_idx ()) + kk] += 0.;
+        dg_coefficients[ordUy (quadrant_nei->get_global_quad_idx ()) + kk] += 0.;
+
+        incr_dg_coefficients[ordh  (quadrant_nei->get_global_quad_idx ()) + kk] += 0.;
+        incr_dg_coefficients[ordUx (quadrant_nei->get_global_quad_idx ()) + kk] += 0.;
+        incr_dg_coefficients[ordUy (quadrant_nei->get_global_quad_idx ()) + kk] += 0.;
+      }
+    }
+
+
 
     for (int ii = 0; ii < 4; ++ii)
     {
@@ -607,84 +743,125 @@ main (int argc, char **argv)
         double xx=quadrant->p(0,ii);
         double yy=quadrant->p(1,ii); 
         
-        sol [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy);
-        sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
-        sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
-        
         Z[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; 
-        mask_fin[quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]]; 
       }
       
       else
       {
         // touch parent nodes to set up distributed vector structure
-        
-        sol [ordh   (quadrant->gparent(0,ii))] += 0.;
-        sol [ordh   (quadrant->gparent(1,ii))] += 0.;
-        sol [ordUx  (quadrant->gparent(0,ii))] += 0.;
-        sol [ordUx  (quadrant->gparent(1,ii))] += 0.;
-        sol [ordUy  (quadrant->gparent(0,ii))] += 0.;
-        sol [ordUy  (quadrant->gparent(1,ii))] += 0.;
-        
         Z   [quadrant->gparent(0,ii)] += 0.;
         Z   [quadrant->gparent(1,ii)] += 0.;
-
-        mask_fin   [quadrant->gparent(0,ii)] += 0.;
-        mask_fin   [quadrant->gparent(1,ii)] += 0.;
       }
     }
   }
 
 
   // bim2a_solution_with_ghosts in quad_operators.cpp
-  bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh,  false);
-  bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy);
+  dg_coefficients.remap();
+  dg_coefficients.assemble(replace_op);
+
+  Z.remap();
+  Z.assemble(replace_op);
+
+  incr_dg_coefficients.remap();
+  incr_dg_coefficients.assemble(replace_op);
+
+
+  TIC();
+  Q1 mass (ln_nodes * 3);
+  bim2a_mass_vector (tmsh, mass, ordh_nodal);
+  bim2a_mass_vector (tmsh, mass, ordUx_nodal);
+  bim2a_mass_vector (tmsh, mass, ordUy_nodal);
+  mass.assemble ();
+
+
+  for (auto quadrant = tmsh.begin_quadrant_sweep ();
+   quadrant != tmsh.end_quadrant_sweep ();
+   ++quadrant)
+  {
+
+    std::array<double,4> isdof_or_hanging;
+
+    const auto Dx = quadrant->p (0, 1) - quadrant->p (0, 0);
+    const auto Dy = quadrant->p (1, 2) - quadrant->p (1, 0);
+    const auto area = Dx * Dy;
+
+
+    for (int ii = 0; ii < 4; ++ii){
+      if (! quadrant->is_hanging (ii)){
+        isdof_or_hanging[ii] = 1.;
+      } else {
+        isdof_or_hanging[ii] = .5;
+      }
+    }
+
+    // midpoint integration
+    double inh = -1.e4;
+    double integral_h = 0., integral_Ux = 0., integral_Uy = 0.;
+    for (int ii = 0; ii < 4; ++ii)
+    {
+      inh  = std::max(inh,  dg_coefficients[ordh    (quadrant->get_global_quad_idx ()) + ii]);
+
+      integral_h  += .25 * .25*area*dg_coefficients[ordh   (quadrant->get_global_quad_idx ()) + ii]*isdof_or_hanging[ii];
+      integral_Ux += .25 * .25*area*dg_coefficients[ordUx  (quadrant->get_global_quad_idx ()) + ii]*isdof_or_hanging[ii];
+      integral_Uy += .25 * .25*area*dg_coefficients[ordUy  (quadrant->get_global_quad_idx ()) + ii]*isdof_or_hanging[ii];
+    }
+
+
+    for (int ii = 0; ii < 4; ++ii)
+    {
+      if (! quadrant->is_hanging (ii)){
+
+        soll [ordh_nodal     (quadrant->gt (ii))] = std::max( soll [ordh_nodal     (quadrant->gt (ii))], inh );
+
+        sol [ordh_nodal     (quadrant->gt (ii))] += integral_h;
+        sol [ordUx_nodal    (quadrant->gt (ii))] += integral_Ux;
+        sol [ordUy_nodal    (quadrant->gt (ii))] += integral_Uy;
+      }
+
+      else
+      {
+        // touch parent nodes to set up distributed vector structure
+        sol [ordh_nodal   (quadrant->gparent(0,ii))] += integral_h*.5;
+        sol [ordh_nodal   (quadrant->gparent(1,ii))] += integral_h*.5;
+
+        sol [ordUx_nodal  (quadrant->gparent(0,ii))] += integral_Ux*.5;
+        sol [ordUx_nodal  (quadrant->gparent(1,ii))] += integral_Ux*.5;
+
+        sol [ordUy_nodal  (quadrant->gparent(0,ii))] += integral_Uy*.5;
+        sol [ordUy_nodal  (quadrant->gparent(1,ii))] += integral_Uy*.5;
+      }
+    }
+  }
+
+  for (auto kk = 0; kk < mass.get_owned_data ().size (); kk++)
+  {
+    sol.get_owned_data ()[kk] /= mass.get_owned_data ()[kk];
+  }
+
+  // bim2a_solution_with_ghosts in quad_operators.cpp
+  bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh_nodal,  false);
+  bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUx_nodal, false);
+  bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy_nodal);
+  TOC("get nodal sol.");
   
-  bim2a_solution_with_ghosts (tmsh, Z, replace_op);
 
-  bim2a_solution_with_ghosts (tmsh, mask_fin, replace_op);
-  
-  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
-  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
-
-  bim2a_solution_with_ghosts (tmsh, incr_source, replace_op, ordh,  false);
-  bim2a_solution_with_ghosts (tmsh, incr_source, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, incr_source, replace_op, ordUy);
-
-  bim2a_solution_with_ghosts (tmsh, const_incr_u, replace_op, ordh,  false);
-  bim2a_solution_with_ghosts (tmsh, const_incr_u, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, const_incr_u, replace_op, ordUy);
-
-  bim2a_solution_with_ghosts (tmsh, stress_step, replace_op, ordh,  false);
-  bim2a_solution_with_ghosts (tmsh, stress_step, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, stress_step, replace_op, ordUy);
-
-  bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordh,  false);
-  bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordUy);
-
-  bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordh,  false);
-  bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordUy);
-  
 
   if (is_initial_refinement)
   {
-    
+
+
     TIC();
     Q1 only_h (ln_nodes);
     bim2a_solution_with_ghosts (tmsh, only_h);
     for (auto idx = only_h.get_range_start (); idx != only_h.get_range_end (); ++idx)
     {
-      only_h(idx) = sol(ordh(idx));
+      only_h(idx) = sol(ordh_nodal(idx));
     }
     only_h.assemble (replace_op);
     TOC("get separated sol.");
 
-  
-  
+
    
     TIC();
     auto dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
@@ -765,175 +942,191 @@ main (int argc, char **argv)
     // Interpolo sol sulla nuova mesh
     TIC();
   
-    Q1 incr_ (ln_nodes * 3);
-    incr_.get_owned_data ().assign (incr_.get_owned_data ().size(), 0.0);
-    incr_.assemble ();
-
-    Q1 incr_source_ (ln_nodes * 3);
-    incr_source_.get_owned_data ().assign (incr_source_.get_owned_data ().size(), 0.0);
-    incr_source_.assemble ();
-
-    Q1 const_incr_u_ (ln_nodes * 3);
-    const_incr_u_.get_owned_data ().assign (const_incr_u_.get_owned_data ().size(), 0.0);
-    const_incr_u_.assemble ();
-
-    Q1 P_plus_ (ln_nodes * 3);
-    P_plus_.get_owned_data ().assign (P_plus_.get_owned_data ().size(), 0.0);
-    P_plus_.assemble ();
-
-    Q1 stress_step_ (ln_nodes * 3);
-    stress_step_.get_owned_data ().assign (stress_step_.get_owned_data ().size(), 0.0);
-    stress_step_.assemble ();
-
-    Q1 P_minus_ (ln_nodes * 3);
-    P_minus_.get_owned_data ().assign (P_minus_.get_owned_data ().size(), 0.0);
-    P_minus_.assemble ();
-  
-    Q1 mass_ (ln_nodes * 3);
-    bim2a_mass_vector (tmsh, mass_, ordh);
-    bim2a_mass_vector (tmsh, mass_, ordUx);
-    bim2a_mass_vector (tmsh, mass_, ordUy);
-    mass_.assemble ();
-  
     Q0 sol_onehalf_ (ln_elements * 3);
     sol_onehalf_.assign (sol_onehalf_.size(), 0.0);
 
-    std::vector<std::array<double,4>> incr_anti_diff_ (ln_elements * 3);
+    distributed_vector dg_coefficients_ (ln_elements * 4 * 3), incr_dg_coefficients_(ln_elements * 4 * 3);
+    dg_coefficients_.get_owned_data ().assign(dg_coefficients_.size(), 0.);
+    incr_dg_coefficients_.get_owned_data ().assign(incr_dg_coefficients_.size(), 0.);
 
 
     Q1 sol_ (ln_nodes * 3);
     Q1 Z_ (ln_nodes);
-    Q1 mask_fin_ (ln_nodes);
     Q0 slope_x_(ln_elements);
     Q0 slope_y_(ln_elements);
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep ();
          ++quadrant)
     {
+
+      const auto iMe = elemental_mass_matrix_inverted(quadrant);
+
+      const auto Dx = quadrant->p (0, 1) - quadrant->p (0, 0);
+      const auto Dy = quadrant->p (1, 2) - quadrant->p (1, 0);
+      const auto area = Dx * Dy;
+
       double xx_c=quadrant->centroid(0);
       double yy_c=quadrant->centroid(1); 
 
       slope_x_[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
       slope_y_[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
-      
+
+      std::array<double,4> dg_coeff_h = {0., 0., 0., 0.}, dg_coeff_Ux = {0., 0., 0., 0.}, dg_coeff_Uy = {0., 0., 0., 0.};
+      for (int kk = 0; kk < 4; ++kk)
+      {
+        for (int ii = 0; ii < 4; ++ii)
+        {
+          double xx=quadrant->p(0,ii);
+          double yy=quadrant->p(1,ii); 
+
+          // trapezoidal rule
+          if (! quadrant->is_hanging (ii)){
+            dg_coeff_h [kk] += .25 * area * h0_fun   (xx, yy) * 1. * (ii == kk);
+            dg_coeff_Ux[kk] += .25 * area * Ux0_fun  (xx, yy) * 1. * (ii == kk);
+            dg_coeff_Uy[kk] += .25 * area * Uy0_fun  (xx, yy) * 1. * (ii == kk);
+          }
+          else
+          {
+            dg_coeff_h [kk] += .25 * area * h0_fun   (xx, yy) * .5 * (ii == kk);
+            dg_coeff_Ux[kk] += .25 * area * Ux0_fun  (xx, yy) * .5 * (ii == kk);
+            dg_coeff_Uy[kk] += .25 * area * Uy0_fun  (xx, yy) * .5 * (ii == kk);
+          }
+
+        }
+      }
+
+      std::array<double,4> dg_coeff_h_, dg_coeff_Ux_, dg_coeff_Uy_;
+      for (int kk = 0; kk < 4; ++kk)
+      {
+        const auto & iMe_kk = iMe[kk];
+
+        // matrice consistente
+        // dg_coeff_h_ [kk] = std::inner_product(iMe_kk.begin(), iMe_kk.end(), dg_coeff_h .begin(), 0.); 
+        // dg_coeff_Ux_[kk] = std::inner_product(iMe_kk.begin(), iMe_kk.end(), dg_coeff_Ux.begin(), 0.); 
+        // dg_coeff_Uy_[kk] = std::inner_product(iMe_kk.begin(), iMe_kk.end(), dg_coeff_Uy.begin(), 0.); 
+
+
+        // matrice lumpata
+        const double sum_iMe_kk = std::accumulate(iMe_kk.begin(), iMe_kk.end(), 0.);
+
+        dg_coeff_h_ [kk] = sum_iMe_kk*dg_coeff_h [kk]; 
+        dg_coeff_Ux_[kk] = sum_iMe_kk*dg_coeff_Ux[kk]; 
+        dg_coeff_Uy_[kk] = sum_iMe_kk*dg_coeff_Uy[kk]; 
+
+      }
+
+
+
+      for (int kk = 0; kk < 4; ++kk)
+      {
+        dg_coefficients_[ordh  (quadrant->get_global_quad_idx ()) + kk] = dg_coeff_h_ [kk];
+        dg_coefficients_[ordUx (quadrant->get_global_quad_idx ()) + kk] = dg_coeff_Ux_[kk];
+        dg_coefficients_[ordUy (quadrant->get_global_quad_idx ()) + kk] = dg_coeff_Uy_[kk];
+
+        incr_dg_coefficients_[ordh  (quadrant->get_global_quad_idx ()) + kk] = 0.;
+        incr_dg_coefficients_[ordUx (quadrant->get_global_quad_idx ()) + kk] = 0.;
+        incr_dg_coefficients_[ordUy (quadrant->get_global_quad_idx ()) + kk] = 0.;
+      }
+
+
+
+      for (auto quadrant_nei = quadrant->begin_neighbor_sweep();
+       quadrant_nei != quadrant->end_neighbor_sweep (); ++quadrant_nei)
+      {
+        for (int kk = 0; kk < 4; ++kk)
+        {
+          dg_coefficients_[ordh  (quadrant_nei->get_global_quad_idx ()) + kk] += 0.;
+          dg_coefficients_[ordUx (quadrant_nei->get_global_quad_idx ()) + kk] += 0.;
+          dg_coefficients_[ordUy (quadrant_nei->get_global_quad_idx ()) + kk] += 0.;
+
+          incr_dg_coefficients_[ordh  (quadrant_nei->get_global_quad_idx ()) + kk] += 0.;
+          incr_dg_coefficients_[ordUx (quadrant_nei->get_global_quad_idx ()) + kk] += 0.;
+          incr_dg_coefficients_[ordUy (quadrant_nei->get_global_quad_idx ()) + kk] += 0.;
+        }
+      }
+
+
+
+
       for (int ii = 0; ii < 4; ++ii)
       {
         if (! quadrant->is_hanging (ii)){
           double xx=quadrant->p(0,ii);
           double yy=quadrant->p(1,ii);
-          
-          sol_ [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy);
-          sol_ [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
-          sol_ [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
 
-          Z_[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]];
+          sol_ [ordh_nodal     (quadrant->gt (ii))] = h0_fun  (xx, yy);
+          sol_ [ordUx_nodal    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
+          sol_ [ordUy_nodal    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
 
-          mask_fin_ [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]];
+          Z_[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; 
         }
         
         else
         {
-          sol_ [ordh   (quadrant->gparent(0,ii))] += 0.;
-          sol_ [ordh   (quadrant->gparent(1,ii))] += 0.;
-          sol_ [ordUx  (quadrant->gparent(0,ii))] += 0.;
-          sol_ [ordUx  (quadrant->gparent(1,ii))] += 0.;
-          sol_ [ordUy  (quadrant->gparent(0,ii))] += 0.;
-          sol_ [ordUy  (quadrant->gparent(1,ii))] += 0.;
+          sol_ [ordh_nodal   (quadrant->gparent(0,ii))] += 0.;
+          sol_ [ordh_nodal   (quadrant->gparent(1,ii))] += 0.;
+
+          sol_ [ordUx_nodal  (quadrant->gparent(0,ii))] += 0.;
+          sol_ [ordUx_nodal  (quadrant->gparent(1,ii))] += 0.;
+
+          sol_ [ordUy_nodal  (quadrant->gparent(0,ii))] += 0.;
+          sol_ [ordUy_nodal  (quadrant->gparent(1,ii))] += 0.;
 
           Z_[quadrant->gparent(0,ii)] += 0.;
           Z_[quadrant->gparent(1,ii)] += 0.;
-
-          mask_fin_[quadrant->gparent(0,ii)] += 0.;
-          mask_fin_[quadrant->gparent(1,ii)] += 0.;
         }
       }
     }
 
+    bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordh_nodal,  false);
+    bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUx_nodal, false);
+    bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUy_nodal);
+
+    dg_coefficients_.remap();
+    dg_coefficients_.assemble(replace_op);
+
+    Z_.remap();
+    Z_.assemble(replace_op);
+
+    incr_dg_coefficients_.remap();
+    incr_dg_coefficients_.assemble(replace_op);
 
 
 
-    bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUy);
-    
-    bim2a_solution_with_ghosts (tmsh, Z_, replace_op);
-
-    bim2a_solution_with_ghosts (tmsh, mask_fin_, replace_op);
-    
-    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUy);
-
-    bim2a_solution_with_ghosts (tmsh, incr_source_, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, incr_source_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, incr_source_, replace_op, ordUy);
-
-    bim2a_solution_with_ghosts (tmsh, const_incr_u_, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, const_incr_u_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, const_incr_u_, replace_op, ordUy);
-
-    bim2a_solution_with_ghosts (tmsh, stress_step_, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, stress_step_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, stress_step_, replace_op, ordUy);
-
-    bim2a_solution_with_ghosts (tmsh, P_plus_, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, P_plus_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, P_plus_, replace_op, ordUy);
-
-    bim2a_solution_with_ghosts (tmsh, P_minus_, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, P_minus_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, P_minus_, replace_op, ordUy);
-
-    sol                 = sol_;
-    incr                = incr_;
-    incr_source         = incr_source_;
-    const_incr_u        = const_incr_u_;
-    incr_anti_diff      = incr_anti_diff_;
-    stress_step = stress_step_;
-    P_plus              = P_plus_;
-    P_minus             = P_minus_;
-    mass                = mass_;
-    sol_onehalf         = sol_onehalf_;
-    Z                   = Z_;
-    mask_fin            = mask_fin_;
-    slope_x             = slope_x_;
-    slope_y             = slope_y_;
+    sol                  = sol_;
+    dg_coefficients      = dg_coefficients_;
+    incr_dg_coefficients = incr_dg_coefficients_;
+    sol_onehalf          = sol_onehalf_;
+    Z                    = Z_;
+    slope_x              = slope_x_;
+    slope_y              = slope_y_;
   
     TOC ("compute initial condition");
   }
-  
-  Q1 sol_dyn                 = sol;
-  Q1 sold_dyn                = sol;
-  Q1 soldd_dyn               = sol;
-  Q1 incr_dyn                = incr;
-  Q1 incr_source_dyn         = incr_source;
-  Q1 const_incr_u_dyn        = const_incr_u;
-  Q1 stress_step_dyn         = stress_step;
-  Q1 P_plus_dyn              = P_plus;
-  Q1 P_minus_dyn             = P_minus;  
-  Q1 mass_dyn                = mass;
-  Q1 Z_dyn                   = Z;
-  Q0 slope_x_dyn             = slope_x;
-  Q0 slope_y_dyn             = slope_y;
-  Q0 sol_onehalf_dyn         = sol_onehalf;
 
-  std::vector<std::array<double,4>> incr_anti_diff_dyn = incr_anti_diff;
+//./main $PWD inputs/dem_second_test.octbin.gz inputs/mask_in_vladi.octbin.gz
+
+  
+  //Q1 sol_dyn              = sol;
+  Q1 Z_dyn                = Z;
+  Q0 slope_x_dyn          = slope_x;
+  Q0 slope_y_dyn          = slope_y;
+  Q0 sol_onehalf_dyn      = sol_onehalf;
+
+  distributed_vector dg_coefficients_dyn        = dg_coefficients;
+  distributed_vector dg_coefficients_old_dyn    = dg_coefficients;
+  distributed_vector dg_coefficients_oldold_dyn = dg_coefficients;
+  distributed_vector incr_dg_coefficients_dyn   = incr_dg_coefficients;
 
 
 
   
-  TG2_scheme stp(sol_dyn, 
-                 sold_dyn, 
-                 soldd_dyn, 
-                 incr_dyn,
-                 incr_source_dyn, 
-                 incr_anti_diff_dyn,
-                 stress_step_dyn,
-                 P_plus_dyn, 
-                 P_minus_dyn, 
+  TG2_scheme stp(dg_coefficients_dyn, 
+                 dg_coefficients_old_dyn, 
+                 dg_coefficients_oldold_dyn, 
+                 incr_dg_coefficients_dyn, 
                  sol_onehalf_dyn, 
-                 mass_dyn,
-                 ordh, ordUx, ordUy, 
+                 ordh, ordUx, ordUy, ordh_nodal, ordUx_nodal, ordUy_nodal, 
                  Z_dyn, 
                  slope_x_dyn,
                  slope_y_dyn,
@@ -942,35 +1135,34 @@ main (int argc, char **argv)
   
   
   // Save initial conditions
+  str = std::string(SAVE_DIR) + "/results/swel_h_%4.4d"; 
+  strcpy(arr, str.c_str());
+  sprintf(filename, arr, 0);
+  tmsh.octbin_export (filename, soll, ordh_nodal);
 
   str = std::string(SAVE_DIR) + "/results/swe_h_%4.4d"; 
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
-  tmsh.octbin_export (filename, sol_dyn, ordh);
+  tmsh.octbin_export (filename, sol, ordh_nodal);
 
   str = std::string(SAVE_DIR) + "/results/swe_Ux_%4.4d";
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
-  tmsh.octbin_export (filename, sol_dyn, ordUx); 
+  tmsh.octbin_export (filename, sol, ordUx_nodal); 
 
   str = std::string(SAVE_DIR) + "/results/swe_Uy_%4.4d";
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
-  tmsh.octbin_export (filename, sol_dyn, ordUy);
+  tmsh.octbin_export (filename, sol, ordUy_nodal);
   
   str = std::string(SAVE_DIR) + "/results/swe_Z_%4.4d";
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0); 
   tmsh.octbin_export (filename, Z_dyn);
-
-  str = std::string(SAVE_DIR) + "/results/mask_fin_%4.4d";
-  strcpy(arr, str.c_str());
-  sprintf(filename, arr, 0); 
-  tmsh.octbin_export (filename, mask_fin);
   
   // MPI_Barrier (MPI_COMM_WORLD);
   // if (rank == 0) { print_timing_report (); }
-  // MPI_Finalize ();
+  // MPI_Finalize (); 
   // return 0;
   
 
@@ -1016,23 +1208,14 @@ main (int argc, char **argv)
   }
   
   
-  while ((T-time)>std::numeric_limits<double>::epsilon()*T)
+  while (time < T)
   {
     
     
     // Reset increment, and limiter terms
     TIC();
-    incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
-    incr_dyn.assemble (replace_op);
-
-    P_plus_dyn.get_owned_data ().assign (P_plus_dyn.get_owned_data ().size (), 0.0);
-    P_plus_dyn.assemble (replace_op);
-
-    P_minus_dyn.get_owned_data ().assign (P_minus_dyn.get_owned_data ().size (), 0.0);
-    P_minus_dyn.assemble (replace_op);
-
-    stress_step_dyn.get_owned_data ().assign (stress_step_dyn.get_owned_data ().size (), 0.0);
-    stress_step_dyn.assemble (replace_op);
+    incr_dg_coefficients_dyn.get_owned_data ().assign (incr_dg_coefficients_dyn.get_owned_data ().size (), 0.0);
+    incr_dg_coefficients_dyn.assemble (replace_op);
     TOC("Reset");
     TIC();
     
@@ -1042,39 +1225,31 @@ main (int argc, char **argv)
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
     {
-      stp.compute_dt(quadrant);
+      //stp.compute_dt(quadrant);
     }
     max_dt = REDCDT * stp.dt;
-
     stp.set_dt(max_dt); // deltat max
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
- 
-    // Print current time
-    if(rank==0)
-    {
-      std::cout << "MAXIMUM TIME STEP = " << stp.dt << std::endl;
-    }   
-
-    // time adaptivity
-    if (is_time_adaptivity)
-    { 
     
-      stp.nu_htot = 0.;
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-      {
-        stp.compute_dt_adaptive(quadrant);
-      }
-      MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
-
-      const double local_estimator_time_tolerance = 5e-3*(stp.time-stp.timed)*std::sqrt(stp.time-stp.timed)/std::sqrt(stp.nu_htot);
-
-      const double candidate_dt = local_estimator_time_tolerance/std::sqrt(stp.nu_htot)*(stp.time-stp.timed);
-      stp.set_dt( (stp.nu_htot>0 && candidate_dt<stp.dt) ? candidate_dt : stp.dt );
-      //stp.set_dt( (stp.nu_htot>0 && candidate_dt<stp.dt) ? std::max(candidate_dt, stp.dt/2.) : stp.dt ); // we set a minimum dt (std::max(,)), stp.dt/2.
-    }
-
     
+    // // time adaptivity
+    // if (is_time_adaptivity)
+    // {
+    //   stp.nu_htot = 0.;
+    //   for (auto quadrant = tmsh.begin_quadrant_sweep ();
+    //     quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    //   {
+    //     stp.compute_dt_adaptive(quadrant);
+    //   }
+    //   MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
+    //   const double rho_h = stp.nu_htot/((stp.time-stp.timed)*(stp.time-stp.timed));
+
+    //   //std::cout << stp.nu_htot << " " << rank << std::endl;
+
+    //   const auto candidate_dt = (5e-3/(rho_h+1e-7))*std::sqrt(1./(stp.time-stp.timed));
+    //   stp.set_dt( std::min(std::isnan(candidate_dt) ? max_dt : candidate_dt, max_dt) );
+    // }
+
 
     if (stp.dt == 0 && rank == 0)
     {
@@ -1082,9 +1257,9 @@ main (int argc, char **argv)
       exit( -1. );
     }
 
+
     // check save with given frequency
-    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1))-SAVEDT : stp.dt);
-    //stp.set_dt((time+stp.dt)>T ? T-(time+stp.dt) : stp.dt);
+    //stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1))-SAVEDT : stp.dt);
 
 
     time_oldd = time_old;
@@ -1092,12 +1267,10 @@ main (int argc, char **argv)
     time += stp.dt; 
     savecount += stp.dt;
     space_adapt_count += stp.dt;
-
-    // credo questi qui non servano
-    // MPI_Bcast (static_cast<void*> (&time),              1, MPI_DOUBLE, 0, tmsh.comm);
-    // MPI_Bcast (static_cast<void*> (&savecount),         1, MPI_DOUBLE, 0, tmsh.comm);
-    // MPI_Bcast (static_cast<void*> (&space_adapt_count), 1, MPI_DOUBLE, 0, tmsh.comm);
-    // MPI_Barrier (tmsh.comm); // tmsh.comm = MPI_COMM_WORLD
+    MPI_Bcast (static_cast<void*> (&time),              1, MPI_DOUBLE, 0, tmsh.comm);
+    MPI_Bcast (static_cast<void*> (&savecount),         1, MPI_DOUBLE, 0, tmsh.comm);
+    MPI_Bcast (static_cast<void*> (&space_adapt_count), 1, MPI_DOUBLE, 0, tmsh.comm);
+    MPI_Barrier (tmsh.comm); // tmsh.comm = MPI_COMM_WORLD
     
     // Print current time
     if(rank==0) 
@@ -1106,7 +1279,6 @@ main (int argc, char **argv)
       full_time_vector.push_back (time);
     }
     
-    //std::cout << (time<T) << " " << time << " " << T << " " << time-T << std::endl;
     
     
     
@@ -1118,136 +1290,64 @@ main (int argc, char **argv)
     }
     
 
-    // 
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.compute_nodal_anti_diffusive_fluxes(quadrant);
-    }
-    incr_dyn.assemble ();
-    P_plus_dyn.assemble ();
-    P_minus_dyn.assemble ();
-
-
     stp.set_times(time, time_old, time_oldd);
-    soldd_dyn = sold_dyn;
-    sold_dyn  = sol_dyn;
-
-
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
-    {
-      sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk]; // update solod di h
-
-      //const_incr_u_dyn.get_owned_data ()[kk  ] = 0.;
-      //const_incr_u_dyn.get_owned_data ()[kk+1] = incr_dyn.get_owned_data ()[kk+1]/mass_dyn.get_owned_data ()[kk+1]; //sol_dyn.get_owned_data ()[kk+1] + stp.dt * incr_dyn.get_owned_data ()[kk+1] / mass_dyn.get_owned_data ()[kk+1];
-      //const_incr_u_dyn.get_owned_data ()[kk+2] = incr_dyn.get_owned_data ()[kk+2]/mass_dyn.get_owned_data ()[kk+2]; //sol_dyn.get_owned_data ()[kk+2] + stp.dt * incr_dyn.get_owned_data ()[kk+2] / mass_dyn.get_owned_data ()[kk+2];
-    }
-    //const_incr_u_dyn.assemble();
-
-    //incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
-    //incr_dyn.assemble (replace_op);
-
-    double nodal_error = toleranceCranckNicolson + 1.; 
-    int Nmax = 100, count = -1;
-    while (count++ < Nmax && nodal_error > toleranceCranckNicolson)
-    {
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-      {
-        stp.loop_step(quadrant);
-      }
-      incr_source_dyn.assemble ();
-
-      // fare vettore che memorizza F_0 e un altro per F_{j-1}
-
-      double s = ;
-      for (int jj = 1; jj <= s; jj++)
-      {
-        for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
-        {
-          stp.rkc(jj, s, kk);
-        }
-        sol_dyn.assemble(replace_op);
-
-        for (auto quadrant = tmsh.begin_quadrant_sweep ();
-          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-        {
-          stp.compute_nodal_stress(quadrant);
-        }
-        stress_step_dyn.assemble();
-        
-      }
-
-
-      nodal_error = 0.; 
-      for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
-      {
-        nodal_error += mass_dyn.get_owned_data ()[kk+1] * std::abs(sol_dyn.get_owned_data ()[kk+1] - incr_dyn.get_owned_data ()[kk+1], 2.) + 
-                       mass_dyn.get_owned_data ()[kk+2] * std::abs(sol_dyn.get_owned_data ()[kk+2] - incr_dyn.get_owned_data ()[kk+2], 2.);
-
-        sol_dyn.get_owned_data ()[kk+1] = incr_dyn.get_owned_data ()[kk+1];
-        sol_dyn.get_owned_data ()[kk+2] = incr_dyn.get_owned_data ()[kk+2];
-      }
-
-      /*
-      // We compute the error in norm L^1 on the whole domain
-      nodal_error = 0.; 
-      for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
-      {
-        current_incr_source_Ux = rkc(s, s,  kk);
-
-        //current_incr_source_Ux = const_incr_u_dyn.get_owned_data ()[kk+1] + stp.dt*incr_source_dyn.get_owned_data ()[kk+1]/mass_dyn.get_owned_data ()[kk+1];
-        //current_incr_source_Uy = const_incr_u_dyn.get_owned_data ()[kk+2] + stp.dt*incr_source_dyn.get_owned_data ()[kk+2]/mass_dyn.get_owned_data ()[kk+2];
-
-        nodal_error += mass_dyn.get_owned_data ()[kk+1] * std::abs(sol_dyn.get_owned_data ()[kk+1] - current_incr_source_Ux, 2.) + 
-        mass_dyn.get_owned_data ()[kk+2] * std::abs(sol_dyn.get_owned_data ()[kk+2] - current_incr_source_Uy, 2.);
-
-        sol_dyn.get_owned_data ()[kk+1] = current_incr_source_Ux;
-        sol_dyn.get_owned_data ()[kk+2] = current_incr_source_Uy;
-      }
-      sol_dyn.assemble(replace_op);*/
-
-
-    }
-
-
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep ();
-         ++quadrant)
-    {
-      for (int ii = 0; ii < 4; ++ii)
-      {
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordh    (quadrant->gt (ii))]<0){
-          sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
-        }
-      }
-    }
-    sol_dyn.assemble (replace_op);
-    incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
-    incr_dyn.assemble (replace_op);
-
-    std::cout << "right now we stop here" << std::endl;
-    exit(1);
-    
+    // soldd_dyn = sold_dyn;
+    // sold_dyn  = sol_dyn;
     
 
-    // second order correction
+    // second step!
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
     {
       stp.second_step(quadrant);
-    }
-    incr_dyn.assemble ();
-    TOC("Compute step");
-
-
+    } 
+    incr_dg_coefficients_dyn.assemble ();
+    TOC("Compute step"); 
     
     
 
     TIC();
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
+
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
     {
-      sol_dyn.get_owned_data ()[kk] += stp.dt * incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
+      const auto iMe = elemental_mass_matrix_inverted(quadrant);
+
+      std::array<double,4> result_h, result_Ux, result_Uy;
+      for (int kk = 0; kk < 4; ++kk)
+      {
+        //std::cout << incr_dg_coefficients_dyn[ordh   (quadrant->get_global_quad_idx ()) + kk] << std::endl;// " " << incr_dg_coefficients_dyn[ordUx   (quadrant->get_global_quad_idx ()) + kk] << " " << incr_dg_coefficients_dyn[ordUy   (quadrant->get_global_quad_idx ()) + kk] << std::endl;
+
+        result_h [kk] = incr_dg_coefficients_dyn[ordh   (quadrant->get_global_quad_idx ()) + kk];
+        result_Ux[kk] = incr_dg_coefficients_dyn[ordUx  (quadrant->get_global_quad_idx ()) + kk];
+        result_Uy[kk] = incr_dg_coefficients_dyn[ordUy  (quadrant->get_global_quad_idx ()) + kk];
+      }
+
+      std::array<double,4> result_h_, result_Ux_, result_Uy_;
+      for (int kk = 0; kk < 4; ++kk)
+      {
+        const auto & iMe_kk = iMe[kk];
+
+        result_h_ [kk] = std::inner_product(iMe_kk.begin(), iMe_kk.end(), result_h .begin(), 0.); 
+        result_Ux_[kk] = std::inner_product(iMe_kk.begin(), iMe_kk.end(), result_Ux.begin(), 0.); 
+        result_Uy_[kk] = std::inner_product(iMe_kk.begin(), iMe_kk.end(), result_Uy.begin(), 0.); 
+
+        // // matrice lumpata
+        // const double sum_iMe_kk = std::accumulate(iMe_kk.begin(), iMe_kk.end(), 0.);
+        
+        // result_h_ [kk] = sum_iMe_kk*result_h [kk]; 
+        // result_Ux_[kk] = sum_iMe_kk*result_Ux[kk]; 
+        // result_Uy_[kk] = sum_iMe_kk*result_Uy[kk]; 
+      }
+
+      for (int kk = 0; kk < 4; ++kk)
+      {
+        dg_coefficients_dyn[ordh  (quadrant->get_global_quad_idx ()) + kk] += stp.dt * result_h_ [kk];
+        dg_coefficients_dyn[ordUx (quadrant->get_global_quad_idx ()) + kk] += stp.dt * result_Ux_[kk];
+        dg_coefficients_dyn[ordUy (quadrant->get_global_quad_idx ()) + kk] += stp.dt * result_Uy_[kk];
+      }
+
     }
 
     
@@ -1257,49 +1357,155 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordh (quadrant->gt (ii))] < 0){
-          sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
-        }
+        //std::cout << dg_coefficients_dyn[ordh   (quadrant->get_global_quad_idx ()) + ii] << " " << dg_coefficients_dyn[ordUx   (quadrant->get_global_quad_idx ()) + ii] << " " << dg_coefficients_dyn[ordUy   (quadrant->get_global_quad_idx ()) + ii] << std::endl;
+
+        //if (!std::isnan(dg_coefficients_dyn [ordh (quadrant->get_global_quad_idx ()) + ii]))
+        //std::cout << "here!! " << dg_coefficients_dyn [ordh (quadrant->get_global_quad_idx ()) + ii] << std::endl;
+        dg_coefficients_dyn [ordh (quadrant->get_global_quad_idx ()) + ii] *= (dg_coefficients_dyn [ordh (quadrant->get_global_quad_idx ()) + ii]>0);
       }
     }
-    sol_dyn.assemble (replace_op);
+    dg_coefficients_dyn.assemble (replace_op);
     TOC("Apply increment");
+
+    //exit(1);
     
     
     // Save solution
-    if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) {
+    if (savecount >= SAVEDT || time>=0.5) 
+    {
       TIC();
       if (rank == 0)
         std::cout << "savecount = " << savecount << std::endl;
       count++;
       save_time_vector.push_back (time);
+
+      TIC();
+      Q1 sol_(ln_nodes * 3);
+      sol_.get_owned_data ().assign(sol_.size(), 0.);
+
+      Q1 soll_(ln_nodes * 3);
+      soll_.get_owned_data ().assign(soll_.size(), 0.);
+
+      Q1 mass (ln_nodes * 3);
+      bim2a_mass_vector (tmsh, mass, ordh_nodal );
+      bim2a_mass_vector (tmsh, mass, ordUx_nodal);
+      bim2a_mass_vector (tmsh, mass, ordUy_nodal);
+      mass.assemble ();
+
+
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+       quadrant != tmsh.end_quadrant_sweep ();
+       ++quadrant)
+      {
+
+        std::array<double,4> isdof_or_hanging;
+
+        const auto Dx = quadrant->p (0, 1) - quadrant->p (0, 0);
+        const auto Dy = quadrant->p (1, 2) - quadrant->p (1, 0);
+        const auto area = Dx * Dy;
+
+        for (int ii = 0; ii < 4; ++ii){
+          if (! quadrant->is_hanging (ii)){
+            isdof_or_hanging[ii] = 1.;
+          } else {
+            isdof_or_hanging[ii] = .5;
+          }
+        }
+
+        // midpoint integration
+        double inh = -1e4, inUx = -1e4, inUy = -1e4;
+        double integral_h = 0., integral_Ux = 0., integral_Uy = 0.;
+        for (int ii = 0; ii < 4; ++ii)
+        {
+          //if (dg_coefficients_dyn[ordh   (quadrant->get_global_quad_idx ()) + ii] >0)
+          //std::cout << ii << " " << integral_h << " " << dg_coefficients_dyn[ordh   (quadrant->get_global_quad_idx ()) + ii] << std::endl;
+
+          inh  = std::max(inh,  dg_coefficients_dyn[ordh    (quadrant->get_global_quad_idx ()) + ii]);
+          inUx = std::max(inUx, dg_coefficients_dyn[ordUx   (quadrant->get_global_quad_idx ()) + ii]);
+          inUy = std::max(inUy, dg_coefficients_dyn[ordUy   (quadrant->get_global_quad_idx ()) + ii]);
+
+          integral_h  += .25 * .25*area*dg_coefficients_dyn[ordh   (quadrant->get_global_quad_idx ()) + ii]*isdof_or_hanging[ii];
+          integral_Ux += .25 * .25*area*dg_coefficients_dyn[ordUx  (quadrant->get_global_quad_idx ()) + ii]*isdof_or_hanging[ii];
+          integral_Uy += .25 * .25*area*dg_coefficients_dyn[ordUy  (quadrant->get_global_quad_idx ()) + ii]*isdof_or_hanging[ii];
+        }
+
+        
+
+        for (int ii = 0; ii < 4; ++ii)
+        {
+          if (! quadrant->is_hanging (ii)){
+
+            soll_ [ordh_nodal     (quadrant->gt (ii))] = std::max( soll_ [ordh_nodal     (quadrant->gt (ii))], inh );
+
+            sol_ [ordh_nodal     (quadrant->gt (ii))] += integral_h;
+            sol_ [ordUx_nodal    (quadrant->gt (ii))] += integral_Ux;
+            sol_ [ordUy_nodal    (quadrant->gt (ii))] += integral_Uy;
+          }
+
+          else
+          {
+             
+            // touch parent nodes to set up distributed vector structure
+            sol_ [ordh_nodal   (quadrant->gparent(0,ii))] += integral_h*.5;
+            sol_ [ordh_nodal   (quadrant->gparent(1,ii))] += integral_h*.5;
+
+            sol_ [ordUx_nodal  (quadrant->gparent(0,ii))] += integral_Ux*.5;
+            sol_ [ordUx_nodal  (quadrant->gparent(1,ii))] += integral_Ux*.5;
+
+            sol_ [ordUy_nodal  (quadrant->gparent(0,ii))] += integral_Uy*.5;
+            sol_ [ordUy_nodal  (quadrant->gparent(1,ii))] += integral_Uy*.5;
+          }
+        }
+      }
+
+      for (auto kk = 0; kk < mass.get_owned_data ().size (); kk++)
+      {
+        sol_.get_owned_data ()[kk] /= mass.get_owned_data ()[kk];
+      }
+
+      // bim2a_solution_with_ghosts in quad_operators.cpp
+      bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordh_nodal,  false);
+      bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUx_nodal, false);
+      bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUy_nodal);
+      TOC("get nodal sol.");
+
+
+      str = std::string(SAVE_DIR) + "/results/swel_h_%4.4d";
+      strcpy(arr, str.c_str());
+      sprintf(filename, arr,   count);
+      tmsh.octbin_export (filename, soll_, ordh_nodal);
+
+
      
       str = std::string(SAVE_DIR) + "/results/swe_h_%4.4d";
       strcpy(arr, str.c_str());
       sprintf(filename, arr,   count);
-      tmsh.octbin_export (filename, sol_dyn, ordh);
+      tmsh.octbin_export (filename, sol_, ordh_nodal);
       
       str = std::string(SAVE_DIR) + "/results/swe_Ux_%4.4d";
       strcpy(arr, str.c_str());
       sprintf(filename, arr,  count);
-      tmsh.octbin_export (filename, sol_dyn, ordUx);
+      tmsh.octbin_export (filename, sol_, ordUx_nodal); 
       
       str = std::string(SAVE_DIR) + "/results/swe_Uy_%4.4d";
       strcpy(arr, str.c_str());
       sprintf(filename, arr,  count);
-      tmsh.octbin_export (filename, sol_dyn, ordUy);
+      tmsh.octbin_export (filename, sol_, ordUy_nodal);
       
       str = std::string(SAVE_DIR) + "/results/swe_Z_%4.4d";
       strcpy(arr, str.c_str());
       sprintf(filename, arr,  count);
       tmsh.octbin_export (filename, Z_dyn);
+
       savecount = 0.0;
       TOC("Exporting solution");
+      
+      //exit(1);
 
     }
 
-    
-    if (is_space_adaptivity &&  ((space_adapt_count-SPACE_ADAPTDT) >= -std::numeric_limits<double>::epsilon()*SPACE_ADAPTDT))
+    /*
+    if (is_space_adaptivity && space_adapt_count >= SPACE_ADAPTDT)
     {
 
       TIC();
@@ -1463,10 +1669,6 @@ main (int argc, char **argv)
 
       std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 3);
 
-      Q1 stress_initial_step (ln_nodes * 3);
-      stress_step.get_owned_data ().assign (stress_step.get_owned_data ().size(), 0.0);
-      stress_step.assemble ();        
-
       Q1 P_plus (ln_nodes * 3);
       P_plus.get_owned_data ().assign (P_plus.get_owned_data ().size(), 0.0);
       P_plus.assemble ();  
@@ -1523,10 +1725,6 @@ main (int argc, char **argv)
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
 
-      bim2a_solution_with_ghosts (tmsh, stress_step, replace_op, ordh,  false);
-      bim2a_solution_with_ghosts (tmsh, stress_step, replace_op, ordUx, false);
-      bim2a_solution_with_ghosts (tmsh, stress_step, replace_op, ordUy);
-
       bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordh,  false);
       bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordUx, false);
       bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordUy);
@@ -1536,25 +1734,24 @@ main (int argc, char **argv)
       bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordUy);
       
        
-      sol_dyn                 = sol;
-      sold_dyn                = sold;
-      soldd_dyn               = soldd;
-      incr_dyn                = incr;
-      incr_anti_diff_dyn      = incr_anti_diff;
-      stress_step_dyn         = stress_step;
-      P_plus_dyn              = P_plus;
-      P_minus_dyn             = P_minus;
-      mass_dyn                = mass;
-      sol_onehalf_dyn         = sol_onehalf;
-      Z_dyn                   = Z;
-      slope_x_dyn             = slope_x;
-      slope_y_dyn             = slope_y;
+      sol_dyn              = sol;
+      sold_dyn             = sold;
+      soldd_dyn            = soldd;
+      incr_dyn             = incr;
+      incr_anti_diff_dyn   = incr_anti_diff;
+      P_plus_dyn           = P_plus;
+      P_minus_dyn          = P_minus;
+      mass_dyn             = mass;
+      sol_onehalf_dyn      = sol_onehalf;
+      Z_dyn                = Z;
+      slope_x_dyn          = slope_x;
+      slope_y_dyn          = slope_y;
 
       space_adapt_count = 0.0;
       
       TOC ("Interpolation");
       
-    }
+    }*/
       
     
     
