@@ -100,38 +100,55 @@ poisson_boltzmann::levelsetfun (double x, double y, double z)
 int
 poisson_boltzmann::parse_options (int argc, char **argv)
 {
+  int rank;
+  MPI_Comm_rank (mpicomm, &rank);
+  
   GetPot g (argc, argv);
   
   if (!g.search ("--pqrfile"))
   {
-     std::cout << "Warning: No pqr file selected, using the default one." << 
-     "\nTo select one use --pqrfile option followed by the desired one." << std::endl;
+     if (rank == 0)
+     {
+        std::cout << "Warning: No pqr file selected, using the default one." << 
+        "\nTo select one use --pqrfile option followed by the desired one." << std::endl;
+     }
   }
 
   pqrfilename = g.next ("1CCM.pqr");
   //Check that the pqr file exists
-  std::cout << "Choosen pqr: " << pqrfilename << std::endl;
+  if (rank == 0)
+     std::cout << "Choosen pqr: " << pqrfilename << std::endl;
   std::ifstream pqrfile (pqrfilename);
   if (!pqrfile)
   {
+     if (rank == 0)
+     {
   	std::cerr << "Cannot find the pqr file" << std::endl;
   	return 1;
+     }
   }
   
   if (!g.search ("--potfile"))
   {
-     std::cout << "Warning: No pot file selected, using the default one." <<
-     "\nTo select one use --potfile option followed by the desired one." << std::endl;
+     if (rank == 0)
+     {
+        std::cout << "Warning: No pot file selected, using the default one." <<
+        "\nTo select one use --potfile option followed by the desired one." << std::endl;
+     }
   }
 
   optionsfilename = g.next ("../options.pot");
   //Check that the pot file exists
-  std::cout << "Choosen pot: " << optionsfilename << std::endl;
+  if (rank == 0)
+     std::cout << "Choosen pot: " << optionsfilename << std::endl;
   std::ifstream optionsfile (optionsfilename);
   if (!optionsfile)
   {
+     if (rank == 0)
+     {
   	std::cerr << "Cannot find the options file" << std::endl;
   	return 1;
+     }
   }
   
   //Read the options from the file
