@@ -505,7 +505,7 @@ poisson_boltzmann::mumps_compute_electric_potential ()
   
   A.resize (tmsh.num_global_nodes ());
   
-  distributed_vector  rhs (tmsh.num_global_nodes ());
+  distributed_vector  rhs (tmsh.num_owned_nodes (), mpicomm);
 
   distributed_vector  psi (tmsh.num_global_nodes ());
   psi.get_owned_data ().assign (psi.get_owned_data ().size (), 0.0); 
@@ -521,9 +521,10 @@ poisson_boltzmann::mumps_compute_electric_potential ()
   bim3a_reaction (tmsh, reaction, ones, A); 
   
   A.assemble (); 
-  rhs.assemble();
 
   bim3a_rhs (tmsh, rho_fixed, ones, rhs);
+  
+  rhs.assemble();
   
   tmsh.octbin_export ("rhs_0", rhs);
   
@@ -553,7 +554,26 @@ poisson_boltzmann::mumps_compute_electric_potential ()
   bim3a_solution_with_ghosts (tmsh, phi);
 
   tmsh.octbin_export ("phi_0", phi);
-
+ 
+  /*if(rank==0)
+  { 
+  for ( int i = 0; i < phi.get_owned_data ().size() ; i++)
+  std::cout << "phi (" << i << ") = " << phi.get_owned_data ()[i] << std::endl;
+  }
+  
+  std::cout << "rhs tot: " << rhs.get_owned_data ().size() << std::endl; //1587 both ; mettendo owned -> 882 e 705
+  std::cout << "phi tot: " << phi.get_owned_data ().size() << std::endl; //3174 0 ; 1587 e 0
+  std::cout << "mesh own : " << tmsh.num_owned_nodes() << std::endl; //882 705
+  std::cout << "mesh glo : " << tmsh.num_global_nodes() << std::endl; //1587 both
+  std::cout << "mesh loc : " << tmsh.num_local_nodes() << std::endl; //882 890
+  
+  if(rank==0)
+  { 
+  	for ( int i = 0; i < rhs.get_owned_data ().size() ; i++)
+  		std::cout << "rhs (" << i << ") = " << rhs.get_owned_data ()[i] << std::endl;
+  }*/
+  
+  
   mumps_solver.cleanup ();
 
 }
@@ -617,9 +637,10 @@ poisson_boltzmann::lis_compute_electric_potential ()
   bim3a_reaction (tmsh, reaction, ones, A); 
 
   A.assemble (); 
-  rhs.assemble();
 
   bim3a_rhs (tmsh, rho_fixed, ones, rhs);
+
+  rhs.assemble();
   
   tmsh.octbin_export ("rhs_0", rhs);  
   
@@ -648,7 +669,8 @@ poisson_boltzmann::lis_compute_electric_potential ()
   
   lis_vector_set_values (LIS_INS_VALUE, ln, idx, &(rhs.get_owned_data()[0]), rhs_lis); //pass values to rhs_lis
   //lis_vector_set_values2(LIS_INS_VALUE, is, ln, &(rhs.get_owned_data()[0]), rhs_lis); //pass values to rhs_lis
-  lis_vector_print(rhs_lis);
+  //if(is == 882)
+  //lis_vector_print(rhs_lis);
 
   // lis PHI
   LIS_VECTOR phi_lis;
@@ -719,6 +741,7 @@ poisson_boltzmann::lis_compute_electric_potential ()
   distributed_vector phi (tmsh.num_owned_nodes (), mpicomm); 
 
   lis_vector_get_values(phi_lis, is, ln, &(phi.get_owned_data ()[0]));
+  //lis_vector_print(phi_lis);
 
   bim3a_solution_with_ghosts (tmsh, phi);
 
