@@ -14,7 +14,7 @@
 #include <bim_timing.h>
 #include <mumps_class.h>
 #include <tmesh.h>
-#include <quad_operators.h>
+#include <quad_operators.h> 
 
 #include "Taylor_Disc_Galerkin.h"
 

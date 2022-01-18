@@ -308,8 +308,8 @@ compute_slope()
 
     const auto i_vec_east = raster_2_vector(jj+1,ii);
 
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
-    dem_slope_x[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec])/res;
+    dem_slope_y[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
   }
 
   ii = Ny-1; jj = 0;
@@ -320,7 +320,7 @@ compute_slope()
 
     const auto i_vec_east = raster_2_vector(jj+1,ii);
 
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec])/res;
     dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
   }
 
@@ -506,18 +506,9 @@ main (int argc, char **argv)
   /// Allocate initial data container
   Q1 sol  (ln_nodes * 3);
   Q1 incr (ln_nodes * 3);
-  Q1 incr_source (ln_nodes * 3);
-  Q1 stress_initial_step (ln_nodes * 3);
-  Q1 stress_step (ln_nodes * 3);
-  Q1 P_plus (ln_nodes * 3);
-  Q1 P_minus (ln_nodes * 3);
   sol.get_owned_data  ().assign (sol.get_owned_data  ().size (), 0.0);
   incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
-  stress_initial_step.get_owned_data ().assign (stress_initial_step.get_owned_data ().size (), 0.0);
-  incr_source.get_owned_data ().assign (incr_source.get_owned_data ().size (), 0.0);
-  stress_step.get_owned_data  ().assign (stress_step.get_owned_data  ().size (), 0.0);
-  P_plus.get_owned_data  ().assign (P_plus.get_owned_data  ().size (), 0.0);
-  P_minus.get_owned_data ().assign (P_minus.get_owned_data ().size (), 0.0);
+
   
   Q1 mass (ln_nodes * 3);
   bim2a_mass_vector (tmsh, mass, ordh);
@@ -541,6 +532,12 @@ main (int argc, char **argv)
 
   Q0 slope_y (ln_elements);
   slope_y.assign (slope_y.size (), 0.0);
+
+  Q1 slope_x_node (ln_nodes);
+  slope_x_node.get_owned_data ().assign (slope_x_node.get_owned_data ().size (), 0.0);
+
+  Q1 slope_y_node (ln_nodes);
+  slope_y_node.get_owned_data ().assign (slope_y_node.get_owned_data ().size (), 0.0);
 
   std::string str = ""; 
   char filename[255]="", arr[255]="";
@@ -611,8 +608,10 @@ main (int argc, char **argv)
         sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
         sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
         
-        Z[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; 
-        mask_fin[quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]]; 
+        Z           [quadrant->gt (ii)] = dem           [global_coord_2_raster(xx,yy)[0]]; 
+        slope_x_node[quadrant->gt (ii)] = dem_slope_x   [global_coord_2_raster(xx,yy)[0]]; 
+        slope_y_node[quadrant->gt (ii)] = dem_slope_y   [global_coord_2_raster(xx,yy)[0]]; 
+        mask_fin    [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]]; 
       }
       
       else
@@ -629,6 +628,12 @@ main (int argc, char **argv)
         Z   [quadrant->gparent(0,ii)] += 0.;
         Z   [quadrant->gparent(1,ii)] += 0.;
 
+        slope_x_node[quadrant->gparent(0,ii)] += 0.;
+        slope_x_node[quadrant->gparent(1,ii)] += 0.;
+
+        slope_y_node[quadrant->gparent(0,ii)] += 0.;
+        slope_y_node[quadrant->gparent(1,ii)] += 0.;
+
         mask_fin   [quadrant->gparent(0,ii)] += 0.;
         mask_fin   [quadrant->gparent(1,ii)] += 0.;
       }
@@ -643,31 +648,18 @@ main (int argc, char **argv)
   
   bim2a_solution_with_ghosts (tmsh, Z, replace_op);
 
+  bim2a_solution_with_ghosts (tmsh, slope_x_node, replace_op);
+
+  bim2a_solution_with_ghosts (tmsh, slope_y_node, replace_op);
+
+  bim2a_solution_with_ghosts (tmsh, Z, replace_op);
+
   bim2a_solution_with_ghosts (tmsh, mask_fin, replace_op);
   
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
 
-  bim2a_solution_with_ghosts (tmsh, incr_source, replace_op, ordh,  false);
-  bim2a_solution_with_ghosts (tmsh, incr_source, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, incr_source, replace_op, ordUy);
-
-  bim2a_solution_with_ghosts (tmsh, stress_initial_step, replace_op, ordh,  false);
-  bim2a_solution_with_ghosts (tmsh, stress_initial_step, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, stress_initial_step, replace_op, ordUy);
-
-  bim2a_solution_with_ghosts (tmsh, stress_step, replace_op, ordh,  false);
-  bim2a_solution_with_ghosts (tmsh, stress_step, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, stress_step, replace_op, ordUy);
-
-  bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordh,  false);
-  bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordUy);
-
-  bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordh,  false);
-  bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordUy);
   
 
   if (is_initial_refinement)
@@ -768,29 +760,9 @@ main (int argc, char **argv)
     Q1 incr_ (ln_nodes * 3);
     incr_.get_owned_data ().assign (incr_.get_owned_data ().size(), 0.0);
     incr_.assemble ();
-
-    Q1 incr_source_ (ln_nodes * 3);
-    incr_source_.get_owned_data ().assign (incr_source_.get_owned_data ().size(), 0.0);
-    incr_source_.assemble ();
-
-    Q1 stress_initial_step_ (ln_nodes * 3);
-    stress_initial_step_.get_owned_data ().assign (stress_initial_step_.get_owned_data ().size(), 0.0);
-    stress_initial_step_.assemble ();
-
-    Q1 P_plus_ (ln_nodes * 3);
-    P_plus_.get_owned_data ().assign (P_plus_.get_owned_data ().size(), 0.0);
-    P_plus_.assemble ();
-
-    Q1 stress_step_ (ln_nodes * 3);
-    stress_step_.get_owned_data ().assign (stress_step_.get_owned_data ().size(), 0.0);
-    stress_step_.assemble ();
-
-    Q1 P_minus_ (ln_nodes * 3);
-    P_minus_.get_owned_data ().assign (P_minus_.get_owned_data ().size(), 0.0);
-    P_minus_.assemble ();
   
     Q1 mass_ (ln_nodes * 3);
-    bim2a_mass_vector (tmsh, mass_, ordh);
+    bim2a_mass_vector (tmsh, mass_, ordh );
     bim2a_mass_vector (tmsh, mass_, ordUx);
     bim2a_mass_vector (tmsh, mass_, ordUy);
     mass_.assemble ();
@@ -806,6 +778,8 @@ main (int argc, char **argv)
     Q1 mask_fin_ (ln_nodes);
     Q0 slope_x_(ln_elements);
     Q0 slope_y_(ln_elements);
+    Q1 slope_x_node_(ln_nodes);
+    Q1 slope_y_node_(ln_nodes);
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep ();
          ++quadrant)
@@ -828,6 +802,9 @@ main (int argc, char **argv)
 
           Z_[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]];
 
+          slope_x_node_[quadrant->gt (ii)] = dem_slope_x[global_coord_2_raster(xx,yy)[0]];
+          slope_y_node_[quadrant->gt (ii)] = dem_slope_y[global_coord_2_raster(xx,yy)[0]];
+
           mask_fin_ [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]];
         }
         
@@ -842,6 +819,12 @@ main (int argc, char **argv)
 
           Z_[quadrant->gparent(0,ii)] += 0.;
           Z_[quadrant->gparent(1,ii)] += 0.;
+
+          slope_x_node_[quadrant->gparent(0,ii)] += 0.;
+          slope_x_node_[quadrant->gparent(1,ii)] += 0.;
+
+          slope_y_node_[quadrant->gparent(0,ii)] += 0.;
+          slope_y_node_[quadrant->gparent(1,ii)] += 0.;
 
           mask_fin_[quadrant->gparent(0,ii)] += 0.;
           mask_fin_[quadrant->gparent(1,ii)] += 0.;
@@ -858,43 +841,25 @@ main (int argc, char **argv)
     
     bim2a_solution_with_ghosts (tmsh, Z_, replace_op);
 
+    bim2a_solution_with_ghosts (tmsh, slope_x_node_, replace_op);
+
+    bim2a_solution_with_ghosts (tmsh, slope_y_node_, replace_op);
+
     bim2a_solution_with_ghosts (tmsh, mask_fin_, replace_op);
     
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordh,  false);
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUx, false);
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUy);
 
-    bim2a_solution_with_ghosts (tmsh, incr_source_, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, incr_source_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, incr_source_, replace_op, ordUy);
-
-    bim2a_solution_with_ghosts (tmsh, stress_initial_step_, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, stress_initial_step_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, stress_initial_step_, replace_op, ordUy);
-
-    bim2a_solution_with_ghosts (tmsh, stress_step_, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, stress_step_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, stress_step_, replace_op, ordUy);
-
-    bim2a_solution_with_ghosts (tmsh, P_plus_, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, P_plus_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, P_plus_, replace_op, ordUy);
-
-    bim2a_solution_with_ghosts (tmsh, P_minus_, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, P_minus_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, P_minus_, replace_op, ordUy);
 
     sol                 = sol_;
     incr                = incr_;
-    incr_source         = incr_source_;
-    stress_initial_step = stress_initial_step_;
     incr_anti_diff      = incr_anti_diff_;
-    stress_step         = stress_step_;
-    P_plus              = P_plus_;
-    P_minus             = P_minus_;
     mass                = mass_;
     sol_onehalf         = sol_onehalf_;
     Z                   = Z_;
+    slope_x_node        = slope_x_node_;
+    slope_y_node        = slope_y_node_;
     mask_fin            = mask_fin_;
     slope_x             = slope_x_;
     slope_y             = slope_y_;
@@ -905,15 +870,20 @@ main (int argc, char **argv)
   Q1 sol_dyn                 = sol;
   Q1 sold_dyn                = sol;
   Q1 soldd_dyn               = sol;
+  Q1 sold_rkc_dyn            = sol;
   Q1 soldd_rkc_dyn           = sol;
   Q1 incr_dyn                = incr;
-  Q1 incr_source_dyn         = incr_source;
-  Q1 stress_initial_step_dyn = stress_initial_step;
-  Q1 stress_step_dyn         = stress_step;
-  Q1 P_plus_dyn              = P_plus;
-  Q1 P_minus_dyn             = P_minus;  
+  Q1 incr_initial_source_dyn = incr;
+  Q1 incr_source_dyn         = incr;
+  Q1 stress_initial_step_dyn = incr;
+  Q1 stress_step_dyn         = incr;
+  Q1 P_plus_dyn              = incr;
+  Q1 P_minus_dyn             = incr;  
+  Q1 spec_radius_nodal_dyn   = incr;
   Q1 mass_dyn                = mass;
   Q1 Z_dyn                   = Z;
+  Q1 slope_x_node_dyn        = slope_x_node;
+  Q1 slope_y_node_dyn        = slope_y_node;
   Q0 slope_x_dyn             = slope_x;
   Q0 slope_y_dyn             = slope_y;
   Q0 sol_onehalf_dyn         = sol_onehalf;
@@ -926,18 +896,23 @@ main (int argc, char **argv)
   TG2_scheme stp(sol_dyn, 
                  sold_dyn, 
                  soldd_dyn, 
+                 sold_rkc_dyn,
                  soldd_rkc_dyn,
                  incr_dyn,
+                 incr_initial_source_dyn,
                  incr_source_dyn, 
                  incr_anti_diff_dyn,
                  stress_initial_step_dyn,
                  stress_step_dyn,
                  P_plus_dyn, 
                  P_minus_dyn, 
+                 spec_radius_nodal_dyn,
                  sol_onehalf_dyn, 
                  mass_dyn,
                  ordh, ordUx, ordUy, 
                  Z_dyn, 
+                 slope_x_node_dyn,
+                 slope_y_node_dyn,
                  slope_x_dyn,
                  slope_y_dyn,
                  DELTAT, h_min, is_non_reflBC, is_bed_friction, is_stress_tensor, grav,
@@ -970,11 +945,6 @@ main (int argc, char **argv)
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0); 
   tmsh.octbin_export (filename, mask_fin);
-  
-  // MPI_Barrier (MPI_COMM_WORLD);
-  // if (rank == 0) { print_timing_report (); }
-  // MPI_Finalize ();
-  // return 0;
   
 
 
@@ -1142,7 +1112,13 @@ main (int argc, char **argv)
     {
       sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk]; 
     }
+    sol_dyn.assemble(replace_op);
 
+    // Verwer IMEX-RKC
+
+
+    soldd_rkc_dyn = sol_dyn; // copy
+    sold_rkc_dyn  = sol_dyn; // copy
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
       quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -1150,81 +1126,52 @@ main (int argc, char **argv)
       stp.compute_stress_slope(quadrant, true);
     }
     stress_initial_step_dyn.assemble();
+    
+
+    for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
+    {
+      stp.loop_step(kk, true);
+    }
+    incr_initial_source_dyn.assemble (replace_op);
+
+    // compute the spec_radius_nodal
 
 
-    double nodal_error = toleranceCranckNicolson + 1.; 
-    int Nmax = 1, count = -1;
-    while (count++ < Nmax && nodal_error > toleranceCranckNicolson)
+    double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653)); // # of stages minimum is 2!!! otherwise errors inside for the recursion!
+    for (int jj = 1; jj <= s; jj++)
     {
 
-      incr_source_dyn.get_owned_data ().assign (incr_source_dyn.get_owned_data ().size (), 0.0);
-      incr_source_dyn.assemble (replace_op);
+      for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
+      {
+        stp.rkc(jj, s, kk);
+      }
+      sol_dyn.assemble(replace_op);
+
+
+      soldd_rkc_dyn = sold_rkc_dyn; // copy
+      sold_rkc_dyn  = sol_dyn;      // copy
+
+
+      stress_step_dyn.get_owned_data ().assign (stress_step_dyn.get_owned_data ().size (), 0.0);
+      stress_step_dyn.assemble (replace_op);
 
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
       {
-        stp.loop_step(quadrant);
+        stp.compute_stress_slope(quadrant, false);
       }
-      incr_source_dyn.assemble ();
+      stress_step_dyn.assemble();
 
-      double s = 5; // # of stages minimum is 2!!! otherwise errors inside for the recursion!
-      for (int jj = 1; jj <= s; jj++)
+
+
+      for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
       {
-        soldd_rkc_dyn = sol_dyn; // copy
-
-        for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
-        {
-          stp.rkc(jj, s, kk);
-        }
-        sol_dyn.assemble(replace_op);
-
-        // compute the nodal_error!!
-
-        // in tg2class mettere come input reference: soldd_rkc_dyn, stress_initial_step_dyn, stress_step_dyn
-
-        stress_step_dyn.get_owned_data ().assign (stress_step_dyn.get_owned_data ().size (), 0.0);
-        stress_step_dyn.assemble (replace_op);
-
-        for (auto quadrant = tmsh.begin_quadrant_sweep ();
-          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-        {
-          stp.compute_stress_slope(quadrant, false);
-        }
-        stress_step_dyn.assemble();
+        stp.loop_step(kk, false);
+      }
+      incr_source_dyn.assemble (replace_op);
         
-      }
-
-      /*
-      nodal_error = 0.; 
-      for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
-      {
-        nodal_error += mass_dyn.get_owned_data ()[kk+1] * std::abs(sol_dyn.get_owned_data ()[kk+1] - incr_dyn.get_owned_data ()[kk+1], 2.) + 
-                       mass_dyn.get_owned_data ()[kk+2] * std::abs(sol_dyn.get_owned_data ()[kk+2] - incr_dyn.get_owned_data ()[kk+2], 2.);
-
-        sol_dyn.get_owned_data ()[kk+1] = incr_dyn.get_owned_data ()[kk+1];
-        sol_dyn.get_owned_data ()[kk+2] = incr_dyn.get_owned_data ()[kk+2];
-      }*/
-
-      /*
-      // We compute the error in norm L^1 on the whole domain
-      nodal_error = 0.; 
-      for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
-      {
-        current_incr_source_Ux = rkc(s, s,  kk);
-
-        //current_incr_source_Ux = const_incr_u_dyn.get_owned_data ()[kk+1] + stp.dt*incr_source_dyn.get_owned_data ()[kk+1]/mass_dyn.get_owned_data ()[kk+1];
-        //current_incr_source_Uy = const_incr_u_dyn.get_owned_data ()[kk+2] + stp.dt*incr_source_dyn.get_owned_data ()[kk+2]/mass_dyn.get_owned_data ()[kk+2];
-
-        nodal_error += mass_dyn.get_owned_data ()[kk+1] * std::abs(sol_dyn.get_owned_data ()[kk+1] - current_incr_source_Ux, 2.) + 
-        mass_dyn.get_owned_data ()[kk+2] * std::abs(sol_dyn.get_owned_data ()[kk+2] - current_incr_source_Uy, 2.);
-
-        sol_dyn.get_owned_data ()[kk+1] = current_incr_source_Ux;
-        sol_dyn.get_owned_data ()[kk+2] = current_incr_source_Uy;
-      }
-      sol_dyn.assemble(replace_op);*/
-
-
     }
+
 
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -1242,8 +1189,8 @@ main (int argc, char **argv)
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
 
-    std::cout << "right now we stop here" << std::endl;
-    exit(1);
+    // std::cout << "right now we stop here" << std::endl;
+    // exit(1);
     
     
 
@@ -1467,7 +1414,7 @@ main (int argc, char **argv)
       bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordh,  false);
       bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUx, false);
       bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUy);
-      interpolate_vector (tmsh, soldd_dyn, soldd, ordh);
+      interpolate_vector (tmsh, soldd_dyn, soldd, ordh );
       interpolate_vector (tmsh, soldd_dyn, soldd, ordUy);
       interpolate_vector (tmsh, soldd_dyn, soldd, ordUx);
       //soldd.assemble (replace_op);
@@ -1479,24 +1426,9 @@ main (int argc, char **argv)
 
       std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 3);
 
-      Q1 stress_initial_step (ln_nodes * 3);
-      stress_initial_step.get_owned_data ().assign (stress_initial_step.get_owned_data ().size(), 0.0);
-      stress_initial_step.assemble (); 
-
-      Q1 stress_step (ln_nodes * 3);
-      stress_step.get_owned_data ().assign (stress_step.get_owned_data ().size(), 0.0);
-      stress_step.assemble ();        
-
-      Q1 P_plus (ln_nodes * 3);
-      P_plus.get_owned_data ().assign (P_plus.get_owned_data ().size(), 0.0);
-      P_plus.assemble ();  
-      
-      Q1 P_minus (ln_nodes * 3);
-      P_minus.get_owned_data ().assign (P_minus.get_owned_data ().size(), 0.0);
-      P_minus.assemble ();      
       
       Q1 mass (ln_nodes * 3);
-      bim2a_mass_vector (tmsh, mass, ordh);
+      bim2a_mass_vector (tmsh, mass, ordh );
       bim2a_mass_vector (tmsh, mass, ordUx);
       bim2a_mass_vector (tmsh, mass, ordUy);
       mass.assemble ();
@@ -1524,13 +1456,21 @@ main (int argc, char **argv)
           if (! quadrant->is_hanging (ii)){
             double xx=quadrant->p(0,ii);
             double yy=quadrant->p(1,ii);
-            Z[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; 
+            Z           [quadrant->gt (ii)] = dem        [global_coord_2_raster(xx,yy)[0]]; 
+            slope_x_node[quadrant->gt (ii)] = dem_slope_x[global_coord_2_raster(xx,yy)[0]]; 
+            slope_y_node[quadrant->gt (ii)] = dem_slope_y[global_coord_2_raster(xx,yy)[0]]; 
           }
            
           else
           {
             Z[quadrant->gparent(0,ii)] += 0.;
             Z[quadrant->gparent(1,ii)] += 0.;
+
+            slope_x_node[quadrant->gparent(0,ii)] += 0.;
+            slope_x_node[quadrant->gparent(1,ii)] += 0.;
+
+            slope_y_node[quadrant->gparent(0,ii)] += 0.;
+            slope_y_node[quadrant->gparent(1,ii)] += 0.;
           }
         }
       }
@@ -1538,42 +1478,33 @@ main (int argc, char **argv)
       
       
       bim2a_solution_with_ghosts (tmsh, Z, replace_op);
+
+      bim2a_solution_with_ghosts (tmsh, slope_x_node, replace_op);
+
+      bim2a_solution_with_ghosts (tmsh, slope_y_node, replace_op);
       
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
-
-      bim2a_solution_with_ghosts (tmsh, stress_step, replace_op, ordh,  false);
-      bim2a_solution_with_ghosts (tmsh, stress_step, replace_op, ordUx, false);
-      bim2a_solution_with_ghosts (tmsh, stress_step, replace_op, ordUy);
-
-      bim2a_solution_with_ghosts (tmsh, stress_initial_step, replace_op, ordh,  false);
-      bim2a_solution_with_ghosts (tmsh, stress_initial_step, replace_op, ordUx, false);
-      bim2a_solution_with_ghosts (tmsh, stress_initial_step, replace_op, ordUy);
-
-      bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordh,  false);
-      bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordUx, false);
-      bim2a_solution_with_ghosts (tmsh, P_plus, replace_op, ordUy);
-
-      bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordh,  false);
-      bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordUx, false);
-      bim2a_solution_with_ghosts (tmsh, P_minus, replace_op, ordUy);
       
        
       sol_dyn                 = sol;
       sold_dyn                = sold;
       soldd_dyn               = soldd;
+      sold_rkc_dyn            = soldd;
       soldd_rkc_dyn           = soldd;
       incr_dyn                = incr;
       incr_source_dyn         = incr;
       incr_anti_diff_dyn      = incr_anti_diff;
-      stress_initial_step_dyn = stress_initial_step;
-      stress_step_dyn         = stress_step;
-      P_plus_dyn              = P_plus;
-      P_minus_dyn             = P_minus;
+      stress_initial_step_dyn = incr;
+      stress_step_dyn         = incr;
+      P_plus_dyn              = incr;
+      P_minus_dyn             = incr;
       mass_dyn                = mass;
       sol_onehalf_dyn         = sol_onehalf;
       Z_dyn                   = Z;
+      slope_x_node_dyn        = slope_x_node;
+      slope_y_node_dyn        = slope_y_node;
       slope_x_dyn             = slope_x;
       slope_y_dyn             = slope_y;
 

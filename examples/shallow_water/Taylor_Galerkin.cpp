@@ -317,7 +317,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
     const double den1 = ii<2    ? 2. : 1.;
     const double den2 = ii<2    ? 1. : 2.;
-    const double den3 = ii%2==1 ? 2. : 1.; 
+    const double den3 = ii%2==1 ? 2. : 1.;
     const double den4 = ii%2==1 ? 1. : 2.;
 
     const auto h_  = der_coeffs_x[ii]*F_star_h_x +der_coeffs_y[ii]*F_star_h_y;

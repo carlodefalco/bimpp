@@ -19,20 +19,25 @@ public:
   TG2_scheme(Q1& sol,
              Q1& sold,
              Q1& soldd,
+             Q1& sold_rkc,
              Q1& soldd_rkc,
              Q1& incr,
+             Q1& incr_initial_source,
              Q1& incr_source,
              std::vector<std::array<double,4>>& incr_anti_diff,
              Q1& stress_initial_step,
              Q1& stress_step,
              Q1& P_plus,
              Q1& P_minus,
+             Q1& spec_radius_nodal,
              Q0& sol_onehalf,
              Q1& mass,
              const ordering& oh,
              const ordering& oUx, 
              const ordering& oUy, 
              const Q1& Z,
+             Q1& slope_x_node,
+             Q1& slope_y_node,
              const Q0& slope_x,
              const Q0& slope_y,
              const double& DELTAT,
@@ -66,7 +71,7 @@ public:
   compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadrant);
 
   void
-  loop_step (tmesh::quadrant_iterator quadrant);
+  loop_step (const int& kk, const bool& isInitial);
 
   void
   compute_stress_slope (tmesh::quadrant_iterator quadrant, const bool& isInitial);
@@ -79,6 +84,12 @@ public:
 
   void
   rkc(const int& j, const int& s, const int& kk);
+
+  double
+  Ux_jac_source(const double& h, const double& Ux, const double& Uy);
+
+  double
+  Uy_jac_source(const double& h, const double& Ux, const double& Uy);
 
   double
   mu_fun(const int& j, const int& s);
@@ -222,14 +233,19 @@ public:
   Q1& sol;
   Q1& sold;
   Q1& soldd;
+  Q1& sold_rkc;
   Q1& soldd_rkc;
   Q1& incr;
+  Q1& incr_initial_source;
   Q1& incr_source;
   std::vector<std::array<double,4>>& incr_anti_diff;
   Q1& P_plus;
   Q1& P_minus;
+  Q1& spec_radius_nodal;
   Q0& sol_onehalf;
   const Q1& Z;
+  Q1& slope_x_node;
+  Q1& slope_y_node;
   Q1& stress_initial_step; 
   Q1& stress_step;
   const Q0& slope_x;
