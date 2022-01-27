@@ -172,7 +172,7 @@ public:
   std::array<double, 4> fluxx_Uy_node   = {0, 0, 0, 0}, fluxy_Uy_node   = {0, 0, 0, 0};
   
   
-  std::array<double, 3> sigma_stress = {0., 0., 0.};
+  std::array<double, 6> sigma_stress = {0., 0., 0., 0., 0., 0.};
   
   
   // flux functions
@@ -209,11 +209,33 @@ public:
   Uy_stress_formula_y (const double& h, const double& Ux, const double& Uy);
 
 
+  // stress functions spectral radius
+  double
+  stress_formula_x_spec_1 (const double& h, const double& Ux, const double& Uy);
+  
+  double
+  stress_formula_y_spec_1 (const double& h, const double& Ux, const double& Uy);
+  
+
+
+  double
+  Ux_stress_formula_x_spec_2 (const double& h, const double& Ux, const double& Uy);
+  
+  double
+  Ux_stress_formula_y_spec_2 (const double& h, const double& Ux, const double& Uy);
+  
+  double
+  Uy_stress_formula_x_spec_2 (const double& h, const double& Ux, const double& Uy);
+  
+  double
+  Uy_stress_formula_y_spec_2 (const double& h, const double& Ux, const double& Uy);
+
+
   std::array<double,3>
-  compute_nodal_stress (const double& h, const double& Ux, const double& Uy, const std::array<double,2>& grad_cell_ux, const std::array<double,2>& grad_cell_uy);
+  compute_cell_stress ();
 
   std::array<double,6>
-  compute_nodal_def_grad (const double& h, const double& Ux, const double& Uy, const std::array<double,2>& grad_cell_ux, const std::array<double,2>& grad_cell_uy);
+  compute_cell_def_grad ();
 
 
   
@@ -254,8 +276,8 @@ public:
   
 private:
 
-  std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y, D_Ux_x, D_Ux_y, D_Uy_x, D_Uy_y;
-  std::array<double, 2> grad_cell_h, grad_cell_Ux, grad_cell_Uy, grad_cell_ux, grad_cell_uy;
+  std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y, der_coeffs_x_s, der_coeffs_y_s, D_Ux_x, D_Ux_y, D_Uy_x, D_Uy_y, D_x_spec_1, D_y_spec_1, D_Ux_x_spec_2, D_Ux_y_spec_2, D_Uy_x_spec_2, D_Uy_y_spec_2;
+  std::array<double, 2> grad_cell_h, grad_cell_Ux, grad_cell_Uy, grad_cell_ux, grad_cell_uy, grad_cell_spec;
   
   const ordering& ordh;
   const ordering& ordUx;
