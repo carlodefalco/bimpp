@@ -20,7 +20,7 @@ const double p4esttol = 1 / std::pow (2, P8EST_QMAXLEVEL);
 #include <vector>
 
 //#include "pqr_parser.cpp"
-#include "nanoshaper.h"
+#include <nanoshaper.h>
 
 // Problem parameters
 constexpr double e_0 = 8.85418781762e-12;	//Dielectric void const [F/m]
