@@ -1135,6 +1135,20 @@ main (int argc, char **argv)
     incr_initial_source_dyn.assemble (replace_op);
 
     // compute the spec_radius_nodal
+    spec_radius_nodal_dyn.get_owned_data ().assign (spec_radius_nodal_dyn.get_owned_data ().size (), 0.0);
+    spec_radius_nodal_dyn.assemble (replace_op);
+    for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
+    {
+      spec_radius_nodal_dyn.get_owned_data ()[kk] /= mass_dyn.get_owned_data ()[kk]; 
+    }
+    spec_radius_nodal_dyn.assemble(replace_op);
+
+    double spec_radius = 0.;
+    for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
+    {
+      spec_radius = std::max(spec_radius, spec_radius_nodal_dyn.get_owned_data ()[kk]);
+    }
+    MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&spec_radius), 1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
 
 
     double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653)); // # of stages minimum is 2!!! otherwise errors inside for the recursion!
@@ -1161,6 +1175,21 @@ main (int argc, char **argv)
         stp.compute_stress_slope(quadrant, false);
       }
       stress_step_dyn.assemble();
+
+      spec_radius_nodal_dyn.get_owned_data ().assign (spec_radius_nodal_dyn.get_owned_data ().size (), 0.0);
+      spec_radius_nodal_dyn.assemble (replace_op);
+      for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
+      {
+        spec_radius_nodal_dyn.get_owned_data ()[kk] /= mass_dyn.get_owned_data ()[kk]; 
+      }
+      spec_radius_nodal_dyn.assemble(replace_op);
+
+      spec_radius = 0.;
+      for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
+      {
+        spec_radius = std::max(spec_radius, spec_radius_nodal_dyn.get_owned_data ()[kk]);
+      }
+      MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&spec_radius), 1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
 
 
 

@@ -232,10 +232,16 @@ public:
 
 
   std::array<double,3>
-  compute_cell_stress ();
+  compute_cell_stress (const double& Uxdof_0, const double& Uxdof_1, 
+  const double& Uxdof_2, const double& Uxdof_3, 
+  const double& Uydof_0, const double& Uydof_1, 
+  const double& Uydof_2, const double& Uydof_3);
 
   std::array<double,6>
-  compute_cell_def_grad ();
+  compute_cell_def_grad (const double& Uxdof_0, const double& Uxdof_1, 
+  const double& Uxdof_2, const double& Uxdof_3, 
+  const double& Uydof_0, const double& Uydof_1, 
+  const double& Uydof_2, const double& Uydof_3);
 
 
   
@@ -294,6 +300,8 @@ private:
   const double& bed_friction_angle_rad;
   const double& fluid_viscosity;
   const double& yield_shear_stress;
+
+  const double tol_incr = 1e-3;
   
 };
 
