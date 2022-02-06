@@ -86,10 +86,10 @@ public:
   rkc(const int& j, const int& s, const int& kk);
 
   double
-  Ux_jac_source(const double& h, const double& Ux, const double& Uy);
+  Ux_jac_source(const double& h, const double& Ux, const double& Uy, const int& s);
 
   double
-  Uy_jac_source(const double& h, const double& Ux, const double& Uy);
+  Uy_jac_source(const double& h, const double& Ux, const double& Uy, const int& s);
 
   double
   mu_fun(const int& j, const int& s);
@@ -172,7 +172,7 @@ public:
   std::array<double, 4> fluxx_Uy_node   = {0, 0, 0, 0}, fluxy_Uy_node   = {0, 0, 0, 0};
   
   
-  std::array<double, 6> sigma_stress = {0., 0., 0., 0., 0., 0.};
+  std::array<double, 3> sigma_stress = {0., 0., 0.};
   
   
   // flux functions

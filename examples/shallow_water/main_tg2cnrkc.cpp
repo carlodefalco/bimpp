@@ -19,17 +19,17 @@
 #include "Taylor_Galerkin_tg2cnrkc.h"
 
 
-// mpirun -np 1 main_tg2cnrkc $PWD inputs/dem_second_test.octbin.gz inputs/mask_in.octbin.gz inputs/mask_fin.octbin.gz 
+// mpirun -np 1 main_tg2cnrkc $PWD inputs/dem_second_test.octbin.gz inputs/mask_in.octbin.gz 
 
 
 static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in"; 
-static constexpr char VARNAME_3[255] = "mask_fin";
+//static constexpr char VARNAME_3[255] = "mask_fin";
 
 // properties of the input dem
-static constexpr double res = 2.5;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 201;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 201;//101;//175;//201;//180; // # rows
+static constexpr double res = 5.;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
 
  
 static constexpr double L = res*(Nx-1);
@@ -43,19 +43,18 @@ static constexpr int NUM_REFINEMENTS  = 6; // 8
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
-static constexpr double toleranceCranckNicolson = 1.e-3;
 
 static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at each time step
 static constexpr double SAVEDT = .1; // must never be null 
 static constexpr double DELTAT = .1;
 static constexpr double REDCDT = 1.; 
-static constexpr double T      = 1.;
+static constexpr double T      = 100.;
  
 static constexpr bool is_time_adaptivity    = false;
 static constexpr bool is_initial_refinement = false;
 static constexpr bool is_space_adaptivity   = false;
 static constexpr bool is_non_reflBC         = true; 
-static constexpr bool is_bed_friction       = true;
+static constexpr bool is_bed_friction       = false;
 static constexpr bool is_stress_tensor      = false;
 
 
@@ -148,10 +147,11 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 0. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. ); 
-  return(xx<=L/2. ? 20 : 0. ); 
+  //return(xx<=L/2. ? 20 : 0. ); 
 
 
   //const double HH = 30.;
@@ -458,9 +458,9 @@ main (int argc, char **argv)
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
-  if (argc != 5) 
+  if (argc != 4) 
   {
-    std::cerr << "You should provide as input respectively, save directory, dem directory, mask directory, mask final directory" << std::endl;
+    std::cerr << "You should provide as input respectively, save directory, dem directory, mask directory" << std::endl;
 
     // Close MPI and print report
     MPI_Barrier (MPI_COMM_WORLD);
@@ -472,7 +472,7 @@ main (int argc, char **argv)
   const auto SAVE_DIR    = argv[1];
   const auto DEM_DIR     = argv[2]; 
   const auto MASK_DIR    = argv[3];
-  const auto MASKFIN_DIR = argv[4];
+  //const auto MASKFIN_DIR = argv[4];
 
   
   /// Generate the mesh in 2d
@@ -524,8 +524,8 @@ main (int argc, char **argv)
   Q1 Z (ln_nodes);
   Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
 
-  Q1 mask_fin (ln_nodes);
-  mask_fin.get_owned_data ().assign (mask_fin.get_owned_data ().size (), 0.0);
+  // Q1 mask_fin (ln_nodes);
+  // mask_fin.get_owned_data ().assign (mask_fin.get_owned_data ().size (), 0.0);
 
   Q0 slope_x (ln_elements);
   slope_x.assign (slope_x.size (), 0.0);
@@ -567,15 +567,17 @@ main (int argc, char **argv)
   basin_mask.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask.begin ());
 
+  /*
   str = std::string(MASKFIN_DIR); 
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
 
+  
   octave_io_open (filename, m_in, &m_out);
   octave_load (VARNAME_3, v);
   M = v.matrix_value ();
   basin_mask_fin.resize (M.numel ());
-  std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask_fin.begin ());
+  std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask_fin.begin ());*/
   TOC("Load data matrix");
   
   // compute raster slope
@@ -607,11 +609,14 @@ main (int argc, char **argv)
         sol [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy);
         sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
         sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
+
+        // if (dem_slope_x   [global_coord_2_raster(xx,yy)[0]]!=0)
+        // std::cout << dem_slope_x   [global_coord_2_raster(xx,yy)[0]] << std::endl;
         
         Z           [quadrant->gt (ii)] = dem           [global_coord_2_raster(xx,yy)[0]]; 
         slope_x_node[quadrant->gt (ii)] = dem_slope_x   [global_coord_2_raster(xx,yy)[0]]; 
         slope_y_node[quadrant->gt (ii)] = dem_slope_y   [global_coord_2_raster(xx,yy)[0]]; 
-        mask_fin    [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]]; 
+        //mask_fin    [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]]; 
       }
       
       else
@@ -634,8 +639,8 @@ main (int argc, char **argv)
         slope_y_node[quadrant->gparent(0,ii)] += 0.;
         slope_y_node[quadrant->gparent(1,ii)] += 0.;
 
-        mask_fin   [quadrant->gparent(0,ii)] += 0.;
-        mask_fin   [quadrant->gparent(1,ii)] += 0.;
+        // mask_fin   [quadrant->gparent(0,ii)] += 0.;
+        // mask_fin   [quadrant->gparent(1,ii)] += 0.;
       }
     }
   }
@@ -652,9 +657,7 @@ main (int argc, char **argv)
 
   bim2a_solution_with_ghosts (tmsh, slope_y_node, replace_op);
 
-  bim2a_solution_with_ghosts (tmsh, Z, replace_op);
-
-  bim2a_solution_with_ghosts (tmsh, mask_fin, replace_op);
+  // bim2a_solution_with_ghosts (tmsh, mask_fin, replace_op);
   
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
@@ -775,7 +778,7 @@ main (int argc, char **argv)
 
     Q1 sol_ (ln_nodes * 3);
     Q1 Z_ (ln_nodes);
-    Q1 mask_fin_ (ln_nodes);
+    // Q1 mask_fin_ (ln_nodes);
     Q0 slope_x_(ln_elements);
     Q0 slope_y_(ln_elements);
     Q1 slope_x_node_(ln_nodes);
@@ -805,7 +808,7 @@ main (int argc, char **argv)
           slope_x_node_[quadrant->gt (ii)] = dem_slope_x[global_coord_2_raster(xx,yy)[0]];
           slope_y_node_[quadrant->gt (ii)] = dem_slope_y[global_coord_2_raster(xx,yy)[0]];
 
-          mask_fin_ [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]];
+          //mask_fin_ [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]];
         }
         
         else
@@ -826,8 +829,8 @@ main (int argc, char **argv)
           slope_y_node_[quadrant->gparent(0,ii)] += 0.;
           slope_y_node_[quadrant->gparent(1,ii)] += 0.;
 
-          mask_fin_[quadrant->gparent(0,ii)] += 0.;
-          mask_fin_[quadrant->gparent(1,ii)] += 0.;
+          //mask_fin_[quadrant->gparent(0,ii)] += 0.;
+          //mask_fin_[quadrant->gparent(1,ii)] += 0.;
         }
       }
     }
@@ -845,7 +848,7 @@ main (int argc, char **argv)
 
     bim2a_solution_with_ghosts (tmsh, slope_y_node_, replace_op);
 
-    bim2a_solution_with_ghosts (tmsh, mask_fin_, replace_op);
+    //bim2a_solution_with_ghosts (tmsh, mask_fin_, replace_op);
     
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordh,  false);
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUx, false);
@@ -860,7 +863,7 @@ main (int argc, char **argv)
     Z                   = Z_;
     slope_x_node        = slope_x_node_;
     slope_y_node        = slope_y_node_;
-    mask_fin            = mask_fin_;
+    //mask_fin            = mask_fin_;
     slope_x             = slope_x_;
     slope_y             = slope_y_;
   
@@ -941,10 +944,10 @@ main (int argc, char **argv)
   sprintf(filename, arr, 0); 
   tmsh.octbin_export (filename, Z_dyn);
 
-  str = std::string(SAVE_DIR) + "/results/mask_fin_%4.4d";
-  strcpy(arr, str.c_str());
-  sprintf(filename, arr, 0); 
-  tmsh.octbin_export (filename, mask_fin);
+  // str = std::string(SAVE_DIR) + "/results/mask_fin_%4.4d";
+  // strcpy(arr, str.c_str());
+  // sprintf(filename, arr, 0); 
+  // tmsh.octbin_export (filename, mask_fin);
   
 
 
@@ -1116,7 +1119,6 @@ main (int argc, char **argv)
 
     // Verwer IMEX-RKC
 
-
     soldd_rkc_dyn = sol_dyn; // copy
     sold_rkc_dyn  = sol_dyn; // copy
 
@@ -1151,7 +1153,13 @@ main (int argc, char **argv)
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&spec_radius), 1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
 
 
-    double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653)); // # of stages minimum is 2!!! otherwise errors inside for the recursion!
+    double s = std::round(std::max(std::sqrt(stp.dt*spec_radius/.653), 2.));
+
+    std::cout << s << std::endl;
+
+    
+
+    //double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653)); // # of stages minimum is 2!!! otherwise errors inside for the recursion!
     for (int jj = 1; jj <= s; jj++)
     {
 
@@ -1176,20 +1184,34 @@ main (int argc, char **argv)
       }
       stress_step_dyn.assemble();
 
-      spec_radius_nodal_dyn.get_owned_data ().assign (spec_radius_nodal_dyn.get_owned_data ().size (), 0.0);
-      spec_radius_nodal_dyn.assemble (replace_op);
-      for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
-      {
-        spec_radius_nodal_dyn.get_owned_data ()[kk] /= mass_dyn.get_owned_data ()[kk]; 
-      }
-      spec_radius_nodal_dyn.assemble(replace_op);
+      
+      // // Possible internal update of the spectral radius //
+      // spec_radius_nodal_dyn.get_owned_data ().assign (spec_radius_nodal_dyn.get_owned_data ().size (), 0.0);
+      // spec_radius_nodal_dyn.assemble (replace_op);
+      // for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
+      // {
+      //   spec_radius_nodal_dyn.get_owned_data ()[kk] /= mass_dyn.get_owned_data ()[kk]; 
+      // }
+      // spec_radius_nodal_dyn.assemble(replace_op);
 
-      spec_radius = 0.;
-      for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
-      {
-        spec_radius = std::max(spec_radius, spec_radius_nodal_dyn.get_owned_data ()[kk]);
-      }
-      MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&spec_radius), 1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
+      // spec_radius = 0.;
+      // for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
+      // {
+      //   spec_radius = std::max(spec_radius, spec_radius_nodal_dyn.get_owned_data ()[kk]);
+      // }
+      // MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&spec_radius), 1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
+
+      // int number_remaining_stages = std::round(std::max(std::sqrt(stp.dt*(1. - c_fun(j,s))*spec_radius/.653), 2.)); 
+
+      // if (number_remaining_stages!=(s-jj))
+      // {
+      //   // o calcolare nuove condizioni iniziali 
+      //   // o interpolare con polinomio di Hermite le soluzioni che già abbiamo ma fare comunque update di s!!
+      // }
+      // //----------------------------//
+      
+
+
 
 
 
@@ -1218,6 +1240,7 @@ main (int argc, char **argv)
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
 
+
     // std::cout << "right now we stop here" << std::endl;
     // exit(1);
     
@@ -1231,9 +1254,6 @@ main (int argc, char **argv)
     }
     incr_dyn.assemble ();
     TOC("Compute step");
-
-
-    
     
 
     TIC();
