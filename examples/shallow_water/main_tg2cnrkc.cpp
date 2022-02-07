@@ -45,8 +45,8 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = .1; // must never be null 
-static constexpr double DELTAT = .1;
+static constexpr double SAVEDT = 1; // must never be null 
+static constexpr double DELTAT = 1;
 static constexpr double REDCDT = 1.; 
 static constexpr double T      = 100.;
  
@@ -55,7 +55,7 @@ static constexpr bool is_initial_refinement = false;
 static constexpr bool is_space_adaptivity   = false;
 static constexpr bool is_non_reflBC         = true; 
 static constexpr bool is_bed_friction       = false;
-static constexpr bool is_stress_tensor      = false;
+static constexpr bool is_stress_tensor      = true;
 
 
 static constexpr double h_min = 1e-5;
@@ -147,8 +147,8 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
-  //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 0. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. ); 
   //return(xx<=L/2. ? 20 : 0. ); 
@@ -1009,6 +1009,9 @@ main (int argc, char **argv)
 
     stress_initial_step_dyn.get_owned_data ().assign (stress_initial_step_dyn.get_owned_data ().size (), 0.0);
     stress_initial_step_dyn.assemble (replace_op);
+
+    spec_radius_nodal_dyn.get_owned_data ().assign (spec_radius_nodal_dyn.get_owned_data ().size (), 0.0);
+    spec_radius_nodal_dyn.assemble (replace_op);
     TOC("Reset");
     TIC();
     
@@ -1137,8 +1140,6 @@ main (int argc, char **argv)
     incr_initial_source_dyn.assemble (replace_op);
 
     // compute the spec_radius_nodal
-    spec_radius_nodal_dyn.get_owned_data ().assign (spec_radius_nodal_dyn.get_owned_data ().size (), 0.0);
-    spec_radius_nodal_dyn.assemble (replace_op);
     for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
     {
       spec_radius_nodal_dyn.get_owned_data ()[kk] /= mass_dyn.get_owned_data ()[kk]; 
@@ -1155,7 +1156,7 @@ main (int argc, char **argv)
 
     double s = std::round(std::max(std::sqrt(stp.dt*spec_radius/.653), 2.));
 
-    std::cout << s << std::endl;
+    std::cout << s << " " << 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653)) << " " << spec_radius << std::endl;
 
     
 
