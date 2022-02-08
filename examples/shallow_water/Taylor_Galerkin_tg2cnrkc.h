@@ -197,38 +197,8 @@ public:
 
   // stress functions
   double
-  Ux_stress_formula_x (const double& h, const double& Ux, const double& Uy);
+  U_stress_formula (const double& h, const double& Ux, const double& Uy);
   
-  double
-  Ux_stress_formula_y (const double& h, const double& Ux, const double& Uy);
-  
-  double
-  Uy_stress_formula_x (const double& h, const double& Ux, const double& Uy);
-  
-  double
-  Uy_stress_formula_y (const double& h, const double& Ux, const double& Uy);
-
-
-  // stress functions spectral radius
-  double
-  stress_formula_x_spec_1 (const double& h, const double& Ux, const double& Uy);
-  
-  double
-  stress_formula_y_spec_1 (const double& h, const double& Ux, const double& Uy);
-  
-
-
-  double
-  Ux_stress_formula_x_spec_2 (const double& h, const double& Ux, const double& Uy);
-  
-  double
-  Ux_stress_formula_y_spec_2 (const double& h, const double& Ux, const double& Uy);
-  
-  double
-  Uy_stress_formula_x_spec_2 (const double& h, const double& Ux, const double& Uy);
-  
-  double
-  Uy_stress_formula_y_spec_2 (const double& h, const double& Ux, const double& Uy);
 
 
   std::array<double,3>
@@ -282,7 +252,7 @@ public:
   
 private:
 
-  std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y, der_coeffs_x_s, der_coeffs_y_s, D_Ux_x, D_Ux_y, D_Uy_x, D_Uy_y, D_x_spec_1, D_y_spec_1, D_Ux_x_spec_2, D_Ux_y_spec_2, D_Uy_x_spec_2, D_Uy_y_spec_2;
+  std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y, der_coeffs_x_s, der_coeffs_y_s, D_U;
   std::array<double, 2> grad_cell_h, grad_cell_Ux, grad_cell_Uy, grad_cell_ux, grad_cell_uy, grad_cell_spec;
   
   const ordering& ordh;
@@ -301,7 +271,7 @@ private:
   const double& fluid_viscosity;
   const double& yield_shear_stress;
 
-  const double tol_incr = 1e-3;
+  const double tol_incr = 1e-8;
   
 };
 

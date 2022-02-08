@@ -27,7 +27,7 @@ static constexpr char VARNAME_2[255] = "mask_in";
 //static constexpr char VARNAME_3[255] = "mask_fin";
 
 // properties of the input dem
-static constexpr double res = 5.;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double res = 5;//0.005*500; // it is also the minimum resolution of the bim element
 static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
 static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
 
@@ -48,7 +48,7 @@ static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at 
 static constexpr double SAVEDT = 1; // must never be null 
 static constexpr double DELTAT = 1;
 static constexpr double REDCDT = 1.; 
-static constexpr double T      = 100.;
+static constexpr double T      = 13.;
  
 static constexpr bool is_time_adaptivity    = false;
 static constexpr bool is_initial_refinement = false;
@@ -60,12 +60,12 @@ static constexpr bool is_stress_tensor      = true;
 
 static constexpr double h_min = 1e-5;
 static constexpr double grav = 9.81;
-static constexpr double density = 1291.;
+static constexpr double density = 500.;
 static constexpr double turbulence_coeff = 1.e5;
 static constexpr double surface_pressure = 0;//101325.;
 static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double fluid_viscosity = 5e1;
-static constexpr double yield_shear_stress = 2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
+static constexpr double fluid_viscosity = 1e4;//10000;
+static constexpr double yield_shear_stress = 0.;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
@@ -147,7 +147,7 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 0. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. ); 
@@ -1120,10 +1120,11 @@ main (int argc, char **argv)
     }
     sol_dyn.assemble(replace_op);
 
-    // Verwer IMEX-RKC
 
+    // Verwer IMEX-RKC
     soldd_rkc_dyn = sol_dyn; // copy
     sold_rkc_dyn  = sol_dyn; // copy
+
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
       quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -1131,7 +1132,14 @@ main (int argc, char **argv)
       stp.compute_stress_slope(quadrant, true);
     }
     stress_initial_step_dyn.assemble();
-    
+
+
+    // for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
+    // {
+    //   std::cout << stress_initial_step_dyn.get_owned_data ()[kk] << " " << stress_initial_step_dyn.get_owned_data ()[kk+1] << " " << stress_initial_step_dyn.get_owned_data ()[kk+2] << std::endl;
+    //   //std::cout << sol_dyn.get_owned_data ()[kk] << " " << sol_dyn.get_owned_data ()[kk+1] << " " << sol_dyn.get_owned_data ()[kk+2] << std::endl;//" " << sol_dyn.get_owned_data ()[kk+1] << std::endl;
+    // }
+    // exit(1);
 
     for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
     {
@@ -1139,13 +1147,14 @@ main (int argc, char **argv)
     }
     incr_initial_source_dyn.assemble (replace_op);
 
+
     // compute the spec_radius_nodal
     for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
     {
       spec_radius_nodal_dyn.get_owned_data ()[kk] /= mass_dyn.get_owned_data ()[kk]; 
     }
     spec_radius_nodal_dyn.assemble(replace_op);
-
+ 
     double spec_radius = 0.;
     for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
     {
@@ -1154,7 +1163,7 @@ main (int argc, char **argv)
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&spec_radius), 1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
 
 
-    double s = std::round(std::max(std::sqrt(stp.dt*spec_radius/.653), 2.));
+    double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653));//5;//std::round(std::max(std::sqrt(stp.dt*spec_radius/.653), 2.));
 
     std::cout << s << " " << 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653)) << " " << spec_radius << std::endl;
 
@@ -1169,10 +1178,12 @@ main (int argc, char **argv)
         stp.rkc(jj, s, kk);
       }
       sol_dyn.assemble(replace_op);
+      
 
 
       soldd_rkc_dyn = sold_rkc_dyn; // copy
       sold_rkc_dyn  = sol_dyn;      // copy
+
 
 
       stress_step_dyn.get_owned_data ().assign (stress_step_dyn.get_owned_data ().size (), 0.0);
@@ -1214,13 +1225,13 @@ main (int argc, char **argv)
 
 
 
-
-
       for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
       {
         stp.loop_step(kk, false);
       }
       incr_source_dyn.assemble (replace_op);
+
+      
         
     }
 
@@ -1310,6 +1321,8 @@ main (int argc, char **argv)
       TOC("Exporting solution");
 
     }
+
+
 
     
     if (is_space_adaptivity &&  ((space_adapt_count-SPACE_ADAPTDT) >= -std::numeric_limits<double>::epsilon()*SPACE_ADAPTDT))
