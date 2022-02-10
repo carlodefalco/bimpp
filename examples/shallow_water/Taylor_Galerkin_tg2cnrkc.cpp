@@ -638,10 +638,7 @@ TG2_scheme::compute_stress_slope (tmesh::quadrant_iterator quadrant, const bool&
 
       }
 
-
     }
-
-    //std::cout << hdof[ii] << " " << Uxdof[ii] << " " << Uydof[ii] << " " << std::endl;
   }
 
   // weights coefficients for the flux term
@@ -664,21 +661,16 @@ TG2_scheme::compute_stress_slope (tmesh::quadrant_iterator quadrant, const bool&
   std::array<std::array<double,3>,4> sigma_stress_incr_Ux, sigma_stress_incr_Uy;
   for (int ii = 0; ii < 4; ++ii){ // (3+3)x4
 
-    //std::cout << delta_incr_mat[0][ii] << " " << delta_incr_mat[1][ii] << " " << delta_incr_mat[2][ii] << " " << delta_incr_mat[3][ii] << std::endl;
-
     sigma_stress_incr_Ux[ii] = is_stress_tensor ? compute_cell_stress (Uxdof[0]+delta_incr_mat[0][ii], Uxdof[1]+delta_incr_mat[1][ii], Uxdof[2]+delta_incr_mat[2][ii], Uxdof[3]+delta_incr_mat[3][ii], 
       Uydof[0], Uydof[1], Uydof[2], Uydof[3]) : std::array<double,3>{{0,0,0}};
-
-    //std::cout << sigma_stress_incr_Ux[ii][0] << " " << sigma_stress_incr_Ux[ii][1] << " " << sigma_stress_incr_Ux[ii][2] << " " << std::endl;
 
     sigma_stress_incr_Uy[ii] = is_stress_tensor ? compute_cell_stress (Uxdof[0], Uxdof[1], Uxdof[2], Uxdof[3], 
       Uydof[0]+delta_incr_mat[0][ii], Uydof[1]+delta_incr_mat[1][ii], Uydof[2]+delta_incr_mat[2][ii], Uydof[3]+delta_incr_mat[3][ii]) : std::array<double,3>{{0,0,0}};
   }
-  //exit(1);
 
 
   /*
-  // boundary conditions, here are for the diffusion term only
+  // boundary conditions, here are for the diffusion term only, if commented means null diffusive fluxes
   bool is_boundary_edge = true;
   for (int iEdge = 0; iEdge < 4; ++iEdge){
 
@@ -812,8 +804,7 @@ TG2_scheme::compute_stress_slope (tmesh::quadrant_iterator quadrant, const bool&
       Uy_s += std::abs( der_coeffs_x[ii]*(1./3.)*(sigma_stress_incr_Ux[jj][2]-sigma_stress[2])/tol_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*(sigma_stress_incr_Ux[jj][1]-sigma_stress[1])/tol_incr*contribution_exact );
       Uy_s += std::abs( der_coeffs_x[ii]*(1./3.)*(sigma_stress_incr_Uy[jj][2]-sigma_stress[2])/tol_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*(sigma_stress_incr_Uy[jj][1]-sigma_stress[1])/tol_incr*contribution_exact );
     }
-
-    //exit(1);
+    
 
     //std::cout << sigma_stress[0] << " " << sigma_stress[1] << " " << sigma_stress[2] << " " << Ux_ << " " << Uy_ << std::endl;
 
@@ -1450,7 +1441,9 @@ TG2_scheme::compute_cell_stress (const double& Uxdof_0, const double& Uxdof_1,
   }
   second_invariant *= .5;
 
-  double viscos = second_invariant!=0 ? yield_shear_stress/std::sqrt(second_invariant) + 2.*fluid_viscosity : 0.;
+  const double kinetic_energergy_associated = std::sqrt(second_invariant);
+
+  double viscos = second_invariant!=0 ? 2.*fluid_viscosity + yield_shear_stress/kinetic_energergy_associated*(1. - std::exp(-regularization_parameter*kinetic_energergy_associated)) : 0.;
   viscos = yield_shear_stress==0 ? 2.*fluid_viscosity : viscos;
 
   //std::cout << def_grad[0] << " " << def_grad[1] << " " << def_grad[2] << " " << def_grad[3] << " " << def_grad[4] << " " << def_grad[5] << " aa" << std::endl;

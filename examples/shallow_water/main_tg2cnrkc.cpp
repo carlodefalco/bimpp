@@ -64,8 +64,8 @@ static constexpr double density = 500.;
 static constexpr double turbulence_coeff = 1.e5;
 static constexpr double surface_pressure = 0;//101325.;
 static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double fluid_viscosity = 1e4;//10000;
-static constexpr double yield_shear_stress = 0.;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
+static constexpr double fluid_viscosity = 1e3;//10000;
+static constexpr double yield_shear_stress = 10.;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 

@@ -272,6 +272,8 @@ private:
   const double& yield_shear_stress;
 
   const double tol_incr = 1e-8;
+
+  const double regularization_parameter = 1e2; // has dimension of seconds, in this case the limit of the Bingham viscosity for small I_{2,D} exists finites
   
 };
 
