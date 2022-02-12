@@ -66,6 +66,14 @@ poisson_boltzmann::create_mesh ()
   std::for_each (atoms.begin (), atoms.end (), it);
   l_c[0] -= 3*maxradius; l_c[1] -= 3*maxradius; l_c[2] -= 3*maxradius;
   r_c[0] += 3*maxradius; r_c[1] += 3*maxradius; r_c[2] += 3*maxradius;
+  
+  std::cout<< "\n\nx_min = " << l_c[0] + 3*maxradius << std::endl;
+  std::cout<< "y_min = " << l_c[1] + 3*maxradius << std::endl;
+  std::cout<< "z_min = " << l_c[2] + 3*maxradius << std::endl;
+  std::cout<< "x_max = " << r_c[0] - 3*maxradius << std::endl;
+  std::cout<< "y_max = " << r_c[1] - 3*maxradius << std::endl;
+  std::cout<< "z_max = " << r_c[2] - 3*maxradius << std::endl;
+  std::cout<< "y direction y min e max with 3*maxrad = " << l_c[1] << ", " << r_c[1] << std::endl;
 
   simple_conn_p = {l_c[0], l_c[1], l_c[2], r_c[0], l_c[1], l_c[2], l_c[0], r_c[1], l_c[2], r_c[0], r_c[1], l_c[2],
                    l_c[0], l_c[1], r_c[2], r_c[0], l_c[1], r_c[2], l_c[0], r_c[1], r_c[2], r_c[0], r_c[1], r_c[2]}; 
@@ -94,6 +102,16 @@ poisson_boltzmann::levelsetfun (double x, double y, double z)
     }
     
   return dist;
+}
+
+double
+poisson_boltzmann::ns_surf (id_t idx, double x, double y, double z)
+{  
+  
+  crossings_t cr_t(x, l_c[1], z, r_c[1], ns); //create a ray cr_t
+  //cr_t.computeIntersections(ns); 
+  return cr_t.is_inside_molecule(y); //return 1 if is inside, 0 otherwise
+
 }
 
 
@@ -208,6 +226,10 @@ poisson_boltzmann::init_tmesh ()
       tmsh.set_refine_marker (uniform_refinement);
       tmsh.refine (0, 1);
     }
+  
+  NS::NanoShaper ns2 (atoms, surf_type, skin_param, stern_layer, numberOfThreads);
+  ns = ns2; 
+  ns.buildAnalyticalSurface();
 }
 
 bool
@@ -247,6 +269,153 @@ poisson_boltzmann::is_in (const NS::Atom& i,
 }
 
 void
+poisson_boltzmann::refine_surface_ns ()
+{
+  for (int kk = 0; kk < (maxlevel - minlevel); ++kk)
+    {
+      // REFINEMENT
+      {
+
+        distributed_vector rcoeff (tmsh.num_owned_nodes ());
+
+        for (auto quadrant = tmsh.begin_quadrant_sweep ();
+             quadrant != tmsh.end_quadrant_sweep ();
+             ++quadrant)
+          {
+
+            for (int ii = 0; ii < 8; ++ii)
+              {
+                            
+                if (! quadrant->is_hanging (ii))
+                {
+                   
+                   rcoeff[quadrant->gt (ii)] =
+                     ns_surf (quadrant->gt (ii), 
+                     		quadrant->p (0, ii),
+                               quadrant->p (1, ii),
+                               quadrant->p (2, ii));
+                }
+                else
+                  for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
+                    rcoeff[quadrant->gparent (jj, ii)] += 0.;
+              }
+          }
+        //bim3a_solution_with_ghosts (tmsh, rcoeff, replace_op);
+
+        auto refinement = [&rcoeff,this]
+          (tmesh_3d::quadrant_iterator q) -> int
+          {
+            int currentlevel = static_cast<int> (q->the_quadrant->level);
+            int retval = 1.0;
+            double min = 100.0 * this->atoms.size (); 
+            double max = 0.0;
+            double tmp = 0.0;
+
+            if (currentlevel >= this->maxlevel)
+              retval = 0;
+            else
+              {
+                for (int ii = 0; ii < 8; ++ii)
+                  {
+
+                    if (! q->is_hanging (ii))
+                      {
+                        tmp = rcoeff[q->gt (ii)];
+
+                        if (tmp > max) max = tmp;
+                        if (tmp < min) min = tmp;
+                      }
+
+                  }
+                if (max > 1.0 && min < 1.0)
+                  retval = this->maxlevel - currentlevel;
+                else
+                  for (const NS::Atom& i : atoms) 
+                    if (is_in (i, q))
+                      {
+                        retval = this->maxlevel - currentlevel;
+                        break;
+                      }
+              }
+
+            return (retval);
+          };
+
+        tmsh.set_refine_marker (refinement);
+        tmsh.refine (0, 1);
+      }
+
+      // COARSENING
+      {
+        distributed_vector rcoeff (tmsh.num_owned_nodes ());
+
+        for (auto quadrant = tmsh.begin_quadrant_sweep ();
+             quadrant != tmsh.end_quadrant_sweep ();
+             ++quadrant)
+          {
+
+            for (int ii = 0; ii < 8; ++ii)
+              {
+                if (! quadrant->is_hanging (ii))
+                  rcoeff[quadrant->gt (ii)] = ns_surf (quadrant->gt (ii), 
+                  					 quadrant->p(0, ii),
+                                                       quadrant->p(1, ii),
+                                                       quadrant->p(2, ii)); //NEWWW
+                else
+                  for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
+                    rcoeff[quadrant->gparent (jj, ii)] += 0;
+              }
+          }
+        //bim3a_solution_with_ghosts (tmsh, rcoeff, replace_op);
+
+        auto coarsening = [&rcoeff,this]
+          (tmesh_3d::quadrant_iterator q) -> int
+          {
+            int currentlevel = static_cast<int> (q->the_quadrant->level);
+            int retval = 0;
+            double min = 100.0 * this->atoms.size (); 
+            double max = 0.0;
+            double tmp = 0.0;
+
+            if (currentlevel <= this->minlevel)
+              retval = 0;
+            else
+              {
+                for (int ii = 0; ii < 8; ++ii)
+                  {
+
+                    if (! q->is_hanging (ii))
+                      {
+                        tmp = rcoeff[q->gt (ii)];
+
+                        if (tmp > max) max = tmp;
+                        if (tmp < min) min = tmp;
+                      }
+
+                  }
+
+                if (min > 1.0 || max < 1.0)
+                  retval = currentlevel - this->minlevel;
+
+                for (const NS::Atom& i : atoms) 
+                  if (is_in (i, q))
+                    {
+                      retval = 0;
+                      break;
+                    }
+              }
+
+            return (retval);
+          };
+
+        tmsh.set_coarsen_marker (coarsening);
+        tmsh.coarsen (0, 1);
+      }
+    }
+}
+
+
+void
 poisson_boltzmann::refine_surface ()
 {
   for (int kk = 0; kk < (maxlevel - minlevel); ++kk)
@@ -267,7 +436,7 @@ poisson_boltzmann::refine_surface ()
                   rcoeff[quadrant->gt (ii)] =
                     levelsetfun (quadrant->p (0, ii),
                                  quadrant->p (1, ii),
-                                 quadrant->p (2, ii));
+                                 quadrant->p (2, ii)); //NEWWW
                 else
                   for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
                     rcoeff[quadrant->gparent (jj, ii)] += 0.;
@@ -421,10 +590,81 @@ poisson_boltzmann::create_markers ()
             ++num_hanging; 
         }
       if (num_int_nodes == 0)  
-        this->marker[quadrant->get_forest_quad_idx ()] = 1.0; 
+        this->marker[quadrant->get_forest_quad_idx ()] = 1.0; //out
       else if (num_int_nodes < (8 - num_hanging)) 
-        this->marker[quadrant->get_forest_quad_idx ()] = 1.0/2.0; 
+        this->marker[quadrant->get_forest_quad_idx ()] = 1.0/2.0; //"out"
     }
+}
+
+void
+poisson_boltzmann::create_markers_ns ()
+{
+  this->marker.assign (this->tmsh.num_local_quadrants (), 0.0); //marker = 0 -> in
+  this->rho_fixed.assign (this->tmsh.num_local_quadrants (), 0.0);  
+  
+  for (auto quadrant = this->tmsh.begin_quadrant_sweep ();
+       quadrant != this->tmsh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      for (const NS::Atom& i : atoms) 
+        if (is_in (i, quadrant)) 
+          {
+            double volume = (quadrant->p(0, 7) - quadrant->p(0, 0)) *
+              (quadrant->p(1, 7) - quadrant->p(1, 0)) *
+              (quadrant->p(2, 7) - quadrant->p(2, 0)); //volume
+            this->rho_fixed[quadrant->get_forest_quad_idx ()] = -(i.charge / volume)*4.0*pi;
+            break;
+          }
+
+      int num_int_nodes = 0;
+      int num_hanging = 0;
+      for (int ii = 0; ii < 8; ++ii)
+        {
+          if (! quadrant->is_hanging (ii)) 
+            {
+              if (this->ns_surf (quadrant->gt (ii),
+              			  quadrant->p (0, ii),
+                                 quadrant->p (1, ii),
+                                 quadrant->p (2, ii)) > 1.0) //NEWWW
+                ++num_int_nodes; 
+            }
+          else
+            ++num_hanging; 
+        }
+      if (num_int_nodes == 0)  
+        this->marker[quadrant->get_forest_quad_idx ()] = 1.0; //out
+      else if (num_int_nodes < (8 - num_hanging)) 
+        this->marker[quadrant->get_forest_quad_idx ()] = 1.0/2.0; //"out"
+    }
+    
+    
+  //Set the parameters for ns constructor
+  NS::surface_type surf_type = NS::skin;
+  double skin_param = 0.45;
+  double stern_layer = 2.;
+  double radius = 2.0;
+  double charge = 1;
+  double dielectric=0;
+  unsigned numberOfThreads = 1;
+  
+  NS::NanoShaper ns (atoms, surf_type, skin_param, stern_layer, numberOfThreads);
+  
+  ns.buildAnalyticalSurface();
+  
+  unsigned y_direction = 1;
+  
+  ns.setDirection(y_direction); //call it before castAxis
+  
+  double y_min_max[2] = {-9.991, 30.368}; //choose the two extremes of the grid
+  double startp[3]={0, y_min_max[0], -2};    //in x and z put the two 
+  double endp[3]={startp[0], y_min_max[1], startp[2]}; 
+  std::vector<std::pair<double,double*> > inters;   
+  bool computeNormals = false;
+  
+  ns.castAxisOrientedRay(startp,endp[y_direction],inters,y_direction,computeNormals);   
+  for (unsigned i=0;i<inters.size();i++)
+        std::cout << std::endl << "Hit at " << inters[i].first; //it returns the intersections: ex: (3, 5, 7, 8): in: 3-5,7-8; out: y_min-3,8-y_max 
+  
 }
 
 void
@@ -443,6 +683,32 @@ poisson_boltzmann::export_ls_tmesh ()
               rcoeff[quadrant->gt (ii)] = levelsetfun (quadrant->p(0, ii),
                                                        quadrant->p(1, ii),
                                                        quadrant->p(2, ii));
+            else
+              for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
+                rcoeff[quadrant->gparent (jj, ii)] += 0.;
+          }
+      }
+    bim3a_solution_with_ghosts (tmsh, rcoeff, replace_op);
+    tmsh.octbin_export (lsfilename.c_str (), rcoeff);
+}
+
+void
+poisson_boltzmann::export_ls_tmesh_ns ()
+{
+    distributed_vector rcoeff (tmsh.num_owned_nodes ());
+
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
+      {
+
+        for (int ii = 0; ii < 8; ++ii)
+          {
+            if (! quadrant->is_hanging (ii))
+              rcoeff[quadrant->gt (ii)] = ns_surf (quadrant->gt (ii), 
+              					     quadrant->p(0, ii),
+                                                   quadrant->p(1, ii),
+                                                   quadrant->p(2, ii)); //NEWWW
             else
               for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
                 rcoeff[quadrant->gparent (jj, ii)] += 0.;
