@@ -3,6 +3,8 @@
 #include "pb_class.h"
 #include "pqr_parser.cpp"
 
+//#define CLIENT_INFO " <<CLIENT INFO>>" 
+
 static char filename[255];
 
 int
@@ -31,7 +33,7 @@ main (int argc, char **argv)
   if (rank == 0)
   {
      std::cout << "Atom : " << std::endl;
-     write_atoms_to_pqr (std::cout, pb.atoms);
+     //write_atoms_to_pqr (std::cout, pb.atoms);
      pb.print_options ();
   }
 
@@ -51,16 +53,22 @@ main (int argc, char **argv)
   pb.init_tmesh ();
   TOC ("init_tmesh");
   
+  //NS::NanoShaper ns (pb.atoms, pb.surf_type, pb.skin_param, pb.stern_layer, pb.numberOfThreads);
+  //ns.buildAnalyticalSurface();
+  
   TIC ();
-  pb.refine_surface ();
+  //pb.refine_surface ();
+  pb.refine_surface_ns ();
   TOC ("refine surface");
 
   TIC ();
   pb.create_markers ();
+  pb.create_markers_ns ();
   TOC ("create element markers");
   
   TIC ();
-  pb.export_ls_tmesh ();
+  //pb.export_ls_tmesh ();
+  pb.export_ls_tmesh_ns ();
   TOC ("export ls tmesh");
 
   TIC ();
