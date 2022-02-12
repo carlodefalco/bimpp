@@ -19,7 +19,7 @@ const double p4esttol = 1 / std::pow (2, P8EST_QMAXLEVEL);
 #include <string>
 #include <vector>
 
-//#include "pqr_parser.cpp"
+#include "raytracer.h"
 #include <nanoshaper.h>
 
 // Problem parameters
@@ -66,6 +66,16 @@ poisson_boltzmann
   std::string linear_solver_preconditioner;
   std::string linear_solver_precond_opts;
   std::string linear_solver_tol;
+  
+  //Set the parameters for ns constructor
+  NS::surface_type surf_type = NS::skin;
+  double skin_param = 0.45;
+  double stern_layer = 2.;
+  double radius = 2.0;
+  double charge = 1;
+  double dielectric=0;
+  unsigned numberOfThreads = 1;
+  NS::NanoShaper ns;
 
   MPI_Comm mpicomm;
   tmesh_3d tmsh;
@@ -102,6 +112,9 @@ poisson_boltzmann
 
   double
   levelsetfun (double x, double y, double z);
+  
+  double
+  ns_surf (id_t idx, double x, double y, double z);
 
   static int
   uniform_refinement (tmesh_3d::quadrant_iterator quadrant)
@@ -127,12 +140,21 @@ poisson_boltzmann
 
   void
   refine_surface ();
+  
+  void
+  refine_surface_ns ();
 
   void
   create_markers ();
+  
+  void
+  create_markers_ns ();
 
   void
   export_ls_tmesh ();
+  
+  void
+  export_ls_tmesh_ns ();
 
   void
   export_marked_tmesh ();
