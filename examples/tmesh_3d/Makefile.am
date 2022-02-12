@@ -36,7 +36,7 @@ p4est_refine_box_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
 p4est_refine_box_LDADD = $(BIMLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLINALGLIB) $(BIMIOLIB) @P4EST_LIB@
 CLEANFILES += p4est_refine_box_*.pvtu p4est_refine_box_*.visit p4est_refine_box_*.vtu
 
-poisson_boltzmann_SOURCES =  poisson_boltzmann.cpp pb_class.cpp
+poisson_boltzmann_SOURCES =  poisson_boltzmann.cpp pb_class.cpp raytracer.cpp
 poisson_boltzmann_CPPFLAGS =  $(AM_CPPFLAGS) $(NANOSHAPER_CPPFLAGS) @P4EST_CPPFLAGS@
 poisson_boltzmann_LDFLAGS =  $(AM_LDFLAGS) $(NANOSHAPER_LDFLAGS) @P4EST_LDFLAGS@ 
 poisson_boltzmann_LDADD = $(BIMLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLISLIB) $(BIMLINALGLIB) $(BIMIOLIB) $(NANOSHAPER_LIB) @P4EST_LIB@
