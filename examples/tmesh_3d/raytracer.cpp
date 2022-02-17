@@ -1,15 +1,15 @@
 #include "raytracer.h"
 
 void
-crossings_t::computeIntersections (NS::NanoShaper & ns)
+crossings_t::compute_intersections ()
 {
-
   //set ray direction:
   unsigned y_direction = 1; 
   ns.setDirection(y_direction);
   
-  bool computeNormals = false;
-  ns.castAxisOrientedRay (start, end, inters, y_direction, computeNormals);
+  double start_ray[3] = {point[0], start, point[1]};
+  bool compute_normals = false;
+  ns.castAxisOrientedRay (start_ray, end, inters, y_direction, compute_normals);
   
   if (inters.size() != 0)
   {
@@ -20,18 +20,16 @@ crossings_t::computeIntersections (NS::NanoShaper & ns)
         i++;
      }
   }
-
 } 
 
 double
-crossings_t::is_inside_molecule(double y_coord)
+crossings_t::is_inside_molecule (double y)
 {
-
   unsigned i = 0;
-  if (flags.size () == 0 || y_coord < inters[i].first)
+  if (flags.size () == 0 || y < inters[i].first)
      return 0; //if there are no inters or y_the coord is before the first intersection, the point is outside.
     
-  while (i < flags.size () && y_coord > inters[i].first) //go on until the inters is passed
+  while (i < flags.size () && y > inters[i].first) //go on until the inters is passed
      i++;
      
   return flags[i-1];
