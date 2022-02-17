@@ -610,7 +610,7 @@ poisson_boltzmann::create_markers_ns ()
             {
               if (this->ns_surf (quadrant->p (0, ii),
                                  quadrant->p (1, ii),
-                                 quadrant->p (2, ii)) > 1.0) 
+                                 quadrant->p (2, ii)) >= 1.0) 
                 ++num_int_nodes; 
             }
           else
