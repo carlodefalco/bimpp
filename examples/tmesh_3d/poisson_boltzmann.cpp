@@ -63,6 +63,7 @@ main (int argc, char **argv)
   NS::NanoShaper ns2 (pb.atoms, pb.surf_type, pb.skin_param, pb.stern_layer, pb.numberOfThreads);
   crossings_t::ns = ns2;
   crossings_t::ns.buildAnalyticalSurface();
+  std::cout << "\n" << std::endl;
   
   MPI_Barrier (mpicomm);
   
@@ -72,7 +73,7 @@ main (int argc, char **argv)
   TOC ("refine surface");
 
   TIC ();
-  pb.create_markers ();
+  //pb.create_markers ();
   pb.create_markers_ns ();
   TOC ("create element markers");
   
