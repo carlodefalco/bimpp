@@ -109,12 +109,14 @@ poisson_boltzmann
       mpicomm(mpicomm_),
       tmsh(mpicomm)
   {  };
+  
+  ray_cache_t ray_cache;
 
   double
   levelsetfun (double x, double y, double z);
   
   double
-  ns_surf (id_t idx, double x, double y, double z);
+  ns_surf (double x, double y, double z);
 
   static int
   uniform_refinement (tmesh_3d::quadrant_iterator quadrant)
