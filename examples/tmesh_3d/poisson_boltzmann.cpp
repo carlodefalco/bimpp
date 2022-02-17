@@ -6,6 +6,10 @@
 //#define CLIENT_INFO " <<CLIENT INFO>>" 
 
 static char filename[255];
+double crossings_t::start = 0.;
+double crossings_t::end = 0.;
+std::vector<NS::Atom> a;
+NS::NanoShaper crossings_t::ns(a, NS::skin, 0.45, 2., 1);
 
 int
 main (int argc, char **argv)
@@ -36,7 +40,7 @@ main (int argc, char **argv)
      //write_atoms_to_pqr (std::cout, pb.atoms);
      pb.print_options ();
   }
-
+  
   TIC ();
   if (pb.mesh_shape == 1)
      pb.create_mesh ();
@@ -52,9 +56,15 @@ main (int argc, char **argv)
   TIC ();
   pb.init_tmesh ();
   TOC ("init_tmesh");
+
+  crossings_t::start = pb.l_c[1];
+  crossings_t::end = pb.r_c[1];
+ 
+  NS::NanoShaper ns2 (pb.atoms, pb.surf_type, pb.skin_param, pb.stern_layer, pb.numberOfThreads);
+  crossings_t::ns = ns2;
+  crossings_t::ns.buildAnalyticalSurface();
   
-  //NS::NanoShaper ns (pb.atoms, pb.surf_type, pb.skin_param, pb.stern_layer, pb.numberOfThreads);
-  //ns.buildAnalyticalSurface();
+  MPI_Barrier (mpicomm);
   
   TIC ();
   //pb.refine_surface ();
