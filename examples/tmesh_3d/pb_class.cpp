@@ -66,14 +66,6 @@ poisson_boltzmann::create_mesh ()
   std::for_each (atoms.begin (), atoms.end (), it);
   l_c[0] -= 3*maxradius; l_c[1] -= 3*maxradius; l_c[2] -= 3*maxradius;
   r_c[0] += 3*maxradius; r_c[1] += 3*maxradius; r_c[2] += 3*maxradius;
-  
-  std::cout<< "\n\nx_min = " << l_c[0] + 3*maxradius << std::endl;
-  std::cout<< "y_min = " << l_c[1] + 3*maxradius << std::endl;
-  std::cout<< "z_min = " << l_c[2] + 3*maxradius << std::endl;
-  std::cout<< "x_max = " << r_c[0] - 3*maxradius << std::endl;
-  std::cout<< "y_max = " << r_c[1] - 3*maxradius << std::endl;
-  std::cout<< "z_max = " << r_c[2] - 3*maxradius << std::endl;
-  std::cout<< "y direction y min e max with 3*maxrad = " << l_c[1] << ", " << r_c[1] << std::endl;
 
   simple_conn_p = {l_c[0], l_c[1], l_c[2], r_c[0], l_c[1], l_c[2], l_c[0], r_c[1], l_c[2], r_c[0], r_c[1], l_c[2],
                    l_c[0], l_c[1], r_c[2], r_c[0], l_c[1], r_c[2], l_c[0], r_c[1], r_c[2], r_c[0], r_c[1], r_c[2]}; 
@@ -105,13 +97,9 @@ poisson_boltzmann::levelsetfun (double x, double y, double z)
 }
 
 double
-poisson_boltzmann::ns_surf (id_t idx, double x, double y, double z)
+poisson_boltzmann::ns_surf (double x, double y, double z)
 {  
-  
-  crossings_t cr_t(x, l_c[1], z, r_c[1], ns); //create a ray cr_t
-  //cr_t.computeIntersections(ns); 
-  return cr_t.is_inside_molecule(y); //return 1 if is inside, 0 otherwise
-
+  return (ray_cache (x, z)).is_inside_molecule (y);
 }
 
 
@@ -227,9 +215,9 @@ poisson_boltzmann::init_tmesh ()
       tmsh.refine (0, 1);
     }
   
-  NS::NanoShaper ns2 (atoms, surf_type, skin_param, stern_layer, numberOfThreads);
-  ns = ns2; 
-  ns.buildAnalyticalSurface();
+  //NS::NanoShaper ns2 (atoms, surf_type, skin_param, stern_layer, numberOfThreads);
+  //ns = ns2; 
+  //ns.buildAnalyticalSurface();
 }
 
 bool
@@ -290,8 +278,7 @@ poisson_boltzmann::refine_surface_ns ()
                 {
                    
                    rcoeff[quadrant->gt (ii)] =
-                     ns_surf (quadrant->gt (ii), 
-                     		quadrant->p (0, ii),
+                     ns_surf (quadrant->p (0, ii),
                                quadrant->p (1, ii),
                                quadrant->p (2, ii));
                 }
@@ -357,10 +344,9 @@ poisson_boltzmann::refine_surface_ns ()
             for (int ii = 0; ii < 8; ++ii)
               {
                 if (! quadrant->is_hanging (ii))
-                  rcoeff[quadrant->gt (ii)] = ns_surf (quadrant->gt (ii), 
-                  					 quadrant->p(0, ii),
+                  rcoeff[quadrant->gt (ii)] = ns_surf (quadrant->p(0, ii),
                                                        quadrant->p(1, ii),
-                                                       quadrant->p(2, ii)); //NEWWW
+                                                       quadrant->p(2, ii));
                 else
                   for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
                     rcoeff[quadrant->gparent (jj, ii)] += 0;
@@ -436,7 +422,7 @@ poisson_boltzmann::refine_surface ()
                   rcoeff[quadrant->gt (ii)] =
                     levelsetfun (quadrant->p (0, ii),
                                  quadrant->p (1, ii),
-                                 quadrant->p (2, ii)); //NEWWW
+                                 quadrant->p (2, ii));
                 else
                   for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
                     rcoeff[quadrant->gparent (jj, ii)] += 0.;
@@ -622,10 +608,9 @@ poisson_boltzmann::create_markers_ns ()
         {
           if (! quadrant->is_hanging (ii)) 
             {
-              if (this->ns_surf (quadrant->gt (ii),
-              			  quadrant->p (0, ii),
+              if (this->ns_surf (quadrant->p (0, ii),
                                  quadrant->p (1, ii),
-                                 quadrant->p (2, ii)) > 1.0) //NEWWW
+                                 quadrant->p (2, ii)) > 1.0) 
                 ++num_int_nodes; 
             }
           else
@@ -636,34 +621,6 @@ poisson_boltzmann::create_markers_ns ()
       else if (num_int_nodes < (8 - num_hanging)) 
         this->marker[quadrant->get_forest_quad_idx ()] = 1.0/2.0; //"out"
     }
-    
-    
-  //Set the parameters for ns constructor
-  NS::surface_type surf_type = NS::skin;
-  double skin_param = 0.45;
-  double stern_layer = 2.;
-  double radius = 2.0;
-  double charge = 1;
-  double dielectric=0;
-  unsigned numberOfThreads = 1;
-  
-  NS::NanoShaper ns (atoms, surf_type, skin_param, stern_layer, numberOfThreads);
-  
-  ns.buildAnalyticalSurface();
-  
-  unsigned y_direction = 1;
-  
-  ns.setDirection(y_direction); //call it before castAxis
-  
-  double y_min_max[2] = {-9.991, 30.368}; //choose the two extremes of the grid
-  double startp[3]={0, y_min_max[0], -2};    //in x and z put the two 
-  double endp[3]={startp[0], y_min_max[1], startp[2]}; 
-  std::vector<std::pair<double,double*> > inters;   
-  bool computeNormals = false;
-  
-  ns.castAxisOrientedRay(startp,endp[y_direction],inters,y_direction,computeNormals);   
-  for (unsigned i=0;i<inters.size();i++)
-        std::cout << std::endl << "Hit at " << inters[i].first; //it returns the intersections: ex: (3, 5, 7, 8): in: 3-5,7-8; out: y_min-3,8-y_max 
   
 }
 
@@ -705,10 +662,9 @@ poisson_boltzmann::export_ls_tmesh_ns ()
         for (int ii = 0; ii < 8; ++ii)
           {
             if (! quadrant->is_hanging (ii))
-              rcoeff[quadrant->gt (ii)] = ns_surf (quadrant->gt (ii), 
-              					     quadrant->p(0, ii),
+              rcoeff[quadrant->gt (ii)] = ns_surf (quadrant->p(0, ii),
                                                    quadrant->p(1, ii),
-                                                   quadrant->p(2, ii)); //NEWWW
+                                                   quadrant->p(2, ii)); 
             else
               for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
                 rcoeff[quadrant->gparent (jj, ii)] += 0.;
