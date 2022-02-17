@@ -869,13 +869,19 @@ poisson_boltzmann::lis_compute_electric_potential ()
   //lis_vector_set_size(rhs_lis, 0, n_rhs); 
   lis_vector_get_range(rhs_lis, &is, &ie);
   
+  for (i=is; i<ie; i++)
+   lis_vector_set_value (LIS_INS_VALUE, i, rhs.get_owned_data()[i-is], rhs_lis); //pass values to rhs_lis
+     
+  /*
   LIS_INT *idx;
   idx = (LIS_INT *)malloc( ln*sizeof(LIS_INT) );
   for (i=is; i<ie; i++)
      idx [i-is]=i;
   
   lis_vector_set_values (LIS_INS_VALUE, ln, idx, &(rhs.get_owned_data()[0]), rhs_lis); //pass values to rhs_lis
+  */
   //lis_vector_set_values2(LIS_INS_VALUE, is, ln, &(rhs.get_owned_data()[0]), rhs_lis); 
+  
   //lis_vector_print(rhs_lis);
 
   // lis PHI
