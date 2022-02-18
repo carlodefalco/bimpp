@@ -16,7 +16,7 @@
 #include <tmesh.h>
 #include <quad_operators.h>
 
-#include "Taylor_Galerkin_tg2cnrkc.h"
+#include "Taylor_Galerkin_IMEX-RKC.h"
 
 
 // mpirun -np 1 main_tg2cnrkc $PWD inputs/dem_second_test.octbin.gz inputs/mask_in.octbin.gz 
