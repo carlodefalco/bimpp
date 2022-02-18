@@ -10,7 +10,7 @@ BIMCHLIB         = ../../src/libbimsystemsolver.la
 AM_LDFLAGS       = @MUMPS_LDFLAGS@ @LIS_LDFLAGS@
 AUTOMAKE_OPTIONS = nostdinc
 
-bin_PROGRAMS = main
+bin_PROGRAMS = main main_TG2IMEX-RKC
 CLEANFILES =
 
 #swe_tg_SOURCES =  swe_tg.cpp
