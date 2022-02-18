@@ -294,7 +294,7 @@ poisson_boltzmann::refine_surface_ns ()
           {
             int currentlevel = static_cast<int> (q->the_quadrant->level);
             int retval = 1.0;
-            double min = 100.0 * this->atoms.size (); 
+            double min = 1.0; 
             double max = 0.0;
             double tmp = 0.0;
 
@@ -314,7 +314,7 @@ poisson_boltzmann::refine_surface_ns ()
                       }
 
                   }
-                if (max > 1.0 && min < 1.0)
+                if (max > 0.5 && min < 0.5)
                   retval = this->maxlevel - currentlevel;
                 else
                   for (const NS::Atom& i : atoms) 
@@ -359,7 +359,7 @@ poisson_boltzmann::refine_surface_ns ()
           {
             int currentlevel = static_cast<int> (q->the_quadrant->level);
             int retval = 0;
-            double min = 100.0 * this->atoms.size (); 
+            double min = 1.0;
             double max = 0.0;
             double tmp = 0.0;
 
@@ -380,7 +380,7 @@ poisson_boltzmann::refine_surface_ns ()
 
                   }
 
-                if (min > 1.0 || max < 1.0)
+                if (min > 0.5 || max < 0.5)
                   retval = currentlevel - this->minlevel;
 
                 for (const NS::Atom& i : atoms) 
