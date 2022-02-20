@@ -6,6 +6,8 @@
 #include <array>
 #include <nanoshaper.h>
 
+#include "json.hpp" 
+
 using int_coord_t = unsigned long long int;
 
 struct
@@ -16,7 +18,7 @@ crossings_t {
    
    double point[2]; //point x and z coords: the ones that prescribe the ray
  
-   std::vector<bool>     flags; //in or out (in=1, out=0) ex: if flags[1]==1 -> [inters[1].first ; inters[2].first] is IN  
+   std::vector<bool> flags; //in or out (in=1, out=0) ex: if flags[1]==1 -> [inters[1].first ; inters[2].first] is IN  
    std::vector<std::pair<double,double*>> inters; //intersections and normals
    
    void
@@ -53,6 +55,9 @@ ray_cache_t
 {
    std::map<std::array<double, 2> , crossings_t, map_compare> rays; //x-coord and z-coord, correspondent ray
    
+   static int_coord_t count_cache;
+   static int_coord_t count_new;
+   
    crossings_t 
    operator() (double x0, double x1) 
    {
@@ -64,7 +69,10 @@ ray_cache_t
      auto it0 = rays.find (start_point);
      
      if (it0 != rays.end ())
+     {
        cr_t = it0->second;
+       count_cache++;
+     }
       
      else
      {
@@ -75,9 +83,11 @@ ray_cache_t
        tmp.compute_intersections ();
        rays[start_point] = tmp;         
        cr_t = rays[start_point];
+       count_new++;
      }
-     
+
      return cr_t;
    }
+
 };
 #endif //RAYTRACER_H
