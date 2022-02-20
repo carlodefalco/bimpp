@@ -109,14 +109,12 @@ poisson_boltzmann
       mpicomm(mpicomm_),
       tmsh(mpicomm)
   {  };
-  
-  ray_cache_t ray_cache;
 
   double
   levelsetfun (double x, double y, double z);
   
   double
-  ns_surf (double x, double y, double z);
+  ns_surf (ray_cache_t & ray_cache, double x, double y, double z);
 
   static int
   uniform_refinement (tmesh_3d::quadrant_iterator quadrant)
@@ -144,19 +142,19 @@ poisson_boltzmann
   refine_surface ();
   
   void
-  refine_surface_ns ();
+  refine_surface_ns (ray_cache_t & ray_cache);
 
   void
   create_markers ();
   
   void
-  create_markers_ns ();
+  create_markers_ns (ray_cache_t & ray_cache);
 
   void
   export_ls_tmesh ();
   
   void
-  export_ls_tmesh_ns ();
+  export_ns_tmesh (ray_cache_t & ray_cache);
 
   void
   export_marked_tmesh ();
