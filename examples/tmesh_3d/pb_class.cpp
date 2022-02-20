@@ -781,41 +781,8 @@ int rank;
   bim3a_solution_with_ghosts (tmsh, phi);
 
   tmsh.octbin_export ("phi_0", phi);
-  
-  if (rank == 0)
-  {
-  std::ofstream phi_file, rhs_file;
-  phi_file.open ("phi_mumps.txt");
-  if (phi_file.is_open ())
-  {
-    phi_file << "Size of phi: " << phi.get_owned_data ().size () << std::endl;
-    phi_file << "Owned nodes: " << tmsh.num_owned_nodes () << std::endl;
-    phi_file << "Global nodes: " << tmsh.num_global_nodes () << std::endl;
-    phi_file << "Local quad: " << tmsh.num_local_quadrants () << std::endl;
-    phi_file << "Local nodes: " << tmsh.num_local_nodes () << std::endl;
-    
-    for (auto i : phi.get_owned_data ())
-      phi_file << i << std::endl;
-  }
-  phi_file.close (); 
-  
-  rhs_file.open ("rhs_mumps.txt");
-  if (rhs_file.is_open ())
-  {
-    rhs_file << "Size of rhs: " << rhs.get_owned_data ().size () << std::endl;
-    rhs_file << "Owned nodes: " << tmsh.num_owned_nodes () << std::endl;
-    rhs_file << "Global nodes: " << tmsh.num_global_nodes () << std::endl;
-    rhs_file << "Local quad: " << tmsh.num_local_quadrants () << std::endl;
-    rhs_file << "Local nodes: " << tmsh.num_local_nodes () << std::endl;
-    
-    for (auto i : rhs.get_owned_data ())
-      rhs_file << i << std::endl;
-  }
-  rhs_file.close (); 
-  };
     
   mumps_solver.cleanup ();
-
 }
 
 
@@ -990,38 +957,5 @@ poisson_boltzmann::lis_compute_electric_potential ()
 
   bim3a_solution_with_ghosts (tmsh, phi);
 
-  tmsh.octbin_export ("phi_0", phi); 
-  
-    if (rank == 0)
-  {
-  std::ofstream phi_file, rhs_file;
-  phi_file.open ("phi_lis.txt");
-  if (phi_file.is_open ())
-  {
-    phi_file << "Size of phi: " << phi.get_owned_data ().size () << std::endl;
-    phi_file << "Owned nodes: " << tmsh.num_owned_nodes () << std::endl;
-    phi_file << "Global nodes: " << tmsh.num_global_nodes () << std::endl;
-    phi_file << "Local quad: " << tmsh.num_local_quadrants () << std::endl;
-    phi_file << "Local nodes: " << tmsh.num_local_nodes () << std::endl;
-    
-    for (auto i : phi.get_owned_data ())
-      phi_file << i << std::endl;
-  }
-  phi_file.close (); 
-  
-  rhs_file.open ("rhs_lis.txt");
-  if (rhs_file.is_open ())
-  {
-    rhs_file << "Size of rhs: " << rhs.get_owned_data ().size () << std::endl;
-    rhs_file << "Owned nodes: " << tmsh.num_owned_nodes () << std::endl;
-    rhs_file << "Global nodes: " << tmsh.num_global_nodes () << std::endl;
-    rhs_file << "Local quad: " << tmsh.num_local_quadrants () << std::endl;
-    rhs_file << "Local nodes: " << tmsh.num_local_nodes () << std::endl;
-    
-    for (auto i : rhs.get_owned_data ())
-      rhs_file << i << std::endl;
-  }
-  rhs_file.close (); 
-  };
-  
+  tmsh.octbin_export ("phi_0", phi);
 }
