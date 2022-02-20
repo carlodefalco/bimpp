@@ -127,7 +127,7 @@ main (int argc, char **argv)
   /*
   //Save ray_cache:
   nlohmann::json j;
-  map_to_json (j, pb.ray_cache.rays);
+  map_to_json (j, ray_cache.rays);
   //std::cout << "Cache size: " << pb.ray_cache.rays.size() << std::endl;
   //std::cout << j << std::endl;
   
@@ -137,9 +137,9 @@ main (int argc, char **argv)
   if (ray_cached_file.is_open ())
     ray_cached_file << j;
     
-  ray_cached_file.close ();
+  ray_cached_file.close ();*/
   
-  print_map (pb.ray_cache.rays); */
+  print_map (ray_cache.rays); 
   
   return 0;
   
