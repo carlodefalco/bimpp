@@ -31,8 +31,8 @@ poisson_boltzmann::create_cubic_mesh ()
         }
     };
   std::for_each (atoms.begin (), atoms.end (), it);
-  ll -= 3*maxradius;
-  rr += 3*maxradius;
+  ll -= 6*maxradius;
+  rr += 6*maxradius;
 
   simple_conn_p = {ll, ll, ll, rr, ll, ll, ll, rr, ll, rr, rr, ll,
                    ll, ll, rr, rr, ll, rr, ll, rr, rr, rr, rr, rr}; 
@@ -64,8 +64,8 @@ poisson_boltzmann::create_mesh ()
         }
     };
   std::for_each (atoms.begin (), atoms.end (), it);
-  l_c[0] -= 3*maxradius; l_c[1] -= 3*maxradius; l_c[2] -= 3*maxradius;
-  r_c[0] += 3*maxradius; r_c[1] += 3*maxradius; r_c[2] += 3*maxradius;
+  l_c[0] -= 6*maxradius; l_c[1] -= 6*maxradius; l_c[2] -= 6*maxradius;
+  r_c[0] += 6*maxradius; r_c[1] += 6*maxradius; r_c[2] += 6*maxradius;
 
   simple_conn_p = {l_c[0], l_c[1], l_c[2], r_c[0], l_c[1], l_c[2], l_c[0], r_c[1], l_c[2], r_c[0], r_c[1], l_c[2],
                    l_c[0], l_c[1], r_c[2], r_c[0], l_c[1], r_c[2], l_c[0], r_c[1], r_c[2], r_c[0], r_c[1], r_c[2]}; 
@@ -97,7 +97,7 @@ poisson_boltzmann::levelsetfun (double x, double y, double z)
 }
 
 double
-poisson_boltzmann::ns_surf (double x, double y, double z)
+poisson_boltzmann::ns_surf (ray_cache_t & ray_cache, double x, double y, double z)
 {  
   return (ray_cache (x, z)).is_inside_molecule (y);
 }
@@ -214,10 +214,6 @@ poisson_boltzmann::init_tmesh ()
       tmsh.set_refine_marker (uniform_refinement);
       tmsh.refine (0, 1);
     }
-  
-  //NS::NanoShaper ns2 (atoms, surf_type, skin_param, stern_layer, numberOfThreads);
-  //ns = ns2; 
-  //ns.buildAnalyticalSurface();
 }
 
 bool
@@ -257,7 +253,7 @@ poisson_boltzmann::is_in (const NS::Atom& i,
 }
 
 void
-poisson_boltzmann::refine_surface_ns ()
+poisson_boltzmann::refine_surface_ns (ray_cache_t & ray_cache)
 {
   for (int kk = 0; kk < (maxlevel - minlevel); ++kk)
     {
@@ -278,7 +274,8 @@ poisson_boltzmann::refine_surface_ns ()
                 {
                    
                    rcoeff[quadrant->gt (ii)] =
-                     ns_surf (quadrant->p (0, ii),
+                     ns_surf (ray_cache,
+                     		quadrant->p (0, ii),
                                quadrant->p (1, ii),
                                quadrant->p (2, ii));
                 }
@@ -344,9 +341,10 @@ poisson_boltzmann::refine_surface_ns ()
             for (int ii = 0; ii < 8; ++ii)
               {
                 if (! quadrant->is_hanging (ii))
-                  rcoeff[quadrant->gt (ii)] = ns_surf (quadrant->p(0, ii),
-                                                       quadrant->p(1, ii),
-                                                       quadrant->p(2, ii));
+                  rcoeff[quadrant->gt (ii)] = ns_surf (ray_cache,
+                     					quadrant->p (0, ii),
+                               			quadrant->p (1, ii),
+                            				quadrant->p (2, ii));
                 else
                   for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
                     rcoeff[quadrant->gparent (jj, ii)] += 0;
@@ -583,7 +581,7 @@ poisson_boltzmann::create_markers ()
 }
 
 void
-poisson_boltzmann::create_markers_ns ()
+poisson_boltzmann::create_markers_ns (ray_cache_t & ray_cache)
 {
   this->marker.assign (this->tmsh.num_local_quadrants (), 0.0); //marker = 0 -> in
   this->rho_fixed.assign (this->tmsh.num_local_quadrants (), 0.0);  
@@ -608,18 +606,20 @@ poisson_boltzmann::create_markers_ns ()
         {
           if (! quadrant->is_hanging (ii)) 
             {
-              if (this->ns_surf (quadrant->p (0, ii),
+              if (this->ns_surf (ray_cache,
+                     		  quadrant->p (0, ii),
                                  quadrant->p (1, ii),
-                                 quadrant->p (2, ii)) >= 1.0) 
+                                 quadrant->p (2, ii)) >= 1.0) //inside the molecule
                 ++num_int_nodes; 
             }
           else
             ++num_hanging; 
         }
-      if (num_int_nodes == 0)  
-        this->marker[quadrant->get_forest_quad_idx ()] = 1.0; //out
-      else if (num_int_nodes < (8 - num_hanging)) 
-        this->marker[quadrant->get_forest_quad_idx ()] = 1.0/2.0; //"out"
+      if (num_int_nodes == 0)  //if there's no node inside the molecule
+        this->marker[quadrant->get_forest_quad_idx ()] = 1.0; //quadrant is out 
+      else if (num_int_nodes < (8 - num_hanging)) //if the non hanging nodes are not all inside
+        this->marker[quadrant->get_forest_quad_idx ()] = 1.0/2.0; //"border"
+      //else: all the nodes are inside: the quadrant is inside and the marker value is 0
     }
   
 }
@@ -650,7 +650,7 @@ poisson_boltzmann::export_ls_tmesh ()
 }
 
 void
-poisson_boltzmann::export_ls_tmesh_ns ()
+poisson_boltzmann::export_ns_tmesh (ray_cache_t & ray_cache)
 {
     distributed_vector rcoeff (tmsh.num_owned_nodes ());
 
@@ -662,9 +662,10 @@ poisson_boltzmann::export_ls_tmesh_ns ()
         for (int ii = 0; ii < 8; ++ii)
           {
             if (! quadrant->is_hanging (ii))
-              rcoeff[quadrant->gt (ii)] = ns_surf (quadrant->p(0, ii),
-                                                   quadrant->p(1, ii),
-                                                   quadrant->p(2, ii)); 
+              rcoeff[quadrant->gt (ii)] = ns_surf (ray_cache,
+                     				    quadrant->p (0, ii),
+                              		    quadrant->p (1, ii),
+                           			    quadrant->p (2, ii));
             else
               for (int jj = 0; jj < quadrant->num_parents (ii); ++jj)
                 rcoeff[quadrant->gparent (jj, ii)] += 0.;
@@ -689,7 +690,7 @@ poisson_boltzmann::export_p4est ()
 void
 poisson_boltzmann::mumps_compute_electric_potential ()
 {
-  int rank;
+int rank;
   MPI_Comm_rank (mpicomm, &rank);
   if (rank == 0)
      std::cout << "\nStarting MUMPS solution" << std::endl;
@@ -781,6 +782,38 @@ poisson_boltzmann::mumps_compute_electric_potential ()
 
   tmsh.octbin_export ("phi_0", phi);
   
+  if (rank == 0)
+  {
+  std::ofstream phi_file, rhs_file;
+  phi_file.open ("phi_mumps.txt");
+  if (phi_file.is_open ())
+  {
+    phi_file << "Size of phi: " << phi.get_owned_data ().size () << std::endl;
+    phi_file << "Owned nodes: " << tmsh.num_owned_nodes () << std::endl;
+    phi_file << "Global nodes: " << tmsh.num_global_nodes () << std::endl;
+    phi_file << "Local quad: " << tmsh.num_local_quadrants () << std::endl;
+    phi_file << "Local nodes: " << tmsh.num_local_nodes () << std::endl;
+    
+    for (auto i : phi.get_owned_data ())
+      phi_file << i << std::endl;
+  }
+  phi_file.close (); 
+  
+  rhs_file.open ("rhs_mumps.txt");
+  if (rhs_file.is_open ())
+  {
+    rhs_file << "Size of rhs: " << rhs.get_owned_data ().size () << std::endl;
+    rhs_file << "Owned nodes: " << tmsh.num_owned_nodes () << std::endl;
+    rhs_file << "Global nodes: " << tmsh.num_global_nodes () << std::endl;
+    rhs_file << "Local quad: " << tmsh.num_local_quadrants () << std::endl;
+    rhs_file << "Local nodes: " << tmsh.num_local_nodes () << std::endl;
+    
+    for (auto i : rhs.get_owned_data ())
+      rhs_file << i << std::endl;
+  }
+  rhs_file.close (); 
+  };
+    
   mumps_solver.cleanup ();
 
 }
@@ -799,10 +832,6 @@ poisson_boltzmann::lis_compute_electric_potential ()
   double eps_out = 4.0*pi*e_0*e_out*kb*T*Angs/(e*e); //adim e_out
   epsilon.assign (tmsh.num_local_quadrants (), eps_in); //e_in
   
-  //reaction 
-  double C_0 = 1.0e3*N_av*ionic_strength; //Bulk concentration of monovalent species
-  double k2 = 2.0*C_0*Angs*Angs*e*e/(e_0*e_out*kb*T); 
-  
   for (auto epsp = epsilon.begin (), mp = marker.begin ();
        epsp != epsilon.end () || mp != marker.end ();
        ++epsp, ++mp) 
@@ -811,6 +840,10 @@ poisson_boltzmann::lis_compute_electric_potential ()
     else  
       (*epsp) = eps_out; 
 
+  //reaction 
+  double C_0 = 1.0e3*N_av*ionic_strength; //Bulk concentration of monovalent species
+  double k2 = 2.0*C_0*Angs*Angs*e*e/(e_0*e_out*kb*T); 
+  
   reaction.assign (tmsh.num_local_quadrants (), 0.0);
   for (auto rp = reaction.begin (), mp = marker.begin ();
        rp != reaction.end () || mp != marker.end ();
@@ -831,22 +864,22 @@ poisson_boltzmann::lis_compute_electric_potential ()
   distributed_vector  rhs (tmsh.num_owned_nodes (), mpicomm); 
 
   distributed_vector  psi (tmsh.num_global_nodes ());
+  //distributed_vector  psi (tmsh.num_owned_nodes ());
   psi.get_owned_data ().assign (psi.get_owned_data ().size (), 0.0);
 
   bim3a_solution_with_ghosts (tmsh, psi);
   
   distributed_vector ones (tmsh.num_global_nodes ()); 
+  //distributed_vector ones (tmsh.num_owned_nodes ()); 
   ones.get_owned_data ().assign (ones.get_owned_data ().size (), 1.0); 
   
   bim3a_solution_with_ghosts (tmsh, ones, replace_op);
   
   bim3a_advection_diffusion (tmsh, epsilon, psi, A);
   bim3a_reaction (tmsh, reaction, ones, A); 
-
   A.assemble (); 
-
+    
   bim3a_rhs (tmsh, rho_fixed, ones, rhs);
-
   rhs.assemble();
   
   tmsh.octbin_export ("rhs_0", rhs);  
@@ -958,5 +991,37 @@ poisson_boltzmann::lis_compute_electric_potential ()
   bim3a_solution_with_ghosts (tmsh, phi);
 
   tmsh.octbin_export ("phi_0", phi); 
+  
+    if (rank == 0)
+  {
+  std::ofstream phi_file, rhs_file;
+  phi_file.open ("phi_lis.txt");
+  if (phi_file.is_open ())
+  {
+    phi_file << "Size of phi: " << phi.get_owned_data ().size () << std::endl;
+    phi_file << "Owned nodes: " << tmsh.num_owned_nodes () << std::endl;
+    phi_file << "Global nodes: " << tmsh.num_global_nodes () << std::endl;
+    phi_file << "Local quad: " << tmsh.num_local_quadrants () << std::endl;
+    phi_file << "Local nodes: " << tmsh.num_local_nodes () << std::endl;
+    
+    for (auto i : phi.get_owned_data ())
+      phi_file << i << std::endl;
+  }
+  phi_file.close (); 
+  
+  rhs_file.open ("rhs_lis.txt");
+  if (rhs_file.is_open ())
+  {
+    rhs_file << "Size of rhs: " << rhs.get_owned_data ().size () << std::endl;
+    rhs_file << "Owned nodes: " << tmsh.num_owned_nodes () << std::endl;
+    rhs_file << "Global nodes: " << tmsh.num_global_nodes () << std::endl;
+    rhs_file << "Local quad: " << tmsh.num_local_quadrants () << std::endl;
+    rhs_file << "Local nodes: " << tmsh.num_local_nodes () << std::endl;
+    
+    for (auto i : rhs.get_owned_data ())
+      rhs_file << i << std::endl;
+  }
+  rhs_file.close (); 
+  };
   
 }
