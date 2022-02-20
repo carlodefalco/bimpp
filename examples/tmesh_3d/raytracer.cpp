@@ -3,14 +3,16 @@
 void
 crossings_t::compute_intersections ()
 {
-  //set ray direction:
-  unsigned y_direction = 1; 
-  ns.setDirection(y_direction);
+  unsigned y_direction = 1;
   
   double start_ray[3] = {point[0], start, point[1]};
   bool compute_normals = false;
-  ns.castAxisOrientedRay (start_ray, end, inters, y_direction, compute_normals);
   
+  if (point[0] < start || point[1] < start || point[0] > end || point[1] > end) //if I'm certainly out of the molecule
+    return;
+    
+  ns.castAxisOrientedRay (start_ray, end, inters, y_direction, compute_normals);
+
   if (inters.size() != 0)
   {
      for (unsigned i = 0; i < ((inters.size()) - 1); i++)
