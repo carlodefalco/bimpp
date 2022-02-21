@@ -64,8 +64,8 @@ poisson_boltzmann::create_mesh ()
         }
     };
   std::for_each (atoms.begin (), atoms.end (), it);
-  l_c[0] -= 6*maxradius; l_c[1] -= 6*maxradius; l_c[2] -= 6*maxradius;
-  r_c[0] += 6*maxradius; r_c[1] += 6*maxradius; r_c[2] += 6*maxradius;
+  l_c[0] -= 3*maxradius; l_c[1] -= 3*maxradius; l_c[2] -= 3*maxradius;
+  r_c[0] += 3*maxradius; r_c[1] += 3*maxradius; r_c[2] += 3*maxradius;
 
   simple_conn_p = {l_c[0], l_c[1], l_c[2], r_c[0], l_c[1], l_c[2], l_c[0], r_c[1], l_c[2], r_c[0], r_c[1], l_c[2],
                    l_c[0], l_c[1], r_c[2], r_c[0], l_c[1], r_c[2], l_c[0], r_c[1], r_c[2], r_c[0], r_c[1], r_c[2]}; 
@@ -167,10 +167,21 @@ poisson_boltzmann::parse_options (int argc, char **argv)
 
   const std::string model_options = "model/";
   linearized = g2 ((model_options + "linear_solver").c_str (),  1);
+  bc = g2 ((model_options + "bc_type").c_str (),  1);
   ionic_strength = g2 ((model_options + "ionic_strength").c_str (),  0.145);
   e_in = g2 ((model_options + "molecular_dielectric_constant").c_str (),  2.);
   e_out = g2 ((model_options + "solvent_dielectric_constant").c_str (),  78.54);
   decay    = g2 ((model_options + "decay").c_str (), -1.5);
+  
+  const std::string surf_options = "surface/";
+  int surf_type_num = g2 ((surf_options + "surface_type").c_str (),  1);
+  if (surf_type_num == 1) surf_type = NS::skin;
+  else if (surf_type_num == 0) surf_type = NS::ses;
+  else if (surf_type_num == 2) surf_type = NS::blobby;
+  else surf_type;
+  surf_param = g2 ((surf_options + "surface_parameter").c_str (),  0.45);
+  stern_layer = g2 ((surf_options + "stern_layer_thickness").c_str (),  2.);
+  num_threads = g2 ((surf_options + "number_of_threads").c_str (),  1);
   
   const std::string alg_options = "algorithm/";
   linear_solver_name = g2 ((alg_options + "linear_solver").c_str (),  "mumps");
@@ -183,6 +194,7 @@ poisson_boltzmann::parse_options (int argc, char **argv)
   p4estfilename = g2 ((out_options + "p4estfilename").c_str (), "poisson_boltzmann_p4est");
   markerfilename = g2 ((out_options + "markerfilename").c_str (), "poisson_boltzmann_marker_0");
   lsfilename = g2 ((out_options + "lsfilename").c_str (), "poisson_boltzmann_levelset_0");
+  nsfilename = g2 ((out_options + "nsfilename").c_str (), "poisson_boltzmann_nanoshaper_0");
   
   return 0;
 }
@@ -192,18 +204,34 @@ poisson_boltzmann::print_options ()
 {
   std::cout << "\nChoosen options: " << std::endl;
   std::cout << "minlevel = " << minlevel <<  "\nmaxlevel = " << maxlevel << std::endl;
-  if(mesh_shape == 1)
-  	std::cout << "Mesh shape = stretched" << std::endl;
+  
+  if (mesh_shape == 1)
+    std::cout << "Mesh shape = stretched" << std::endl;
   else
-  	std::cout << "Mesh shape = cubic" << std::endl;
-  std::cout << "Linearized model = " << linearized << "\ne_in = " << e_in << "\ne_out = " << e_out << 
-  		"\nionic_strenght = " << ionic_strength << "\ndecay = " << decay << std::endl;
+    std::cout << "Mesh shape = cubic" << std::endl;
+    
+  std::cout << "Linearized model = " << linearized << std::endl;
+  
+  if (bc == 1)
+    std::cout << "Dirichlet boundary conditions" << std::endl;
+  else
+    std::cout << "Naumann boundary conditions" << std::endl;
+    
+  std::cout << "e_in = " << e_in << "\ne_out = " << e_out 
+            << "\nionic_strenght = " << ionic_strength << "\ndecay = " << decay << std::endl;
+            
   std::cout << "Linear solver = " << linear_solver_name << std::endl;
   std::cout << "Linear solver options = " << linear_solver_options << std::endl;
   std::cout << "Preconditioner = " << linear_solver_preconditioner << std::endl;
   if (linear_solver_preconditioner == "ilu")
      std::cout << "ilu fill level selected = " <<  linear_solver_precond_opts << std::endl;
-  std::cout << "Choosen tolerance = " << linear_solver_tol << "\n" << std::endl;
+  std::cout << "Choosen tolerance = " << linear_solver_tol << std::endl;
+  
+  std::cout << "Choosen surface: " << surf_type << std::endl;
+  std::cout << "Surface parameter: " << surf_param << std::endl;
+  std::cout << "Stern layer thickness: " << stern_layer << std::endl;
+  std::cout << "Number of threads for nanoshaper: " << num_threads << "\n" << std::endl;
+   
 }
 
 void
@@ -672,7 +700,7 @@ poisson_boltzmann::export_ns_tmesh (ray_cache_t & ray_cache)
           }
       }
     bim3a_solution_with_ghosts (tmsh, rcoeff, replace_op);
-    tmsh.octbin_export (lsfilename.c_str (), rcoeff);
+    tmsh.octbin_export (nsfilename.c_str (), rcoeff);
 }
 
 void
