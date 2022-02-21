@@ -210,6 +210,8 @@ private:
   const double& bed_friction_angle_rad;
   const double& fluid_viscosity;
   const double& yield_shear_stress;
+
+  const double regularization_parameter = 1e3; // has dimension of seconds, in this case the limit of the Bingham viscosity for small I_{2,D} exists finites
   
 };
 

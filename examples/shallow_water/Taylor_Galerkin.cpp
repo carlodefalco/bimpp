@@ -805,7 +805,12 @@ TG2_scheme::compute_nodal_stress (const double& h, const double& Ux, const doubl
   }
   second_invariant *= .5;
 
-  const double viscos = second_invariant!=0 ? yield_shear_stress/std::sqrt(second_invariant) + 2*fluid_viscosity : 0.;
+  //const double viscos = second_invariant!=0 ? yield_shear_stress/std::sqrt(second_invariant) + 2*fluid_viscosity : 0.;
+
+  const double kinetic_energergy_associated = std::sqrt(second_invariant);
+
+  double viscos = second_invariant!=0 ? 2.*fluid_viscosity + yield_shear_stress/kinetic_energergy_associated*(1. - std::exp(-regularization_parameter*kinetic_energergy_associated)) : 0.;
+  viscos = yield_shear_stress==0 ? 2.*fluid_viscosity : viscos;
 
 //std::cout << viscos << std::endl;//def_grad[0] << " " << def_grad[1] << " " << def_grad[2] << std::endl;
   return(std::array<double,3>{{viscos*def_grad[0], viscos*def_grad[1], viscos*def_grad[3]}});
