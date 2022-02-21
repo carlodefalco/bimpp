@@ -74,7 +74,7 @@ main (int argc, char **argv)
   crossings_t::start = pb.l_c[1]/2.;
   crossings_t::end = pb.r_c[1]/2.;
  
-  NS::NanoShaper ns2 (pb.atoms, pb.surf_type, pb.skin_param, pb.stern_layer, pb.numberOfThreads);
+  NS::NanoShaper ns2 (pb.atoms, pb.surf_type, pb.surf_param, pb.stern_layer, pb.num_threads);
   crossings_t::ns = ns2;
   crossings_t::ns.setConfig<double>("Grid_scale", 3.0 );
   crossings_t::ns.buildAnalyticalSurface();
