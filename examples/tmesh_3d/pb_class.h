@@ -21,7 +21,12 @@ const double p4esttol = 1 / std::pow (2, P8EST_QMAXLEVEL);
 
 #include "raytracer.h"
 #include <nanoshaper.h>
-
+/*
+using NS::surface_type;
+constexpr surface_type skin = NS::surface_type::skin;
+constexpr surface_type ses = NS::surface_type::ses;
+constexpr surface_type blobby = NS::surface_type::blobby;
+*/
 // Problem parameters
 constexpr double e_0 = 8.85418781762e-12;	//Dielectric void const [F/m]
 constexpr double kb = 1.380649e-23;		//Boltzmann constant [J/K]
@@ -57,8 +62,15 @@ poisson_boltzmann
   
   //model:
   int linearized;
+  int bc;
   double decay;
   double e_in, e_out, ionic_strength; //[M]
+  
+  //surface:
+  NS::surface_type surf_type;
+  double surf_param;
+  double stern_layer;
+  unsigned num_threads;
   
   //algorithm:
   std::string linear_solver_name;
@@ -66,16 +78,6 @@ poisson_boltzmann
   std::string linear_solver_preconditioner;
   std::string linear_solver_precond_opts;
   std::string linear_solver_tol;
-  
-  //Set the parameters for ns constructor
-  NS::surface_type surf_type = NS::skin;
-  double skin_param = 0.45;
-  double stern_layer = 2.;
-  double radius = 2.0;
-  double charge = 1;
-  double dielectric=0;
-  unsigned numberOfThreads = 1;
-  NS::NanoShaper ns;
 
   MPI_Comm mpicomm;
   tmesh_3d tmsh;
@@ -84,6 +86,7 @@ poisson_boltzmann
   std::string pqrfilename;
   std::string p4estfilename;
   std::string lsfilename; 
+  std::string nsfilename;
   std::string markerfilename;
 
   std::vector<double> marker; 
@@ -92,13 +95,14 @@ poisson_boltzmann
   std::vector<double> reaction; 
 
   poisson_boltzmann (int maxlevel_ = 4, int minlevel_ = 3, int mesh_shape_ = 1,
-                     int linearized_ = 1, double decay_ = -1.5,
+                     int bc_ = 1, int linearized_ = 1, double decay_ = -1.5,
                      double e_in_ = 2.0, double e_out_ = 80.0, double ionic_strength_ = 0.145,
                      std::string linear_solver_name_ = "mumps", std::string linear_solver_options_ = "",
                      MPI_Comm mpicomm_ = MPI_COMM_WORLD)
     : maxlevel(maxlevel_),
       minlevel(minlevel_),
       mesh_shape(mesh_shape_),
+      bc(bc_),
       linearized(linearized_),
       decay(decay_),
       e_in(e_in_),
