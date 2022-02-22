@@ -3,15 +3,15 @@
 void
 crossings_t::compute_intersections ()
 {
-  unsigned y_direction = 1;
+  unsigned dir = 1; //direction for ray cast: 1 for y
   
-  double start_ray[3] = {point[0], start, point[1]};
+  double start_ray[3] = {point[0], start[dir], point[1]};
   bool compute_normals = false;
   
-  if (point[0] < start || point[1] < start || point[0] > end || point[1] > end) //if I'm certainly out of the molecule
+  if (point[0] < start[0] || point[1] < start[2] || point[0] > end[0] || point[1] > end[2]) //if I'm certainly out of the molecule
     return;
     
-  ns.castAxisOrientedRay (start_ray, end, inters, y_direction, compute_normals);
+  ns.castAxisOrientedRay (start_ray, end[dir], inters, dir, compute_normals);
 
   if (inters.size() != 0)
   {
