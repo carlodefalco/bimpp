@@ -39,7 +39,7 @@ static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
 static std::vector<double>   basin_mask_fin;
-static constexpr int NUM_REFINEMENTS  = 6; // 8
+static constexpr int NUM_REFINEMENTS  = 5; // 8
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
@@ -48,7 +48,7 @@ static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at 
 static constexpr double SAVEDT = 1; // must never be null 
 static constexpr double DELTAT = 1;
 static constexpr double REDCDT = 1.; 
-static constexpr double T      = 13.;
+static constexpr double T      = 100.;
  
 static constexpr bool is_time_adaptivity    = false;
 static constexpr bool is_initial_refinement = false;
@@ -60,12 +60,12 @@ static constexpr bool is_stress_tensor      = true;
 
 static constexpr double h_min = 1e-5;
 static constexpr double grav = 9.81;
-static constexpr double density = 500.;
-static constexpr double turbulence_coeff = 1.e5;
+static constexpr double density = 1300.;
+static constexpr double turbulence_coeff = 1.e3;
 static constexpr double surface_pressure = 0;//101325.;
 static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 1e3;//10000;
-static constexpr double yield_shear_stress = 10.;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
+static constexpr double yield_shear_stress = 2e3;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
@@ -148,7 +148,7 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 double h0_fun (const double& xx, const double& yy) 
 {
   return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
-  return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 0. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. ); 
   //return(xx<=L/2. ? 20 : 0. ); 
@@ -991,13 +991,13 @@ main (int argc, char **argv)
     std::cout << "start loop" << std::endl;
   }
   
-  
+  TIC();
   while ((T-time)>std::numeric_limits<double>::epsilon()*T)
   {
     
     
     // Reset increment, and limiter terms
-    TIC();
+    //TIC();
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
 
@@ -1012,8 +1012,8 @@ main (int argc, char **argv)
 
     spec_radius_nodal_dyn.get_owned_data ().assign (spec_radius_nodal_dyn.get_owned_data ().size (), 0.0);
     spec_radius_nodal_dyn.assemble (replace_op);
-    TOC("Reset");
-    TIC();
+    //TOC("Reset");
+    //TIC();
     
   
     // compute time step, 
@@ -1165,7 +1165,7 @@ main (int argc, char **argv)
 
     double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653));//5;//std::round(std::max(std::sqrt(stp.dt*spec_radius/.653), 2.));
 
-    std::cout << s << " " << 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653)) << " " << spec_radius << std::endl;
+    std::cout << "number of steps and spectral radius, " << s << " " << spec_radius << std::endl;
 
     
 
@@ -1265,10 +1265,10 @@ main (int argc, char **argv)
       stp.second_step(quadrant);
     }
     incr_dyn.assemble ();
-    TOC("Compute step");
+    //TOC("Compute step");
     
 
-    TIC();
+    //TIC();
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
     {
       sol_dyn.get_owned_data ()[kk] += stp.dt * incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
@@ -1287,12 +1287,12 @@ main (int argc, char **argv)
       }
     }
     sol_dyn.assemble (replace_op);
-    TOC("Apply increment");
+    //TOC("Apply increment");
     
     
     // Save solution
     if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) {
-      TIC();
+      //TIC();
       if (rank == 0)
         std::cout << "savecount = " << savecount << std::endl;
       count++;
@@ -1318,7 +1318,7 @@ main (int argc, char **argv)
       sprintf(filename, arr,  count);
       tmsh.octbin_export (filename, Z_dyn);
       savecount = 0.0;
-      TOC("Exporting solution");
+      //TOC("Exporting solution");
 
     }
 
@@ -1328,7 +1328,7 @@ main (int argc, char **argv)
     if (is_space_adaptivity &&  ((space_adapt_count-SPACE_ADAPTDT) >= -std::numeric_limits<double>::epsilon()*SPACE_ADAPTDT))
     {
 
-      TIC();
+      //TIC();
       Q1 only_h (ln_nodes);
       bim2a_solution_with_ghosts (tmsh, only_h);
       for (auto idx = only_h.get_range_start (); idx != only_h.get_range_end (); ++idx)
@@ -1352,9 +1352,9 @@ main (int argc, char **argv)
         only_Uy(idx) = sol_dyn(ordUy(idx));
       }
       only_Uy.assemble (replace_op);
-      TOC("get separated sol.");
+      //TOC("get separated sol.");
 
-      TIC();
+      //TIC();
       std::set<int> global_index_quad;
       for (auto q = tmsh.begin_quadrant_sweep ();
            q != tmsh.end_quadrant_sweep ();
@@ -1362,15 +1362,15 @@ main (int argc, char **argv)
       {
         quadrant_marker_list(q, only_h,  only_Ux, only_Uy, stp.dt, global_index_quad);
       }      
-      TOC("front track.");  
+      //TOC("front track.");  
       
       
-      TIC();
+      //TIC();
       auto dh = bim2c_quadtree_pde_recovered_gradient (tmsh, only_h);
       //q2_vec h_star = bim2c_quadtree_pde_recovered_solution (tmsh, only_h, dh);
-      TOC ("gradient and hstar");
+      //TOC ("gradient and hstar");
       
-      TIC();
+      //TIC();
       // auto estimator = [& h_star, & only_h] (tmesh::quadrant_iterator q)
       // {
       //   return estimator_sol (q, h_star, only_h);
@@ -1441,19 +1441,19 @@ main (int argc, char **argv)
       // tmsh.set_refine_marker  (refine_function);
       // tmsh.coarsen (recursive, 1, 0);
       // tmsh.refine  (recursive, 1);
-      TOC ("refine");
+      //TOC ("refine");
 
       // Ottengo i parametri della mesh corrente
-      TIC();
+      //TIC();
       gn_nodes    = tmsh.num_global_nodes ();
       ln_nodes    = tmsh.num_owned_nodes ();
       ln_elements = tmsh.num_local_quadrants ();
       gn_elements = tmsh.num_global_quadrants ();
-      TOC ("Obtaining new parameters");
+      //TOC ("Obtaining new parameters");
       
       
       // Interpolo sol sulla nuova mesh
-      TIC();
+      //TIC();
       Q1 sol (ln_nodes * 3);
       bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh,  false);
       bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUx, false);
@@ -1573,7 +1573,7 @@ main (int argc, char **argv)
 
       space_adapt_count = 0.0;
       
-      TOC ("Interpolation");
+      //TOC ("Interpolation");
       
     }
       
@@ -1600,6 +1600,7 @@ main (int argc, char **argv)
     octave_io_close ();
   }
   
+  TOC ("loop completed");
   
   // Close MPI and print report
   MPI_Barrier (MPI_COMM_WORLD);
