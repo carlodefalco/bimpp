@@ -1,8 +1,8 @@
 #Parameters file
 
 [mesh]
-minlevel = 5					#max mesh refinement level
-maxlevel = 7					#min mesh refinement level 
+minlevel = 2					#max mesh refinement level
+maxlevel = 9					#min mesh refinement level 
 mesh_shape = 1					#1 for "stretched" mesh, 0 for cubic mesh
 [../]
 
@@ -16,7 +16,7 @@ ionic_strength = 0.145				#ionic strength expressend in molar concentration
 [../]
 
 [surface]
-#surface_type = 1				#surface type: ses=0, skin=1, blobby=2
+surface_type = 1				#surface type: ses=0, skin=1, blobby=2
 surface_parameter = 0.45			#skin surface parameter for skin type or probe radius for ses 
 stern_layer_thickness = 2.			#stern layer thickness
 number_of_threads = 1				#number of threads used by nanoshaper
