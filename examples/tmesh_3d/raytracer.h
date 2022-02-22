@@ -13,7 +13,7 @@ using int_coord_t = unsigned long long int;
 struct
 crossings_t {
 
-   static double start, end; //start and end point of the choosen direction (l_c[1], r_c[1])
+   static double start[3], end[3]; //start and end point of the choosen direction (l_c, r_c vectors)
    static NS::NanoShaper ns;
    
    double point[2]; //point x and z coords: the ones that prescribe the ray
