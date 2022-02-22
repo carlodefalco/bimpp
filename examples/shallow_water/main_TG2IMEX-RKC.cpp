@@ -39,7 +39,7 @@ static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
 static std::vector<double>   basin_mask_fin;
-static constexpr int NUM_REFINEMENTS  = 5; // 8
+static constexpr int NUM_REFINEMENTS  = 8; // 8
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
@@ -65,7 +65,7 @@ static constexpr double turbulence_coeff = 1.e3;
 static constexpr double surface_pressure = 0;//101325.;
 static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 1e3;//10000;
-static constexpr double yield_shear_stress = 2e3;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
+static constexpr double yield_shear_stress = 0.;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
@@ -1062,7 +1062,8 @@ main (int argc, char **argv)
     }
 
     // check save with given frequency
-    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1))-SAVEDT : stp.dt);
+    // stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1))-SAVEDT : stp.dt);
+    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) : stp.dt);
     //stp.set_dt((time+stp.dt)>T ? T-(time+stp.dt) : stp.dt);
 
 
@@ -1165,7 +1166,7 @@ main (int argc, char **argv)
 
     double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653));//5;//std::round(std::max(std::sqrt(stp.dt*spec_radius/.653), 2.));
 
-    std::cout << "number of steps and spectral radius, " << s << " " << spec_radius << std::endl;
+    if (rank==0) std::cout << "number of steps and spectral radius, " << s << " " << spec_radius << std::endl;
 
     
 
