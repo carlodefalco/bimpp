@@ -20,6 +20,8 @@ poisson_boltzmann::create_cubic_mesh ()
   double maxradius = std::max_element (atoms.begin (), atoms.end (), comp)->radius; 
   
   ll = 0; rr = 0;  
+  l_c[0] = 0.0; l_c[1] = 0.0; l_c[2] = 0.0; 
+  r_c[0] = 0.0; r_c[1] = 0.0; r_c[1] = 0.0;
   auto it = [this] (const NS::Atom &a1)
     {
       for (int kk = 0; kk < 3; ++kk)
@@ -51,6 +53,7 @@ poisson_boltzmann::create_mesh ()
   auto comp = [] (const NS::Atom &a1, const NS::Atom &a2) -> bool { return a1.radius < a2.radius; }; 
   double maxradius = std::max_element (atoms.begin (), atoms.end (), comp)->radius; 
   
+  ll = 0; rr = 0; 
   l_c[0] = 0.0; l_c[1] = 0.0; l_c[2] = 0.0; 
   r_c[0] = 0.0; r_c[1] = 0.0; r_c[1] = 0.0;
   auto it = [this] (const NS::Atom &a1)
@@ -64,11 +67,27 @@ poisson_boltzmann::create_mesh ()
         }
     };
   std::for_each (atoms.begin (), atoms.end (), it);
-  l_c[0] -= 3*maxradius; l_c[1] -= 3*maxradius; l_c[2] -= 3*maxradius;
-  r_c[0] += 3*maxradius; r_c[1] += 3*maxradius; r_c[2] += 3*maxradius;
-
-  simple_conn_p = {l_c[0], l_c[1], l_c[2], r_c[0], l_c[1], l_c[2], l_c[0], r_c[1], l_c[2], r_c[0], r_c[1], l_c[2],
-                   l_c[0], l_c[1], r_c[2], r_c[0], l_c[1], r_c[2], l_c[0], r_c[1], r_c[2], r_c[0], r_c[1], r_c[2]}; 
+    
+  for (int kk = 0; kk < 3; ++kk)
+    {
+      if (this->rr < this->r_c[kk])
+        this->rr = this->r_c[kk];
+      else if (this->ll > this->l_c[kk])
+        this->ll = this->l_c[kk];
+    }
+    
+  l_c[0] -= 6*maxradius; l_c[1] -= 6*maxradius; l_c[2] -= 6*maxradius;
+  r_c[0] += 6*maxradius; r_c[1] += 6*maxradius; r_c[2] += 6*maxradius;
+  ll -= 6*maxradius;
+  rr += 6*maxradius;
+  
+  if (mesh_shape == 0)
+    simple_conn_p = {ll, ll, ll, rr, ll, ll, ll, rr, ll, rr, rr, ll,
+                   ll, ll, rr, rr, ll, rr, ll, rr, rr, rr, rr, rr}; 
+  else
+    simple_conn_p = {l_c[0], l_c[1], l_c[2], r_c[0], l_c[1], l_c[2], l_c[0], r_c[1], l_c[2], r_c[0], r_c[1], l_c[2],
+                     l_c[0], l_c[1], r_c[2], r_c[0], l_c[1], r_c[2], l_c[0], r_c[1], r_c[2], r_c[0], r_c[1], r_c[2]};
+    
 
   simple_conn_t = {1, 2, 3, 4, 5, 6, 7, 8, 1};
   tmsh.read_connectivity (simple_conn_p.data (), simple_conn_num_vertices,
@@ -771,11 +790,19 @@ int rank;
   
   bim3a_advection_diffusion (tmsh, epsilon, psi, A);
   bim3a_reaction (tmsh, reaction, ones, A); 
-  
-  A.assemble (); 
 
   bim3a_rhs (tmsh, rho_fixed, ones, rhs);
   
+  // Set boundary conditions.
+  dirichlet_bcs3 bcs;
+  if (bc == 1) //hom Dir bc
+  {
+    for (int i = 0; i < 6; ++i)
+      bcs.push_back (std::make_tuple (0, i, [] (double x, double y, double z) {return 0;}));
+    bim3a_dirichlet_bc (tmsh, bcs, A, rhs);
+  }
+  
+  A.assemble (); 
   rhs.assemble();
   
   tmsh.octbin_export ("rhs_0", rhs);
@@ -872,9 +899,19 @@ poisson_boltzmann::lis_compute_electric_potential ()
   
   bim3a_advection_diffusion (tmsh, epsilon, psi, A);
   bim3a_reaction (tmsh, reaction, ones, A); 
-  A.assemble (); 
     
   bim3a_rhs (tmsh, rho_fixed, ones, rhs);
+  
+  // Set boundary conditions.
+  dirichlet_bcs3 bcs;
+  if (bc == 1) //hom Dir bc
+  {
+    for (int i = 0; i < 6; ++i)
+      bcs.push_back (std::make_tuple (0, i, [] (double x, double y, double z) {return 0;}));
+    bim3a_dirichlet_bc (tmsh, bcs, A, rhs);
+  }
+  
+  A.assemble (); 
   rhs.assemble();
   
   tmsh.octbin_export ("rhs_0", rhs);  
