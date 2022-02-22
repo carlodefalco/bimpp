@@ -5,8 +5,8 @@
 
 static char filename[255];
 
-double crossings_t::start = 0.;
-double crossings_t::end = 0.;
+double crossings_t::start[3] = {0., 0., 0.};
+double crossings_t::end[3] = {0., 0., 0.};
 
 std::vector<NS::Atom> a;
 NS::NanoShaper crossings_t::ns(a, NS::skin, 0.45, 2., 1);
@@ -56,23 +56,12 @@ main (int argc, char **argv)
   MPI_Barrier (mpicomm);
     
   TIC ();
-  if (pb.mesh_shape == 1)
-     pb.create_mesh ();
-  else if (pb.mesh_shape == 0)
-     pb.create_cubic_mesh ();
-  else 
-  {
-     std::cerr << "Invalid mesh shape selected" << std::endl;
-     return 1;
-  }
+  pb.create_mesh ();
   TOC ("create_mesh");
 
   TIC ();
   pb.init_tmesh ();
   TOC ("init_tmesh");
-  
-  crossings_t::start = pb.l_c[1]/2.;
-  crossings_t::end = pb.r_c[1]/2.;
  
   NS::NanoShaper ns2 (pb.atoms, pb.surf_type, pb.surf_param, pb.stern_layer, pb.num_threads);
   crossings_t::ns = ns2;
@@ -81,6 +70,18 @@ main (int argc, char **argv)
   unsigned y_direction = 1; 
   crossings_t::ns.setDirection(y_direction);
   std::cout << "\n" << std::endl;
+  
+  std::vector<unsigned> idx; 
+  std::vector<double> coords;
+  
+  // right-upper corner
+  crossings_t::ns.getGridSize (idx);
+  crossings_t::ns.getGridPointCoordinates(idx[0]-1, idx[1]-1, idx[2]-1, coords);
+  std::copy(coords.cbegin(), coords.cend(), crossings_t::end);
+    
+  // left-bottom corner
+  crossings_t::ns.getGridPointCoordinates(0, 0, 0, coords);
+  std::copy(coords.cbegin(), coords.cend(), crossings_t::start);
   
   MPI_Barrier (mpicomm);
   
