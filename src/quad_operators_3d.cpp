@@ -52,6 +52,10 @@ assemble (tmesh_3d::quadrant_iterator& quadrant,
     }
 }
 
+
+
+
+
 // MPI_User_function.
 static void replace (double *invec, double *inoutvec,
                      int *len, MPI_Datatype *dtype)
@@ -223,7 +227,7 @@ bim3a_reaction (tmesh_3d& mesh,
 
           for (int r = 0; r < rows.size (); ++r)
             if (delta[iel] * z_loc != .0 )
-              A[rows[r]][rows[r]] +=
+              A[ordr (rows[r])][ordc (rows[r])] +=
                 (delta[iel] * z_loc * hx * hy * hz / 8) / rows.size ();
         }
     }
@@ -272,7 +276,7 @@ bim3a_rhs (tmesh_3d& mesh,
               }
 
           for (int r = 0; r < rows.size(); ++r)
-            rhs[rows[r]] +=
+            rhs[ord (rows[r])] +=
               (f[iel] * g_loc * hx * hy *hz / 8) / rows.size ();
         }
     }
@@ -351,7 +355,7 @@ bim3a_boundary_mass (tmesh_3d & mesh,
                       (quadrant->p(0, 1) - quadrant->p(0, 0)) *
                       (quadrant->p(1, 2) - quadrant->p(1, 0));
 
-                  M[quadrant->gt(i)] += 0.25 * area * fun (quadrant, i);
+                  M[ord (quadrant->gt(i))] += 0.25 * area * fun (quadrant, i);
                 }
             }
         }
@@ -391,59 +395,6 @@ bim3a_dirichlet_bc_loc (sparse_matrix& A,
 
 template <class T>
 void
-bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
-                    sparse_matrix& A, T& rhs,
-                    const ordering& ord,
-                    const bool& only_rhs)
-{
-  int boundary_idx, tree_idx;
-  unsigned int row, col;
-
-  std::set<unsigned int> marked;
-
-  double value;
-
-  for (auto quadrant = mesh.begin_quadrant_sweep ();
-       quadrant != mesh.end_quadrant_sweep ();
-       ++quadrant)
-    {
-      tree_idx = quadrant->get_tree_idx ();
-
-      for (int i = 0; i < 8; ++i)
-        {
-          boundary_idx = quadrant->e (i);
-          row = quadrant->gt (i);
-
-          // If current node is on boundary and has not
-          // been handled before.
-          if (boundary_idx != tmesh_3d::quadrant_t::NOT_ON_BOUNDARY
-              && marked.count(row) == 0)
-            {
-              // Loop over all the boundary conditions.
-              for (size_t bc = 0; bc < bcs.size (); ++bc)
-                // If this boundary condition matches with
-                // the current node.
-                if (std::get<0> (bcs[bc]) == tree_idx
-                    && std::get<1> (bcs[bc]) == boundary_idx)
-                  {
-                    // Mark current node so to avoid duplicate operations.
-                    marked.insert (row);
-
-                    // Evaluate bc at current node
-                    value = (std::get<2> (bcs[bc]))
-                            (quadrant->p (0, i),
-                              quadrant->p (1, i),
-                              quadrant->p (2, i));
-
-                    bim3a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
-                  }
-            }
-        }
-    }
-}
-
-template <class T>
-void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
                     sparse_matrix& A, T& rhs,
                     const ordering& ord,
@@ -465,7 +416,7 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
       for (int i = 0; i < 8; ++i)
         {
           boundary_idx = quadrant->e (i);
-          row = quadrant->gt (i);
+          row = ord (quadrant->gt (i));
 
           // If current node is on boundary and has not
           // been handled before.

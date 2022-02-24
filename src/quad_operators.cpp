@@ -886,55 +886,6 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
     }
 }
 
-template <class T>
-void
-bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
-                    sparse_matrix& A, T& rhs,
-                    const ordering& ord,
-                    const bool& only_rhs)
-{
-  int boundary_idx, tree_idx;
-  unsigned int row, col;
-
-  std::set<unsigned int> marked;
-
-  double value;
-
-  for (auto quadrant = mesh.begin_quadrant_sweep ();
-       quadrant != mesh.end_quadrant_sweep (); ++quadrant)
-    {
-      tree_idx = quadrant->get_tree_idx ();
-
-      for (int i = 0; i < 4; ++i)
-        {
-          boundary_idx = quadrant->e (i);
-          row = ord (quadrant->gt (i));
-
-          // If current node is on boundary and has not
-          // been handled before.
-          if (boundary_idx != tmesh::quadrant_t::NOT_ON_BOUNDARY
-              && marked.count(row) == 0)
-            {
-              // Loop over all the boundary conditions.
-              for (size_t bc = 0; bc < bcs.size (); ++bc)
-                // If this boundary condition matches with
-                // the current node.
-                if (std::get<0> (bcs[bc]) == tree_idx
-                    && std::get<1> (bcs[bc]) == boundary_idx)
-                  {
-                    // Mark current node so to avoid duplicate operations.
-                    marked.insert (row);
-
-                    // Evaluate bc at current node.
-                    value = (std::get<2> (bcs[bc]))
-                      (quadrant, i);
-
-                    bim2a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
-                  }
-            }
-        }
-    }
-}
 
 template <class T>
 void
