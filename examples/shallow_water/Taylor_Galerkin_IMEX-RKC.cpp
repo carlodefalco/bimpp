@@ -1360,6 +1360,11 @@ TG2_scheme::mu_fun_tilde (const int& j, const int& s)
     mu_tilde = 2.*b_fun(j, s)*w_fun_1(s)/b_fun(j-1, s);
   }
 
+  if (s == 1)
+  {
+    mu_tilde = 1;
+  }
+
   return(mu_tilde);
     
 }
@@ -1501,7 +1506,7 @@ TG2_scheme::compute_cell_def_grad (const double& Uxdof_0, const double& Uxdof_1,
 
   if ( std::abs(zeta_1 - .5)<=.5 && std::abs(zeta_2 - .5)<=.5)
   {
-    std::cout << "Two valid roots, look at compute_nodal_def_grad function, " << zeta_1 << " " << zeta_2 << ", STOP!" << std::endl;
+    std::cout << "Two valid roots, look at compute_cell_def_grad function, " << zeta_1 << " " << zeta_2 << ", STOP!" << std::endl;
     exit(1.);
   }
 
