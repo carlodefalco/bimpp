@@ -1353,17 +1353,13 @@ TG2_scheme::mu_fun_tilde (const int& j, const int& s)
 
   if (j == 1)
   {
-    mu_tilde = b_fun(1, s)*w_fun_1(s);
+    mu_tilde = (s == 1) ? 1. : b_fun(1, s)*w_fun_1(s);
   }
   else
   {
     mu_tilde = 2.*b_fun(j, s)*w_fun_1(s)/b_fun(j-1, s);
   }
 
-  if (s == 1)
-  {
-    mu_tilde = 1;
-  }
 
   return(mu_tilde);
     
