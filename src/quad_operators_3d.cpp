@@ -28,28 +28,26 @@ assemble (tmesh_3d::quadrant_iterator& quadrant,
       rows.clear ();
 
       if (! quadrant->is_hanging (i))
-        rows.push_back (quadrant->gt (i));
+        rows.push_back (ordr (quadrant->gt (i)));
       else
         for (pp = 0; pp < quadrant->num_parents (i); ++pp)
-          rows.push_back (quadrant->gparent(pp, i));
+          rows.push_back (ordr (quadrant->gparent(pp, i)));
 
       for(int j = 0; j < 8; ++j)
         {
           cols.clear ();
 
           if (! quadrant->is_hanging (j))
-            cols.push_back (quadrant->gt (j));
+            cols.push_back (ordc (quadrant->gt (j)));
           else
             for (pp = 0; pp < quadrant->num_parents (j); ++pp)
-              cols.push_back (quadrant->gparent (pp, j));
+              cols.push_back (ordc (quadrant->gparent (pp, j)));
 
-          for (r = 0; r < rows.size (); ++r)
-            if (locmat[i][j] != .0)
-              for (int c = 0; c < cols.size (); ++c)
-                {
-                  A[rows[r]][cols[c]] += locmat[i][j] /
-                    (rows.size () * cols.size ());
-                }
+          if (locmat[i][j] != .0)
+            for (r = 0; r < rows.size (); ++r)
+              for (c = 0; c < cols.size (); ++c)
+                A[rows[r]][cols[c]] += locmat[i][j] /
+                  (rows.size () * cols.size ());
         }
     }
 }
