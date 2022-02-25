@@ -19,7 +19,7 @@
 #include "Taylor_Galerkin.h"
 
 
-// mpirun -np 4 main $PWD inputs/dem_ideal.octbin.gz inputs/mask_in.octbin.gz 
+// mpirun -np 1 main $PWD inputs/dem_ideal.octbin.gz inputs/mask_in.octbin.gz 
 
 static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in";
@@ -44,7 +44,7 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 static constexpr double SPACE_ADAPTDT = 1e-1;//1e-2; // put zero if you want at each time step
 static constexpr double SAVEDT = 1.; // must never be null 
 static constexpr double DELTAT = 1.;
-static constexpr double REDCDT = .75; 
+static constexpr double REDCDT = .05; 
 static constexpr double T      = 100.;
  
 static constexpr bool is_time_adaptivity    = false;

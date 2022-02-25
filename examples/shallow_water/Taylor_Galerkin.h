@@ -144,23 +144,20 @@ public:
 
   // stress functions
   double
-  Ux_stress_formula_x (const double& h, const double& Ux, const double& Uy);
-  
-  double
-  Ux_stress_formula_y (const double& h, const double& Ux, const double& Uy);
-  
-  double
-  Uy_stress_formula_x (const double& h, const double& Ux, const double& Uy);
-  
-  double
-  Uy_stress_formula_y (const double& h, const double& Ux, const double& Uy);
+  U_stress_formula (const double& h, const double& Ux, const double& Uy);
 
 
   std::array<double,3>
-  compute_nodal_stress (const double& h, const double& Ux, const double& Uy, const std::array<double,2>& grad_cell_ux, const std::array<double,2>& grad_cell_uy);
+  compute_cell_stress (const double& Uxdof_0, const double& Uxdof_1, 
+                       const double& Uxdof_2, const double& Uxdof_3, 
+                       const double& Uydof_0, const double& Uydof_1, 
+                       const double& Uydof_2, const double& Uydof_3);
 
   std::array<double,6>
-  compute_nodal_def_grad (const double& h, const double& Ux, const double& Uy, const std::array<double,2>& grad_cell_ux, const std::array<double,2>& grad_cell_uy);
+  compute_cell_def_grad (const double& Uxdof_0, const double& Uxdof_1, 
+                         const double& Uxdof_2, const double& Uxdof_3, 
+                         const double& Uydof_0, const double& Uydof_1, 
+                         const double& Uydof_2, const double& Uydof_3);
 
 
   
@@ -192,7 +189,7 @@ public:
   
 private:
 
-  std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y;
+  std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y, D_U;
   std::array<double, 2> grad_cell_h, grad_cell_Ux, grad_cell_Uy, grad_cell_ux, grad_cell_uy;
   
   const ordering& ordh;

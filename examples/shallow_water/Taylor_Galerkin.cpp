@@ -391,8 +391,6 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
 
 
-
-
   const auto diff_term_h_x  = grad_cell_h [0]*vel_rusanov_cell_y;
   const auto diff_term_h_y  = grad_cell_h [1]*vel_rusanov_cell_x;
 
@@ -417,19 +415,11 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
 
 
-  std::array<double,4> D_Ux_x, D_Ux_y, D_Uy_x, D_Uy_y;
+  // compute the cell sigma_stress
+  sigma_stress = is_stress_tensor ? compute_cell_stress (Uxdof[0], Uxdof[1], Uxdof[2], Uxdof[3], Uydof[0], Uydof[1], Uydof[2], Uydof[3]) : sigma_stress;
 
   for (int ii = 0; ii < 4; ++ii){
-    
-    sigma_stress = is_stress_tensor ? compute_nodal_stress (hdof[ii], Uxdof[ii], Uydof[ii], grad_cell_ux, grad_cell_uy) : sigma_stress;
-    
-
-    D_Ux_x[ii] = Ux_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
-    D_Ux_y[ii] = Ux_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
-
-    D_Uy_x[ii] = Uy_stress_formula_x(hdof[ii], Uxdof[ii], Uydof[ii]);
-    D_Uy_y[ii] = Uy_stress_formula_y(hdof[ii], Uxdof[ii], Uydof[ii]);
-
+    D_U[ii] = U_stress_formula(hdof[ii], Uxdof[ii], Uydof[ii]);
   }
 
   for (int ii = 0; ii < 4; ++ii){ 
@@ -439,14 +429,16 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
     const double den3 = ii%2==1 ? 2. : 1.;
     const double den4 = ii%2==1 ? 1. : 2.;
 
+    const double contribution_exact = (D_U[0]/den2+D_U[1]/den2+D_U[2]/den1+D_U[3]/den1);    
+
     const auto h_  = der_coeffs_x[ii]*F_star_h_x +der_coeffs_y[ii]*F_star_h_y;
 
     const auto Ux_ = der_coeffs_x[ii]*F_star_Ux_x+der_coeffs_y[ii]*F_star_Ux_y + 
-                     der_coeffs_x[ii]*(1./3.)*(D_Ux_x[0]/den2+D_Ux_x[1]/den2+D_Ux_x[2]/den1+D_Ux_x[3]/den1)+der_coeffs_y[ii]*(1./3.)*(D_Ux_y[0]/den3+D_Ux_y[1]/den4+D_Ux_y[2]/den3+D_Ux_y[3]/den4) + 
+                     der_coeffs_x[ii]*(1./3.)*sigma_stress[0]*contribution_exact + der_coeffs_y[ii]*(1./3.)*sigma_stress[2]*contribution_exact +
                      .25*area*isdof_or_hanging[ii]*Ux_src_formula(h_cell, Ux_cell, Uy_cell, slope_x[index_quadrant]);
 
-    const auto Uy_ = der_coeffs_x[ii]*F_star_Uy_x+der_coeffs_y[ii]*F_star_Uy_y + 
-                     der_coeffs_x[ii]*(1./3.)*(D_Uy_x[0]/den2+D_Uy_x[1]/den2+D_Uy_x[2]/den1+D_Uy_x[3]/den1)+der_coeffs_y[ii]*(1./3.)*(D_Uy_y[0]/den3+D_Uy_y[1]/den4+D_Uy_y[2]/den3+D_Uy_y[3]/den4) + 
+    const auto Uy_ = der_coeffs_x[ii]*F_star_Uy_x+der_coeffs_y[ii]*F_star_Uy_y +  
+                     der_coeffs_x[ii]*(1./3.)*sigma_stress[2]*contribution_exact + der_coeffs_y[ii]*(1./3.)*sigma_stress[1]*contribution_exact + 
                      .25*area*isdof_or_hanging[ii]*Uy_src_formula(h_cell, Ux_cell, Uy_cell, slope_y[index_quadrant]);
     
     const auto h_al  = der_coeffs_x[ii] * diff_term_h_x  + der_coeffs_y[ii] * diff_term_h_y;
@@ -772,31 +764,27 @@ TG2_scheme::Uy_flux_formula_y (const double& h, const double& Ux, const double& 
 
 // stress functions
 double
-TG2_scheme::Ux_stress_formula_x (const double& h, const double& Ux, const double& Uy)
-{ return (-sigma_stress[0]*h/density); }
+TG2_scheme::U_stress_formula (const double& h, const double& Ux, const double& Uy)
+{ return (-h/density); }
 
-double
-TG2_scheme::Ux_stress_formula_y (const double& h, const double& Ux, const double& Uy)
-{ return (-sigma_stress[2]*h/density); }
 
-double
-TG2_scheme::Uy_stress_formula_x (const double& h, const double& Ux, const double& Uy)
-{ return (-sigma_stress[2]*h/density); }
-
-double
-TG2_scheme::Uy_stress_formula_y (const double& h, const double& Ux, const double& Uy)
-{ return (-sigma_stress[1]*h/density); }
 
 
 std::array<double,3>
-TG2_scheme::compute_nodal_stress (const double& h, const double& Ux, const double& Uy, const std::array<double,2>& grad_cell_ux, const std::array<double,2>& grad_cell_uy)
+TG2_scheme::compute_cell_stress (const double& Uxdof_0, const double& Uxdof_1, 
+                                 const double& Uxdof_2, const double& Uxdof_3, 
+                                 const double& Uydof_0, const double& Uydof_1, 
+                                 const double& Uydof_2, const double& Uydof_3)
 {
   // compute \sigma_xx, ...
 
   // def_grad = [D11, D22, D33, D12, D23, D31]
   // sigma = [sigma_11, sigma_22, sigma_12]
 
-  std::array<double,6> def_grad = compute_nodal_def_grad (h, Ux, Uy, grad_cell_ux, grad_cell_uy);
+  //std::cout << Uxdof_0 << " " << Uxdof_1 << " " << Uxdof_2 << " " << Uxdof_3 << " " << Uydof_0 << " " << Uydof_1 << " " << Uydof_2 << " " << Uydof_3 << std::endl;
+
+  std::array<double,6> def_grad = compute_cell_def_grad (Uxdof_0, Uxdof_1, Uxdof_2, Uxdof_3, 
+                                                         Uydof_0, Uydof_1, Uydof_2, Uydof_3);
 
   double second_invariant = 0.;
   for (int i_def = 0; i_def < 6; i_def++)
@@ -805,52 +793,82 @@ TG2_scheme::compute_nodal_stress (const double& h, const double& Ux, const doubl
   }
   second_invariant *= .5;
 
-  //const double viscos = second_invariant!=0 ? yield_shear_stress/std::sqrt(second_invariant) + 2*fluid_viscosity : 0.;
-
   const double kinetic_energergy_associated = std::sqrt(second_invariant);
 
   double viscos = second_invariant!=0 ? 2.*fluid_viscosity + yield_shear_stress/kinetic_energergy_associated*(1. - std::exp(-regularization_parameter*kinetic_energergy_associated)) : 0.;
   viscos = yield_shear_stress==0 ? 2.*fluid_viscosity : viscos;
 
+  //std::cout << def_grad[0] << " " << def_grad[1] << " " << def_grad[2] << " " << def_grad[3] << " " << def_grad[4] << " " << def_grad[5] << " aa" << std::endl;
+
 //std::cout << viscos << std::endl;//def_grad[0] << " " << def_grad[1] << " " << def_grad[2] << std::endl;
   return(std::array<double,3>{{viscos*def_grad[0], viscos*def_grad[1], viscos*def_grad[3]}});
 }
 
-std::array<double,6>
-TG2_scheme::compute_nodal_def_grad (const double& h, const double& Ux, const double& Uy, const std::array<double,2>& grad_cell_ux, const std::array<double,2>& grad_cell_uy)
-{
 
+std::array<double,6>
+TG2_scheme::compute_cell_def_grad (const double& Uxdof_0, const double& Uxdof_1, 
+                                   const double& Uxdof_2, const double& Uxdof_3, 
+                                   const double& Uydof_0, const double& Uydof_1, 
+                                   const double& Uydof_2, const double& Uydof_3)
+{
   // def_grad = [D11, D22, D33, D12, D23, D31]
 
   // compute \zeta
-  const double vel_x = h>epsilon ? Ux/h : 0.;
-  const double vel_y = h>epsilon ? Uy/h : 0.;
-  const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
-  const double aa = h>epsilon ? 6*fluid_viscosity*abs_vel/h/yield_shear_stress : 0.;
+  double h_cell = .25*(hdof[0]+hdof[1]+hdof[2]+hdof[3]), 
+  Ux_cell = .25*(Uxdof_0+Uxdof_1+Uxdof_2+Uxdof_3), Uy_cell = .25*(Uydof_0+Uydof_1+Uydof_2+Uydof_3); 
+
+  //std::cout << Uxdof_0 << " " << hdof[0] << std::endl;
+
+  const auto & vel_x_3 = hdof[3]>epsilon ? Uxdof_3/hdof[3] : 0.;
+  const auto & vel_x_2 = hdof[2]>epsilon ? Uxdof_2/hdof[2] : 0.;
+  const auto & vel_x_1 = hdof[1]>epsilon ? Uxdof_1/hdof[1] : 0.;
+  const auto & vel_x_0 = hdof[0]>epsilon ? Uxdof_0/hdof[0] : 0.;
+
+  const auto & vel_y_3 = hdof[3]>epsilon ? Uydof_3/hdof[3] : 0.;
+  const auto & vel_y_2 = hdof[2]>epsilon ? Uydof_2/hdof[2] : 0.;
+  const auto & vel_y_1 = hdof[1]>epsilon ? Uydof_1/hdof[1] : 0.;
+  const auto & vel_y_0 = hdof[0]>epsilon ? Uydof_0/hdof[0] : 0.;
+
+  grad_cell_ux = {.5 * ( (vel_x_3 - vel_x_2) + (vel_x_1 - vel_x_0) )/Dx, .5 * ( (vel_x_2 - vel_x_0) + (vel_x_3 - vel_x_1) )/Dy};
+  grad_cell_uy = {.5 * ( (vel_y_3 - vel_y_2) + (vel_y_1 - vel_y_0) )/Dx, .5 * ( (vel_y_2 - vel_y_0) + (vel_y_3 - vel_y_1) )/Dy};
+
+
+
+  const double vel_x_cell = h_cell>epsilon ? Ux_cell/h_cell : 0.;
+  const double vel_y_cell = h_cell>epsilon ? Uy_cell/h_cell : 0.;
+
+
+  const double abs_vel_cell = std::sqrt( vel_x_cell*vel_x_cell + vel_y_cell*vel_y_cell );
 
   const double a = 3./2.;
   const double c = 65./32.;
+  const double aa = h_cell>epsilon ? 6.*fluid_viscosity*abs_vel_cell/h_cell/yield_shear_stress : 0.;
+
+
   const double b = -(114./32.+aa);
-  const double Delta = b*b-4*a*c;
+  const double Delta = b*b - 4.*a*c;
 
   const double zeta_1 = (-b + std::sqrt(Delta))/2./a;
   const double zeta_2 = (-b - std::sqrt(Delta))/2./a;
 
   if ( std::abs(zeta_1 - .5)<=.5 && std::abs(zeta_2 - .5)<=.5)
   {
-    std::cout << "Two valid roots, look at compute_nodal_def_grad, " << zeta_1 << " " << zeta_2 << ", STOP!" << std::endl;
+    std::cout << "Two valid roots, look at compute_cell_def_grad function, " << zeta_1 << " " << zeta_2 << ", STOP!" << std::endl;
     exit(1.);
   }
 
   const double zeta = std::abs(zeta_1 - .5)<=.5 ? zeta_1 : zeta_2;
 
+  //std::cout << zeta << " " << aa << " " << vel_x_cell << " " << vel_y_cell << " " << abs_vel_cell << " bbbb" << std::endl;
+
+
   const auto & partial_x_ux = grad_cell_ux[0];
   const auto & partial_y_ux = grad_cell_ux[1];
-  const auto   partial_z_ux = h>epsilon ? 3./(2.+zeta)*vel_x/h : 0.;
+  const auto   partial_z_ux = h_cell>epsilon ? 3./(2.+zeta)*vel_x_cell/h_cell : 0.;
 
   const auto & partial_x_uy = grad_cell_uy[0];
   const auto & partial_y_uy = grad_cell_uy[1];
-  const auto   partial_z_uy = h>epsilon ? 3./(2.+zeta)*vel_y/h : 0.;
+  const auto   partial_z_uy = h_cell>epsilon ? 3./(2.+zeta)*vel_y_cell/h_cell : 0.;
 
   const auto partial_x_uz = 0.; // steady state simple shear flow
   const auto partial_y_uz = 0.; // steady state simple shear flow
@@ -858,6 +876,98 @@ TG2_scheme::compute_nodal_def_grad (const double& h, const double& Ux, const dou
   
   return(std::array<double,6>{{partial_x_ux, partial_y_uy, partial_z_uz, .5*(partial_x_uy+partial_y_ux), .5*(partial_z_uy+partial_y_uz), .5*(partial_z_ux+partial_x_uz)}});
 }
+
+
+// // stress functions
+// double
+// TG2_scheme::Ux_stress_formula_x (const double& h, const double& Ux, const double& Uy)
+// { return (-sigma_stress[0]*h/density); }
+
+// double
+// TG2_scheme::Ux_stress_formula_y (const double& h, const double& Ux, const double& Uy)
+// { return (-sigma_stress[2]*h/density); }
+
+// double
+// TG2_scheme::Uy_stress_formula_x (const double& h, const double& Ux, const double& Uy)
+// { return (-sigma_stress[2]*h/density); }
+
+// double
+// TG2_scheme::Uy_stress_formula_y (const double& h, const double& Ux, const double& Uy)
+// { return (-sigma_stress[1]*h/density); }
+
+
+
+
+// std::array<double,3>
+// TG2_scheme::compute_nodal_stress (const double& h, const double& Ux, const double& Uy, const std::array<double,2>& grad_cell_ux, const std::array<double,2>& grad_cell_uy)
+// {
+//   // compute \sigma_xx, ...
+
+//   // def_grad = [D11, D22, D33, D12, D23, D31]
+//   // sigma = [sigma_11, sigma_22, sigma_12]
+
+//   std::array<double,6> def_grad = compute_nodal_def_grad (h, Ux, Uy, grad_cell_ux, grad_cell_uy);
+
+//   double second_invariant = 0.;
+//   for (int i_def = 0; i_def < 6; i_def++)
+//   {
+//     second_invariant += def_grad[i_def]*def_grad[i_def];
+//   }
+//   second_invariant *= .5;
+
+//   //const double viscos = second_invariant!=0 ? yield_shear_stress/std::sqrt(second_invariant) + 2*fluid_viscosity : 0.;
+
+//   const double kinetic_energergy_associated = std::sqrt(second_invariant);
+
+//   double viscos = second_invariant!=0 ? 2.*fluid_viscosity + yield_shear_stress/kinetic_energergy_associated*(1. - std::exp(-regularization_parameter*kinetic_energergy_associated)) : 0.;
+//   viscos = yield_shear_stress==0 ? 2.*fluid_viscosity : viscos;
+
+// //std::cout << viscos << std::endl;//def_grad[0] << " " << def_grad[1] << " " << def_grad[2] << std::endl;
+//   return(std::array<double,3>{{viscos*def_grad[0], viscos*def_grad[1], viscos*def_grad[3]}});
+// }
+
+// std::array<double,6>
+// TG2_scheme::compute_nodal_def_grad (const double& h, const double& Ux, const double& Uy, const std::array<double,2>& grad_cell_ux, const std::array<double,2>& grad_cell_uy)
+// {
+
+//   // def_grad = [D11, D22, D33, D12, D23, D31]
+
+//   // compute \zeta
+//   const double vel_x = h>epsilon ? Ux/h : 0.;
+//   const double vel_y = h>epsilon ? Uy/h : 0.;
+//   const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
+//   const double aa = h>epsilon ? 6*fluid_viscosity*abs_vel/h/yield_shear_stress : 0.;
+
+//   const double a = 3./2.;
+//   const double c = 65./32.;
+//   const double b = -(114./32.+aa);
+//   const double Delta = b*b-4*a*c;
+
+//   const double zeta_1 = (-b + std::sqrt(Delta))/2./a;
+//   const double zeta_2 = (-b - std::sqrt(Delta))/2./a;
+
+//   if ( std::abs(zeta_1 - .5)<=.5 && std::abs(zeta_2 - .5)<=.5)
+//   {
+//     std::cout << "Two valid roots, look at compute_nodal_def_grad, " << zeta_1 << " " << zeta_2 << ", STOP!" << std::endl;
+//     exit(1.);
+//   }
+
+//   const double zeta = std::abs(zeta_1 - .5)<=.5 ? zeta_1 : zeta_2;
+
+//   const auto & partial_x_ux = grad_cell_ux[0];
+//   const auto & partial_y_ux = grad_cell_ux[1];
+//   const auto   partial_z_ux = h>epsilon ? 3./(2.+zeta)*vel_x/h : 0.;
+
+//   const auto & partial_x_uy = grad_cell_uy[0];
+//   const auto & partial_y_uy = grad_cell_uy[1];
+//   const auto   partial_z_uy = h>epsilon ? 3./(2.+zeta)*vel_y/h : 0.;
+
+//   const auto partial_x_uz = 0.; // steady state simple shear flow
+//   const auto partial_y_uz = 0.; // steady state simple shear flow
+//   const auto partial_z_uz = -(grad_cell_ux[0]+grad_cell_uy[1]);
+  
+//   return(std::array<double,6>{{partial_x_ux, partial_y_uy, partial_z_uz, .5*(partial_x_uy+partial_y_ux), .5*(partial_z_uy+partial_y_uz), .5*(partial_z_ux+partial_x_uz)}});
+// }
 
 
 // source terms

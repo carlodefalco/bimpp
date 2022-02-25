@@ -1118,15 +1118,11 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
 
   if (j == 1)
   {
-    //std::cout << stress_initial_step.get_owned_data ()[kk+1] << std::endl;
-
     v_x = sol.get_owned_data ()[kk+1] + mu_fun_tilde(1, s)*dt*(incr.get_owned_data ()[kk+1] + stress_initial_step.get_owned_data ()[kk+1])/mass.get_owned_data ()[kk+1];
     v_y = sol.get_owned_data ()[kk+2] + mu_fun_tilde(1, s)*dt*(incr.get_owned_data ()[kk+2] + stress_initial_step.get_owned_data ()[kk+2])/mass.get_owned_data ()[kk+2]; 
   }
   else
   {
-    //std::cout << "aa" << std::endl;
-
     v_x = (1. - mu_fun(j, s) - v_fun(j, s))*sold.get_owned_data ()[kk+1] + mu_fun(j, s)*sold_rkc.get_owned_data ()[kk+1] + 
     v_fun(j, s)*soldd_rkc.get_owned_data ()[kk+1] + mu_fun_tilde(j, s)*dt*(incr.get_owned_data ()[kk+1] + stress_step.get_owned_data ()[kk+1])/mass.get_owned_data ()[kk+1] + 
     gamma_tilde_fun(j, s)*dt*(incr.get_owned_data ()[kk+1] + stress_initial_step.get_owned_data ()[kk+1])/mass.get_owned_data ()[kk+1] + 
