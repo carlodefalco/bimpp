@@ -28,31 +28,33 @@ assemble (tmesh_3d::quadrant_iterator& quadrant,
       rows.clear ();
 
       if (! quadrant->is_hanging (i))
-        rows.push_back (quadrant->gt (i));
+        rows.push_back (ordr (quadrant->gt (i)));
       else
         for (pp = 0; pp < quadrant->num_parents (i); ++pp)
-          rows.push_back (quadrant->gparent(pp, i));
+          rows.push_back (ordr (quadrant->gparent(pp, i)));
 
       for(int j = 0; j < 8; ++j)
         {
           cols.clear ();
 
           if (! quadrant->is_hanging (j))
-            cols.push_back (quadrant->gt (j));
+            cols.push_back (ordc (quadrant->gt (j)));
           else
             for (pp = 0; pp < quadrant->num_parents (j); ++pp)
-              cols.push_back (quadrant->gparent (pp, j));
+              cols.push_back (ordc (quadrant->gparent (pp, j)));
 
-          for (r = 0; r < rows.size (); ++r)
-            if (locmat[i][j] != .0)
-              for (int c = 0; c < cols.size (); ++c)
-                {
-                  A[rows[r]][cols[c]] += locmat[i][j] /
-                    (rows.size () * cols.size ());
-                }
+          if (locmat[i][j] != .0)
+            for (r = 0; r < rows.size (); ++r)
+              for (c = 0; c < cols.size (); ++c)
+                A[rows[r]][cols[c]] += locmat[i][j] /
+                  (rows.size () * cols.size ());
         }
     }
 }
+
+
+
+
 
 // MPI_User_function.
 static void replace (double *invec, double *inoutvec,
@@ -225,7 +227,7 @@ bim3a_reaction (tmesh_3d& mesh,
 
           for (int r = 0; r < rows.size (); ++r)
             if (delta[iel] * z_loc != .0 )
-              A[rows[r]][rows[r]] +=
+              A[ordr (rows[r])][ordc (rows[r])] +=
                 (delta[iel] * z_loc * hx * hy * hz / 8) / rows.size ();
         }
     }
@@ -274,7 +276,7 @@ bim3a_rhs (tmesh_3d& mesh,
               }
 
           for (int r = 0; r < rows.size(); ++r)
-            rhs[rows[r]] +=
+            rhs[ord (rows[r])] +=
               (f[iel] * g_loc * hx * hy *hz / 8) / rows.size ();
         }
     }
@@ -353,7 +355,7 @@ bim3a_boundary_mass (tmesh_3d & mesh,
                       (quadrant->p(0, 1) - quadrant->p(0, 0)) *
                       (quadrant->p(1, 2) - quadrant->p(1, 0));
 
-                  M[quadrant->gt(i)] += 0.25 * area * fun (quadrant, i);
+                  M[ord (quadrant->gt(i))] += 0.25 * area * fun (quadrant, i);
                 }
             }
         }
@@ -391,6 +393,7 @@ bim3a_dirichlet_bc_loc (sparse_matrix& A,
   rhs[row] = A[row][row] * value;
 }
 
+
 template <class T>
 void
 bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
@@ -414,7 +417,7 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
       for (int i = 0; i < 8; ++i)
         {
           boundary_idx = quadrant->e (i);
-          row = quadrant->gt (i);
+          row = ord (quadrant->gt (i));
 
           // If current node is on boundary and has not
           // been handled before.
@@ -467,7 +470,7 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
       for (int i = 0; i < 8; ++i)
         {
           boundary_idx = quadrant->e (i);
-          row = quadrant->gt (i);
+          row = ord (quadrant->gt (i));
 
           // If current node is on boundary and has not
           // been handled before.

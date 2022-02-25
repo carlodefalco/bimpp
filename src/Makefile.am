@@ -20,7 +20,7 @@ BIMXXLISSRC = lis_class.cpp lis_class_master.cpp lis_class_slaves.cpp
 BIMXXMUMPSP4ESTSRC = system_solver.cpp
 include_HEADERS = $(BIMXXHEADERS)
 
-lib_LTLIBRARIES = libbim.la libbimmumps.la libbimlis.la libbimp4est.la libbimsystemsolver.la libbimlinalg.la
+lib_LTLIBRARIES = libbim.la libbimlinalg.la libbimp4est.la libbimmumps.la libbimlis.la libbimsystemsolver.la
 libbim_la_SOURCES = $(BIMXXSRC)
 libbim_la_LDFLAGS = @OCTAVE_LINK_FLAGS@ @OCTAVE_FILE_IO_LDFLAGS@ @OCTAVE_FILE_IO_LIB@
 libbim_la_CPPFLAGS = @OCTAVE_COMPILE_FLAGS@ @OCTAVE_FILE_IO_CPPFLAGS@ $(AM_CPPFLAGS)
