@@ -44,52 +44,6 @@ AC_ARG_WITH([blas-lapack],
             ]
             )
 
-
-AC_ARG_WITH([nanoshaper],
-            [AS_HELP_STRING([--without-nanoshaper],
-            [Disable nanoshaper library])],
-            [],
-            [with_nanoshaper=yes])
-
-AS_IF([test "x$with_nanoshaper" != xno],
-      [
-       AC_ARG_WITH([nanoshaper-home],
-        [AS_HELP_STRING([--with-nanoshaper-home=DIR],
-        [Select the directory where nanoshaper is installed.])],
-        [NANOSHAPER_HOME=$withval],
-        [NANOSHAPER_HOME=$HOME/nanoshaper])
-
-	NANOSHAPER_CPPFLAGS="-I$NANOSHAPER_HOME/src"
-	NANOSHAPER_LDFLAGS="-Wl,-rpath,$NANOSHAPER_HOME/build_so -L$NANOSHAPER_HOME/build_so"
-	NANOSHAPER_LIBS="-lNanoShaper"
-	
-	save_CPPFLAGS=$CPPFLAGS
-        CPPFLAGS="$NANOSHAPER_CPPFLAGS $CPPFLAGS"
-
-        AC_CHECK_HEADER(nanoshaper.h, 
-        ,AC_MSG_ERROR([nanoshaper.h not found. I cowardly refuse to continue.]))
-
-        save_LIBS=$LIBS
-        save_LDFLAGS=$LDFLAGS
-        LDFLAGS="$NANOSHAPER_LDFLAGS $LDFLAGS"
-        LIBS="$NANOSHAPER_LIB $LIBS"
-        
- 	AC_CHECK_LIB([NanoShaper],[gethostbyname],
-        [AC_SUBST(NANOSHAPER_CPPFLAGS, "$NANOSHAPER_CPPFLAGS")
-        AC_SUBST(NANOSHAPER_LDFLAGS, "$NANOSHAPER_LDFLAGS")
-        AC_SUBST(NANOSHAPER_LIB,"$NANOSHAPER_LIBS")
-        AC_DEFINE([HAVE_NANOSHAPER],[1],[Define if you have nanoshaper library])
-        AC_MSG_NOTICE([It seems I am able to link nanoshaper properly. Yuppee!!.])
-       ],
-       [AC_MSG_ERROR([It seems I am not able to link nanoshaper properly. --without-nanoshaper to disable])])])
-
-AM_CONDITIONAL([HAVE_NANOSHAPER], test x$with_nanoshaper = xyes)
-
-LIBS=$save_LIBS
-CPPFLAGS=$save_CPPFLAGS
-LDFLAGS=$save_LDFLAGS
-
-
 AC_ARG_WITH([p4estlibrary],
             [AS_HELP_STRING([--without-p4estlibrary],
             [Disable p4est library])],
