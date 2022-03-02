@@ -928,12 +928,12 @@ main (int argc, char **argv)
   {
     std::cout << "start loop" << std::endl;
   }
-  
+
+  int counter_savings = 0, tot_number_savings = T/SAVEDT;
 
   TIC();
-  while ((T-time)>std::numeric_limits<double>::epsilon()*T)
-  {
-    
+  while (counter_savings != tot_number_savings)
+  { 
     
     // Reset increment, and limiter terms
     //TIC();
@@ -996,7 +996,8 @@ main (int argc, char **argv)
 
     // check save with given frequency
     // stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1))-SAVEDT : stp.dt);
-    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) : stp.dt);
+    //stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) : stp.dt);
+    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? SAVEDT-savecount : stp.dt);
     //stp.set_dt((time+stp.dt)>T ? T-(time+stp.dt) : stp.dt);
 
 
@@ -1132,6 +1133,8 @@ main (int argc, char **argv)
       tmsh.octbin_export (filename, Z_dyn);
       savecount = 0.0;
       //TOC("Exporting solution");
+
+      counter_savings++;
 
     }
 

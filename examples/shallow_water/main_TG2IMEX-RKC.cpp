@@ -19,7 +19,7 @@
 #include "Taylor_Galerkin_IMEX-RKC.h"
 
 
-// mpirun -np 1 main_tg2cnrkc $PWD inputs/dem_second_test.octbin.gz inputs/mask_in.octbin.gz 
+// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_vladi.octbin.gz 
 
 
 static constexpr char VARNAME_1[255] = "dem";
@@ -30,7 +30,7 @@ static constexpr char VARNAME_2[255] = "mask_in";
 static constexpr double res = 5;//0.005*500; // it is also the minimum resolution of the bim element
 static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
 static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
-
+ 
   
 static constexpr double L = res*(Nx-1);
 static constexpr double H = res*(Ny-1);
@@ -39,15 +39,15 @@ static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
 static std::vector<double>   basin_mask_fin;
-static constexpr int NUM_REFINEMENTS  = 9; // 8
+static constexpr int NUM_REFINEMENTS  = 5; // 8
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
 static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = 1; // must never be null 
+static constexpr double SAVEDT = 50; // must never be null 
 static constexpr double DELTAT = 1;
-static constexpr double REDCDT = .75; // it is the limit of the CFL condition, for this methdo is roughly .75 seems to be to me 
+static constexpr double REDCDT = .3; // it is the limit of the CFL condition, for this methdo is roughly .75 seems to be to me 
 static constexpr double T      = 100.;
  
 static constexpr bool is_time_adaptivity    = false;
@@ -990,9 +990,11 @@ main (int argc, char **argv)
   {
     std::cout << "start loop" << std::endl;
   }
+
+  int counter_savings = 0, tot_number_savings = T/SAVEDT;
   
   TIC();
-  while ((T-time)>std::numeric_limits<double>::epsilon()*T)
+  while (counter_savings != tot_number_savings)
   {
     
     
@@ -1062,8 +1064,10 @@ main (int argc, char **argv)
     }
 
     // check save with given frequency
+    //std::cout << (savecount) << " " << stp.dt << " " << (savecount+stp.dt)/SAVEDT << " " << (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) << std::endl;
     // stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1))-SAVEDT : stp.dt);
-    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) : stp.dt);
+    //stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) : stp.dt);
+    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? SAVEDT-savecount : stp.dt);
     //stp.set_dt((time+stp.dt)>T ? T-(time+stp.dt) : stp.dt);
 
 
@@ -1320,6 +1324,8 @@ main (int argc, char **argv)
       tmsh.octbin_export (filename, Z_dyn);
       savecount = 0.0;
       //TOC("Exporting solution");
+
+      counter_savings++;
 
     }
 
