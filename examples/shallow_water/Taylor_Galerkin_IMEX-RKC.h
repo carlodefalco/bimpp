@@ -91,35 +91,37 @@ public:
   double
   Uy_jac_source(const double& h, const double& Ux, const double& Uy, const int& s);
 
-  double
-  mu_fun(const int& j, const int& s);
+  /*
+  void
+  mu_fun(const int& s);
 
-  double
-  v_fun(const int& j, const int& s);
+  void
+  v_fun(const int& s);
 
-  double
-  gamma_tilde_fun(const int& j, const int& s);
+  void
+  gamma_tilde_fun(const int& s);
 
-  double
-  T_fun_second(const int& s, const double& x);
+  void
+  T_fun_second(const int& s);
   
-  double
-  T_fun_prime(const int& s, const double& x);
+  void
+  T_fun_prime(const int& s);
 
-  double
-  T_fun(const int& s, const double& x);
+  void
+  T_fun(const int& s);
 
-  double
+  void
   w_fun_0(const int& s);
 
-  double
+  void
   w_fun_1(const int& s);
 
-  double
-  b_fun(const int& j, const int& s);
+  void
+  b_fun(const int& s);
 
-  double
-  mu_fun_tilde (const int& j, const int& s);
+  void
+  mu_fun_tilde (const int& s);
+  */
 
   void
   set_dt (const double dt_);
@@ -224,6 +226,9 @@ public:
   
   double
   Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& dZdy);
+
+  void
+  prepare_IMEXRKC_coefficients (const int& s);
   
   double time, timed, timedd;
   double nu_htot = 0.;
@@ -271,7 +276,14 @@ private:
   const double& fluid_viscosity;
   const double& yield_shear_stress;
 
+  double w0, w1;
+
+  // 5 arrays of storage as in Verwer's paper IMEX-RKCs,
+  std::vector<double> b_vect, mu_tilde_vect, gamma_tilde_vect, v_vect, mu_vect;
+
   const double tol_incr = 1e-8;
+
+  const double epsilon_IMEXRKC = 2./13.;
 
   const double regularization_parameter = 1e3; // has dimension of seconds, in this case the limit of the Bingham viscosity for small I_{2,D} exists finites
   

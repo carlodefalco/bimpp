@@ -19,7 +19,7 @@
 #include "Taylor_Galerkin_IMEX-RKC.h"
 
 
-// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_vladi.octbin.gz 
+// mpirun -np 4 main_TG2IMEXRKC $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_vladi.octbin.gz 
 
 
 static constexpr char VARNAME_1[255] = "dem";
@@ -27,7 +27,7 @@ static constexpr char VARNAME_2[255] = "mask_in";
 //static constexpr char VARNAME_3[255] = "mask_fin";
 
 // properties of the input dem
-static constexpr double res = 5;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double res = 5e-2;//0.005*500; // it is also the minimum resolution of the bim element
 static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
 static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
  
@@ -38,24 +38,25 @@ static std::vector<double>   dem;
 static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
-static std::vector<double>   basin_mask_fin;
-static constexpr int NUM_REFINEMENTS  = 5; // 8
+static std::vector<double>   basin_mask_fin; 
+static constexpr int NUM_REFINEMENTS  = 4; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
 static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = 50; // must never be null 
-static constexpr double DELTAT = 1;
-static constexpr double REDCDT = .3; // it is the limit of the CFL condition, for this methdo is roughly .75 seems to be to me 
-static constexpr double T      = 100.;
+static constexpr double SAVEDT = 1.; // must never be null 
+static constexpr double DELTAT = .1;
+static constexpr double REDCDT = .75; // it is the limit of the CFL condition, for this method is roughly .75 seems to be to me 
+static constexpr double T      = 2.;
  
-static constexpr bool is_time_adaptivity    = false;
-static constexpr bool is_initial_refinement = false;
-static constexpr bool is_space_adaptivity   = false;
-static constexpr bool is_non_reflBC         = true; 
-static constexpr bool is_bed_friction       = false;
-static constexpr bool is_stress_tensor      = true;
+static constexpr bool is_time_adaptivity        = false;
+static constexpr bool is_initial_refinement     = false;
+static constexpr bool is_space_adaptivity       = false;
+static constexpr bool is_non_reflBC             = true; 
+static constexpr bool is_bed_friction           = true; 
+static constexpr bool is_stress_tensor          = true;
+static constexpr bool is_max_time_step_from_CFL = true;
 
 
 static constexpr double h_min = 1e-5;
@@ -147,7 +148,8 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 0. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. ); 
@@ -977,7 +979,6 @@ main (int argc, char **argv)
   stp.set_times(time, time_old, time_oldd);
   
   
-  
   if(rank==0) {
     full_time_vector.push_back (0.0);
     save_time_vector.push_back (0.0);
@@ -1020,10 +1021,13 @@ main (int argc, char **argv)
   
     // compute time step, 
     stp.set_dt (DELTAT);
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    if (is_max_time_step_from_CFL)
     {
-      stp.compute_dt(quadrant);
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+       quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+      {
+        stp.compute_dt(quadrant);
+      }
     }
     max_dt = REDCDT * stp.dt;
 
@@ -1172,11 +1176,14 @@ main (int argc, char **argv)
 
     if (rank==0) std::cout << "number of steps and spectral radius, " << s << " " << spec_radius << std::endl;
 
-    
+    // compute here the coefficients!, it is to prepare the following loop
+    stp.prepare_IMEXRKC_coefficients(s);
 
     //double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653)); // # of stages minimum is 2!!! otherwise errors inside for the recursion!
     for (int jj = 1; jj <= s; jj++)
     {
+
+      std::cout << "current IMEX-RKC step, " << jj << std::endl;
 
       for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
       {
@@ -1193,6 +1200,8 @@ main (int argc, char **argv)
 
       stress_step_dyn.get_owned_data ().assign (stress_step_dyn.get_owned_data ().size (), 0.0);
       stress_step_dyn.assemble (replace_op);
+
+
 
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -1239,7 +1248,6 @@ main (int argc, char **argv)
       
         
     }
-
 
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();

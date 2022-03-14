@@ -82,6 +82,7 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
     
     const auto vel_rusanov_cell_x = hpoint>epsilon ? std::abs(Uxdof[ii]/hpoint)+celerity : 0.;
     const auto vel_rusanov_cell_y = hpoint>epsilon ? std::abs(Uydof[ii]/hpoint)+celerity : 0.;
+
     
     const auto dtoptx = hpoint>epsilon ? Dx/vel_rusanov_cell_x : DELTAT;
     const auto dtopty = hpoint>epsilon ? Dy/vel_rusanov_cell_y : DELTAT;
@@ -1116,24 +1117,28 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
 
   double error; 
 
+  //std::cout << "je suis ici!! " << std::endl;
+
+
   if (j == 1)
   {
-    v_x = sol.get_owned_data ()[kk+1] + mu_fun_tilde(1, s)*dt*(incr.get_owned_data ()[kk+1] + stress_initial_step.get_owned_data ()[kk+1])/mass.get_owned_data ()[kk+1];
-    v_y = sol.get_owned_data ()[kk+2] + mu_fun_tilde(1, s)*dt*(incr.get_owned_data ()[kk+2] + stress_initial_step.get_owned_data ()[kk+2])/mass.get_owned_data ()[kk+2]; 
+    v_x = sol.get_owned_data ()[kk+1] + mu_tilde_vect[1]*dt*(incr.get_owned_data ()[kk+1] + stress_initial_step.get_owned_data ()[kk+1])/mass.get_owned_data ()[kk+1];
+    v_y = sol.get_owned_data ()[kk+2] + mu_tilde_vect[1]*dt*(incr.get_owned_data ()[kk+2] + stress_initial_step.get_owned_data ()[kk+2])/mass.get_owned_data ()[kk+2]; 
   }
   else
   {
-    v_x = (1. - mu_fun(j, s) - v_fun(j, s))*sold.get_owned_data ()[kk+1] + mu_fun(j, s)*sold_rkc.get_owned_data ()[kk+1] + 
-    v_fun(j, s)*soldd_rkc.get_owned_data ()[kk+1] + mu_fun_tilde(j, s)*dt*(incr.get_owned_data ()[kk+1] + stress_step.get_owned_data ()[kk+1])/mass.get_owned_data ()[kk+1] + 
-    gamma_tilde_fun(j, s)*dt*(incr.get_owned_data ()[kk+1] + stress_initial_step.get_owned_data ()[kk+1])/mass.get_owned_data ()[kk+1] + 
-    (gamma_tilde_fun(j, s) - (1. - mu_fun(j, s) - v_fun(j, s))*mu_fun_tilde(1, s))*dt*incr_initial_source.get_owned_data ()[kk+1] - v_fun(j, s)*mu_fun_tilde(1, s)*dt*incr_source.get_owned_data ()[kk+1];
+    v_x = (1. - mu_vect[j] - v_vect[j])*sold.get_owned_data ()[kk+1] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+1] + 
+    v_vect[j]*soldd_rkc.get_owned_data ()[kk+1] + mu_tilde_vect[j]*dt*(incr.get_owned_data ()[kk+1] + stress_step.get_owned_data ()[kk+1])/mass.get_owned_data ()[kk+1] + 
+    gamma_tilde_vect[j]*dt*(incr.get_owned_data ()[kk+1] + stress_initial_step.get_owned_data ()[kk+1])/mass.get_owned_data ()[kk+1] + 
+    (gamma_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk+1] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+1];
 
-    v_y = (1. - mu_fun(j, s) - v_fun(j, s))*sold.get_owned_data ()[kk+2] + mu_fun(j, s)*sold_rkc.get_owned_data ()[kk+2] + 
-    v_fun(j, s)*soldd_rkc.get_owned_data ()[kk+2] + mu_fun_tilde(j, s)*dt*(incr.get_owned_data ()[kk+2] + stress_step.get_owned_data ()[kk+2])/mass.get_owned_data ()[kk+2] + 
-    gamma_tilde_fun(j, s)*dt*(incr.get_owned_data ()[kk+2] + stress_initial_step.get_owned_data ()[kk+2])/mass.get_owned_data ()[kk+2] +
-    (gamma_tilde_fun(j, s) - (1. - mu_fun(j, s) - v_fun(j, s))*mu_fun_tilde(1, s))*dt*incr_initial_source.get_owned_data ()[kk+2] - v_fun(j, s)*mu_fun_tilde(1, s)*dt*incr_source.get_owned_data ()[kk+2];
+    v_y = (1. - mu_vect[j] - v_vect[j])*sold.get_owned_data ()[kk+2] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+2] + 
+    v_vect[j]*soldd_rkc.get_owned_data ()[kk+2] + mu_tilde_vect[j]*dt*(incr.get_owned_data ()[kk+2] + stress_step.get_owned_data ()[kk+2])/mass.get_owned_data ()[kk+2] + 
+    gamma_tilde_vect[j]*dt*(incr.get_owned_data ()[kk+2] + stress_initial_step.get_owned_data ()[kk+2])/mass.get_owned_data ()[kk+2] +
+    (gamma_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk+2] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+2];
   }
 
+  //std::cout << v_x << " " << v_y << std::endl; 
 
   // Ux
   count = -1;
@@ -1144,7 +1149,7 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
     const auto & Ux_c = sol.get_owned_data ()[kk+1];
     const auto & Uy_c = sol.get_owned_data ()[kk+2];
 
-    const auto delta_Ux = (- Ux_c + v_x + mu_fun_tilde(1, s)*dt*Ux_src_formula(h_c, Ux_c, Uy_c, S_x))/Ux_jac_source(h_c, Ux_c, Uy_c, s);
+    const auto delta_Ux = (- Ux_c + v_x + mu_tilde_vect[1]*dt*Ux_src_formula(h_c, Ux_c, Uy_c, S_x))/Ux_jac_source(h_c, Ux_c, Uy_c, s);
 
     error = std::abs(delta_Ux);
 
@@ -1166,7 +1171,7 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
     const auto & Ux_c = sol.get_owned_data ()[kk+1];
     const auto & Uy_c = sol.get_owned_data ()[kk+2];
 
-    const auto delta_Uy = (- Uy_c + v_y + mu_fun_tilde(1, s)*dt*Uy_src_formula(h_c, Ux_c, Uy_c, S_y))/Uy_jac_source(h_c, Ux_c, Uy_c, s);
+    const auto delta_Uy = (- Uy_c + v_y + mu_tilde_vect[1]*dt*Uy_src_formula(h_c, Ux_c, Uy_c, S_y))/Uy_jac_source(h_c, Ux_c, Uy_c, s);
 
     error = std::abs(delta_Uy);
 
@@ -1180,13 +1185,13 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
 double
 TG2_scheme::Ux_jac_source(const double& h, const double& Ux, const double& Uy, const int& s)
 {
-  return((h>epsilon && is_bed_friction) ? 1.+mu_fun_tilde(1, s)*dt*grav/turbulence_coeff/h/h*2.*std::abs(Ux) : 1.);
+  return((h>epsilon && is_bed_friction) ? 1.+mu_tilde_vect[1]*dt*grav/turbulence_coeff/h/h*2.*std::abs(Ux) : 1.);
 }
 
 double
 TG2_scheme::Uy_jac_source(const double& h, const double& Ux, const double& Uy, const int& s)
 {
-  return((h>epsilon && is_bed_friction) ? 1.+mu_fun_tilde(1, s)*dt*grav/turbulence_coeff/h/h*2.*std::abs(Uy) : 1.);
+  return((h>epsilon && is_bed_friction) ? 1.+mu_tilde_vect[1]*dt*grav/turbulence_coeff/h/h*2.*std::abs(Uy) : 1.);
 }
 
 /*
@@ -1216,151 +1221,303 @@ TG2_scheme::c_fun(const int& j, const int& s)
 }
 */
 
-double
-TG2_scheme::mu_fun(const int& j, const int& s)
+/*
+void
+TG2_scheme::mu_fun(const int& s)
 {
-  const auto mu = 2.*b_fun(j, s)*w_fun_0(s)/b_fun(j-1, s);
-  return(mu);
+  mu_vect.resize(s+1);
+  for (int iii=2; iii<=s; iii++)
+  {
+    mu_vect[iii] = 2.*b_vect[iii]*w0/b_vect[iii-1];
+  }
+  //const auto mu = 2.*b_fun(j, s)*w_fun_0(s)/b_fun(j-1, s);
 }
 
-double
-TG2_scheme::v_fun(const int& j, const int& s)
+void
+TG2_scheme::v_fun(const int& s)
 {
-  const auto v = -b_fun(j, s)/b_fun(j-2, s);
-  return(v);
+  v_vect.resize(s+1);
+  for (int iii=2; iii<=s; iii++)
+  {
+    v_vect[iii] = -b_vect[iii]/b_vect[iii-2];
+  }
+  //const auto v = -b_fun(j, s)/b_fun(j-2, s);
 }
 
-double
-TG2_scheme::gamma_tilde_fun(const int& j, const int& s)
+void
+TG2_scheme::gamma_tilde_fun(const int& s)
 {
-  const auto w0 = w_fun_0(s);
-  const auto gamma_tilde = -(1-b_fun(j-1, s)*T_fun(j-1, w0))*mu_fun_tilde(j,s);
 
-  return(gamma_tilde);
+  gamma_tilde_vect.resize(s+1);
+  for (int iii=1; iii<=s; iii++)
+  {
+    gamma_tilde_vect[iii] = -(1. - b_vect[iii-1]*T_vect[iii-1])*mu_tilde_vect[iii];
+  }
+
 }
 
-double
-TG2_scheme::T_fun_second(const int& s, const double& x)
+void
+TG2_scheme::T_fun_second(const int& s)
 {
-  double T;
+  double T, T_old = 0., T_oldold = 0.;
 
-  if (s == 0)
+  T_second_vect.resize(s+1);
+
+  T_second_vect[0] = 0.;
+  T_second_vect[1] = 0.;
+
+  for (int iii=2; iii<=s; iii++)
   {
-    T = 0;
-  }
-  else if (s == 1)
-  {
-    T = 0;
-  }
-  else
-  {
-    T = 2.*T_fun_prime(s-1,x) + 2.*T_fun_prime(s-1,x) + 2.*x*T_fun_second(s-1,x) - T_fun_second(s-2,x);
+    T = 4.*T_prime_vect[iii-1] + 2.*w0*T_old - T_oldold;
+    T_oldold = T_old;
+    T_old = T;
+    T_second_vect[iii] = T;
   }
 
-  return(T);
+  
+  // if (s == 0)
+  // {
+  //   T = 0;
+  // }
+  // else if (s == 1)
+  // {
+  //   T = 0;
+  // }
+  // else
+  // {
+  //   T = 2.*T_fun_prime(s-1,x) + 2.*T_fun_prime(s-1,x) + 2.*x*T_fun_second(s-1,x) - T_fun_second(s-2,x);
+  // }
 }
 
-double
-TG2_scheme::T_fun_prime(const int& s, const double& x)
+void
+TG2_scheme::T_fun_prime(const int& s)
 {
-  double T;
+  double T, T_old = 0., T_oldold = 1;
 
-  if (s == 0)
+  T_prime_vect.resize(s+1);
+
+  T_prime_vect[0] = 0.;
+  T_prime_vect[1] = 1.;
+
+  for (int iii=2; iii<=s; iii++)
   {
-    T = 0;
-  }
-  else if (s == 1)
-  {
-    T = 1;
-  }
-  else
-  {
-    T = 2.*T_fun(s-1,x) + 2.*x*T_fun_prime(s-1,x) - T_fun_prime(s-2,x);
+    T = 2.*T_vect[iii-1] + 2.*w0*T_old - T_oldold;
+    T_oldold = T_old;
+    T_old = T;
+    T_prime_vect[iii] = T;
   }
 
-  return(T);
+  
+  // if (s == 0)
+  // {
+  //   T = 0;
+  // }
+  // else if (s == 1)
+  // {
+  //   T = 1;
+  // }
+  // else
+  // {
+  //   T = 2.*T_fun(s-1,x) + 2.*x*T_fun_prime(s-1,x) - T_fun_prime(s-2,x);
+  // }
 }
 
-double
-TG2_scheme::T_fun(const int& s, const double& x)
+void
+TG2_scheme::T_fun(const int& s)
 {
-  double T;
+  double T, T_old = 1., T_oldold = w0; 
 
-  if (s == 0)
+  T_vect.resize(s+1);
+
+  T_vect[0] = 1.;
+  T_vect[1] = w0;
+
+  for (int iii=2; iii<=s; iii++)
   {
-    T = 1;
-  }
-  else if (s == 1)
-  {
-    T = x;
-  }
-  else
-  {
-    T = 2.*x*T_fun(s-1,x) - T_fun(s-2,x);
+    T = 2.*w0*T_old - T_oldold;
+    T_oldold = T_old;
+    T_old = T;
+    T_vect[iii] = T;
   }
 
-  return(T);
+  
+  // if (s == 0)
+  // {
+  //   T = 1;
+  // }
+  // else if (s == 1)
+  // {
+  //   T = x;
+  // }
+  // else
+  // {
+  //   T = 2.*x*T_fun(s-1,x) - T_fun(s-2,x);
+  // }
+
 }
 
-double
+void
 TG2_scheme::w_fun_0(const int& s)
 {
-  const double epsilon_w = 2./13.;
-  const double w = 1. + epsilon_w/s/s;
-  return(w);
+  w0 = 1. + epsilon_IMEXRKC/s/s;
 }
 
-double
+void
 TG2_scheme::w_fun_1(const int& s)
 {
-  const auto w0 = w_fun_0(s);
-  const auto w = T_fun_prime(s,w0)/T_fun_second(s,w0);
-
-  return(w);
+  w1 = T_prime_vect[s]/T_second_vect[s]; //T_fun_prime(s,w0)/T_fun_second(s,w0);
 }
 
-double
-TG2_scheme::b_fun(const int& j, const int& s)
+void
+TG2_scheme::b_fun(const int& s)
 {
-  const auto w0 = w_fun_0(s);
 
-  double b;
+  //double b = (j <= 1) ? T_fun_second(2,w0)/T_fun_prime(2,w0)/T_fun_prime(2,w0) : T_fun_second(j,w0)/T_fun_prime(j,w0)/T_fun_prime(j,w0);
 
-  if (j <= 1)
+  b_vect.resize(s+1);
+  b_vect[0] = T_second_vect[2]/T_prime_vect[2]/T_prime_vect[2];
+  b_vect[1] = b_vect[0];
+  b_vect[2] = b_vect[1];
+
+  for (int iii=3; iii<=s; iii++)
   {
-    b = T_fun_second(2,w0)/T_fun_prime(2,w0)/T_fun_prime(2,w0);
-  }
-  else
-  {
-    b = T_fun_second(j,w0)/T_fun_prime(j,w0)/T_fun_prime(j,w0);
+    b_vect[iii] = T_second_vect[iii]/T_prime_vect[iii]/T_prime_vect[iii];
   }
 
-  return(b);
-
-
+  
+  // if (j <= 1)
+  // {
+  //   b = T_fun_second(2,w0)/T_fun_prime(2,w0)/T_fun_prime(2,w0);
+  // }
+  // else
+  // {
+  //   b = T_fun_second(j,w0)/T_fun_prime(j,w0)/T_fun_prime(j,w0);
+  // }
 }
 
 
 
-double
-TG2_scheme::mu_fun_tilde (const int& j, const int& s)
+void
+TG2_scheme::mu_fun_tilde (const int& s)
 {
   double mu_tilde;
 
-  if (j == 1)
+  mu_tilde_vect.resize(s+1);
+  mu_tilde_vect[0] = 0.;
+  mu_tilde_vect[1] = (s == 1) ? 1. : b_vect[1]*w1;
+  for (int iii=2; iii<=s; iii++)
   {
-    mu_tilde = (s == 1) ? 1. : b_fun(1, s)*w_fun_1(s);
+    mu_tilde_vect[iii] = 2.*b_vect[iii]*w1/b_vect[iii-1];
   }
-  else
-  {
-    mu_tilde = 2.*b_fun(j, s)*w_fun_1(s)/b_fun(j-1, s);
-  }
+  
+  
+  // if (j == 1)
+  // {
+  //   mu_tilde = (s == 1) ? 1. : b_fun(1, s)*w_fun_1(s);
+  // }
+  // else
+  // {
+  //   mu_tilde = 2.*b_fun(j, s)*w_fun_1(s)/b_fun(j-1, s);
+  // }
 
-
-  return(mu_tilde);
-    
+  //mu_tilde = (j == 1) ? mu_tilde : 2.*b_fun(j, s)*w_fun_1(s)/b_fun(j-1, s);
 }
+*/
 
+void
+TG2_scheme::prepare_IMEXRKC_coefficients (const int& s)
+{
+  // \omega_0
+  w0 = 1. + epsilon_IMEXRKC/s/s;
+
+  double T, T_old = w0, T_oldold = 1., 
+  T_prime, T_prime_old = 1., T_prime_oldold = 0.,
+  T_second, T_second_old = 0., T_second_oldold = 0.; 
+
+
+  b_vect.resize(s+1);
+  gamma_tilde_vect.resize(s+1);
+  for (int iii=2; iii<=s; iii++)
+  {
+    // first Chebyshev function
+    T = 2.*w0*T_old - T_oldold;
+
+    // first Chebyshev function derivative
+    T_prime = 2.*T_old + 2.*w0*T_prime_old - T_prime_oldold;
+
+    // first Chebyshev function second derivative
+    T_second = 4.*T_prime_old + 2.*w0*T_second_old - T_second_oldold;
+
+
+    b_vect[iii] = T_second/T_prime/T_prime;
+
+    // -a_{j-1} contribution
+    gamma_tilde_vect[iii] = -(1. - b_vect[iii-1]*T_old);
+
+    // update
+    T_oldold = T_old;
+    T_old = T;
+
+    T_prime_oldold = T_prime_old;
+    T_prime_old = T_prime;
+
+    T_second_oldold = T_second_old;
+    T_second_old = T_second;
+  }
+
+  b_vect[0] = b_vect[2];
+  b_vect[1] = b_vect[2];
+
+
+  // -a_{0} contribution
+  gamma_tilde_vect[1] = -(1. - b_vect[0]*w0);
+
+  // \omega_1
+  w1 = T_prime/T_second;
+
+  mu_tilde_vect.resize(s+1);
+  v_vect.resize(s+1);
+  mu_vect.resize(s+1);
+
+
+  mu_tilde_vect[0] = 0.;
+  mu_tilde_vect[1] = (s == 1) ? 1. : b_vect[1]*w1;
+
+  gamma_tilde_vect[1] = gamma_tilde_vect[1]*mu_tilde_vect[1];
+  for (int iii=2; iii<=s; iii++)
+  {
+    mu_tilde_vect[iii] = 2.*b_vect[iii]*w1/b_vect[iii-1];
+
+    gamma_tilde_vect[iii] = gamma_tilde_vect[iii]*mu_tilde_vect[iii];
+
+    v_vect[iii] = -b_vect[iii]/b_vect[iii-2];
+
+    mu_vect[iii] = 2.*b_vect[iii]*w0/b_vect[iii-1];
+
+    //std::cout << mu_tilde_vect[iii] << " " << w1  << " " << gamma_tilde_vect[iii] << " " << v_vect[iii] << " " << mu_vect[iii] << " " << b_vect[iii] << std::endl;
+  
+  }
+
+
+/*
+  w_fun_0(s);
+
+  T_fun       (s);
+  T_fun_prime (s);
+  T_fun_second(s);
+
+  w_fun_1(s);
+
+  // I want just these to take in memory, 5 arrays of storage!!
+  b_fun(s);
+  mu_fun_tilde(s);
+  gamma_tilde_fun(s);
+  v_fun(s);
+  mu_fun(s);*/
+
+
+
+}
 
 void
 TG2_scheme::set_dt (const double dt_)
