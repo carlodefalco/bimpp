@@ -25,7 +25,7 @@ static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in";
 
 // properties of the input dem
-static constexpr double res = 5;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double res = 5e-2;//0.005*500; // it is also the minimum resolution of the bim element
 static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
 static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
 
@@ -36,29 +36,30 @@ static std::vector<double>   dem;
 static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
-static constexpr int NUM_REFINEMENTS  = 6; // 8
+static constexpr int NUM_REFINEMENTS  = 4; // 8
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
 static constexpr double SPACE_ADAPTDT = 1e-1;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = 1.; // must never be null 
+static constexpr double SAVEDT = 2.; // must never be null 
 static constexpr double DELTAT = 1.;
-static constexpr double REDCDT = .05; 
-static constexpr double T      = 100.;
+static constexpr double REDCDT = 1.; 
+static constexpr double T      = 2.;
  
-static constexpr bool is_time_adaptivity    = false;
-static constexpr bool is_initial_refinement = false;
-static constexpr bool is_space_adaptivity   = false;
-static constexpr bool is_non_reflBC         = true; 
-static constexpr bool is_bed_friction       = false; 
-static constexpr bool is_stress_tensor      = true;
+static constexpr bool is_time_adaptivity        = false;
+static constexpr bool is_initial_refinement     = false;
+static constexpr bool is_space_adaptivity       = false;
+static constexpr bool is_non_reflBC             = true; 
+static constexpr bool is_bed_friction           = false; 
+static constexpr bool is_stress_tensor          = true;
+static constexpr bool is_max_time_step_from_CFL = true;
 
 
 static constexpr double h_min = 1e-5;
 static constexpr double grav = 9.81;
 static constexpr double density = 1300.;
-static constexpr double turbulence_coeff = 1.e8;
+static constexpr double turbulence_coeff = 1.e3;
 static constexpr double surface_pressure = 0;//101325.;
 static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 1e4;
@@ -951,15 +952,19 @@ main (int argc, char **argv)
   
     // compute time step, 
     stp.set_dt (DELTAT);
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    if (is_max_time_step_from_CFL)
     {
-      stp.compute_dt(quadrant);
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+       quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+      {
+        stp.compute_dt(quadrant);
+      }
     }
     max_dt = REDCDT * stp.dt;
 
     stp.set_dt(max_dt); // deltat max
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
+
  
     // Print current time
     if(rank==0)
