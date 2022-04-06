@@ -279,7 +279,7 @@ private:
   double w0, w1;
 
   // 5 arrays of storage as in Verwer's paper IMEX-RKCs,
-  std::vector<double> b_vect, mu_tilde_vect, gamma_tilde_vect, v_vect, mu_vect;
+  std::vector<double> b_vect, mu_tilde_vect, gamma_tilde_vect, v_vect, mu_vect, c_vect;
 
   const double tol_incr = 1e-8;
 

@@ -14,12 +14,12 @@
 #include <bim_timing.h>
 #include <mumps_class.h>
 #include <tmesh.h>
-#include <quad_operators.h>
+#include <quad_operators.h> 
 
 #include "Taylor_Galerkin_IMEX-RKC.h"
 
 
-// mpirun -np 4 main_TG2IMEXRKC $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_vladi.octbin.gz 
+// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_vladi.octbin.gz 
 
 
 static constexpr char VARNAME_1[255] = "dem";
@@ -39,23 +39,23 @@ static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
 static std::vector<double>   basin_mask_fin; 
-static constexpr int NUM_REFINEMENTS  = 4; // 8 
+static constexpr int NUM_REFINEMENTS  = 6; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
 static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = 1.; // must never be null 
+static constexpr double SAVEDT = .1; // must never be null 
 static constexpr double DELTAT = .1;
-static constexpr double REDCDT = .75; // it is the limit of the CFL condition, for this method is roughly .75 seems to be to me 
-static constexpr double T      = 2.;
+static constexpr double REDCDT = .3; // it is the limit of the CFL condition, for this method is roughly .75 seems to be to me 
+static constexpr double T      = 1.;
  
 static constexpr bool is_time_adaptivity        = false;
 static constexpr bool is_initial_refinement     = false;
 static constexpr bool is_space_adaptivity       = false;
 static constexpr bool is_non_reflBC             = true; 
-static constexpr bool is_bed_friction           = true; 
-static constexpr bool is_stress_tensor          = true;
+static constexpr bool is_bed_friction           = false; 
+static constexpr bool is_stress_tensor          = false;
 static constexpr bool is_max_time_step_from_CFL = true;
 
 
@@ -65,7 +65,7 @@ static constexpr double density = 1300.;
 static constexpr double turbulence_coeff = 1.e3;
 static constexpr double surface_pressure = 0;//101325.;
 static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double fluid_viscosity = 1e4;//10000;
+static constexpr double fluid_viscosity = 5e1;//10000;
 static constexpr double yield_shear_stress = 0.;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
 static constexpr double level_wet           = 3;  
@@ -148,12 +148,13 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  //return ( 1.+1.*std::exp(-0.5*( std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
-  //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 0. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. ); 
-  //return(xx<=L/2. ? 20 : 0. ); 
+  //return(xx<=L/2. ? 20 : 0. );  
 
 
   //const double HH = 30.;
@@ -1167,12 +1168,12 @@ main (int argc, char **argv)
     double spec_radius = 0.;
     for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
     {
-      spec_radius = std::max(spec_radius, spec_radius_nodal_dyn.get_owned_data ()[kk]);
+      spec_radius = std::max(spec_radius, spec_radius_nodal_dyn.get_owned_data ()[kk]); 
     }
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&spec_radius), 1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
 
 
-    double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653));//5;//std::round(std::max(std::sqrt(stp.dt*spec_radius/.653), 2.));
+    double s = 1. + std::round(std::sqrt(1 + stp.dt*spec_radius/.653));//5;//std::round(std::max(std::sqrt(stp.dt*spec_radius/.653), 2.));
 
     if (rank==0) std::cout << "number of steps and spectral radius, " << s << " " << spec_radius << std::endl;
 
@@ -1269,8 +1270,8 @@ main (int argc, char **argv)
     // std::cout << "right now we stop here" << std::endl;
     // exit(1);
     
-    
 
+    
     // second order correction
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
