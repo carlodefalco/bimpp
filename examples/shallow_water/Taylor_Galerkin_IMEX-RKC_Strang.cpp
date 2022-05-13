@@ -22,6 +22,7 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const ordering& oUx,
                        const ordering& oUy,
                        const Q1& Z,
+		                   Q1& Newton_it,
                        Q1& slope_x_node,
                        Q1& slope_y_node,
                        const Q0& slope_x,
@@ -39,7 +40,7 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& fluid_viscosity,
                        const double& yield_shear_stress)
 : sol(sol), sold(sold), soldd(soldd), sold_rkc(sold_rkc), soldd_rkc(soldd_rkc), incr(incr), incr_initial_source(incr_initial_source), incr_source(incr_source), incr_anti_diff(incr_anti_diff), stress_initial_step(stress_initial_step), stress_step(stress_step), P_plus(P_plus), P_minus(P_minus), spec_radius_nodal(spec_radius_nodal), sol_onehalf(sol_onehalf), mass(mass),
-  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), slope_x_node(slope_x_node), slope_y_node(slope_y_node), slope_x(slope_x), slope_y(slope_y), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), grav(grav),
+  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), Newton_it(Newton_it), slope_x_node(slope_x_node), slope_y_node(slope_y_node), slope_x(slope_x), slope_y(slope_y), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), grav(grav),
   density(density), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress)
 { }
 
@@ -589,6 +590,7 @@ TG2_scheme::loop_step (const int& kk, const bool& isInitial) //
   const auto Ux_s_ = Ux_src_formula(h_c, Ux_c, Uy_c, slope_x_node.get_owned_data ()[int(kk/3)]); 
   const auto Uy_s_ = Uy_src_formula(h_c, Ux_c, Uy_c, slope_y_node.get_owned_data ()[int(kk/3)]); 
 
+  
   if (isInitial)
   {
     incr_initial_source.get_owned_data ()[kk  ] = h_s_; 
@@ -601,6 +603,7 @@ TG2_scheme::loop_step (const int& kk, const bool& isInitial) //
     incr_source.get_owned_data ()[kk+1] = Ux_s_;
     incr_source.get_owned_data ()[kk+2] = Uy_s_;
   }
+  
   
 
 
@@ -1155,8 +1158,7 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
   //sol.get_owned_data ()[kk+1] = v_x;
   //sol.get_owned_data ()[kk+2] = v_y;
 
-  
-  // Ux
+  // solve non-linearities
   count = -1;
   error = tolerance + 1;
   while (count++<Nmax && error>tolerance)
@@ -1166,36 +1168,21 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
     const auto & Uy_c = sol.get_owned_data ()[kk+2];
 
     const auto delta_Ux = (- Ux_c + v_x + mu_tilde_vect[1]*dt*Ux_src_formula(h_c, Ux_c, Uy_c, S_x))/Ux_jac_source(h_c, Ux_c, Uy_c, s);
+    const auto delta_Uy = (- Uy_c + v_y + mu_tilde_vect[1]*dt*Uy_src_formula(h_c, Ux_c, Uy_c, S_y))/Uy_jac_source(h_c, Ux_c, Uy_c, s);
 
-    error = std::abs(delta_Ux);
+    error = std::abs(delta_Ux*delta_Ux + delta_Uy*delta_Uy);
 
     //std::cout << v_x << " " << delta_Ux << " " << sol.get_owned_data ()[kk+1] << " " << Ux_src_formula(h_c, Ux_c, Uy_c, S_x) << " " << S_x << " " << is_bed_friction << std::endl;
 
     sol.get_owned_data ()[kk+1] += delta_Ux;
+    sol.get_owned_data ()[kk+2] += delta_Uy;
 
     //std::cout << count << std::endl;
 
     //if (count==1) std::cout << count << " " << delta_Ux << std::endl; 
 
   }
-
-
-  // Uy
-  count = -1;
-  error = tolerance + 1;
-  while (count++<Nmax && error>tolerance)
-  {
-    const auto & h_c  = sol.get_owned_data ()[kk  ];
-    const auto & Ux_c = sol.get_owned_data ()[kk+1];
-    const auto & Uy_c = sol.get_owned_data ()[kk+2];
-
-    const auto delta_Uy = (- Uy_c + v_y + mu_tilde_vect[1]*dt*Uy_src_formula(h_c, Ux_c, Uy_c, S_y))/Uy_jac_source(h_c, Ux_c, Uy_c, s);
-
-    error = std::abs(delta_Uy);
-
-    sol.get_owned_data ()[kk+2] += delta_Uy;
-
-  }
+  Newton_it.get_owned_data ()[int(kk/3)] = double(count);
 
 }
 
@@ -1203,13 +1190,13 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
 double
 TG2_scheme::Ux_jac_source(const double& h, const double& Ux, const double& Uy, const int& s)
 {
-  return((h>epsilon && is_bed_friction) ? 1.+mu_tilde_vect[1]*dt*grav/turbulence_coeff/h/h*2.*std::abs(Ux) : 1.);
+  return((h*h>epsilon && is_bed_friction) ? 1.+mu_tilde_vect[1]*dt*grav/turbulence_coeff/h/h*2.*std::abs(Ux) : 1.);
 }
 
 double
 TG2_scheme::Uy_jac_source(const double& h, const double& Ux, const double& Uy, const int& s)
 {
-  return((h>epsilon && is_bed_friction) ? 1.+mu_tilde_vect[1]*dt*grav/turbulence_coeff/h/h*2.*std::abs(Uy) : 1.);
+  return((h*h>epsilon && is_bed_friction) ? 1.+mu_tilde_vect[1]*dt*grav/turbulence_coeff/h/h*2.*std::abs(Uy) : 1.);
 }
 
 
@@ -1390,7 +1377,7 @@ TG2_scheme::compute_cell_stress (const double& Uxdof_0, const double& Uxdof_1,
 
   const double kinetic_energergy_associated = std::sqrt(second_invariant);
 
-  double viscos = second_invariant!=0 ? 2.*fluid_viscosity + yield_shear_stress/kinetic_energergy_associated*(1. - std::exp(-regularization_parameter*kinetic_energergy_associated)) : 0.;
+  double viscos = kinetic_energergy_associated!=0 ? 2.*fluid_viscosity + yield_shear_stress/kinetic_energergy_associated*(1. - std::exp(-regularization_parameter*kinetic_energergy_associated)) : 0.;
   viscos = yield_shear_stress==0 ? 2.*fluid_viscosity : viscos;
 
   //std::cout << def_grad[0] << " " << def_grad[1] << " " << def_grad[2] << " " << def_grad[3] << " " << def_grad[4] << " " << def_grad[5] << " aa" << std::endl;
@@ -1484,15 +1471,14 @@ TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy,
   const double bed_pressure = grav*h + surface_pressure/density; 
   const double vel_x = h>epsilon ? Ux/h : 0.;
   const double vel_y = h>epsilon ? Uy/h : 0.;
-  const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
+  const double abs_vel = std::abs( vel_x );
 
   const double vel_x_sign = abs_vel!=0 ? vel_x/abs_vel : 0.;
 
   //const double bed_fric_contr = is_bed_friction ? vel_x_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
 
-  const double bed_fric_contr_one = is_bed_friction ? vel_x*grav*abs_vel/turbulence_coeff : 0.;
+  const double bed_fric_contr_one = (h*h>epsilon && is_bed_friction) ? Ux*grav*std::abs(Ux)/turbulence_coeff/h/h : 0.; //is_bed_friction ? vel_x*grav*abs_vel/turbulence_coeff : 0.;
   const double bed_fric_contr_two = is_bed_friction ? vel_x_sign*bed_pressure*std::tan(bed_friction_angle_rad) : 0.;
-
 
   return (- grav*h*dZdx - bed_fric_contr_one - bed_fric_contr_two);
 }
@@ -1503,16 +1489,14 @@ TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy,
   const double bed_pressure = grav*h + surface_pressure/density;
   const double vel_x = h>epsilon ? Ux/h : 0.;
   const double vel_y = h>epsilon ? Uy/h : 0.;
-  const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
+  const double abs_vel = std::abs( vel_y );
 
   const double vel_y_sign = abs_vel!=0 ? vel_y/abs_vel : 0.;
 
   //const double bed_fric_contr = is_bed_friction ? vel_y_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
 
-  const double bed_fric_contr_one = is_bed_friction ? vel_y*grav*abs_vel/turbulence_coeff : 0.;
+  const double bed_fric_contr_one = (h*h>epsilon && is_bed_friction) ? Uy*grav*std::abs(Uy)/turbulence_coeff/h/h : 0.; //is_bed_friction ? vel_y*grav*abs_vel/turbulence_coeff : 0.;
   const double bed_fric_contr_two = is_bed_friction ? vel_y_sign*bed_pressure*std::tan(bed_friction_angle_rad) : 0.;
-
-  //std::cout << bed_pressure << std::endl;
 
   return (- grav*h*dZdy - bed_fric_contr_one - bed_fric_contr_two);
 }

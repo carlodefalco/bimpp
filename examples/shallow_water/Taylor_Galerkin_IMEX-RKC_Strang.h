@@ -36,6 +36,7 @@ public:
              const ordering& oUx, 
              const ordering& oUy, 
              const Q1& Z,
+	     Q1& Newton_it,
              Q1& slope_x_node,
              Q1& slope_y_node,
              const Q0& slope_x,
@@ -250,6 +251,7 @@ public:
   Q1& spec_radius_nodal;
   Q0& sol_onehalf;
   const Q1& Z;
+  Q1& Newton_it;
   Q1& slope_x_node;
   Q1& slope_y_node;
   Q1& stress_initial_step; 
