@@ -1337,9 +1337,7 @@ main (int argc, char **argv)
         
     }
 
-    std::cout << "done second step!! " << std::endl;
-  
-
+    
 
     stp.set_old_dt(stp.dt);
     
@@ -1695,7 +1693,7 @@ main (int argc, char **argv)
 
       tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
       //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1); 
-      tmsh.metrics_refine (1e6);  // RAFFINAMENTO (arg is max element)
+      tmsh.metrics_refine (1e7);  // RAFFINAMENTO (arg is max element)
 
       // tmsh.set_coarsen_marker (coarsen_function);
       // tmsh.set_refine_marker  (refine_function);
