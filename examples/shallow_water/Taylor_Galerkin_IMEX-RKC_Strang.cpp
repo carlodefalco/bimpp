@@ -22,7 +22,7 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const ordering& oUx,
                        const ordering& oUy,
                        const Q1& Z,
-		                   Q1& Newton_it,
+		       Q1& Newton_it,
                        Q1& slope_x_node,
                        Q1& slope_y_node,
                        const Q0& slope_x,
@@ -1170,7 +1170,7 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
     const auto delta_Ux = (- Ux_c + v_x + mu_tilde_vect[1]*dt*Ux_src_formula(h_c, Ux_c, Uy_c, S_x))/Ux_jac_source(h_c, Ux_c, Uy_c, s);
     const auto delta_Uy = (- Uy_c + v_y + mu_tilde_vect[1]*dt*Uy_src_formula(h_c, Ux_c, Uy_c, S_y))/Uy_jac_source(h_c, Ux_c, Uy_c, s);
 
-    error = std::abs(delta_Ux*delta_Ux + delta_Uy*delta_Uy);
+    error = std::sqrt(delta_Ux*delta_Ux + delta_Uy*delta_Uy);
 
     //std::cout << v_x << " " << delta_Ux << " " << sol.get_owned_data ()[kk+1] << " " << Ux_src_formula(h_c, Ux_c, Uy_c, S_x) << " " << S_x << " " << is_bed_friction << std::endl;
 

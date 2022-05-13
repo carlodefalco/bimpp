@@ -1783,7 +1783,7 @@ main (int argc, char **argv)
             double xx=quadrant->p(0,ii);
             double yy=quadrant->p(1,ii);
             Z           [quadrant->gt (ii)] = dem        [global_coord_2_raster(xx,yy)[0]]; 
-	          Newton_it   [quadrant->gt (ii)] = 0.;
+	    Newton_it   [quadrant->gt (ii)] = 0.;
             slope_x_node[quadrant->gt (ii)] = dem_slope_x[global_coord_2_raster(xx,yy)[0]]; 
             slope_y_node[quadrant->gt (ii)] = dem_slope_y[global_coord_2_raster(xx,yy)[0]]; 
           }
@@ -1793,7 +1793,7 @@ main (int argc, char **argv)
             Z[quadrant->gparent(0,ii)] += 0.;
             Z[quadrant->gparent(1,ii)] += 0.;
 
-	          Newton_it[quadrant->gparent(0,ii)] += 0.;
+	    Newton_it[quadrant->gparent(0,ii)] += 0.;
             Newton_it[quadrant->gparent(1,ii)] += 0.;
 
             slope_x_node[quadrant->gparent(0,ii)] += 0.;
@@ -1835,7 +1835,7 @@ main (int argc, char **argv)
       mass_dyn                = mass;
       sol_onehalf_dyn         = sol_onehalf;
       Z_dyn                   = Z;
-      Newton_it_dyn 	        = Newton_it;	
+      Newton_it_dyn 	      = Newton_it;	
       slope_x_node_dyn        = slope_x_node;
       slope_y_node_dyn        = slope_y_node;
       slope_x_dyn             = slope_x;
