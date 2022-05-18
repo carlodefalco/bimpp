@@ -19,7 +19,7 @@
 #include "Taylor_Galerkin_IMEX-RKC_Strang.h"
 
 
-// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_vladi.octbin.gz 
+// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_second_test.octbin.gz inputs/mask_in_vladi.octbin.gz 
 
 
 static constexpr char VARNAME_1[255] = "dem";
@@ -39,21 +39,21 @@ static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
 static std::vector<double>   basin_mask_fin; 
-static constexpr int NUM_REFINEMENTS  = 8; // 8 
+static constexpr int NUM_REFINEMENTS  = 11; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-static constexpr double SPACE_ADAPTDT = 4e-2;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = 5.; // must never be null 
-static constexpr double DELTAT = .1;
+static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
+static constexpr double SAVEDT = .1; // must never be null 
+static constexpr double DELTAT = .1; 
 static constexpr double REDCDT = .5; // it is the limit of the CFL condition
 static constexpr double T      = 5.;
  
 static constexpr bool is_time_adaptivity        = false;
-static constexpr bool is_initial_refinement     = true;
-static constexpr bool is_space_adaptivity       = true;
-static constexpr bool is_non_reflBC             = true; 
+static constexpr bool is_initial_refinement     = false;
+static constexpr bool is_space_adaptivity       = false;
+static constexpr bool is_non_reflBC             = true;  
 static constexpr bool is_bed_friction           = true;
 static constexpr bool is_stress_tensor          = true;
 static constexpr bool is_max_time_step_from_CFL = true;
@@ -62,7 +62,7 @@ static constexpr bool is_max_time_step_from_CFL = true;
 static constexpr double h_min = 1e-5;
 static constexpr double grav = 9.81;
 static constexpr double density = 1400.;
-static constexpr double turbulence_coeff = 1.e5;
+static constexpr double turbulence_coeff = 1.e1;
 static constexpr double surface_pressure = 0;//101325.;
 static constexpr double bed_friction_angle_rad = 23*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 50;//10000;
@@ -70,9 +70,9 @@ static constexpr double yield_shear_stress = 2e3;//2e3;//.5*density*grav*38*std:
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
-static constexpr double mesh_size_dry       = res*100;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res/30;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = res/50;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+static constexpr double mesh_size_dry       = res/3;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
+static constexpr double mesh_size_wet       = res/10;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = res/10;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
 // Connectivity of local element
@@ -623,7 +623,7 @@ main (int argc, char **argv)
         slope_x_node[quadrant->gt (ii)] = dem_slope_x   [global_coord_2_raster(xx,yy)[0]]; 
         slope_y_node[quadrant->gt (ii)] = dem_slope_y   [global_coord_2_raster(xx,yy)[0]]; 
         //mask_fin    [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]]; 
-	Newton_it   [quadrant->gt (ii)] = 0.;
+	      Newton_it   [quadrant->gt (ii)] = 0.;
       }
       
       else
@@ -640,7 +640,7 @@ main (int argc, char **argv)
         Z   [quadrant->gparent(0,ii)] += 0.;
         Z   [quadrant->gparent(1,ii)] += 0.;
 
-	Newton_it   [quadrant->gparent(0,ii)] += 0.;
+	      Newton_it   [quadrant->gparent(0,ii)] += 0.;
         Newton_it   [quadrant->gparent(1,ii)] += 0.;
 
         slope_x_node[quadrant->gparent(0,ii)] += 0.;
@@ -821,7 +821,7 @@ main (int argc, char **argv)
           slope_x_node_[quadrant->gt (ii)] = dem_slope_x[global_coord_2_raster(xx,yy)[0]];
           slope_y_node_[quadrant->gt (ii)] = dem_slope_y[global_coord_2_raster(xx,yy)[0]];
 
-	  Newton_it_[quadrant->gt (ii)] = 0.;
+	        Newton_it_[quadrant->gt (ii)] = 0.;
 
           //mask_fin_ [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]];
         }
@@ -847,7 +847,7 @@ main (int argc, char **argv)
           //mask_fin_[quadrant->gparent(0,ii)] += 0.;
           //mask_fin_[quadrant->gparent(1,ii)] += 0.;
 	  
-	  Newton_it_[quadrant->gparent(0,ii)] += 0.;
+	        Newton_it_[quadrant->gparent(0,ii)] += 0.;
           Newton_it_[quadrant->gparent(1,ii)] += 0.;
         }
       }
@@ -881,7 +881,7 @@ main (int argc, char **argv)
     mass                = mass_;
     sol_onehalf         = sol_onehalf_;
     Z                   = Z_;
-    Newton_it 		= Newton_it_;
+    Newton_it 		      = Newton_it_;
     slope_x_node        = slope_x_node_;
     slope_y_node        = slope_y_node_;
     //mask_fin            = mask_fin_;
@@ -1257,7 +1257,7 @@ main (int argc, char **argv)
 
 
 
-    double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653));//5;//std::round(std::max(std::sqrt(stp.dt*spec_radius/.653), 2.));
+    double s = 1. + std::round(std::sqrt(1 + stp.dt*spec_radius/.653));//5;//std::round(std::max(std::sqrt(stp.dt*spec_radius/.653), 2.));
 
     if(rank==0)
     {
@@ -1336,6 +1336,7 @@ main (int argc, char **argv)
       incr_source_dyn.assemble (replace_op);
         
     }
+    Newton_it_dyn.assemble (replace_op);
 
     
 
@@ -1781,7 +1782,7 @@ main (int argc, char **argv)
             double xx=quadrant->p(0,ii);
             double yy=quadrant->p(1,ii);
             Z           [quadrant->gt (ii)] = dem        [global_coord_2_raster(xx,yy)[0]]; 
-	    Newton_it   [quadrant->gt (ii)] = 0.;
+	          Newton_it   [quadrant->gt (ii)] = 0.;
             slope_x_node[quadrant->gt (ii)] = dem_slope_x[global_coord_2_raster(xx,yy)[0]]; 
             slope_y_node[quadrant->gt (ii)] = dem_slope_y[global_coord_2_raster(xx,yy)[0]]; 
           }
@@ -1791,7 +1792,7 @@ main (int argc, char **argv)
             Z[quadrant->gparent(0,ii)] += 0.;
             Z[quadrant->gparent(1,ii)] += 0.;
 
-	    Newton_it[quadrant->gparent(0,ii)] += 0.;
+	          Newton_it[quadrant->gparent(0,ii)] += 0.;
             Newton_it[quadrant->gparent(1,ii)] += 0.;
 
             slope_x_node[quadrant->gparent(0,ii)] += 0.;
@@ -1833,7 +1834,7 @@ main (int argc, char **argv)
       mass_dyn                = mass;
       sol_onehalf_dyn         = sol_onehalf;
       Z_dyn                   = Z;
-      Newton_it_dyn 	      = Newton_it;	
+      Newton_it_dyn 	        = Newton_it;	
       slope_x_node_dyn        = slope_x_node;
       slope_y_node_dyn        = slope_y_node;
       slope_x_dyn             = slope_x;
