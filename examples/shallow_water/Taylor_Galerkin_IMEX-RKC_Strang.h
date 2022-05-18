@@ -290,6 +290,8 @@ private:
 
   const double epsilon_IMEXRKC = 2./13.;
 
+  const double tolerance_sign = 1e-2;
+
   const double regularization_parameter = 1e3; // has dimension of seconds, in this case the limit of the Bingham viscosity for small I_{2,D} exists finites
   
 };
