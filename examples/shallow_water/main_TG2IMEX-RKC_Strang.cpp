@@ -28,8 +28,8 @@ static constexpr char VARNAME_2[255] = "mask_in";
 
 // properties of the input dem
 static constexpr double res = 5;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 201;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 201;//101;//175;//201;//180; // # rows
+static constexpr double Nx = 165;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 175;//101;//175;//201;//180; // # rows
  
   
 static constexpr double L = res*(Nx-1);
@@ -39,20 +39,20 @@ static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
 static std::vector<double>   basin_mask_fin; 
-static constexpr int NUM_REFINEMENTS  = 11; // 8 
+static constexpr int NUM_REFINEMENTS  = 8; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
-
-static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = .1; // must never be null 
+ 
+static constexpr double SPACE_ADAPTDT = 1.;//1e-2; // put zero if you want at each time step
+static constexpr double SAVEDT = 10.; // must never be null 
 static constexpr double DELTAT = .1; 
 static constexpr double REDCDT = .5; // it is the limit of the CFL condition
-static constexpr double T      = 5.;
+static constexpr double T      = 10.;
  
-static constexpr bool is_time_adaptivity        = false;
-static constexpr bool is_initial_refinement     = false;
-static constexpr bool is_space_adaptivity       = false;
+static constexpr bool is_time_adaptivity        = true;
+static constexpr bool is_initial_refinement     = true;
+static constexpr bool is_space_adaptivity       = true;
 static constexpr bool is_non_reflBC             = true;  
 static constexpr bool is_bed_friction           = true;
 static constexpr bool is_stress_tensor          = true;
@@ -61,18 +61,18 @@ static constexpr bool is_max_time_step_from_CFL = true;
 
 static constexpr double h_min = 1e-5;
 static constexpr double grav = 9.81;
-static constexpr double density = 1400.;
-static constexpr double turbulence_coeff = 1.e1;
-static constexpr double surface_pressure = 0;//101325.;
-static constexpr double bed_friction_angle_rad = 23*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
+static constexpr double density = 1291.;
+static constexpr double turbulence_coeff = 1.e3;
+static constexpr double surface_pressure = 101325.;
+static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 50;//10000;
 static constexpr double yield_shear_stress = 2e3;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
-static constexpr double level_wet           = 3;  
-static constexpr double level_interface     = 6; // minimum resolution! 
-static constexpr double mesh_size_dry       = res/3;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res/10;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = res/10;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+//static constexpr double level_wet           = 3;  
+//static constexpr double level_interface     = 6; // minimum resolution! 
+static constexpr double mesh_size_dry       = res*100;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
+static constexpr double mesh_size_wet       = 1; //res/10;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = .5; //res/10;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
 // Connectivity of local element
@@ -157,16 +157,16 @@ double h0_fun (const double& xx, const double& yy)
   //return(xx<=L/2. ? 2 : 1. );  
 
 
-  const double HH = 30.;
-  const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
-  return(std::max (0., std::min (.6*500-(500 - 500 * xx/L), HH)) * omega); 
+  //const double HH = 30.;
+  //const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
+  //return(std::max (0., std::min (.6*500-(500 - 500 * xx/L), HH)) * omega); 
   
  
 
 
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
 
-  return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38 : 0.);
+  return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38. : 0.);
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
   return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 0.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
@@ -1020,7 +1020,7 @@ main (int argc, char **argv)
     std::cout << "start loop" << std::endl;
   }
 
-  int counter_savings = 0, tot_number_savings = T/SAVEDT;
+  int counter_savings = 0, tot_number_savings = std::round(T/SAVEDT);
   
   TIC();
   while (counter_savings != tot_number_savings)
@@ -1080,7 +1080,7 @@ main (int argc, char **argv)
       }
       MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
 
-      const double local_estimator_time_tolerance = 5e-3*(stp.time-stp.timed)*std::sqrt(stp.time-stp.timed)/std::sqrt(stp.nu_htot);
+      const double local_estimator_time_tolerance = 10.; //5e-3*(stp.time-stp.timed)*std::sqrt(stp.time-stp.timed)/std::sqrt(stp.nu_htot);
 
       const double candidate_dt = local_estimator_time_tolerance/std::sqrt(stp.nu_htot)*(stp.time-stp.timed);
       stp.set_dt( (stp.nu_htot>0 && candidate_dt<stp.dt) ? candidate_dt : stp.dt );
