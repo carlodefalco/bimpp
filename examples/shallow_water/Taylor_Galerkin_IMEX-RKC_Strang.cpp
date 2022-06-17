@@ -1203,9 +1203,9 @@ TG2_scheme::Ux_jac_source(const double& h, const double& Ux, const double& Uy, c
   const double bed_pressure = grav*h + surface_pressure/density;
 
   const double vel_x = h>epsilon ? Ux/h : 0.;
-
+  
   const double contribution_one = h*h>epsilon ? grav/turbulence_coeff/h/h*2.*std::abs(Ux) : 0.;
-  const double contribution_two = abs(vel_x)>tolerance_sign ? 0. : 1./tolerance_sign*bed_pressure*tan(bed_friction_angle_rad);
+  const double contribution_two = std::abs(Ux)>tolerance_sign ? 0. : 1./tolerance_sign*bed_pressure*tan(bed_friction_angle_rad);
 
   return(is_bed_friction ? 1.+mu_tilde_vect[1]*dt*(contribution_one + contribution_two) : 1.);
 }
@@ -1218,7 +1218,7 @@ TG2_scheme::Uy_jac_source(const double& h, const double& Ux, const double& Uy, c
   const double vel_y = h>epsilon ? Uy/h : 0.;
 
   const double contribution_one = h*h>epsilon ? grav/turbulence_coeff/h/h*2.*std::abs(Uy) : 0.;
-  const double contribution_two = abs(vel_y)>tolerance_sign ? 0. : 1./tolerance_sign*bed_pressure*tan(bed_friction_angle_rad);
+  const double contribution_two = std::abs(Uy)>tolerance_sign ? 0. : 1./tolerance_sign*bed_pressure*tan(bed_friction_angle_rad);
   return(is_bed_friction ? 1.+mu_tilde_vect[1]*dt*(contribution_one + contribution_two) : 1.);
 }
 
@@ -1496,8 +1496,9 @@ TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy,
   const double vel_y = h>epsilon ? Uy/h : 0.;
   const double abs_vel = std::abs( vel_x );
 
+  const double vel_x_sign = std::abs(Ux)>tolerance_sign ? Ux/std::abs(Ux) : Ux/tolerance_sign;
   //const double vel_x_sign = abs_vel>tolerance_sign ? vel_x/abs_vel : 0.;
-  const double vel_x_sign = abs_vel>tolerance_sign ? vel_x/abs_vel : vel_x/tolerance_sign;
+  //const double vel_x_sign = abs_vel>tolerance_sign ? vel_x/abs_vel : vel_x/tolerance_sign;
 
   //const double bed_fric_contr = is_bed_friction ? vel_x_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
 
@@ -1517,7 +1518,8 @@ TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy,
   const double vel_y = h>epsilon ? Uy/h : 0.;
   const double abs_vel = std::abs( vel_y );
 
-  const double vel_y_sign = abs_vel>tolerance_sign ? vel_y/abs_vel : vel_y/tolerance_sign;
+  const double vel_y_sign = std::abs(Uy)>tolerance_sign ? Uy/std::abs(Uy) : Uy/tolerance_sign;
+  //const double vel_y_sign = abs_vel>tolerance_sign ? vel_y/abs_vel : vel_y/tolerance_sign;
   //const double vel_y_sign = (vel_y > ) ? 1.0 : (vel_y < 0) ? -1.0 : 0.0;
 
   //const double bed_fric_contr = is_bed_friction ? vel_y_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
