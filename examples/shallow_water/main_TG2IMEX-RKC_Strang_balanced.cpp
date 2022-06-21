@@ -29,8 +29,8 @@ static constexpr char VARNAME_2[255] = "mask_in";
 
 // properties of the input dem
 static constexpr double res = 1e-2;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 201;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 201;//101;//175;//201;//180; // # rows
+static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
  
   
 static constexpr double L = res*(Nx-1);
@@ -40,7 +40,7 @@ static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
 static std::vector<double>   basin_mask_fin; 
-static constexpr int NUM_REFINEMENTS  = 5; // 8 
+static constexpr int NUM_REFINEMENTS  = 7; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10 
 
 
@@ -49,14 +49,14 @@ static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at ea
 static constexpr double SAVEDT = .1; // must never be null 
 static constexpr double DELTAT = .1;
 static constexpr double REDCDT = .5; // it is the limit of the CFL condition
-static constexpr double T      = .5;
+static constexpr double T      = .1;
  
 static constexpr bool is_time_adaptivity        = false;
 static constexpr bool is_initial_refinement     = false;
 static constexpr bool is_space_adaptivity       = false;
 static constexpr bool is_non_reflBC             = true;
-static constexpr bool is_bed_friction           = false;
-static constexpr bool is_stress_tensor          = false;
+static constexpr bool is_bed_friction           = false; 
+static constexpr bool is_stress_tensor          = true;
 static constexpr bool is_max_time_step_from_CFL = true;
 
 
@@ -66,7 +66,7 @@ static constexpr double density = 1.;
 static constexpr double turbulence_coeff = 1.e1;
 static constexpr double surface_pressure = 0;//101325.;
 static constexpr double bed_friction_angle_rad = 23*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double fluid_viscosity = 1.;//10000;
+static constexpr double fluid_viscosity = .05/2.;//10000;
 static constexpr double yield_shear_stress = 0.;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
 static constexpr double level_wet           = 3;  
@@ -149,7 +149,7 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  //return(1);
+  return(1.);
   return(xx/L*1500);
   return (xx<=L/2. ? 2. : 1.);
   //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
@@ -192,7 +192,7 @@ double h0_fun (const double& xx, const double& yy)
 } 
 double Ux0_fun (double xx, double yy) 
 { 
-  //return( xx<=L/2. ? 2. : 1. ); // shock-shock solution
+  return( xx<=L/2. ? 2. : 1. ); // shock-shock solution
   return 0.; 
 }
 double Uy0_fun (double xx, double yy) { return 0.; }
@@ -611,8 +611,8 @@ main (int argc, char **argv)
     double xx_c=quadrant->centroid(0);
     double yy_c=quadrant->centroid(1); 
 
-    slope_x[quadrant->get_forest_quad_idx ()] = std::abs(xx_c-L/2.)>=.5 ? 0. : -2.*(xx_c-L/2.);//dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
-    slope_y[quadrant->get_forest_quad_idx ()] = 0;//dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
+    slope_x[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];//std::abs(xx_c-L/2.)>=.5 ? 0. : -2.*(xx_c-L/2.);//dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
+    slope_y[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];//0;//dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
     
 
     for (int ii = 0; ii < 4; ++ii)
@@ -621,16 +621,16 @@ main (int argc, char **argv)
         double xx=quadrant->p(0,ii);
         double yy=quadrant->p(1,ii); 
         
-        sol [ordh     (quadrant->gt (ii))] = 3.-std::max(2.-(xx-L/2.)*(xx-L/2.), 1.75);//xx/L+1;//h0_fun  (xx, yy);
+        sol [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy);//3.-std::max(2.-(xx-L/2.)*(xx-L/2.), 1.75);//h0_fun  (xx, yy);
         sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
         sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
 
         // if (dem_slope_x   [global_coord_2_raster(xx,yy)[0]]!=0)
         // std::cout << dem_slope_x   [global_coord_2_raster(xx,yy)[0]] << std::endl;
         
-        Z           [quadrant->gt (ii)] = std::max(2.-(xx-L/2.)*(xx-L/2.), 1.75);//dem           [global_coord_2_raster(xx,yy)[0]]; 
-        slope_x_node[quadrant->gt (ii)] = std::abs(xx-L/2.)>=.5 ? 0. : -2.*(xx-L/2.);//std::max(-2*xx, 0.);//dem_slope_x   [global_coord_2_raster(xx,yy)[0]]; 
-        slope_y_node[quadrant->gt (ii)] = 0;//dem_slope_y   [global_coord_2_raster(xx,yy)[0]]; 
+        Z           [quadrant->gt (ii)] = dem           [global_coord_2_raster(xx,yy)[0]];//std::max(2.-(xx-L/2.)*(xx-L/2.), 1.75);//dem           [global_coord_2_raster(xx,yy)[0]]; 
+        slope_x_node[quadrant->gt (ii)] = dem_slope_x   [global_coord_2_raster(xx,yy)[0]];//std::abs(xx-L/2.)>=.5 ? 0. : -2.*(xx-L/2.);//dem_slope_x   [global_coord_2_raster(xx,yy)[0]]; 
+        slope_y_node[quadrant->gt (ii)] = dem_slope_y   [global_coord_2_raster(xx,yy)[0]];//0;//dem_slope_y   [global_coord_2_raster(xx,yy)[0]]; 
         //mask_fin    [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]]; 
 	      Newton_it   [quadrant->gt (ii)] = 0.;
 
@@ -906,6 +906,7 @@ main (int argc, char **argv)
   Q1 soldd_dyn               = sol;
   Q1 sold_rkc_dyn            = sol;
   Q1 soldd_rkc_dyn           = sol;
+  Q1 sol_ini_rkc_dyn         = sol;
   Q1 incr_dyn                = incr;
   Q1 incr_initial_source_dyn = incr;
   Q1 incr_source_dyn         = incr;
@@ -932,6 +933,7 @@ main (int argc, char **argv)
                  soldd_dyn, 
                  sold_rkc_dyn,
                  soldd_rkc_dyn,
+                 sol_ini_rkc_dyn,
                  incr_dyn,
                  incr_initial_source_dyn,
                  incr_source_dyn, 
@@ -1176,6 +1178,8 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
+        sol_dyn [ordh    (quadrant->gt (ii))] = 1.; // for burgers
+
         if (! quadrant->is_hanging (ii) && sol_dyn [ordh    (quadrant->gt (ii))]<0){
           sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
         }
@@ -1212,7 +1216,7 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
-        //std::cout << sol_dyn [ordh (quadrant->gt (ii))] + Z_dyn[quadrant->gt (ii)] << std::endl;
+        sol_dyn [ordh    (quadrant->gt (ii))] = 1.; // for burgers
 
         if (! quadrant->is_hanging (ii) && sol_dyn [ordh (quadrant->gt (ii))] < 0){
           sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
@@ -1225,8 +1229,9 @@ main (int argc, char **argv)
 
 
     // Verwer IMEX-RKC
-    soldd_rkc_dyn = sol_dyn; // copy
-    sold_rkc_dyn  = sol_dyn; // copy
+    sol_ini_rkc_dyn = sol_dyn; // copy
+    soldd_rkc_dyn   = sol_dyn; // copy
+    sold_rkc_dyn    = sol_dyn; // copy
 
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -1424,6 +1429,8 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
+        sol_dyn [ordh    (quadrant->gt (ii))] = 1.; // for burgers
+
         if (! quadrant->is_hanging (ii) && sol_dyn [ordh    (quadrant->gt (ii))]<0)
         {
           sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
@@ -1458,6 +1465,8 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
+        sol_dyn [ordh    (quadrant->gt (ii))] = 1.; // for burgers
+
         if (! quadrant->is_hanging (ii) && sol_dyn [ordh (quadrant->gt (ii))] < 0)
         {
           sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
@@ -1852,6 +1861,7 @@ main (int argc, char **argv)
       soldd_dyn               = soldd;
       sold_rkc_dyn            = soldd;
       soldd_rkc_dyn           = soldd;
+      sol_ini_rkc_dyn         = soldd;
       incr_dyn                = incr;
       incr_source_dyn         = incr;
       incr_source_balance_dyn = incr;

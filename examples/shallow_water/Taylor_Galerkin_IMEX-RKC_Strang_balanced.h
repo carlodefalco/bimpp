@@ -21,6 +21,7 @@ public:
              Q1& soldd,
              Q1& sold_rkc,
              Q1& soldd_rkc,
+             Q1& sol_ini_rkc,
              Q1& incr,
              Q1& incr_initial_source,
              Q1& incr_source,
@@ -246,6 +247,7 @@ public:
   Q1& soldd;
   Q1& sold_rkc;
   Q1& soldd_rkc;
+  Q1& sol_ini_rkc;
   Q1& incr;
   Q1& incr_source_balance;
   Q1& incr_initial_source;
