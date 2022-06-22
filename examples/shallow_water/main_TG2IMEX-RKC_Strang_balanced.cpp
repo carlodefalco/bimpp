@@ -40,20 +40,20 @@ static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
 static std::vector<double>   basin_mask_fin; 
-static constexpr int NUM_REFINEMENTS  = 7; // 8 
+static constexpr int NUM_REFINEMENTS  = 4; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10 
 
 
 
 static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = .1; // must never be null 
-static constexpr double DELTAT = .1;
+static constexpr double SAVEDT = .05; // must never be null 
+static constexpr double DELTAT = .05;
 static constexpr double REDCDT = .5; // it is the limit of the CFL condition
-static constexpr double T      = .1;
+static constexpr double T      = .05;
  
 static constexpr bool is_time_adaptivity        = false;
-static constexpr bool is_initial_refinement     = false;
-static constexpr bool is_space_adaptivity       = false;
+static constexpr bool is_initial_refinement     = false; 
+static constexpr bool is_space_adaptivity       = false; 
 static constexpr bool is_non_reflBC             = true;
 static constexpr bool is_bed_friction           = false; 
 static constexpr bool is_stress_tensor          = true;
@@ -66,7 +66,7 @@ static constexpr double density = 1.;
 static constexpr double turbulence_coeff = 1.e1;
 static constexpr double surface_pressure = 0;//101325.;
 static constexpr double bed_friction_angle_rad = 23*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double fluid_viscosity = .05/2.;//10000;
+static constexpr double fluid_viscosity = .01/2.;//10000;
 static constexpr double yield_shear_stress = 0.;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
 static constexpr double level_wet           = 3;  
@@ -149,13 +149,13 @@ using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;   
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  return(1.);
-  return(xx/L*1500);
-  return (xx<=L/2. ? 2. : 1.);
+  //return(1.);
+  //return(xx/L*1500);
+  //return (xx<=L/2. ? 2. : 1.);
   //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+1.*std::exp(-0.5*( std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
-  //return ( 1.+1*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  return ( 1.+.1*std::exp(-1.*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 7. );
   return( xx<=L/2. ? 2. : 1. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. ); 
@@ -192,7 +192,7 @@ double h0_fun (const double& xx, const double& yy)
 } 
 double Ux0_fun (double xx, double yy) 
 { 
-  return( xx<=L/2. ? 2. : 1. ); // shock-shock solution
+  //return( xx<=L/2. ? 2. : 1. ); // shock-shock solution
   return 0.; 
 }
 double Uy0_fun (double xx, double yy) { return 0.; }
@@ -1178,7 +1178,6 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
-        sol_dyn [ordh    (quadrant->gt (ii))] = 1.; // for burgers
 
         if (! quadrant->is_hanging (ii) && sol_dyn [ordh    (quadrant->gt (ii))]<0){
           sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
@@ -1216,7 +1215,6 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
-        sol_dyn [ordh    (quadrant->gt (ii))] = 1.; // for burgers
 
         if (! quadrant->is_hanging (ii) && sol_dyn [ordh (quadrant->gt (ii))] < 0){
           sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
@@ -1429,7 +1427,6 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
-        sol_dyn [ordh    (quadrant->gt (ii))] = 1.; // for burgers
 
         if (! quadrant->is_hanging (ii) && sol_dyn [ordh    (quadrant->gt (ii))]<0)
         {
@@ -1465,8 +1462,6 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
-        sol_dyn [ordh    (quadrant->gt (ii))] = 1.; // for burgers
-
         if (! quadrant->is_hanging (ii) && sol_dyn [ordh (quadrant->gt (ii))] < 0)
         {
           sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;

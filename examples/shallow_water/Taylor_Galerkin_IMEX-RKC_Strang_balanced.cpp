@@ -83,8 +83,8 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
     const auto& hpoint = hdof[ii];
     const auto celerity = std::sqrt(grav*hpoint);
     
-    const auto vel_rusanov_cell_x = hpoint>epsilon ? std::abs(Uxdof[ii]/hpoint)+celerity*0 : 0.;
-    const auto vel_rusanov_cell_y = hpoint>epsilon ? std::abs(Uydof[ii]/hpoint)+celerity*0 : 0.;
+    const auto vel_rusanov_cell_x = hpoint>epsilon ? std::abs(Uxdof[ii]/hpoint)+celerity : 0.;
+    const auto vel_rusanov_cell_y = hpoint>epsilon ? std::abs(Uydof[ii]/hpoint)+celerity : 0.;
     
     const auto dtoptx = hpoint>epsilon ? Dx/vel_rusanov_cell_x : DELTAT;
     const auto dtopty = hpoint>epsilon ? Dy/vel_rusanov_cell_y : DELTAT;
@@ -866,13 +866,14 @@ TG2_scheme::compute_stress_slope (tmesh::quadrant_iterator quadrant, const bool&
   }
   */
 
-  /*
+  
   const std::array<double,4> der_phi_x = {-1./Dx*isdof_or_hanging[0], +1./Dx*isdof_or_hanging[1],
     -1./Dx*isdof_or_hanging[2], +1./Dx*isdof_or_hanging[3]};
   
   const std::array<double,4> der_phi_y = {-1./Dy*isdof_or_hanging[0], -1./Dy*isdof_or_hanging[1],
     +1./Dy*isdof_or_hanging[2], +1./Dy*isdof_or_hanging[3]};
-    */
+  
+    
 
   for (int ii = 0; ii < 4; ++ii){
 
@@ -883,17 +884,17 @@ TG2_scheme::compute_stress_slope (tmesh::quadrant_iterator quadrant, const bool&
 
     const double contribution_exact = (D_U[0]/den2+D_U[1]/den2+D_U[2]/den1+D_U[3]/den1);    
 
-    /*
+    
     const double h_  = 0.;
     const double Ux_ = area*.25*(der_phi_x[ii]*D_U[ii]*sigma_stress[0] + der_phi_y[ii]*D_U[ii]*sigma_stress[2]);
-    const double Uy_ = area*.25*(der_phi_x[ii]*D_U[ii]*sigma_stress[2] + der_phi_y[ii]*D_U[ii]*sigma_stress[1]); //der_coeffs_x[ii]*(1./3.)*sigma_stress[2]*contribution_exact + der_coeffs_y[ii]*(1./3.)*sigma_stress[1]*contribution_exact;
-    */
-
+    const double Uy_ = area*.25*(der_phi_x[ii]*D_U[ii]*sigma_stress[2] + der_phi_y[ii]*D_U[ii]*sigma_stress[1]); 
     
+
+    /*
     const double h_  = 0.;
     const double Ux_ = der_coeffs_x[ii]*(1./3.)*sigma_stress[0]*contribution_exact + der_coeffs_y[ii]*(1./3.)*sigma_stress[2]*contribution_exact;
     const double Uy_ = der_coeffs_x[ii]*(1./3.)*sigma_stress[2]*contribution_exact + der_coeffs_y[ii]*(1./3.)*sigma_stress[1]*contribution_exact;
-    
+    */
 
     double h_s = 0., Ux_s = 0., Uy_s = 0.;
     for (int jj = 0; jj < 4; ++jj)
@@ -901,11 +902,30 @@ TG2_scheme::compute_stress_slope (tmesh::quadrant_iterator quadrant, const bool&
       //std::cout << sigma_stress_incr_Ux[jj][0] << " " << sigma_stress[0] << std::endl;
       //std::cout << der_coeffs_x[ii]*(1./3.)*(sigma_stress_incr_Ux[jj][0]-sigma_stress[0])/tol_incr*contribution_exact << std::endl;
 
-      Ux_s += std::abs( der_coeffs_x[ii]*(1./3.)*(sigma_stress_incr_Ux[jj][0]-sigma_stress[0])/tol_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*(sigma_stress_incr_Ux[jj][2]-sigma_stress[2])/tol_incr*contribution_exact );
-      Ux_s += std::abs( der_coeffs_x[ii]*(1./3.)*(sigma_stress_incr_Uy[jj][0]-sigma_stress[0])/tol_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*(sigma_stress_incr_Uy[jj][2]-sigma_stress[2])/tol_incr*contribution_exact );
+      const auto sUx1_incr = (sigma_stress_incr_Ux[jj][0]-sigma_stress[0])/tol_incr;
+      const auto sUx2_incr = (sigma_stress_incr_Ux[jj][2]-sigma_stress[2])/tol_incr;
+      const auto sUx3_incr = (sigma_stress_incr_Uy[jj][0]-sigma_stress[0])/tol_incr;
+      const auto sUx4_incr = (sigma_stress_incr_Uy[jj][2]-sigma_stress[2])/tol_incr;
 
-      Uy_s += std::abs( der_coeffs_x[ii]*(1./3.)*(sigma_stress_incr_Ux[jj][2]-sigma_stress[2])/tol_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*(sigma_stress_incr_Ux[jj][1]-sigma_stress[1])/tol_incr*contribution_exact );
-      Uy_s += std::abs( der_coeffs_x[ii]*(1./3.)*(sigma_stress_incr_Uy[jj][2]-sigma_stress[2])/tol_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*(sigma_stress_incr_Uy[jj][1]-sigma_stress[1])/tol_incr*contribution_exact );
+      const auto & sUy1_incr = sUx2_incr;//(sigma_stress_incr_Ux[jj][2]-sigma_stress[2])/tol_incr;
+      const auto   sUy2_incr = (sigma_stress_incr_Ux[jj][1]-sigma_stress[1])/tol_incr;
+      const auto & sUy3_incr = sUx4_incr;//(sigma_stress_incr_Uy[jj][2]-sigma_stress[2])/tol_incr;
+      const auto   sUy4_incr = (sigma_stress_incr_Uy[jj][1]-sigma_stress[1])/tol_incr;
+
+      /*
+      Ux_s += std::abs( der_coeffs_x[ii]*(1./3.)*sUx1_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*sUx2_incr*contribution_exact );
+      Ux_s += std::abs( der_coeffs_x[ii]*(1./3.)*sUx3_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*sUx4_incr*contribution_exact );
+
+      Uy_s += std::abs( der_coeffs_x[ii]*(1./3.)*sUy1_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*sUy2_incr*contribution_exact );
+      Uy_s += std::abs( der_coeffs_x[ii]*(1./3.)*sUy3_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*sUy4_incr*contribution_exact );
+      */
+
+
+      Ux_s += std::abs( area*.25*(der_phi_x[ii]*D_U[ii]*sUx1_incr + der_phi_y[ii]*D_U[ii]*sUx2_incr) );
+      Ux_s += std::abs( area*.25*(der_phi_x[ii]*D_U[ii]*sUx3_incr + der_phi_y[ii]*D_U[ii]*sUx4_incr) );
+
+      Uy_s += std::abs( area*.25*(der_phi_x[ii]*D_U[ii]*sUy1_incr + der_phi_y[ii]*D_U[ii]*sUy3_incr) );
+      Uy_s += std::abs( area*.25*(der_phi_x[ii]*D_U[ii]*sUy3_incr + der_phi_y[ii]*D_U[ii]*sUy4_incr) );
     }
     
 
