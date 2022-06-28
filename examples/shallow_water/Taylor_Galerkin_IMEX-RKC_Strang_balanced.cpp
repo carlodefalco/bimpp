@@ -154,7 +154,7 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 
 
   
-  double h_cell_average = 0., Ux_cell_average = 0., Uy_cell_average = 0.;//, source_Ux_cell_average = 0., source_Uy_cell_average = 0.;
+  double h_cell_average = 0., Ux_cell_average = 0., Uy_cell_average = 0., source_Ux_cell_average = 0., source_Uy_cell_average = 0.;
   for (int ii = 0; ii < 4; ++ii)
   {
     double hdof_c, Uxdof_c, Uydof_c;
@@ -179,8 +179,8 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
     Ux_cell_average += Uxdof_c;
     Uy_cell_average += Uydof_c;
 
-    //source_Ux_cell_average += Ux_src_formula (hdof_c, Uxdof_c, Uydof_c, slope_x[index_quadrant]); 
-    //source_Uy_cell_average += Uy_src_formula (hdof_c, Uxdof_c, Uydof_c, slope_y[index_quadrant]);
+    source_Ux_cell_average += src_slope_formula (hdof_c, slope_x[index_quadrant]); 
+    source_Uy_cell_average += src_slope_formula (hdof_c, slope_y[index_quadrant]);
     
     
     fluxx_h_node[ii]  = h_flux_formula_x   (hdof_c, Uxdof_c, Uydof_c);
@@ -211,9 +211,9 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const auto div_FUy_y = .5*((fluxy_Uy_node[2]-fluxy_Uy_node[0]) + (fluxy_Uy_node[3]-fluxy_Uy_node[1]));
   const auto div_FUy_cell = Dy*div_FUy_x + Dx*div_FUy_y;
   
-  sol_onehalf[ordh    (index_quadrant)] = h_cell_average  - (dt + dt_old)*.5*.5 * div_Fh_cell /area;
-  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average - (dt + dt_old)*.5*.5 * div_FUx_cell/area;// + dt/2.*source_Ux_cell_average;
-  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average - (dt + dt_old)*.5*.5 * div_FUy_cell/area;// + dt/2.*source_Uy_cell_average;
+  sol_onehalf[ordh    (index_quadrant)] = h_cell_average  - (dt + dt_old)*.5*.5 *  div_Fh_cell /area;
+  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average - (dt + dt_old)*.5*.5 * (div_FUx_cell/area + source_Ux_cell_average);
+  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average - (dt + dt_old)*.5*.5 * (div_FUy_cell/area + source_Uy_cell_average);
   
 
 
@@ -280,7 +280,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   vel_rusanov_cell_y /= 4.; 
 
   const std::array<double,4> eta_vec = {hdof[0]+Z_node[0], hdof[1]+Z_node[1], hdof[2]+Z_node[2], hdof[3]+Z_node[3]};
-
+ 
   grad_cell_eta  = {.5 * ( (eta_vec[3] - eta_vec[2]) + (eta_vec[1] - eta_vec[0]) ), .5 * ( (eta_vec[2] - eta_vec[0]) + (eta_vec[3] - eta_vec[1]) )};
   grad_cell_Ux   = {.5 * ( (Uxdof  [3] - Uxdof  [2]) + (Uxdof  [1] - Uxdof  [0]) ), .5 * ( (Uxdof  [2] - Uxdof  [0]) + (Uxdof  [3] - Uxdof  [1]) )};
   grad_cell_Uy   = {.5 * ( (Uydof  [3] - Uydof  [2]) + (Uydof  [1] - Uydof  [0]) ), .5 * ( (Uydof  [2] - Uydof  [0]) + (Uydof  [3] - Uydof  [1]) )};
@@ -517,8 +517,8 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   for (int ii = 0; ii < 4; ++ii){
 
     const auto h_    = der_coeffs_x[ii]*F_star_h_x +der_coeffs_y[ii]*F_star_h_y;
-    const auto Ux_   = der_coeffs_x[ii]*F_star_Ux_x+der_coeffs_y[ii]*F_star_Ux_y;
-    const auto Uy_   = der_coeffs_x[ii]*F_star_Uy_x+der_coeffs_y[ii]*F_star_Uy_y;
+    const auto Ux_   = der_coeffs_x[ii]*F_star_Ux_x+der_coeffs_y[ii]*F_star_Ux_y + .25*area*isdof_or_hanging[ii]*src_slope_formula(h_cell, slope_x[index_quadrant]);
+    const auto Uy_   = der_coeffs_x[ii]*F_star_Uy_x+der_coeffs_y[ii]*F_star_Uy_y + .25*area*isdof_or_hanging[ii]*src_slope_formula(h_cell, slope_y[index_quadrant]);
 
     const auto h_al  = der_coeffs_x[ii]*diff_term_h_x  + der_coeffs_y[ii]*diff_term_h_y; 
     const auto Ux_al = der_coeffs_x[ii]*diff_term_Ux_x + der_coeffs_y[ii]*diff_term_Ux_y;
@@ -1254,20 +1254,20 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
 
   if (j == 1)
   {
-    v_x = sol_ini_rkc.get_owned_data ()[kk+1] + mu_tilde_vect[1]*dt*stress_initial_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + mu_tilde_vect[1]*dt*incr_source_balance.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1];
-    v_y = sol_ini_rkc.get_owned_data ()[kk+2] + mu_tilde_vect[1]*dt*stress_initial_step.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + mu_tilde_vect[1]*dt*incr_source_balance.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]; 
+    v_x = sol_ini_rkc.get_owned_data ()[kk+1] + mu_tilde_vect[1]*dt*stress_initial_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1];// + mu_tilde_vect[1]*dt*incr_source_balance.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1];
+    v_y = sol_ini_rkc.get_owned_data ()[kk+2] + mu_tilde_vect[1]*dt*stress_initial_step.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2];// + mu_tilde_vect[1]*dt*incr_source_balance.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]; 
   }
   else
   {
-    v_x = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+1] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+1] + mu_tilde_vect[1]*dt*incr_source_balance.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] +
+    v_x = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+1] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+1] + //mu_tilde_vect[1]*dt*incr_source_balance.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] +
     v_vect[j]*soldd_rkc.get_owned_data ()[kk+1] + mu_tilde_vect[j]*dt*stress_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + 
     gamma_tilde_vect[j]*dt*stress_initial_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + 
-    (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*(incr_initial_source.get_owned_data ()[kk+1] + incr_source_balance.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1]) - v_vect[j]*mu_tilde_vect[1]*dt*(incr_source.get_owned_data ()[kk+1] + incr_source_balance.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1]);
+    (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*(incr_initial_source.get_owned_data ()[kk+1] /*+ incr_source_balance.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1]*/) - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+1];// + incr_source_balance.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1]);
 
-    v_y = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+2] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+2] + mu_tilde_vect[1]*dt*incr_source_balance.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + 
+    v_y = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+2] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+2] + //mu_tilde_vect[1]*dt*incr_source_balance.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + 
     v_vect[j]*soldd_rkc.get_owned_data ()[kk+2] + mu_tilde_vect[j]*dt*stress_step.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + 
     gamma_tilde_vect[j]*dt*stress_initial_step.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] +
-    (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*(incr_initial_source.get_owned_data ()[kk+2] + incr_source_balance.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]) - v_vect[j]*mu_tilde_vect[1]*dt*(incr_source.get_owned_data ()[kk+2] + incr_source_balance.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]);
+    (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*(incr_initial_source.get_owned_data ()[kk+2] /*+ incr_source_balance.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]*/) - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+2];// + incr_source_balance.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]);
   }
 
   //std::cout << sol_ini_rkc.get_owned_data ()[kk+1] << " " << sold_rkc.get_owned_data ()[kk+1] << std::endl;
@@ -1473,7 +1473,7 @@ double
 TG2_scheme::Ux_flux_formula_x (const double& h, const double& Ux, const double& Uy)
 { 
   const auto vel_x = h>epsilon ? Ux/h : 0.;
-  return (Ux*vel_x); 
+  return (Ux*vel_x + grav*h*h/2.); 
 }
  
 double
@@ -1488,7 +1488,7 @@ double
 TG2_scheme::Uy_flux_formula_y (const double& h, const double& Ux, const double& Uy)
 { 
   const auto vel_y = h>epsilon ? Uy/h : 0.;
-  return (Uy*vel_y); 
+  return (Uy*vel_y + grav*h*h/2.); 
 }
 
 
@@ -1657,6 +1657,36 @@ TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy)
   return ( - bed_fric_contr_one - bed_fric_contr_two);
 }
 
+
+double
+TG2_scheme::src_slope_formula (const double& h, const double& S_x, const double& S_y, const int& kk)
+{
+  // nodal slope term for the second step in the main
+
+  double S = 0.;
+
+  if (kk%3==1) // Ux
+  {
+    S = S_x;
+  }
+  else if (kk%3==2) // Uy
+  {
+    S = S_y;
+  }
+
+  //std::cout << S << " " << kk << " " << kk%3 << std::endl;
+
+  return (-grav*S*h);
+
+}
+
+
+double 
+TG2_scheme::src_slope_formula (const double& h, const double& S)
+{
+  // cell-wise source term to build the incr vector
+  return (-grav*S*h);
+}
 
 
 

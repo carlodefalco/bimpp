@@ -224,6 +224,12 @@ public:
   const double& Uydof_0, const double& Uydof_1, 
   const double& Uydof_2, const double& Uydof_3);
 
+  // slope source terms
+  double 
+  src_slope_formula (const double& h, const double& S);
+
+  double 
+  src_slope_formula (const double& h, const double& S_x, const double& S_y, const int& kk);
 
   
   // source terms
@@ -279,7 +285,7 @@ private:
   const double& epsilon;
   const bool& is_non_reflBC;
   const bool& is_bed_friction;
-  const bool& is_stress_tensor;
+  const bool& is_stress_tensor; 
   const double& grav;
   const double& density;
   const double& turbulence_coeff;
