@@ -28,9 +28,9 @@ static constexpr char VARNAME_2[255] = "mask_in";
 //static constexpr char VARNAME_3[255] = "mask_fin";
 
 // properties of the input dem
-static constexpr double res = 5e-2;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
+static constexpr double res = 5;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 201;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 201;//101;//175;//201;//180; // # rows
  
   
 static constexpr double L = res*(Nx-1);
@@ -49,15 +49,15 @@ static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at ea
 static constexpr double SAVEDT = .05; // must never be null 
 static constexpr double DELTAT = .01;
 static constexpr double REDCDT = .5; // it is the limit of the CFL condition
-static constexpr double T      = .5;
+static constexpr double T      = 1.;
  
 static constexpr bool is_time_adaptivity        = false;
-static constexpr bool is_initial_refinement     = false; 
+static constexpr bool is_initial_refinement     = false;
 static constexpr bool is_space_adaptivity       = false; 
 static constexpr bool is_non_reflBC             = true;
 static constexpr bool is_bed_friction           = false; 
 static constexpr bool is_stress_tensor          = false;
-static constexpr bool is_max_time_step_from_CFL = true;
+static constexpr bool is_max_time_step_from_CFL = true; 
  
 
 static constexpr double h_min = 1e-5;
@@ -151,22 +151,22 @@ double h0_fun (const double& xx, const double& yy)
 {
   //return(1.);
   //return(xx/L*1500);
-  //return (xx<=L/2. ? 2. : 1.);
+  //return (xx<=L/2. ? 30. : 0.);
   //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+1.*std::exp(-0.5*( std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+.1*std::exp(-1.*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return( std::abs(xx-L/2.)<=1.5 && std::abs(yy-H/2.)<=1.5 ? 2 : 1. );
   //return( xx<=L/2. ? 2. : 1. );
-  //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. ); 
+  //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=L/4. ? 30 : 0. ); 
   //return(xx<=L/2. ? 2 : 1. );
 
 
-  const double HH = 2.;
+  const double HH = 30.;
   const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
   return(std::max (0., std::min (.6*500-(500 - 500 * xx/L), HH)) * omega); 
   
- 
+  
 
 
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
@@ -611,8 +611,8 @@ main (int argc, char **argv)
     double xx_c=quadrant->centroid(0);
     double yy_c=quadrant->centroid(1); 
 
-    slope_x[quadrant->get_forest_quad_idx ()] = -.4;//dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];//std::abs(xx_c-L/2.)>=.5 ? 0. : -2.*(xx_c-L/2.);//dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
-    slope_y[quadrant->get_forest_quad_idx ()] = 0;//dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];//0;//dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
+    slope_x[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];//-1;//std::abs(xx_c-L/2.)>=.5 ? 0. : -2.*(xx_c-L/2.);//dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
+    slope_y[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];//0;//dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
     
 
     for (int ii = 0; ii < 4; ++ii)
@@ -621,16 +621,16 @@ main (int argc, char **argv)
         double xx=quadrant->p(0,ii);
         double yy=quadrant->p(1,ii); 
         
-        sol [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy);//3.-std::max(2.-(xx-L/2.)*(xx-L/2.), 1.75);//h0_fun  (xx, yy);
+        sol [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy);//xx;//3.-std::max(2.-(xx-L/2.)*(xx-L/2.), 1.75);//h0_fun  (xx, yy);
         sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
         sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
 
         // if (dem_slope_x   [global_coord_2_raster(xx,yy)[0]]!=0)
         // std::cout << dem_slope_x   [global_coord_2_raster(xx,yy)[0]] << std::endl;
         
-        Z           [quadrant->gt (ii)] = dem           [global_coord_2_raster(xx,yy)[0]];//std::max(2.-(xx-L/2.)*(xx-L/2.), 1.75);//dem           [global_coord_2_raster(xx,yy)[0]]; 
-        slope_x_node[quadrant->gt (ii)] = -.4;//dem_slope_x   [global_coord_2_raster(xx,yy)[0]];//std::abs(xx-L/2.)>=.5 ? 0. : -2.*(xx-L/2.);//dem_slope_x   [global_coord_2_raster(xx,yy)[0]]; 
-        slope_y_node[quadrant->gt (ii)] = 0.;//dem_slope_y   [global_coord_2_raster(xx,yy)[0]];//0;//dem_slope_y   [global_coord_2_raster(xx,yy)[0]]; 
+        Z           [quadrant->gt (ii)] = dem           [global_coord_2_raster(xx,yy)[0]]; // -xx+L;//std::max(2.-(xx-L/2.)*(xx-L/2.), 1.75);//dem           [global_coord_2_raster(xx,yy)[0]]; 
+        slope_x_node[quadrant->gt (ii)] = dem_slope_x   [global_coord_2_raster(xx,yy)[0]]; //-1;//std::abs(xx-L/2.)>=.5 ? 0. : -2.*(xx-L/2.);//dem_slope_x   [global_coord_2_raster(xx,yy)[0]]; 
+        slope_y_node[quadrant->gt (ii)] = dem_slope_y   [global_coord_2_raster(xx,yy)[0]];//0;//dem_slope_y   [global_coord_2_raster(xx,yy)[0]]; 
         //mask_fin    [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]]; 
 	      Newton_it   [quadrant->gt (ii)] = 0.;
 
@@ -1173,10 +1173,13 @@ main (int argc, char **argv)
 
       //if (stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) - stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk)!=0) std::cout << stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) - stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk) << std::endl;
 
-      sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*(incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk] + stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) - stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk)); 
-      //sol_dyn.get_owned_data ()[kk] = (sol_dyn.get_owned_data ()[kk]*mass_dyn.get_owned_data ()[kk] + (stp.dt + stp.dt_old)*.5*(incr_dyn.get_owned_data ()[kk] - stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk)*mass_dyn.get_owned_data ()[kk]))/(mass_dyn.get_owned_data ()[kk] * (1. - stp.src_slope_formula(h_c, Sx_c, Sy_c, kk)));
+      sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*(incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk]) + (stp.dt + stp.dt_old)*.5*.5*(stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) + stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk)); 
+      
+      //if (kk%3==1) std::cout << incr_dyn.get_owned_data ()[kk] << std::endl; //std::cout << sol_dyn.get_owned_data ()[kk] << " " << sol_dyn.get_owned_data ()[kk]+Z_dyn.get_owned_data ()[int(kk/3)] << " " << sol_dyn.get_owned_data ()[kk]+Z_dyn.get_owned_data ()[int(kk/3)] << " " << kk << std::endl;
     }
-    sol_dyn.assemble(replace_op);
+    sol_dyn.assemble(replace_op); 
+
+    //return(0);
 
 
 
@@ -1207,7 +1210,7 @@ main (int argc, char **argv)
     incr_dyn.assemble ();
     //TOC("Compute step");
 
-    //return(0);
+    
     
 
     //TIC();
@@ -1231,6 +1234,8 @@ main (int argc, char **argv)
     }
     sol_dyn.assemble (replace_op);
     //TOC("Apply increment");
+
+    //return 0;
 
 
 
@@ -1436,9 +1441,8 @@ main (int argc, char **argv)
       const auto & Sx_c    = slope_x_node_dyn.get_owned_data ()[  int(kk/3)];
       const auto & Sy_c    = slope_y_node_dyn.get_owned_data ()[  int(kk/3)];
       
-      sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*(incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk] + stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) - stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk));
-      //sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk]; 
-      //sol_dyn.get_owned_data ()[kk] = (sol_dyn.get_owned_data ()[kk]*mass_dyn.get_owned_data ()[kk] + (stp.dt + stp.dt_old)*.5*(incr_dyn.get_owned_data ()[kk] - stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk)*mass_dyn.get_owned_data ()[kk]))/(mass_dyn.get_owned_data ()[kk] * (1. - stp.src_slope_formula(h_c, Sx_c, Sy_c, kk)));
+      //sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*(incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk] + stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) - stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk));
+      sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*(incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk]) + (stp.dt + stp.dt_old)*.5*.5*(stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) + stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk)); 
     }
     sol_dyn.assemble(replace_op);
 

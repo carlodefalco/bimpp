@@ -4,9 +4,9 @@
 
 TG2_scheme::TG2_scheme(Q1& sol,
                        Q1& sold,
-                       Q1& soldd,
+                       Q1& soldd, 
                        Q1& sold_rkc,
-                       Q1& soldd_rkc,
+                       Q1& soldd_rkc, 
                        Q1& sol_ini_rkc,
                        Q1& incr,
                        Q1& incr_initial_source,
@@ -195,8 +195,8 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   Ux_cell_average   /= 4.;
   Uy_cell_average   /= 4.;
   
-  //source_Ux_cell_average /= 4.;
-  //source_Uy_cell_average /= 4.;
+  source_Ux_cell_average /= 4.;
+  source_Uy_cell_average /= 4.;
 
   
   const auto div_Fh_x = .5*((fluxx_h_node[1]-fluxx_h_node[0]) + (fluxx_h_node[3]-fluxx_h_node[2]));
@@ -210,10 +210,12 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const auto div_FUy_x = .5*((fluxx_Uy_node[1]-fluxx_Uy_node[0]) + (fluxx_Uy_node[3]-fluxx_Uy_node[2]));
   const auto div_FUy_y = .5*((fluxy_Uy_node[2]-fluxy_Uy_node[0]) + (fluxy_Uy_node[3]-fluxy_Uy_node[1]));
   const auto div_FUy_cell = Dy*div_FUy_x + Dx*div_FUy_y;
+
+  const auto h_current = h_cell_average  - (dt + dt_old)*.5*.5 *  div_Fh_cell /area;
   
-  sol_onehalf[ordh    (index_quadrant)] = h_cell_average  - (dt + dt_old)*.5*.5 *  div_Fh_cell /area;
-  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average - (dt + dt_old)*.5*.5 * (div_FUx_cell/area + source_Ux_cell_average);
-  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average - (dt + dt_old)*.5*.5 * (div_FUy_cell/area + source_Uy_cell_average);
+  sol_onehalf[ordh    (index_quadrant)] = h_current;
+  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average - (dt + dt_old)*.5*.5 * (div_FUx_cell/area + .5*(source_Ux_cell_average + src_slope_formula (h_current, slope_x[index_quadrant])));
+  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average - (dt + dt_old)*.5*.5 * (div_FUy_cell/area + .5*(source_Uy_cell_average + src_slope_formula (h_current, slope_y[index_quadrant])));
   
 
 
@@ -265,7 +267,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   // weights coefficients for the flux term
   der_coeffs_x = {-Dy/2.*isdof_or_hanging[0], +Dy/2.*isdof_or_hanging[1],
     -Dy/2.*isdof_or_hanging[2], +Dy/2.*isdof_or_hanging[3]};
-  
+   
   der_coeffs_y = {-Dx/2.*isdof_or_hanging[0], -Dx/2.*isdof_or_hanging[1],
     +Dx/2.*isdof_or_hanging[2], +Dx/2.*isdof_or_hanging[3]};
 
@@ -281,7 +283,8 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
   const std::array<double,4> eta_vec = {hdof[0]+Z_node[0], hdof[1]+Z_node[1], hdof[2]+Z_node[2], hdof[3]+Z_node[3]};
  
-  grad_cell_eta  = {.5 * ( (eta_vec[3] - eta_vec[2]) + (eta_vec[1] - eta_vec[0]) ), .5 * ( (eta_vec[2] - eta_vec[0]) + (eta_vec[3] - eta_vec[1]) )};
+  //grad_cell_eta  = {.5 * ( (eta_vec[3] - eta_vec[2]) + (eta_vec[1] - eta_vec[0]) ), .5 * ( (eta_vec[2] - eta_vec[0]) + (eta_vec[3] - eta_vec[1]) )};
+  grad_cell_eta  = {.5 * ( (hdof   [3] - hdof   [2]) + (hdof   [1] - hdof   [0]) ), .5 * ( (hdof   [2] - hdof   [0]) + (hdof   [3] - hdof   [1]) )};
   grad_cell_Ux   = {.5 * ( (Uxdof  [3] - Uxdof  [2]) + (Uxdof  [1] - Uxdof  [0]) ), .5 * ( (Uxdof  [2] - Uxdof  [0]) + (Uxdof  [3] - Uxdof  [1]) )};
   grad_cell_Uy   = {.5 * ( (Uydof  [3] - Uydof  [2]) + (Uydof  [1] - Uydof  [0]) ), .5 * ( (Uydof  [2] - Uydof  [0]) + (Uydof  [3] - Uydof  [1]) )};
 
@@ -517,8 +520,10 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   for (int ii = 0; ii < 4; ++ii){
 
     const auto h_    = der_coeffs_x[ii]*F_star_h_x +der_coeffs_y[ii]*F_star_h_y;
-    const auto Ux_   = der_coeffs_x[ii]*F_star_Ux_x+der_coeffs_y[ii]*F_star_Ux_y + .25*area*isdof_or_hanging[ii]*src_slope_formula(h_cell, slope_x[index_quadrant]);
-    const auto Uy_   = der_coeffs_x[ii]*F_star_Uy_x+der_coeffs_y[ii]*F_star_Uy_y + .25*area*isdof_or_hanging[ii]*src_slope_formula(h_cell, slope_y[index_quadrant]);
+    const auto Ux_   = der_coeffs_x[ii]*F_star_Ux_x+der_coeffs_y[ii]*F_star_Ux_y;// + .25*area*isdof_or_hanging[ii]*src_slope_formula(h_cell, slope_x[index_quadrant]);
+    const auto Uy_   = der_coeffs_x[ii]*F_star_Uy_x+der_coeffs_y[ii]*F_star_Uy_y;// + .25*area*isdof_or_hanging[ii]*src_slope_formula(h_cell, slope_y[index_quadrant]);
+
+    //std::cout << h_cell+(Z_node[0]+Z_node[1]+Z_node[2]+Z_node[3])*.25 << " " << der_coeffs_x[ii]*F_star_Ux_x+der_coeffs_y[ii]*F_star_Ux_y  << " " << .25*area*isdof_or_hanging[ii]*src_slope_formula(h_cell, slope_x[index_quadrant]) << std::endl;
 
     const auto h_al  = der_coeffs_x[ii]*diff_term_h_x  + der_coeffs_y[ii]*diff_term_h_y; 
     const auto Ux_al = der_coeffs_x[ii]*diff_term_Ux_x + der_coeffs_y[ii]*diff_term_Ux_y;
@@ -1021,7 +1026,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     xn[ii] = quadrant->p(0, ii);
     yn[ii] = quadrant->p(1, ii);
   }
-  
+
   
   for (int ii = 0; ii < 4; ++ii){
 
@@ -1031,6 +1036,8 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       hdof_c      = sol [ordh    (quadrant->gt (ii))];
       Uxdof_c     = sol [ordUx   (quadrant->gt (ii))];
       Uydof_c     = sol [ordUy   (quadrant->gt (ii))];
+
+      //Z_node[ii]    = Z [quadrant->gt (ii)];
 
       P_plus_h_c   = P_plus [ordh   (quadrant->gt (ii))];
       P_minus_h_c  = P_minus[ordh   (quadrant->gt (ii))];
@@ -1050,6 +1057,9 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       Uydof_c  = .5 * (sol [ordUy (quadrant->gparent(0,ii))] +
                        sol [ordUy (quadrant->gparent(1,ii))]);
 
+      //Z_node[ii] = .5 * (Z [quadrant->gparent(0,ii)] +
+      //                   Z [quadrant->gparent(1,ii)]);
+
       P_plus_h_c   = .5 * (P_plus [ordh (quadrant->gparent(0,ii))] +
                            P_plus [ordh (quadrant->gparent(1,ii))]);
       P_minus_h_c  = .5 * (P_minus [ordh (quadrant->gparent(0,ii))] +
@@ -1067,7 +1077,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       
     }
 
-    hdof       [ii] = hdof_c;
+    hdof       [ii] = hdof_c;// + Z_node[ii];
     Uxdof      [ii] = Uxdof_c;
     Uydof      [ii] = Uxdof_c;
 
@@ -1120,12 +1130,14 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
           double h_current_cell, Ux_current_cell, Uy_current_cell;
 
           if (! quadrant_nei->is_hanging (jj)){
-            h_current_cell  = sol [ordh  (quadrant_nei->gt (jj))];
+            h_current_cell  = sol [ordh  (quadrant_nei->gt (jj))];// + Z [quadrant->gt (ii)];
             Ux_current_cell = sol [ordUx (quadrant_nei->gt (jj))];
             Uy_current_cell = sol [ordUy (quadrant_nei->gt (jj))];
           } else {
             h_current_cell  = .5 * (sol [ordh  (quadrant_nei->gparent(0,jj))] +
-                                    sol [ordh  (quadrant_nei->gparent(1,jj))]);
+                                    sol [ordh  (quadrant_nei->gparent(1,jj))]);// + 
+                              //.5 * (Z [quadrant->gparent(0,ii)] +
+                              //      Z [quadrant->gparent(1,ii)]);
             Ux_current_cell = .5 * (sol [ordUx (quadrant_nei->gparent(0,jj))] +
                                     sol [ordUx (quadrant_nei->gparent(1,jj))]);
             Uy_current_cell = .5 * (sol [ordUy (quadrant_nei->gparent(0,jj))] +

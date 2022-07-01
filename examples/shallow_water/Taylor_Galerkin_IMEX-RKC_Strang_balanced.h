@@ -1,7 +1,7 @@
 #ifndef TAYLOR_GALERKIN_H
 #define TAYLOR_GALERKIN_H
 
-#include <numeric>
+#include <numeric> 
 #include <bim_distributed_vector.h>
 #include <tmesh.h>
 #include <quad_operators.h>
@@ -9,7 +9,7 @@
  
 
 
-class TG2_scheme 
+class TG2_scheme  
 {
   using Q1  = q1_vec<distributed_vector>;
   using Q0  = std::vector<double>;
