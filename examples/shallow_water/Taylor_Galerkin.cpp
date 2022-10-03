@@ -22,6 +22,7 @@ TG2_scheme::TG2_scheme(const Q1& sol,
                        const bool& is_non_reflBC,
                        const bool& is_bed_friction,
                        const bool& is_stress_tensor,
+		       const bool& is_max_time_step_from_CFL_with_diffusion,
                        const double& grav,
                        const double& density,
                        const double& turbulence_coeff,
@@ -30,7 +31,7 @@ TG2_scheme::TG2_scheme(const Q1& sol,
                        const double& fluid_viscosity,
                        const double& yield_shear_stress)
 : sol(sol), sold(sold), soldd(soldd), incr(incr), incr_anti_diff(incr_anti_diff), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass),
-  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), slope_x(slope_x), slope_y(slope_y), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), grav(grav),
+  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), slope_x(slope_x), slope_y(slope_y), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), is_max_time_step_from_CFL_with_diffusion(is_max_time_step_from_CFL_with_diffusion), grav(grav),
   density(density), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress)
 { }
 
@@ -71,8 +72,8 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
     const auto& hpoint = hdof[ii];
     const auto celerity = std::sqrt(grav*hpoint);
     
-    const auto vel_rusanov_cell_x = hpoint>epsilon ? std::max(std::abs(Uxdof[ii]/hpoint)+celerity, is_stress_tensor ? 2*fluid_viscosity/Dx : 0.) : 0.;
-    const auto vel_rusanov_cell_y = hpoint>epsilon ? std::max(std::abs(Uydof[ii]/hpoint)+celerity, is_stress_tensor ? 2*fluid_viscosity/Dy : 0.) : 0.;
+    const auto vel_rusanov_cell_x = hpoint>epsilon ? std::max(std::abs(Uxdof[ii]/hpoint)+celerity, is_stress_tensor*is_max_time_step_from_CFL_with_diffusion ? 2*fluid_viscosity/Dx : 0.) : 0.;
+    const auto vel_rusanov_cell_y = hpoint>epsilon ? std::max(std::abs(Uydof[ii]/hpoint)+celerity, is_stress_tensor*is_max_time_step_from_CFL_with_diffusion ? 2*fluid_viscosity/Dy : 0.) : 0.;
     
     const auto dtoptx = hpoint>epsilon ? Dx/vel_rusanov_cell_x : DELTAT;
     const auto dtopty = hpoint>epsilon ? Dy/vel_rusanov_cell_y : DELTAT;

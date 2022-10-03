@@ -36,6 +36,7 @@ public:
              const bool& is_non_reflBC,
              const bool& is_bed_friction,
              const bool& is_stress_tensor,
+	     const bool& is_max_time_step_from_CFL_with_diffusion,
              const double& grav,
              const double& density,
              const double& turbulence_coeff,
@@ -200,6 +201,7 @@ private:
   const bool& is_non_reflBC;
   const bool& is_bed_friction;
   const bool& is_stress_tensor;
+  const bool& is_max_time_step_from_CFL_with_diffusion;
   const double& grav;
   const double& density;
   const double& turbulence_coeff;
