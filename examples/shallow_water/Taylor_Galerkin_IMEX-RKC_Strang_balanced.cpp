@@ -1079,7 +1079,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
     hdof       [ii] = hdof_c;// + Z_node[ii];
     Uxdof      [ii] = Uxdof_c;
-    Uydof      [ii] = Uxdof_c;
+    Uydof      [ii] = Uydof_c;
 
     P_plus_h_dof [ii] = P_plus_h_c;
     P_minus_h_dof[ii] = P_minus_h_c;
@@ -1623,7 +1623,14 @@ TG2_scheme::compute_cell_def_grad (const double& Uxdof_0, const double& Uxdof_1,
 // source terms
 double
 TG2_scheme::h_src_formula (const double& h, const double& Ux, const double& Uy)
-{ return (0.); }
+{ 
+  const double vel_x = h>epsilon ? Ux/h : 0.;
+  const double vel_y = h>epsilon ? Uy/h : 0.;
+  const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
+
+  return(0.);
+  //return (erosion_coefficient*h*abs_vel); 
+}
 
 double
 TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy)
