@@ -10,9 +10,10 @@
 #ifndef HAVE_LIS_CLASS
 #define HAVE_LIS_CLASS 1
 
+#include <iostream>
 #include <lis.h>
 #include <string>
-#include <bim_sparse.h>
+#include <vector>
 #include <linear_solver.h>
 
 
