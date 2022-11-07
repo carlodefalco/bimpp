@@ -34,16 +34,18 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const bool& is_non_reflBC,
                        const bool& is_bed_friction,
                        const bool& is_stress_tensor,
+                       const bool& is_erosion,
                        const double& grav,
                        const double& density,
                        const double& turbulence_coeff,
                        const double& surface_pressure, 
                        const double& bed_friction_angle_rad,
                        const double& fluid_viscosity,
-                       const double& yield_shear_stress)
+                       const double& yield_shear_stress,
+                       const double& erosion_coefficient)
 : sol(sol), sold(sold), soldd(soldd), sold_rkc(sold_rkc), soldd_rkc(soldd_rkc), sol_ini_rkc(sol_ini_rkc), incr(incr), incr_initial_source(incr_initial_source), incr_source(incr_source), incr_source_balance(incr_source_balance), incr_anti_diff(incr_anti_diff), stress_initial_step(stress_initial_step), stress_step(stress_step), P_plus(P_plus), P_minus(P_minus), spec_radius_nodal(spec_radius_nodal), sol_onehalf(sol_onehalf), mass(mass), 
-  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), Newton_it(Newton_it), slope_x_node(slope_x_node), slope_y_node(slope_y_node), slope_x(slope_x), slope_y(slope_y), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), grav(grav),
-  density(density), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress)
+  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), Newton_it(Newton_it), slope_x_node(slope_x_node), slope_y_node(slope_y_node), slope_x(slope_x), slope_y(slope_y), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), is_erosion(is_erosion), grav(grav),
+  density(density), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress), erosion_coefficient(erosion_coefficient)
 { }
  
  
@@ -217,8 +219,6 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average - (dt + dt_old)*.5*.5 * (div_FUx_cell/area + .5*(source_Ux_cell_average + src_slope_formula (h_current, slope_x[index_quadrant])));
   sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average - (dt + dt_old)*.5*.5 * (div_FUy_cell/area + .5*(source_Uy_cell_average + src_slope_formula (h_current, slope_y[index_quadrant])));
   
-
-
 }
 
 
@@ -495,14 +495,16 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   }
   
 
-  const auto diff_term_h_x  = grad_cell_eta[0] * vel_rusanov_cell_y;
-  const auto diff_term_h_y  = grad_cell_eta[1] * vel_rusanov_cell_x;
+  const auto diff_term_h_x  = grad_cell_eta[0] * vel_rusanov_cell_y*.5;
+  const auto diff_term_h_y  = grad_cell_eta[1] * vel_rusanov_cell_x*.5;
 
-  const auto diff_term_Ux_x = grad_cell_Ux [0] * vel_rusanov_cell_y;
-  const auto diff_term_Ux_y = grad_cell_Ux [1] * vel_rusanov_cell_x;
+  const auto diff_term_Ux_x = grad_cell_Ux [0] * vel_rusanov_cell_y*.5;
+  const auto diff_term_Ux_y = grad_cell_Ux [1] * vel_rusanov_cell_x*.5;
 
-  const auto diff_term_Uy_x = grad_cell_Uy [0] * vel_rusanov_cell_y;
-  const auto diff_term_Uy_y = grad_cell_Uy [1] * vel_rusanov_cell_x;
+  const auto diff_term_Uy_x = grad_cell_Uy [0] * vel_rusanov_cell_y*.5;
+  const auto diff_term_Uy_y = grad_cell_Uy [1] * vel_rusanov_cell_x*.5;
+
+
 
 
   const auto F_star_h_x  = h_flux_formula_x(h_cell, Ux_cell, Uy_cell) - diff_term_h_x;
@@ -599,7 +601,7 @@ TG2_scheme::loop_step (const int& kk, const bool& isInitial) //
   const auto & Ux_c = soldd_rkc.get_owned_data ()[kk+1];
   const auto & Uy_c = soldd_rkc.get_owned_data ()[kk+2]; 
     
-  const auto h_s_  = 0.;
+  const auto h_s_  = h_src_formula (h_c, Ux_c, Uy_c);
   const auto Ux_s_ = Ux_src_formula(h_c, Ux_c, Uy_c); 
   const auto Uy_s_ = Uy_src_formula(h_c, Ux_c, Uy_c); 
 
@@ -1188,7 +1190,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
   //std::cout << phi_cell_h << " " << phi_cell_Ux << " " << phi_cell_Uy << std::endl;
 
-  //phi_cell_h = 1., phi_cell_Ux = 1., phi_cell_Uy = 1.; 
+  //<phi_cell_h = 1., phi_cell_Ux = 1., phi_cell_Uy = 1.; 
   //std::cout << "we put limiter equal to one" << std::endl;
 
 
@@ -1246,7 +1248,7 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
 {
   // kk is the current owned node
 
-  double v_x, v_y;
+  double v_h, v_x, v_y;
 
   int count; 
 
@@ -1266,13 +1268,19 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
 
   if (j == 1)
   {
+    v_h = sol_ini_rkc.get_owned_data ()[kk];
     v_x = sol_ini_rkc.get_owned_data ()[kk+1] + mu_tilde_vect[1]*dt*stress_initial_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1];// + mu_tilde_vect[1]*dt*incr_source_balance.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1];
     v_y = sol_ini_rkc.get_owned_data ()[kk+2] + mu_tilde_vect[1]*dt*stress_initial_step.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2];// + mu_tilde_vect[1]*dt*incr_source_balance.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]; 
   }
   else
   {
+    v_h = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk] + mu_vect[j]*sold_rkc.get_owned_data ()[kk] + 
+    v_vect[j]*soldd_rkc.get_owned_data ()[kk] +
+    (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk];
+
+
     v_x = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+1] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+1] + //mu_tilde_vect[1]*dt*incr_source_balance.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] +
-    v_vect[j]*soldd_rkc.get_owned_data ()[kk+1] + mu_tilde_vect[j]*dt*stress_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + 
+    v_vect[j]*soldd_rkc.get_owned_data ()[kk+1] + mu_tilde_vect[j]*dt*stress_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+1];
     gamma_tilde_vect[j]*dt*stress_initial_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + 
     (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*(incr_initial_source.get_owned_data ()[kk+1] /*+ incr_source_balance.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1]*/) - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+1];// + incr_source_balance.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1]);
 
@@ -1307,11 +1315,13 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
 
     const auto delta_Ux = (- Ux_c + v_x + mu_tilde_vect[1]*dt*Ux_src_formula(h_c, Ux_c, Uy_c))/Ux_jac_source(h_c, Ux_c, Uy_c);
     const auto delta_Uy = (- Uy_c + v_y + mu_tilde_vect[1]*dt*Uy_src_formula(h_c, Ux_c, Uy_c))/Uy_jac_source(h_c, Ux_c, Uy_c);
+    const auto delta_h  = (- h_c  + v_h + mu_tilde_vect[1]*dt*h_src_formula (h_c, Ux_c, Uy_c) - hUx_jac_source(h_c, Ux_c, Uy_c)*delta_Ux - hUy_jac_source(h_c, Ux_c, Uy_c)*delta_Uy)/hh_jac_source (h_c, Ux_c, Uy_c);
 
-    error = std::sqrt(delta_Ux*delta_Ux + delta_Uy*delta_Uy);
+    error = std::sqrt(delta_h*delta_h + delta_Ux*delta_Ux + delta_Uy*delta_Uy);
 
     //std::cout << v_x << " " << delta_Ux << " " << sold.get_owned_data ()[kk+1] << " " << sol.get_owned_data ()[kk+1] << " " << Ux_src_formula(h_c, Ux_c, Uy_c) << " " << is_bed_friction << std::endl;
 
+    sol.get_owned_data ()[kk  ] += delta_h ;
     sol.get_owned_data ()[kk+1] += delta_Ux;
     sol.get_owned_data ()[kk+2] += delta_Uy;
 
@@ -1331,6 +1341,26 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
 
 
 
+}
+
+double
+TG2_scheme::hh_jac_source(const double& h, const double& Ux, const double& Uy)
+{
+  return(1.);
+}
+
+double
+TG2_scheme::hUx_jac_source(const double& h, const double& Ux, const double& Uy)
+{
+  const double gamma_coeff = std::abs(Uy)>tolerance_sign ? Ux/std::abs(Uy) : 0.;
+  return(is_erosion ? -mu_tilde_vect[1]*dt*erosion_coefficient*gamma_coeff/std::sqrt(1.+gamma_coeff*gamma_coeff) : 0.);
+}
+
+double
+TG2_scheme::hUy_jac_source(const double& h, const double& Ux, const double& Uy)
+{
+  const double gamma_coeff = std::abs(Ux)>tolerance_sign ? Uy/std::abs(Ux) : 0.;
+  return(is_erosion ? -mu_tilde_vect[1]*dt*erosion_coefficient*gamma_coeff/std::sqrt(1.+gamma_coeff*gamma_coeff) : 0.);
 }
 
 
@@ -1624,12 +1654,10 @@ TG2_scheme::compute_cell_def_grad (const double& Uxdof_0, const double& Uxdof_1,
 double
 TG2_scheme::h_src_formula (const double& h, const double& Ux, const double& Uy)
 { 
-  const double vel_x = h>epsilon ? Ux/h : 0.;
-  const double vel_y = h>epsilon ? Uy/h : 0.;
-  const double abs_vel = std::sqrt( vel_x*vel_x + vel_y*vel_y );
+  const double abs_U = std::sqrt( Ux*Ux + Uy*Uy );
 
-  return(0.);
-  //return (erosion_coefficient*h*abs_vel); 
+  //return(0.);
+  return (is_erosion ? erosion_coefficient*abs_U : 0.); 
 }
 
 double

@@ -22,7 +22,7 @@ TG2_scheme::TG2_scheme(const Q1& sol,
                        const bool& is_non_reflBC,
                        const bool& is_bed_friction,
                        const bool& is_stress_tensor,
-		       const bool& is_max_time_step_from_CFL_with_diffusion,
+		                   const bool& is_max_time_step_from_CFL_with_diffusion,
                        const double& grav,
                        const double& density,
                        const double& turbulence_coeff,
@@ -392,18 +392,18 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
 
 
-  const auto diff_term_h_x  = grad_cell_h [0]*vel_rusanov_cell_y;
-  const auto diff_term_h_y  = grad_cell_h [1]*vel_rusanov_cell_x;
+  const auto diff_term_h_x  = grad_cell_h [0]*vel_rusanov_cell_y*.5;
+  const auto diff_term_h_y  = grad_cell_h [1]*vel_rusanov_cell_x*.5;
 
-  const auto diff_term_Ux_x = grad_cell_Ux[0]*vel_rusanov_cell_y;
-  const auto diff_term_Ux_y = grad_cell_Ux[1]*vel_rusanov_cell_x;
+  const auto diff_term_Ux_x = grad_cell_Ux[0]*vel_rusanov_cell_y*.5;
+  const auto diff_term_Ux_y = grad_cell_Ux[1]*vel_rusanov_cell_x*.5;
 
-  const auto diff_term_Uy_x = grad_cell_Uy[0]*vel_rusanov_cell_y;
-  const auto diff_term_Uy_y = grad_cell_Uy[1]*vel_rusanov_cell_x;
+  const auto diff_term_Uy_x = grad_cell_Uy[0]*vel_rusanov_cell_y*.5;
+  const auto diff_term_Uy_y = grad_cell_Uy[1]*vel_rusanov_cell_x*.5;
   
 
 
-  const auto F_star_h_x  = h_flux_formula_x(h_cell, Ux_cell, Uy_cell) - diff_term_h_x;
+  const auto F_star_h_x  = h_flux_formula_x(h_cell, Ux_cell, Uy_cell) - diff_term_h_x; 
   const auto F_star_h_y  = h_flux_formula_y(h_cell, Ux_cell, Uy_cell) - diff_term_h_y;
 
   const auto F_star_Ux_x = Ux_flux_formula_x(h_cell, Ux_cell, Uy_cell) - diff_term_Ux_x;
@@ -667,6 +667,8 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     flux_limiter(Ux_min[ii], Ux_max[ii], Uxdof[ii], P_plus_Ux_dof[ii], P_minus_Ux_dof [ii], flux_on_the_node_Ux, vel_square_rusanov_cell, phi_cell_Ux);
     flux_limiter(Uy_min[ii], Uy_max[ii], Uydof[ii], P_plus_Uy_dof[ii], P_minus_Uy_dof [ii], flux_on_the_node_Uy, vel_square_rusanov_cell, phi_cell_Uy);
   }
+
+  //phi_cell_h = 0., phi_cell_Ux = 0., phi_cell_Uy = 0.;
 
 
 
@@ -976,7 +978,7 @@ double
 TG2_scheme::h_src_formula (const double& h, const double& Ux, const double& Uy)
 { 
   return(0.);
-  //return (erosion_coefficient*h*std::sqrt(Ux*Ux + Uy*Uy)); 
+  //return (erosion_coefficient*std::sqrt(Ux*Ux + Uy*Uy)); 
 }
 
 double
