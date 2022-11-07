@@ -127,7 +127,7 @@ public :
   bool verbose;
   
   /// Default costructor.
-  lis (LIS_INT argc = 0, char * argv[] = NULL) :
+  lis_distributed (LIS_INT argc = 0, char * argv[] = NULL) :
     linear_solver ("LIS", "iterative"),
     initialized (false),
     row (0),

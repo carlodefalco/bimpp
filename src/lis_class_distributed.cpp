@@ -7,7 +7,7 @@
   \brief interface for linear solver built with for lis library.
 */
 
-#include "lis_class.h"
+#include "lis_class_distributed.h"
 #include <cstdlib>
 #include <memory>
 #include <sstream>
@@ -34,10 +34,8 @@
 
 */
 
-int num = 0;
-
 int
-lis::init_lis_objects ()
+lis_distributed::init_lis_objects ()
 {
   // Build lis structures
   row = new LIS_INT[n + 1];
@@ -67,14 +65,14 @@ lis::init_lis_objects ()
   lis_vector_duplicate (b, &x);
   LIS_INT ie;
   lis_vector_get_range (x, &row_s, &ie);
-  assert (ie - rows_s == n);
+  assert (ie - row_s == n);
   
   initialized = true;
   return 1;
 }
 
 int
-lis::assemble_lis_matrix ()
+lis_distributed::assemble_lis_matrix ()
 {
   for (int i = 0; i < nnz ; ++i)
     value[i] = data[i];
@@ -84,10 +82,10 @@ lis::assemble_lis_matrix ()
 }
 
 int
-lis::invoke_lis_solver ()
+lis_distributed::invoke_lis_solver ()
 {
 
-  for (int i = rows_s; i < rows_s + n; ++i)
+  for (int i = row_s; i < row_s + n; ++i)
     {
       lis_vector_set_value (LIS_INS_VALUE, i, rhs[i - row_s], b); 
       if (have_initial_guess)
@@ -112,7 +110,7 @@ lis::invoke_lis_solver ()
       option_string_set = true;
     }
 
-  options = std::unique_ptr<char> (new char[option_string.length () + 1]);
+  auto options = std::unique_ptr<char> (new char[option_string.length () + 1]);
   std::copy (option_string.begin (),
              option_string.end (), options.get ());
 
@@ -134,7 +132,7 @@ lis::invoke_lis_solver ()
 }
 
 void
-lis::destroy_lis_objects ()
+lis_distributed::destroy_lis_objects ()
 {  
   lis_solver_destroy (solver);
   lis_matrix_destroy (A);
@@ -143,7 +141,7 @@ lis::destroy_lis_objects ()
 }
 
 void
-lis::set_iterative_method (const std::string &s)
+lis_distributed::set_iterative_method (const std::string &s)
 {
   if (s == "Conjugate Gradient")
     iterative_method = "cg";
@@ -172,7 +170,7 @@ lis::set_iterative_method (const std::string &s)
 
 
 void
-lis::set_preconditioner (const std::string &s)
+lis_distributed::set_preconditioner (const std::string &s)
 {
   if (s == "none")
     preconditioner = "none";
@@ -200,7 +198,7 @@ lis::set_preconditioner (const std::string &s)
 }
 
 void
-lis::set_convergence_condition (const std::string &s)
+lis_distributed::set_convergence_condition (const std::string &s)
 {
   if (s == "norm2_of_residual")
     convergence_condition = "nrm2_r";
@@ -220,11 +218,13 @@ lis::set_convergence_condition (const std::string &s)
 }
 
 void
-lis::set_lhs_structure
+lis_distributed::set_lhs_structure
 (int n,
  std::vector<int> &ir,
- std::vector<int> &jc)
+ std::vector<int> &jc,
+ matrix_format_t f)
 {
+  assert (f == csr);
   n_row = n;
   row_ptr.assign (n_row + 1, 0);
   jcol.assign (jc.size (), 0);
@@ -235,15 +235,15 @@ lis::set_lhs_structure
 }
 
 int
-lis::analyze () { return 1; }
+lis_distributed::analyze () { return 1; }
 
 void
-lis::set_lhs_data (std::vector<double> &xa)
+lis_distributed::set_lhs_data (std::vector<double> &xa)
 { data = &*xa.begin (); }
 
 
 int
-lis::factorize ()
+lis_distributed::factorize ()
 {   
   init_lis_objects ();
   int CHK = assemble_lis_matrix (); assert (CHK == 1);  
@@ -251,7 +251,7 @@ lis::factorize ()
 }
 
 int
-lis::solve ()
+lis_distributed::solve ()
 {
 
   int retval = invoke_lis_solver ();
