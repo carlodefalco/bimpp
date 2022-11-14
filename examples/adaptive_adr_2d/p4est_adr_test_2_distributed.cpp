@@ -1,4 +1,5 @@
 #include <bim_sparse_distributed.h>
+#include <bim_timing.h>
 #include <mumps_class.h>
 #include <quad_operators.h>
 #include <tmesh.h>
@@ -31,17 +32,21 @@ main (int argc, char **argv)
   MPI_Comm_rank (mpicomm, &rank);
   MPI_Comm_size (mpicomm, &size);
 
+  tic();
+  
   // Create mesh
   tmsh.read_connectivity (simple_conn_p, simple_conn_num_vertices,
                           simple_conn_t, simple_conn_num_trees);
-  
+ 
   // Uniform refinement
   recursive = 0; partforcoarsen = 1;
-  for (int cycle = 0; cycle < 2; ++cycle)
+  for (int cycle = 0; cycle < 9; ++cycle)
     {
       tmsh.refine (recursive, partforcoarsen);
       tmsh.set_refine_marker (uniform_refinement);
     }
+
+  toc("initial mesh");
   
   // Export initial mesh
   tmsh.vtk_export ("p4est_adr_test_2_distributed");
@@ -59,7 +64,8 @@ main (int argc, char **argv)
   for (int adapt = 0; adapt < refine_steps; ++adapt)
     {
       std::cout << "*** Step " << adapt << " ***" << std::endl;
-      
+
+      tic();
       // Compute coefficients
       //
       // diffusion
@@ -95,19 +101,25 @@ main (int argc, char **argv)
         }
       psi.assemble(max_op);
       g.assemble(replace_op);
-      
+      toc("compute coeffs");
+
+      tic();
       // Assemble matrix.
       distributed_sparse_matrix A;
       A.set_ranges(tmsh.num_owned_nodes());
 
       bim2a_advection_diffusion (tmsh, alpha, psi, A);
-      
+      toc("assemble lhs");
+
+      tic();
       // Assemble right-hand side.
       q1_vec rhs(tmsh.num_owned_nodes ());
       bim2a_solution_with_ghosts(tmsh,rhs); 
       
       bim2a_rhs (tmsh, f, g, rhs);
-      
+      toc("assemble rhs");
+
+      tic();
       // Set boundary conditions.
       func u0  = [] (double x, double y) { return 0; };
       func u1  = [] (double x, double y) { return 1; };
@@ -122,10 +134,12 @@ main (int argc, char **argv)
       bim2a_dirichlet_bc (tmsh, bcs, A, rhs);
       rhs.assemble();
       A.assemble();
-
+      toc("communicate lhs and rhs");
+      
       // Solve problem.
       std::cout << "Solving linear system.";
-      
+
+      tic();
       mumps mumps_solver;
       
       std::vector<double> vals;
@@ -156,7 +170,8 @@ main (int argc, char **argv)
                 ++ii)
         result[ii] = mumps_result[ii];
       result.assemble (replace_op);
-
+      toc("solve system and gather solution");
+      
       // Export solution.
       tmsh.octbin_export ((std::string("p4est_adr_test_2_distributed_u_")
                            + std::to_string(adapt)).c_str(), result);
@@ -165,9 +180,11 @@ main (int argc, char **argv)
       
       // Compute reconstructed gradient.
       std::cout << "Computing reconstructed gradient and estimator.";
-      
+
+      tic();
       gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, result);
       q2_vec u_star = bim2c_quadtree_pde_recovered_solution(tmsh,result,du);
+      toc("reconstruct gradient and solution");
       
       tmsh.octbin_export ((std::string("p4est_adr_test_2_distributed_du_x_")
                            + std::to_string(adapt)).c_str(), du.first);
@@ -176,7 +193,8 @@ main (int argc, char **argv)
       
       auto estimator = [& u_star, & result] (tmesh::quadrant_iterator q)
         { return estimator_sol (q, u_star, result); };
-      
+
+      tic();
       double tol = 1e-6;
       tmsh.set_metrics_marker (estimator, tol, 4);
       
@@ -200,6 +218,7 @@ main (int argc, char **argv)
           
           h = std::min(h, std::sqrt(hx*hx + hy*hy));
         }
+      toc("compute metrics estimator");
       
       tmsh.octbin_export_quadrant((std::string(
                                     "p4est_adr_test_2_distributed_hx_")
@@ -212,11 +231,13 @@ main (int argc, char **argv)
       
       std::cout << " Done." << std::endl;
       
-      if (tmsh.num_global_nodes () >= 1e6)
+      if (tmsh.num_global_nodes () >= 10e6)
         break;
-      
+
+      tic();
       // Refine.
-      tmsh.metrics_refine (1e5);
+      tmsh.metrics_refine (1e6);
+      toc("metrics based refinement");
       
       tmsh.vtk_export ((std::string("p4est_adr_test_2_distributed_newmesh_")
                         + std::to_string(adapt)).c_str());
@@ -227,7 +248,11 @@ main (int argc, char **argv)
       std::cout << "Step " << step << ", #nodes: "
                 << nnodes[step] << ", h: "
                 << h_step[step] << std::endl;
-  
+
+  if (rank == 0) {
+    print_timing_report();
+  }
+  MPI_Barrier (MPI_COMM_WORLD);
   MPI_Finalize ();
   
   return 0;
