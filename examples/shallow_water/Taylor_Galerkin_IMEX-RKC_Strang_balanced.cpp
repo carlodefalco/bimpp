@@ -156,7 +156,7 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 
 
   
-  double h_cell_average = 0., Ux_cell_average = 0., Uy_cell_average = 0., source_Ux_cell_average = 0., source_Uy_cell_average = 0.;
+  double h_cell_average = 0., Ux_cell_average = 0., Uy_cell_average = 0.;// source_Ux_cell_average = 0., source_Uy_cell_average = 0.;
   for (int ii = 0; ii < 4; ++ii)
   {
     double hdof_c, Uxdof_c, Uydof_c;
@@ -181,8 +181,8 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
     Ux_cell_average += Uxdof_c;
     Uy_cell_average += Uydof_c;
 
-    source_Ux_cell_average += src_slope_formula (hdof_c, slope_x[index_quadrant]); 
-    source_Uy_cell_average += src_slope_formula (hdof_c, slope_y[index_quadrant]);
+    //source_Ux_cell_average += src_slope_formula (hdof_c, slope_x[index_quadrant]); 
+    //source_Uy_cell_average += src_slope_formula (hdof_c, slope_y[index_quadrant]);
     
     
     fluxx_h_node[ii]  = h_flux_formula_x   (hdof_c, Uxdof_c, Uydof_c);
@@ -216,8 +216,10 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const auto h_current = h_cell_average  - (dt + dt_old)*.5*.5 *  div_Fh_cell /area;
   
   sol_onehalf[ordh    (index_quadrant)] = h_current;
-  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average - (dt + dt_old)*.5*.5 * (div_FUx_cell/area + .5*(source_Ux_cell_average + src_slope_formula (h_current, slope_x[index_quadrant])));
-  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average - (dt + dt_old)*.5*.5 * (div_FUy_cell/area + .5*(source_Uy_cell_average + src_slope_formula (h_current, slope_y[index_quadrant])));
+  //sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average - (dt + dt_old)*.5*.5 * (div_FUx_cell/area + .5*(source_Ux_cell_average + src_slope_formula (h_current, slope_x[index_quadrant])));
+  //sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average - (dt + dt_old)*.5*.5 * (div_FUy_cell/area + .5*(source_Uy_cell_average + src_slope_formula (h_current, slope_y[index_quadrant])));
+  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average - (dt + dt_old)*.5*.5 * (div_FUx_cell/area + src_slope_formula (h_current, slope_x[index_quadrant]));
+  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average - (dt + dt_old)*.5*.5 * (div_FUy_cell/area + src_slope_formula (h_current, slope_y[index_quadrant]));
   
 }
 
