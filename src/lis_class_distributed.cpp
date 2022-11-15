@@ -38,14 +38,14 @@ int
 lis_distributed::init_lis_objects ()
 {
   // Build lis structures
-  row = new LIS_INT[n + 1];
-  col = new LIS_INT[nnz];
-  value = new LIS_SCALAR[nnz];
+  row = new LIS_INT[n_rows_local + 1];
+  col = new LIS_INT[nnz_local];
+  value = new LIS_SCALAR[nnz_local];
 
-  for (int i = 0; i < nnz ; ++i)
+  for (int i = 0; i < nnz_local ; ++i)
     col[i] = jcol[i] - index_base;
    
-  for (int i = 0; i < n + 1; ++i)
+  for (int i = 0; i < n_rows_local + 1; ++i)
     row[i] = row_ptr[i] - row_ptr[0];
 
   if (initialized)
@@ -59,13 +59,20 @@ lis_distributed::init_lis_objects ()
   lis_vector_create (MPI_COMM_WORLD, &x);
   lis_solver_create (&solver);
     
-  lis_matrix_set_size (A, n, 0);  
-  lis_matrix_set_csr (nnz, row, col, value, A);
-  lis_vector_set_size (b, n, 0);
+  lis_matrix_set_size (A, n_rows_local, 0);
+
+  // std::cout << "rank = " << rank << " nnz = " << nnz << " n = " << n << std::endl;
+  // for (int jj = 0; jj < n; ++jj)
+  //   for (int ja = row[jj]; ja < row[jj+1]; ++ja)
+  //     std::cout << "i = " << jj << " j = " << col[ja] << " a = " << value[ja] << std::endl;
+  // std::cout << std::endl;
+
+  lis_matrix_set_csr (nnz_local, row, col, value, A);
+  lis_vector_set_size (b, n_rows_local, 0);
   lis_vector_duplicate (b, &x);
   LIS_INT ie;
   lis_vector_get_range (x, &row_s, &ie);
-  assert (ie - row_s == n);
+  assert (ie - row_s == n_rows_local);
   
   initialized = true;
   return 1;
@@ -74,7 +81,7 @@ lis_distributed::init_lis_objects ()
 int
 lis_distributed::assemble_lis_matrix ()
 {
-  for (int i = 0; i < nnz ; ++i)
+  for (int i = 0; i < nnz_local ; ++i)
     value[i] = data[i];
   
   lis_matrix_assemble (A);
@@ -85,7 +92,18 @@ int
 lis_distributed::invoke_lis_solver ()
 {
 
-  for (int i = row_s; i < row_s + n; ++i)
+  // for (int it = 0; it < size; ++it) {
+  //   if (rank == it) {
+  //     std::cout << "n_rows_local = " << n_rows_local
+  // 		<< "n_rows_global = " << n_rows_global
+  // 		<< "nnz_local = " << nnz_local
+  // 		<< std::endl;
+
+  //   }
+  //   MPI_Barrier (MPI_COMM_WORLD);
+  // }
+  
+  for (int i = row_s; i < row_s + n_rows_local; ++i)
     {
       lis_vector_set_value (LIS_INS_VALUE, i, rhs[i - row_s], b); 
       if (have_initial_guess)
@@ -101,6 +119,9 @@ lis_distributed::invoke_lis_solver ()
           << " -p " << preconditioner
           << " -conv_cond " << convergence_condition;
 
+      if (verbose)
+        opt << " -print 2" ;
+
       if (have_initial_guess)
         opt << " -initx_zeros false ";
       else
@@ -114,15 +135,37 @@ lis_distributed::invoke_lis_solver ()
   std::copy (option_string.begin (),
              option_string.end (), options.get ());
 
+  // char A0_mm[16] = "A0.mm";
+  // lis_output_matrix (A, LIS_FMT_MM, A0_mm);
+  // char b0_txt[16] = "b0.txt";
+  // lis_output_vector (b, LIS_FMT_PLAIN, b0_txt);
+  // char x0_txt[16] = "x0.txt";
+  // lis_output_vector (x, LIS_FMT_PLAIN, x0_txt);
+  
   lis_solver_set_option (options.get (), solver);
   lis_solve (A, b, x, solver);
 
+  // char A_mm[16] = "A.mm";
+  // lis_output_matrix (A, LIS_FMT_MM, A_mm);
+  // char b_txt[16] = "b.txt";
+  // lis_output_vector (b, LIS_FMT_PLAIN, b_txt);
+  // char x_txt[16] = "x.txt";
+  // lis_output_vector (x, LIS_FMT_PLAIN, x_txt);
+  
   lis_solver_get_iter (solver, &iter);
   lis_solver_get_time (solver, &time);
 
+  // double resnorm = 0;
+  // lis_solver_get_residualnorm (solver, &resnorm);
+  // std::cout << "resnorm = " << resnorm << std::endl;
+
+  // int solverstatus;
+  // lis_solver_get_status (solver, &solverstatus);
+  // std::cout << "solverstatus = " << solverstatus << std::endl;
+  
   //gather solution vector
   double temp = 0.0;
-  for (int i = row_s; i < row_s + n; ++i)
+  for (int i = row_s; i < row_s + n_rows_local; ++i)
     {
       lis_vector_get_value (x, i, &temp);
       rhs[i - row_s] = temp;
@@ -219,23 +262,23 @@ lis_distributed::set_convergence_condition (const std::string &s)
 
 void
 lis_distributed::set_lhs_structure
-(int n,
+(int n_global,
  std::vector<int> &ir,
  std::vector<int> &jc,
  matrix_format_t f)
 {
   assert (f == csr);
-  n_row = n;
-  row_ptr.assign (n_row + 1, 0);
-  jcol.assign (jc.size (), 0);
-
+  n_rows_global = n_global;
+  n_rows_local = ir.size () - 1;
+  
   row_ptr = ir;
   jcol = jc;
-  nnz = jcol.size ();
+  nnz_local = jcol.size ();
 }
 
 int
 lis_distributed::analyze () { return 1; }
+
 
 void
 lis_distributed::set_lhs_data (std::vector<double> &xa)
@@ -244,7 +287,7 @@ lis_distributed::set_lhs_data (std::vector<double> &xa)
 
 int
 lis_distributed::factorize ()
-{   
+{
   init_lis_objects ();
   int CHK = assemble_lis_matrix (); assert (CHK == 1);  
   return CHK;
@@ -258,6 +301,8 @@ lis_distributed::solve ()
 
   if (verbose)
     std::cout << std::endl
+              << "Return value" << retval
+              << std::endl
               << "Number of iterations = " << iter
               << std::endl
               << "Elapsed time = " << time << std::endl;

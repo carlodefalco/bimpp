@@ -21,7 +21,7 @@ check_PROGRAMS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 bim3_sta
 if HAVE_LIS
   check_PROGRAMS += lis_stationary_test lis_timedependent_test linear_solver_test \
                     linear_solver_test_repeated nonlinear_solver_test nonlinear_solver_test2 \
-                    nonlinear_solver_test3  nonlinear_solver_eq_test #nonlinear_solver_test4
+                    nonlinear_solver_test3  nonlinear_solver_eq_test lis_stationary_test_distributed #nonlinear_solver_test4
 endif
 
 if HAVE_P4EST
@@ -109,6 +109,9 @@ if HAVE_LIS
   lis_stationary_test_SOURCES = lis_stationary_test.cpp
   lis_stationary_test_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMLINALGLIB) $(BIMIOLIB)
   CLEANFILES += LIS_solution.txt
+
+  lis_stationary_test_distributed_SOURCES = lis_stationary_test_distributed.cpp
+  lis_stationary_test_distributed_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMLINALGLIB) $(BIMIOLIB)
 
   lis_timedependent_test_SOURCES = lis_timedependent_test.cpp
   lis_timedependent_test_LDADD = $(BIMLIB) $(BIMLISLIB) $(BIMLINALGLIB) $(BIMIOLIB)

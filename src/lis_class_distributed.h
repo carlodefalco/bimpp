@@ -74,11 +74,8 @@ private :
   /// \details [default = norm 2 of residual]
   std::string convergence_condition;
 
-  std::vector<int> map_i_s, map_row_s;
-  std::vector<int> map_n, map_nnz;
-
-  int i_s, row_s;
-  int n, nnz, n_row;
+  int  row_s;
+  int  nnz_local, n_rows_local, n_rows_global;
 
   /// Index base used by specific linear solver.
   static const int index_base = 0;
@@ -196,9 +193,6 @@ public :
     
     destroy_lis_objects ();
     initialized = false;
-    delete[] row;
-    delete[] col;
-    delete[] value;
 
   };
 
