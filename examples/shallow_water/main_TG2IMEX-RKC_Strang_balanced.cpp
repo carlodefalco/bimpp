@@ -12,9 +12,9 @@
  
 #include <bim_distributed_vector.h>
 #include <bim_timing.h>
-#include <mumps_class.h>
+#include <mumps_class.h> 
 #include <tmesh.h>
-#include <quad_operators.h> 
+#include <quad_operators.h>
 
 #include "Taylor_Galerkin_IMEX-RKC_Strang_balanced.h"
 
@@ -24,13 +24,13 @@
 
 
 static constexpr char VARNAME_1[255] = "dem"; 
-static constexpr char VARNAME_2[255] = "mask_in";
+static constexpr char VARNAME_2[255] = "mask_in"; 
 //static constexpr char VARNAME_3[255] = "mask_fin";
 
 // properties of the input dem
-static constexpr double res = 5;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 201;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 201;//101;//175;//201;//180; // # rows
+static constexpr double res = 2e-1;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
  
   
 static constexpr double L = res*(Nx-1);
@@ -40,34 +40,38 @@ static std::vector<double>   dem_slope_x;
 static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
 static std::vector<double>   basin_mask_fin; 
-static constexpr int NUM_REFINEMENTS  = 6; // 8 
+static constexpr int NUM_REFINEMENTS  = 8; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10 
 
 
 
 static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = .05; // must never be null 
-static constexpr double DELTAT = .01;
-static constexpr double REDCDT = .5; // it is the limit of the CFL condition
-static constexpr double T      = 1.;
+static constexpr double SAVEDT = .01; // must never be null 
+static constexpr double DELTAT = .01; 
+static constexpr double REDCDT = .6; // it is the limit of the CFL condition
+static constexpr double T      = .1;
  
-static constexpr bool is_time_adaptivity        = false;
+static constexpr bool is_time_adaptivity        = false; 
 static constexpr bool is_initial_refinement     = false;
 static constexpr bool is_space_adaptivity       = false; 
 static constexpr bool is_non_reflBC             = true;
-static constexpr bool is_bed_friction           = false; 
+static constexpr bool is_bed_friction           = false;
+static constexpr bool is_erosion                = false; 
 static constexpr bool is_stress_tensor          = false;
 static constexpr bool is_max_time_step_from_CFL = true; 
  
 
 static constexpr double h_min = 1e-5;
 static constexpr double grav = 9.81;
-static constexpr double density = 1400.;
+static constexpr double surface_pressure = 101325.; 
+
+// variables that can be used for UQ
+static constexpr double density = 1.;
 static constexpr double turbulence_coeff = 1.e3;
-static constexpr double surface_pressure = 0;//101325.; 
-static constexpr double bed_friction_angle_rad = 23*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double fluid_viscosity = 50;//10000;
-static constexpr double yield_shear_stress = 2e3;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
+static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
+static constexpr double fluid_viscosity = 0.05;//10000;
+static constexpr double yield_shear_stress = 0.;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
+static constexpr double erosion_coefficient = 0.;
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
@@ -157,21 +161,22 @@ double h0_fun (const double& xx, const double& yy)
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+.1*std::exp(-1.*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return( std::abs(xx-L/2.)<=1.5 && std::abs(yy-H/2.)<=1.5 ? 2 : 1. );
-  //return( xx<=L/2. ? 2. : 1. );
-  //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=L/4. ? 30 : 0. ); 
+  return( xx<=L/2. && yy<=H/2. ? 2. : 1. ); 
+  //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. );
+  //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=L/4. ? 2 : 0. ); 
   //return(xx<=L/2. ? 2 : 1. );
 
 
-  const double HH = 30.;
-  const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
-  return(std::max (0., std::min (.6*500-(500 - 500 * xx/L), HH)) * omega); 
+  //const double HH = 30.;
+  //const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
+  //return(std::max (0., std::min (.6*500-(500 - 500 * xx/L), HH)) * omega); 
   
   
 
 
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
 
-  return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38 : 0.);
+  return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38. : 0.);
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
   return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 0.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
@@ -192,6 +197,13 @@ double h0_fun (const double& xx, const double& yy)
 } 
 double Ux0_fun (double xx, double yy) 
 { 
+  const double Ux_l = 1.;
+  const double Ux_r = .5;
+  const double x0 = 4.;
+  const double coeff = 2.*fluid_viscosity/density;
+  //return(Ux_r +.5*(Ux_l-Ux_r)*(1 - std::tanh((Ux_l-Ux_r)*.25/coeff*(xx-x0))));
+  //return( (Ux_r+Ux_l)*.5 - (Ux_l-Ux_r)*.5*std::tanh((Ux_l-Ux_r)*.5/coeff*(xx-x0)) );
+
   //return( xx<=L/2. ? 2. : 1. ); // shock-shock solution
   return 0.; 
 }
@@ -953,8 +965,8 @@ main (int argc, char **argv)
                  slope_y_node_dyn,
                  slope_x_dyn,
                  slope_y_dyn,
-                 DELTAT, h_min, is_non_reflBC, is_bed_friction, is_stress_tensor, grav,
-                 density, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress);
+                 DELTAT, h_min, is_non_reflBC, is_bed_friction, is_stress_tensor, is_erosion, grav,
+                 density, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress, erosion_coefficient);
   
   
   // Save initial conditions
@@ -1164,18 +1176,21 @@ main (int argc, char **argv)
     
 
     // low order solution
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
+    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
     {
-      const auto & h_old_c = sold_dyn.        get_owned_data ()[3*int(kk/3)];
-      const auto & h_c     = sol_dyn.         get_owned_data ()[3*int(kk/3)];
+      const auto & h_old_c = sol_dyn.         get_owned_data ()[kk  ];
+
       const auto & Sx_c    = slope_x_node_dyn.get_owned_data ()[  int(kk/3)];
       const auto & Sy_c    = slope_y_node_dyn.get_owned_data ()[  int(kk/3)];
 
       //if (stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) - stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk)!=0) std::cout << stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) - stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk) << std::endl;
 
-      sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*(incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk]) + (stp.dt + stp.dt_old)*.5*.5*(stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) + stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk)); 
+      sol_dyn.get_owned_data ()[kk  ] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk  ]/mass_dyn.get_owned_data ()[kk  ];
       
-      //if (kk%3==1) std::cout << incr_dyn.get_owned_data ()[kk] << std::endl; //std::cout << sol_dyn.get_owned_data ()[kk] << " " << sol_dyn.get_owned_data ()[kk]+Z_dyn.get_owned_data ()[int(kk/3)] << " " << sol_dyn.get_owned_data ()[kk]+Z_dyn.get_owned_data ()[int(kk/3)] << " " << kk << std::endl;
+      const auto & h_c     = sol_dyn.         get_owned_data ()[kk  ];
+
+      sol_dyn.get_owned_data ()[kk+1] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+1]/mass_dyn.get_owned_data ()[kk+1] + (stp.dt + stp.dt_old)*.5*.5*(stp.src_slope_formula(h_c, Sx_c) + stp.src_slope_formula(h_old_c, Sx_c));
+      sol_dyn.get_owned_data ()[kk+2] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+2]/mass_dyn.get_owned_data ()[kk+2] + (stp.dt + stp.dt_old)*.5*.5*(stp.src_slope_formula(h_c, Sy_c) + stp.src_slope_formula(h_old_c, Sy_c)); 
     }
     sol_dyn.assemble(replace_op); 
 
@@ -1189,7 +1204,6 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
-
         if (! quadrant->is_hanging (ii) && sol_dyn [ordh    (quadrant->gt (ii))]<0){
           sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
         }
@@ -1226,7 +1240,6 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
-
         if (! quadrant->is_hanging (ii) && sol_dyn [ordh (quadrant->gt (ii))] < 0){
           sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
         }
@@ -1430,19 +1443,20 @@ main (int argc, char **argv)
     */
 
     // low order solution
-    // for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
-    // {
-    //   sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
-    // }
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
+    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
     {
-      const auto & h_old_c = sold_dyn.        get_owned_data ()[3*int(kk/3)];
-      const auto & h_c     = sol_dyn.         get_owned_data ()[3*int(kk/3)];
+      const auto & h_old_c = sol_dyn.         get_owned_data ()[kk  ];
+
       const auto & Sx_c    = slope_x_node_dyn.get_owned_data ()[  int(kk/3)];
       const auto & Sy_c    = slope_y_node_dyn.get_owned_data ()[  int(kk/3)];
+
+
+      sol_dyn.get_owned_data ()[kk  ] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk  ]/mass_dyn.get_owned_data ()[kk  ];
       
-      //sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*(incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk] + stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) - stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk));
-      sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*(incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk]) + (stp.dt + stp.dt_old)*.5*.5*(stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) + stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk)); 
+      const auto & h_c     = sol_dyn.         get_owned_data ()[kk  ];
+
+      sol_dyn.get_owned_data ()[kk+1] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+1]/mass_dyn.get_owned_data ()[kk+1] + (stp.dt + stp.dt_old)*.5*.5*(stp.src_slope_formula(h_c, Sx_c) + stp.src_slope_formula(h_old_c, Sx_c));
+      sol_dyn.get_owned_data ()[kk+2] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+2]/mass_dyn.get_owned_data ()[kk+2] + (stp.dt + stp.dt_old)*.5*.5*(stp.src_slope_formula(h_c, Sy_c) + stp.src_slope_formula(h_old_c, Sy_c)); 
     }
     sol_dyn.assemble(replace_op);
 
@@ -1453,7 +1467,6 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
-
         if (! quadrant->is_hanging (ii) && sol_dyn [ordh    (quadrant->gt (ii))]<0)
         {
           sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
