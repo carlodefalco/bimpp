@@ -8,6 +8,7 @@
 */
 
 #include "lis_class_distributed.h"
+#include <cassert>
 #include <cstdlib>
 #include <memory>
 #include <sstream>
