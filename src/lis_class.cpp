@@ -13,6 +13,7 @@
 #include <string>
 #include <cstring>
 #include <cstdio>
+#include <memory>
 
 int num = 0;
 
@@ -71,7 +72,6 @@ lis::invoke_lis_solver ()
                               initial_guess[i - row_s], x);
     }
 
-  char* options = 0;
 
   if (! option_string_set)
     {
@@ -91,17 +91,19 @@ lis::invoke_lis_solver ()
       option_string_set = true;
     }
 
-  options = new char[option_string.length () + 1];
+  auto optstrdim = option_string.length () + 1;
+  std::unique_ptr<char[]> options = std::make_unique<char[]> (optstrdim);
+  
   std::copy (option_string.begin (),
-             option_string.end (), options);
+             option_string.end (), options.get ());
 
-  lis_solver_set_option (options, solver);
+  lis_solver_set_option (options.get (), solver);
   lis_solve (A, b, x, solver);
 
   lis_solver_get_iter (solver, &iter);
   lis_solver_get_time (solver, &time);
 
-  delete [] options;
+  //delete [] options;
 
   //gather solution vector
   double temp = 0.0;

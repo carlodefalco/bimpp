@@ -1,6 +1,6 @@
 #include <bim_sparse_distributed.h>
 #include <bim_timing.h>
-#include <mumps_class.h>
+#include <lis_class_distributed.h>
 #include <quad_operators.h>
 #include <tmesh.h>
 
@@ -140,35 +140,50 @@ main (int argc, char **argv)
       std::cout << "Solving linear system.";
 
       tic();
-      mumps mumps_solver;
+      lis_distributed solver;
       
       std::vector<double> vals;
       std::vector<int> irow, jcol;
       
-      A.aij(vals, irow, jcol, mumps_solver.get_index_base ());
-      
-      mumps_solver.set_lhs_distributed ();
-      mumps_solver.set_distributed_lhs_structure (A.rows (), irow, jcol);
-      mumps_solver.set_distributed_lhs_data (vals);
+      A.csr (vals, jcol, irow, solver.get_index_base ());
 
-      mumps_solver.set_rhs_distributed (rhs);
+      // std::cout << std::endl << "After A.csr (...) vals.size () = " << vals.size ()
+      // 		<< " irow.size () = " << irow.size ()
+      // 		<< " jcol.size () = " << jcol.size ()
+      // 		<< std::endl;
+      
+      //solver.set_lhs_distributed ();
+      solver.set_lhs_structure (tmsh.num_global_nodes (), irow, jcol);
+      solver.set_lhs_data (vals);
+
+      auto & tmp = rhs.get_owned_data ();
+      // std::cout << "tmp.size () = " << tmp.size () << std::endl;
+      solver.set_rhs (tmp);
+      solver.set_initial_guess (rhs.get_owned_data ());
       
       // Solve.
-      mumps_solver.analyze ();
-      mumps_solver.factorize ();
-      mumps_solver.solve ();
-      mumps_solver.cleanup ();
+      std::cout << "analyze () = "
+		<< solver.analyze () << std::endl;
 
-      // Get solution of linear system
-      q1_vec mumps_result = mumps_solver.get_distributed_solution();
+      std::cout << "factorize () = "
+		<< solver.factorize () << std::endl;
 
+      std::cout << "solve () = "
+		<< solver.solve ()
+		<< std::endl;
+
+      std::cout << "cleanup () = " << std::endl;
+      solver.cleanup ();
+	
+
+      // Get solution of linear system      
       q1_vec result (tmsh.num_owned_nodes());
       bim2a_solution_with_ghosts (tmsh, result);
 
       for (auto ii = result.get_range_start (); 
                 ii != result.get_range_end (); 
                 ++ii)
-        result[ii] = mumps_result[ii];
+        result[ii] =rhs[ii];
       result.assemble (replace_op);
       toc("solve system and gather solution");
       
@@ -179,7 +194,7 @@ main (int argc, char **argv)
       std::cout << " Done." << std::endl;
       
       // Compute reconstructed gradient.
-      std::cout << "Computing reconstructed gradient and estimator.";
+      std::cout << "Computing reconstructed gradient and estimator." << std::endl;
 
       tic();
       gradient du = bim2c_quadtree_pde_recovered_gradient(tmsh, result);

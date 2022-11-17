@@ -38,10 +38,12 @@ int
 lis_distributed::init_lis_objects ()
 {
   // Build lis structures
-  row = new LIS_INT[n_rows_local + 1];
-  col = new LIS_INT[nnz_local];
-  value = new LIS_SCALAR[nnz_local];
+  // row = new LIS_INT[n_rows_local + 1];
+  // col = new LIS_INT[nnz_local];
+  // value = new LIS_SCALAR[nnz_local];
 
+  lis_matrix_malloc_csr (n_rows_local, nnz_local, &row, &col, &value);
+  
   for (int i = 0; i < nnz_local ; ++i)
     col[i] = jcol[i] - index_base;
    
@@ -92,17 +94,18 @@ int
 lis_distributed::invoke_lis_solver ()
 {
 
-  // for (int it = 0; it < size; ++it) {
-  //   if (rank == it) {
-  //     std::cout << "n_rows_local = " << n_rows_local
-  // 		<< "n_rows_global = " << n_rows_global
-  // 		<< "nnz_local = " << nnz_local
-  // 		<< std::endl;
+  for (int it = 0; it < size; ++it) {
+    if (rank == it) {
+      std::cout << "n_rows_local = " << n_rows_local
+  		<< " n_rows_global = " << n_rows_global
+  		<< " nnz_local = " << nnz_local
+  		<< std::endl;
 
-  //   }
-  //   MPI_Barrier (MPI_COMM_WORLD);
-  // }
-  
+    }
+    MPI_Barrier (MPI_COMM_WORLD);
+  }
+
+    
   for (int i = row_s; i < row_s + n_rows_local; ++i)
     {
       lis_vector_set_value (LIS_INS_VALUE, i, rhs[i - row_s], b); 
@@ -130,8 +133,9 @@ lis_distributed::invoke_lis_solver ()
       option_string = opt.str ();
       option_string_set = true;
     }
-
-  auto options = std::unique_ptr<char> (new char[option_string.length () + 1]);
+  
+  auto optdim = option_string.length () + 1;
+  auto options = std::make_unique<char[]> (optdim);
   std::copy (option_string.begin (),
              option_string.end (), options.get ());
 
@@ -274,6 +278,12 @@ lis_distributed::set_lhs_structure
   row_ptr = ir;
   jcol = jc;
   nnz_local = jcol.size ();
+
+  // std::cout << "in lis_distributed::set_lhs_structure () "
+  // 	    << " nnz = " << nnz_local
+  // 	    << " n_rows_global = " << n_rows_global
+  // 	    << " n_rows_local = " <<  n_rows_local
+  // 	    << std::endl;
 }
 
 int

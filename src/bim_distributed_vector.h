@@ -160,6 +160,10 @@ public:
   size () const
   { return ranges.back (); }
 
+  int
+  non_local_size () const
+  { return non_local_data.size (); }
+  
   /// Resets all the non-local maps.
   void
   clear_non_local ();

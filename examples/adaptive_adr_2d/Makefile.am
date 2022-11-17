@@ -100,7 +100,7 @@ CLEANFILES += p4est_adr_test_2_isogeo*.octbin.gz p4est_adr_test_2_isogeo*.pvtu p
 p4est_adr_test_2_distributed_SOURCES =  p4est_adr_test_2_distributed.cpp 
 p4est_adr_test_2_distributed_CPPFLAGS =  $(AM_CPPFLAGS) @P4EST_CPPFLAGS@
 p4est_adr_test_2_distributed_LDFLAGS =  $(AM_LDFLAGS)  @P4EST_LDFLAGS@
-p4est_adr_test_2_distributed_LDADD = $(BIMLIB) $(BIMP4ESTLIB) $(BIMMUMPSLIB) $(BIMLINALGLIB) $(BIMIOLIB) @P4EST_LIB@
+p4est_adr_test_2_distributed_LDADD = $(BIMLIB) $(BIMP4ESTLIB) $(BIMLISLIB) $(BIMLINALGLIB) $(BIMIOLIB) @P4EST_LIB@
 CLEANFILES += p4est_adr_test_2_distributed*.octbin.gz p4est_adr_test_2_distributed*.pvtu p4est_adr_test_2_distributed*.visit p4est_adr_test_2_distributed*.vtu
 
 p4est_metrics_test_1_SOURCES =  p4est_metrics_test_1.cpp 
