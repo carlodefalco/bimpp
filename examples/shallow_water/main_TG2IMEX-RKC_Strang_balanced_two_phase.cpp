@@ -165,9 +165,6 @@ double h0_fun (const double& xx, const double& yy)
   //return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38. : 0.);
 }
 
-double h0_s_fun (const double& xx, const double& yy) { return 0.; } 
-double h0_s_fun (const double& xx, const double& yy) { return 0.; } 
-
 double Ux0_s_fun (double xx, double yy) { return 0.; }
 double Ux0_w_fun (double xx, double yy) { return 0.; }
 
@@ -948,7 +945,8 @@ main (int argc, char **argv)
     incr_w                = incr_w_;
     incr_anti_diff_w      = incr_anti_diff_w_;
     mass                  = mass_;
-    sol_onehalf           = sol_onehalf_;
+    sol_onehalf_w         = sol_onehalf_w_;
+    sol_onehalf_s         = sol_onehalf_s_;
     porosity              = porosity_;
     Z                     = Z_;
     Newton_it 		        = Newton_it_;
@@ -1006,8 +1004,8 @@ main (int argc, char **argv)
   Q1 Newton_it_dyn             = Newton_it;
 
 
-  std::vector<std::array<double,4>> incr_anti_diff_w_dyn = incr_anti_diff;
-  std::vector<std::array<double,4>> incr_anti_diff_s_dyn = incr_anti_diff;
+  std::vector<std::array<double,4>> incr_anti_diff_w_dyn = incr_anti_diff_w;
+  std::vector<std::array<double,4>> incr_anti_diff_s_dyn = incr_anti_diff_s;
 
   
   TG2_scheme stp(sol_s_dyn, 
@@ -1044,15 +1042,31 @@ main (int argc, char **argv)
                  sol_onehalf_w_dyn,
                  porosity_dyn,
                  mass_dyn,
-                 ordh, ordUx, ordUy, 
+                 ordh, 
+                 ordUx, 
+                 ordUy, 
                  Z_dyn,
 		             Newton_it_dyn, 
                  slope_x_node_dyn,
                  slope_y_node_dyn,
                  slope_x_dyn,
                  slope_y_dyn,
-                 DELTAT, h_min, is_non_reflBC, is_bed_friction, is_stress_tensor, is_erosion, grav,
-                 density, density_s, density_w, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress, erosion_coefficient);
+                 DELTAT, 
+                 h_min, 
+                 is_non_reflBC, 
+                 is_bed_friction, 
+                 is_stress_tensor, 
+                 is_erosion, 
+                 grav,
+                 density, 
+                 density_s, 
+                 density_w,
+                 turbulence_coeff, 
+                 surface_pressure, 
+                 bed_friction_angle_rad, 
+                 fluid_viscosity, 
+                 yield_shear_stress, 
+                 erosion_coefficient);
   
   
 
@@ -1298,8 +1312,10 @@ main (int argc, char **argv)
 
 
     stp.set_times(time, time_old, time_oldd);
-    soldd_dyn = sold_dyn;
-    sold_dyn  = sol_dyn;
+    soldd_w_dyn = sold_w_dyn;
+    sold_w_dyn  = sol_w_dyn;
+    soldd_s_dyn = sold_s_dyn;
+    sold_s_dyn  = sol_s_dyn;
     
 
     // low order solution
@@ -1429,7 +1445,7 @@ main (int argc, char **argv)
 
  
     double spec_radius = 0.;
-    for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
+    for (auto kk = 0; kk < spec_radius_nodal_s_dyn.get_owned_data ().size (); ++kk)
     {
       spec_radius = std::max(spec_radius, spec_radius_nodal_s_dyn.get_owned_data ()[kk]);
       spec_radius = std::max(spec_radius, spec_radius_nodal_w_dyn.get_owned_data ()[kk]);
@@ -1882,7 +1898,7 @@ main (int argc, char **argv)
       bim2a_solution_with_ghosts (tmsh, sold_s, replace_op, ordUy);
       interpolate_vector (tmsh, sold_s_dyn, sold_s, ordh);
       interpolate_vector (tmsh, sold_s_dyn, sold_s, ordUx);
-      interpolate_vector (tmsh, sold_s_sdyn, sold_s, ordUy);
+      interpolate_vector (tmsh, sold_s_dyn, sold_s, ordUy);
       //sold.assemble (replace_op);
 
       Q1 sold_w (ln_nodes * 3);
@@ -1918,7 +1934,8 @@ main (int argc, char **argv)
       incr.get_owned_data ().assign (incr.get_owned_data ().size(), 0.0);
       incr.assemble ();
 
-      std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 3);
+      std::vector<std::array<double,4>> incr_anti_diff_s (ln_elements * 3);
+      std::vector<std::array<double,4>> incr_anti_diff_w (ln_elements * 3);
 
       
       Q1 mass (ln_nodes * 3);
@@ -2007,8 +2024,8 @@ main (int argc, char **argv)
       incr_source_w_dyn         = incr;
       incr_initial_source_s_dyn = incr;
       incr_initial_source_w_dyn = incr;
-      incr_anti_diff_s_dyn      = incr_anti_diff;
-      incr_anti_diff_w_dyn      = incr_anti_diff;
+      incr_anti_diff_s_dyn      = incr_anti_diff_s;
+      incr_anti_diff_w_dyn      = incr_anti_diff_w;
       stress_initial_step_s_dyn = incr;
       stress_step_s_dyn         = incr;
       stress_initial_step_w_dyn = incr;

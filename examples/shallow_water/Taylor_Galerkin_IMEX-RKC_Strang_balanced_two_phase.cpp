@@ -1,4 +1,4 @@
-#include "Taylor_Galerkin_IMEX-RKC_Strang_balanced.h"
+#include "Taylor_Galerkin_IMEX-RKC_Strang_balanced_two_phase.h"
 #include <algorithm>
 #include <cassert>
 
@@ -61,9 +61,65 @@ TG2_scheme::TG2_scheme(Q1& sol_s,
                        const double& fluid_viscosity,
                        const double& yield_shear_stress,
                        const double& erosion_coefficient)
-: sol_s(sol_s), sol_w(sol_w), sold_s(sold_s), sold_w(sold_w), soldd_s(soldd_s), soldd(soldd_w), sold_rkc_s(sold_rkc_s), sold_rkc_w(sold_rkc_w), soldd_rkc_s(soldd_rkc_s), soldd_rkc_w(soldd_rkc_w), sol_ini_rkc_s(sol_ini_rkc_s), sol_ini_rkc_w(sol_ini_rkc_w), incr_s(incr_s), incr_w(incr_w), incr_initial_source_s(incr_initial_source_s), incr_initial_source_w(incr_initial_source_w), incr_source_s(incr_source_s), incr_source_w(incr_source_w), incr_anti_diff_s(incr_anti_diff_s), incr_anti_diff_w(incr_anti_diff_w), stress_initial_step_s(stress_initial_step_s), stress_initial_step_w(stress_initial_step_w), stress_step_s(stress_step_s), stress_step_w(stress_step_w), P_plus_s(P_plus_s), P_plus_w(P_plus_w), P_minus_s(P_minus_s), P_minus_w(P_minus_w), spec_radius_nodal_s(spec_radius_nodal_s), spec_radius_nodal_w(spec_radius_nodal_w), sol_onehalf_s(sol_onehalf_s), sol_onehalf_w(sol_onehalf_w), porosity(porosity), mass(mass), 
-  ordh(oh), ordUx(oUx), ordUy(oUy), Z(Z), Newton_it(Newton_it), slope_x_node(slope_x_node), slope_y_node(slope_y_node), slope_x(slope_x), slope_y(slope_y), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), is_erosion(is_erosion), grav(grav),
-  density(density), density_s(density_s), density_w(density_w), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress), erosion_coefficient(erosion_coefficient)
+: sol_s(sol_s), 
+  sol_w(sol_w), 
+  sold_s(sold_s), 
+  sold_w(sold_w), 
+  soldd_s(soldd_s), 
+  soldd_w(soldd_w), 
+  sold_rkc_s(sold_rkc_s), 
+  sold_rkc_w(sold_rkc_w), 
+  soldd_rkc_s(soldd_rkc_s), 
+  soldd_rkc_w(soldd_rkc_w), 
+  sol_ini_rkc_s(sol_ini_rkc_s), 
+  sol_ini_rkc_w(sol_ini_rkc_w), 
+  incr_s(incr_s), 
+  incr_w(incr_w), 
+  incr_initial_source_s(incr_initial_source_s), 
+  incr_initial_source_w(incr_initial_source_w), 
+  incr_source_s(incr_source_s), 
+  incr_source_w(incr_source_w), 
+  incr_anti_diff_s(incr_anti_diff_s), 
+  incr_anti_diff_w(incr_anti_diff_w), 
+  stress_initial_step_s(stress_initial_step_s), 
+  stress_initial_step_w(stress_initial_step_w), 
+  stress_step_s(stress_step_s), 
+  stress_step_w(stress_step_w), 
+  P_plus_s(P_plus_s), 
+  P_plus_w(P_plus_w), 
+  P_minus_s(P_minus_s), 
+  P_minus_w(P_minus_w), 
+  spec_radius_nodal_s(spec_radius_nodal_s), 
+  spec_radius_nodal_w(spec_radius_nodal_w), 
+  sol_onehalf_s(sol_onehalf_s), 
+  sol_onehalf_w(sol_onehalf_w), 
+  porosity(porosity), 
+  mass(mass), 
+  ordh(oh), 
+  ordUx(oUx), 
+  ordUy(oUy), 
+  Z(Z), 
+  Newton_it(Newton_it), 
+  slope_x_node(slope_x_node), 
+  slope_y_node(slope_y_node), 
+  slope_x(slope_x), 
+  slope_y(slope_y), 
+  DELTAT(DELTAT), 
+  epsilon(h_min), 
+  is_non_reflBC(is_non_reflBC), 
+  is_bed_friction(is_bed_friction), 
+  is_stress_tensor(is_stress_tensor), 
+  is_erosion(is_erosion), 
+  grav(grav),
+  density(density), 
+  density_s(density_s), 
+  density_w(density_w), 
+  turbulence_coeff(turbulence_coeff), 
+  surface_pressure(surface_pressure), 
+  bed_friction_angle_rad(bed_friction_angle_rad), 
+  fluid_viscosity(fluid_viscosity), 
+  yield_shear_stress(yield_shear_stress), 
+  erosion_coefficient(erosion_coefficient)
 { }
  
  
@@ -392,8 +448,8 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
     const auto rhs_w = F_h_w + poro_c     *erosion_coefficient*dt_sgn*signum(U_tot_x)*(F_Ux_w+F_Ux_s) + poro_c     *erosion_coefficient*dt_sgn*signum(U_tot_y)*(F_Uy_w+F_Uy_s);
     const auto rhs_s = F_h_s + (1.-poro_c)*erosion_coefficient*dt_sgn*signum(U_tot_x)*(F_Ux_w+F_Ux_s) + (1.-poro_c)*erosion_coefficient*dt_sgn*signum(U_tot_y)*(F_Uy_w+F_Uy_s);
 
-    const auto delta_h_s = (rhs_s - C/A*rhs_w) / (big_D - big_C*big_B/big_A);
-    const auto delta_h_w = (rhs_w - B*delta_h_s) / big_A;
+    const auto delta_h_s = (rhs_s - big_C/big_A*rhs_w) / (big_D - big_C*big_B/big_A);
+    const auto delta_h_w = (rhs_w - big_B*delta_h_s) / big_A;
 
     const auto delta_Ux_s = F_Ux_s + dt_sgn*src_slope_formula (delta_h_s, Sx_c_s);
     const auto delta_Uy_s = F_Uy_s + dt_sgn*src_slope_formula (delta_h_s, Sy_c_s);
@@ -491,8 +547,8 @@ TG2_scheme::solve_non_lin (const int& kk)
     const auto rhs_w = F_h_w + poro_c*erosion_coefficient*dt_sgn*signum(U_tot_x)*(F_Ux_w+F_Ux_s) + poro_c*erosion_coefficient*dt_sgn*signum(U_tot_y)*(F_Uy_w+F_Uy_s);
     const auto rhs_s = F_h_s + (1.-poro_c)*erosion_coefficient*dt_sgn*signum(U_tot_x)*(F_Ux_w+F_Ux_s) + (1.-poro_c)*erosion_coefficient*dt_sgn*signum(U_tot_y)*(F_Uy_w+F_Uy_s);
 
-    const auto delta_h_s = (rhs_s - C/A*rhs_w) / (big_D - big_C*big_B/big_A);
-    const auto delta_h_w = (rhs_w - B*delta_h_s) / big_A;
+    const auto delta_h_s = (rhs_s - big_C/big_A*rhs_w) / (big_D - big_C*big_B/big_A);
+    const auto delta_h_w = (rhs_w - big_B*delta_h_s) / big_A;
 
     const auto delta_Ux_s = F_Ux_s + dt_sgn*src_slope_formula (delta_h_s, Sx_c_s);
     const auto delta_Uy_s = F_Uy_s + dt_sgn*src_slope_formula (delta_h_s, Sy_c_s);
@@ -1454,10 +1510,10 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       P_minus_h_c_s  = .5 * (P_minus_s [ordh (quadrant->gparent(0,ii))] +
                              P_minus_s [ordh (quadrant->gparent(1,ii))]);
 
-      P_plus_Ux_c_s   = .5 * (P_plus [ordUx (quadrant->gparent(0,ii))] +
-                              P_plus [ordUx (quadrant->gparent(1,ii))]);
-      P_minus_Ux_c_s  = .5 * (P_minus [ordUx (quadrant->gparent(0,ii))] +
-                              P_mi_snus [ordUx (quadrant->gparent(1,ii))]);
+      P_plus_Ux_c_s   = .5 * (P_plus_s [ordUx (quadrant->gparent(0,ii))] +
+                              P_plus_s [ordUx (quadrant->gparent(1,ii))]);
+      P_minus_Ux_c_s  = .5 * (P_minus_s [ordUx (quadrant->gparent(0,ii))] +
+                              P_minus_s [ordUx (quadrant->gparent(1,ii))]);
 
       P_plus_Uy_c_s   = .5 * (P_plus_s [ordUy (quadrant->gparent(0,ii))] +
                               P_plus_s [ordUy (quadrant->gparent(1,ii))]);
@@ -1794,7 +1850,7 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
   const double C_w = grav*(density_s-density_w)/terminal_velocity/std::pow(poro_c,m_coeff)/density_w;
   const double C_s = grav*(density_s-density_w)/terminal_velocity/std::pow(poro_c,m_coeff)/density_s;
 
-  const double densi_ = (1-poro_c)*(density_s - density_w)
+  const double densi_ = (1-poro_c)*(density_s - density_w);
   while (count++<Nmax && error>tolerance)
   {
     const auto & Ux_c_s = sol_s.get_owned_data ()[kk+1];
@@ -2126,7 +2182,7 @@ TG2_scheme::Ux_src_formula_w (const double& h, const double& U_wx, const double&
 double
 TG2_scheme::Ux_src_formula_s (const double& h, const double& U_wx, const double& U_sx, const double& U_wy, const double& U_sy, const double& n_poro)
 { 
-  const auto contr_1 = friction_Ux (h, Ux_wx+U_sx, U_wy+U_sy, n_poro);
+  const auto contr_1 = friction_Ux (h, U_wx+U_sx, U_wy+U_sy, n_poro);
   const auto contr_2 = int_term_x(h, U_wx, U_sx, n_poro, density_s);
 
   return(contr_1 + contr_2);
@@ -2143,7 +2199,7 @@ TG2_scheme::Uy_src_formula_w (const double& h, const double& U_wx, const double&
 double
 TG2_scheme::Uy_src_formula_s (const double& h, const double& U_wx, const double& U_sx, const double& U_wy, const double& U_sy, const double& n_poro)
 { 
-  const auto contr_1 = friction_Uy (h, Ux_wx+U_sx, U_wy+U_sy, n_poro);
+  const auto contr_1 = friction_Uy (h, U_wx+U_sx, U_wy+U_sy, n_poro);
   const auto contr_2 = int_term_y(h, U_wy, U_sy, n_poro, density_s);
 
   return(contr_1 + contr_2);
@@ -2221,6 +2277,10 @@ TG2_scheme::src_slope_formula (const double& h, const double& S)
   // cell-wise source term to build the incr vector
   return (-grav*S*h);
 }
+
+double
+TG2_scheme::signum (const double& x)
+{ return ((x > 0) ? 1.0 : (x < 0) ? -1.0 : 0.0); }
 
 
 

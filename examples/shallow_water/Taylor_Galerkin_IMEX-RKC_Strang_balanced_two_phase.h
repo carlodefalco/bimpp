@@ -266,6 +266,9 @@ public:
 
   void
   prepare_IMEXRKC_coefficients (const int& s);
+
+  double
+  signum (const double& x);
   
   double time, timed, timedd;
   double nu_htot = 0.;
@@ -349,6 +352,11 @@ private:
 
   const double regularization_parameter = 1e3; // has dimension of seconds, in this case the limit of the Bingham viscosity for small I_{2,D} exists finites
   
+  const double terminal_velocity = 0.01;
+
+  const double m_coeff = 1.;
+
+
 };
 
 
