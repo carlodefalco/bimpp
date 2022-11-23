@@ -197,8 +197,8 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   Ux_cell_average   /= 4.;
   Uy_cell_average   /= 4.;
   
-  source_Ux_cell_average /= 4.;
-  source_Uy_cell_average /= 4.;
+  //source_Ux_cell_average /= 4.;
+  //source_Uy_cell_average /= 4.;
 
   
   const auto div_Fh_x = .5*((fluxx_h_node[1]-fluxx_h_node[0]) + (fluxx_h_node[3]-fluxx_h_node[2]));
