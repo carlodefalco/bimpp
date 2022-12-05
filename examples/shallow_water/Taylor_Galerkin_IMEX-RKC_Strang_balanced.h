@@ -38,11 +38,8 @@ public:
              const ordering& oUx, 
              const ordering& oUy, 
              const Q1& Z,
+             Q0& Z_onehalf,
 	           Q1& Newton_it,
-             Q1& slope_x_node,
-             Q1& slope_y_node,
-             const Q0& slope_x,
-             const Q0& slope_y,
              const double& DELTAT,
              const double& h_min,
              const bool& is_non_reflBC,
@@ -54,7 +51,8 @@ public:
              const double& surface_pressure,
              const double& bed_friction_angle_rad,
              const double& fluid_viscosity,
-             const double& yield_shear_stress);
+             const double& yield_shear_stress,
+             const double& erosion_coefficient);
   
   TG2_scheme() = delete;
   
@@ -244,6 +242,9 @@ public:
 
   void
   prepare_IMEXRKC_coefficients (const int& s);
+
+  double
+  signum (const double& x);
   
   double time, timed, timedd;
   double nu_htot = 0.;
@@ -264,13 +265,10 @@ public:
   Q1& spec_radius_nodal;
   Q0& sol_onehalf;
   const Q1& Z;
+  Q0& Z_onehalf;
   Q1& Newton_it;
-  Q1& slope_x_node;
-  Q1& slope_y_node;
   Q1& stress_initial_step; 
   Q1& stress_step;
-  const Q0& slope_x;
-  const Q0& slope_y;
   Q1& mass;
   
 private:
@@ -293,6 +291,7 @@ private:
   const double& bed_friction_angle_rad;
   const double& fluid_viscosity;
   const double& yield_shear_stress;
+  const double& erosion_coefficient;
 
   double w0, w1;
 

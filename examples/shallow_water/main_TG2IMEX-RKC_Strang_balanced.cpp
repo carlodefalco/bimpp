@@ -28,7 +28,7 @@ static constexpr char VARNAME_2[255] = "mask_in";
 //static constexpr char VARNAME_3[255] = "mask_fin";
 
 // properties of the input dem
-static constexpr double res = 2e-1;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double res = 1.e-1;//0.005*500; // it is also the minimum resolution of the bim element
 static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
 static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
  
@@ -56,7 +56,6 @@ static constexpr bool is_initial_refinement     = false;
 static constexpr bool is_space_adaptivity       = false; 
 static constexpr bool is_non_reflBC             = true;
 static constexpr bool is_bed_friction           = false;
-static constexpr bool is_erosion                = false; 
 static constexpr bool is_stress_tensor          = false;
 static constexpr bool is_max_time_step_from_CFL = true; 
  
@@ -161,7 +160,7 @@ double h0_fun (const double& xx, const double& yy)
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+.1*std::exp(-1.*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return( std::abs(xx-L/2.)<=1.5 && std::abs(yy-H/2.)<=1.5 ? 2 : 1. );
-  return( xx<=L/2. && yy<=H/2. ? 2. : 1. ); 
+  //return( xx<=L/2. && yy<=H/2. ? 2. : 1. ); 
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=L/4. ? 2 : 0. ); 
   //return(xx<=L/2. ? 2 : 1. );
@@ -175,6 +174,9 @@ double h0_fun (const double& xx, const double& yy)
 
 
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
+  //return(10. - dem[global_coord_2_raster(xx,yy)[0]]);
+  //return(10. - (5.+xx/L));
+  return(10. - dem[global_coord_2_raster(xx,yy)[0]]);
 
   return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38. : 0.);
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
@@ -543,6 +545,9 @@ main (int argc, char **argv)
   Q0 sol_onehalf (ln_elements * 3);
   sol_onehalf.assign(sol_onehalf.size(), 0.0);
 
+  Q0 Z_onehalf (ln_elements);
+  Z_onehalf.assign(Z_onehalf.size(), 0.0);
+
   std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 3);
   
   Q1 Z (ln_nodes);
@@ -554,17 +559,6 @@ main (int argc, char **argv)
   // Q1 mask_fin (ln_nodes);
   // mask_fin.get_owned_data ().assign (mask_fin.get_owned_data ().size (), 0.0);
 
-  Q0 slope_x (ln_elements);
-  slope_x.assign (slope_x.size (), 0.0);
-
-  Q0 slope_y (ln_elements);
-  slope_y.assign (slope_y.size (), 0.0);
-
-  Q1 slope_x_node (ln_nodes);
-  slope_x_node.get_owned_data ().assign (slope_x_node.get_owned_data ().size (), 0.0);
-
-  Q1 slope_y_node (ln_nodes);
-  slope_y_node.get_owned_data ().assign (slope_y_node.get_owned_data ().size (), 0.0);
 
   std::string str = ""; 
   char filename[255]="", arr[255]="";
@@ -613,7 +607,6 @@ main (int argc, char **argv)
   compute_slope();
 
 
-
   // Initialize 
   TIC ();
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -622,9 +615,6 @@ main (int argc, char **argv)
   {
     double xx_c=quadrant->centroid(0);
     double yy_c=quadrant->centroid(1); 
-
-    slope_x[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];//-1;//std::abs(xx_c-L/2.)>=.5 ? 0. : -2.*(xx_c-L/2.);//dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
-    slope_y[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];//0;//dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
     
 
     for (int ii = 0; ii < 4; ++ii)
@@ -633,25 +623,17 @@ main (int argc, char **argv)
         double xx=quadrant->p(0,ii);
         double yy=quadrant->p(1,ii); 
         
-        sol [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy);//xx;//3.-std::max(2.-(xx-L/2.)*(xx-L/2.), 1.75);//h0_fun  (xx, yy);
+        sol [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy);
         sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
         sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
-
-        // if (dem_slope_x   [global_coord_2_raster(xx,yy)[0]]!=0)
-        // std::cout << dem_slope_x   [global_coord_2_raster(xx,yy)[0]] << std::endl;
         
-        Z           [quadrant->gt (ii)] = dem           [global_coord_2_raster(xx,yy)[0]]; // -xx+L;//std::max(2.-(xx-L/2.)*(xx-L/2.), 1.75);//dem           [global_coord_2_raster(xx,yy)[0]]; 
-        slope_x_node[quadrant->gt (ii)] = dem_slope_x   [global_coord_2_raster(xx,yy)[0]]; //-1;//std::abs(xx-L/2.)>=.5 ? 0. : -2.*(xx-L/2.);//dem_slope_x   [global_coord_2_raster(xx,yy)[0]]; 
-        slope_y_node[quadrant->gt (ii)] = dem_slope_y   [global_coord_2_raster(xx,yy)[0]];//0;//dem_slope_y   [global_coord_2_raster(xx,yy)[0]]; 
-        //mask_fin    [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]]; 
+        Z           [quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; 
 	      Newton_it   [quadrant->gt (ii)] = 0.;
-
       }
       
       else
       {
         // touch parent nodes to set up distributed vector structure
-        
         sol [ordh   (quadrant->gparent(0,ii))] += 0.;
         sol [ordh   (quadrant->gparent(1,ii))] += 0.;
         sol [ordUx  (quadrant->gparent(0,ii))] += 0.;
@@ -664,15 +646,6 @@ main (int argc, char **argv)
 
 	      Newton_it   [quadrant->gparent(0,ii)] += 0.;
         Newton_it   [quadrant->gparent(1,ii)] += 0.;
-
-        slope_x_node[quadrant->gparent(0,ii)] += 0.;
-        slope_x_node[quadrant->gparent(1,ii)] += 0.;
-
-        slope_y_node[quadrant->gparent(0,ii)] += 0.;
-        slope_y_node[quadrant->gparent(1,ii)] += 0.;
-
-        // mask_fin   [quadrant->gparent(0,ii)] += 0.;
-        // mask_fin   [quadrant->gparent(1,ii)] += 0.;
       }
     }
   }
@@ -687,12 +660,6 @@ main (int argc, char **argv)
 
   bim2a_solution_with_ghosts (tmsh, Newton_it, replace_op);
 
-  bim2a_solution_with_ghosts (tmsh, slope_x_node, replace_op);
-
-  bim2a_solution_with_ghosts (tmsh, slope_y_node, replace_op);
-
-  // bim2a_solution_with_ghosts (tmsh, mask_fin, replace_op);
-  
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
@@ -807,6 +774,9 @@ main (int argc, char **argv)
     Q0 sol_onehalf_ (ln_elements * 3);
     sol_onehalf_.assign (sol_onehalf_.size(), 0.0);
 
+    Q0 Z_onehalf_ (ln_elements);
+    Z_onehalf_.assign (Z_onehalf_.size(), 0.0);
+
     std::vector<std::array<double,4>> incr_anti_diff_ (ln_elements * 3);
 
 
@@ -814,19 +784,12 @@ main (int argc, char **argv)
     Q1 Z_ (ln_nodes);
     // Q1 mask_fin_ (ln_nodes);
     Q1 Newton_it_ (ln_nodes);
-    Q0 slope_x_(ln_elements);
-    Q0 slope_y_(ln_elements);
-    Q1 slope_x_node_(ln_nodes);
-    Q1 slope_y_node_(ln_nodes);
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep ();
          ++quadrant)
     {
       double xx_c=quadrant->centroid(0);
       double yy_c=quadrant->centroid(1); 
-
-      slope_x_[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
-      slope_y_[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
       
       for (int ii = 0; ii < 4; ++ii)
       {
@@ -839,9 +802,6 @@ main (int argc, char **argv)
           sol_ [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
 
           Z_[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]];
-
-          slope_x_node_[quadrant->gt (ii)] = dem_slope_x[global_coord_2_raster(xx,yy)[0]];
-          slope_y_node_[quadrant->gt (ii)] = dem_slope_y[global_coord_2_raster(xx,yy)[0]];
 
 	        Newton_it_[quadrant->gt (ii)] = 0.;
 
@@ -859,15 +819,6 @@ main (int argc, char **argv)
 
           Z_[quadrant->gparent(0,ii)] += 0.;
           Z_[quadrant->gparent(1,ii)] += 0.;
-
-          slope_x_node_[quadrant->gparent(0,ii)] += 0.;
-          slope_x_node_[quadrant->gparent(1,ii)] += 0.;
-
-          slope_y_node_[quadrant->gparent(0,ii)] += 0.;
-          slope_y_node_[quadrant->gparent(1,ii)] += 0.;
-
-          //mask_fin_[quadrant->gparent(0,ii)] += 0.;
-          //mask_fin_[quadrant->gparent(1,ii)] += 0.;
 	  
 	        Newton_it_[quadrant->gparent(0,ii)] += 0.;
           Newton_it_[quadrant->gparent(1,ii)] += 0.;
@@ -886,10 +837,6 @@ main (int argc, char **argv)
 
     bim2a_solution_with_ghosts (tmsh, Newton_it_, replace_op);
 
-    bim2a_solution_with_ghosts (tmsh, slope_x_node_, replace_op);
-
-    bim2a_solution_with_ghosts (tmsh, slope_y_node_, replace_op);
-
     //bim2a_solution_with_ghosts (tmsh, mask_fin_, replace_op);
     
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordh,  false);
@@ -903,12 +850,8 @@ main (int argc, char **argv)
     mass                = mass_;
     sol_onehalf         = sol_onehalf_;
     Z                   = Z_;
+    Z_onehalf           = Z_onehalf_;
     Newton_it 		      = Newton_it_;
-    slope_x_node        = slope_x_node_;
-    slope_y_node        = slope_y_node_;
-    //mask_fin            = mask_fin_;
-    slope_x             = slope_x_;
-    slope_y             = slope_y_;
   
     TOC ("compute initial condition");
   }
@@ -931,11 +874,8 @@ main (int argc, char **argv)
   Q1 mass_dyn                = mass;
   Q1 Z_dyn                   = Z;
   Q1 Newton_it_dyn 	         = Newton_it;
-  Q1 slope_x_node_dyn        = slope_x_node;
-  Q1 slope_y_node_dyn        = slope_y_node;
-  Q0 slope_x_dyn             = slope_x;
-  Q0 slope_y_dyn             = slope_y;
   Q0 sol_onehalf_dyn         = sol_onehalf;
+  Q0 Z_onehalf_dyn           = Z_onehalf;
 
   std::vector<std::array<double,4>> incr_anti_diff_dyn = incr_anti_diff;
 
@@ -960,12 +900,9 @@ main (int argc, char **argv)
                  mass_dyn,
                  ordh, ordUx, ordUy, 
                  Z_dyn,
+                 Z_onehalf_dyn,
 		             Newton_it_dyn, 
-                 slope_x_node_dyn,
-                 slope_y_node_dyn,
-                 slope_x_dyn,
-                 slope_y_dyn,
-                 DELTAT, h_min, is_non_reflBC, is_bed_friction, is_stress_tensor, is_erosion, grav,
+                 DELTAT, h_min, is_non_reflBC, is_bed_friction, is_stress_tensor, grav,
                  density, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress, erosion_coefficient);
   
   
@@ -1173,6 +1110,15 @@ main (int argc, char **argv)
     stp.set_times(time, time_old, time_oldd);
     soldd_dyn = sold_dyn;
     sold_dyn  = sol_dyn;
+
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    {
+      const auto & index_quadrant = quadrant->get_forest_quad_idx (); 
+
+      //if (std::abs(sol_onehalf[ordUx   (index_quadrant)])>1.e-14)
+      //std::cout << sol_onehalf[ordUx   (index_quadrant)] << std::endl;
+    }
     
 
     // low order solution
@@ -1180,21 +1126,18 @@ main (int argc, char **argv)
     {
       const auto & h_old_c = sol_dyn.         get_owned_data ()[kk  ];
 
-      const auto & Sx_c    = slope_x_node_dyn.get_owned_data ()[  int(kk/3)];
-      const auto & Sy_c    = slope_y_node_dyn.get_owned_data ()[  int(kk/3)];
-
-      //if (stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) - stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk)!=0) std::cout << stp.src_slope_formula(h_c, Sx_c, Sy_c, kk) - stp.src_slope_formula(h_old_c, Sx_c, Sy_c, kk) << std::endl;
+      //std::cout << sol_dyn.get_owned_data ()[kk  ]+Z_dyn.get_owned_data()[int(kk/3)] << std::endl;
 
       sol_dyn.get_owned_data ()[kk  ] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk  ]/mass_dyn.get_owned_data ()[kk  ];
       
       const auto & h_c     = sol_dyn.         get_owned_data ()[kk  ];
 
-      sol_dyn.get_owned_data ()[kk+1] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+1]/mass_dyn.get_owned_data ()[kk+1] + (stp.dt + stp.dt_old)*.5*.5*(stp.src_slope_formula(h_c, Sx_c) + stp.src_slope_formula(h_old_c, Sx_c));
-      sol_dyn.get_owned_data ()[kk+2] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+2]/mass_dyn.get_owned_data ()[kk+2] + (stp.dt + stp.dt_old)*.5*.5*(stp.src_slope_formula(h_c, Sy_c) + stp.src_slope_formula(h_old_c, Sy_c)); 
+      //std::cout << sol_dyn.         get_owned_data ()[kk  ]+Z_dyn.get_owned_data()[int(kk/3)] << std::endl;
+
+      sol_dyn.get_owned_data ()[kk+1] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+1]/mass_dyn.get_owned_data ()[kk+1];
+      sol_dyn.get_owned_data ()[kk+2] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+2]/mass_dyn.get_owned_data ()[kk+2];
     }
     sol_dyn.assemble(replace_op); 
-
-    //return(0);
 
 
 
@@ -1212,7 +1155,7 @@ main (int argc, char **argv)
     sol_dyn.assemble (replace_op);
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
-    
+
 
     
     // second order correction
@@ -1247,8 +1190,6 @@ main (int argc, char **argv)
     }
     sol_dyn.assemble (replace_op);
     //TOC("Apply increment");
-
-    //return 0;
 
 
 
@@ -1330,6 +1271,7 @@ main (int argc, char **argv)
 
     // compute here the coefficients!, it is to prepare the following loop
     stp.prepare_IMEXRKC_coefficients(s);
+
     
 
     //double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653)); // # of stages minimum is 2!!! otherwise errors inside for the recursion!
@@ -1399,7 +1341,6 @@ main (int argc, char **argv)
 
     //std::cout << "stop here!! " << std::endl;
     //return(0);
-
     
 
     stp.set_old_dt(stp.dt);
@@ -1426,6 +1367,7 @@ main (int argc, char **argv)
     }
 
 
+
     // 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
      quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -1447,16 +1389,12 @@ main (int argc, char **argv)
     {
       const auto & h_old_c = sol_dyn.         get_owned_data ()[kk  ];
 
-      const auto & Sx_c    = slope_x_node_dyn.get_owned_data ()[  int(kk/3)];
-      const auto & Sy_c    = slope_y_node_dyn.get_owned_data ()[  int(kk/3)];
-
-
       sol_dyn.get_owned_data ()[kk  ] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk  ]/mass_dyn.get_owned_data ()[kk  ];
       
       const auto & h_c     = sol_dyn.         get_owned_data ()[kk  ];
 
-      sol_dyn.get_owned_data ()[kk+1] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+1]/mass_dyn.get_owned_data ()[kk+1] + (stp.dt + stp.dt_old)*.5*.5*(stp.src_slope_formula(h_c, Sx_c) + stp.src_slope_formula(h_old_c, Sx_c));
-      sol_dyn.get_owned_data ()[kk+2] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+2]/mass_dyn.get_owned_data ()[kk+2] + (stp.dt + stp.dt_old)*.5*.5*(stp.src_slope_formula(h_c, Sy_c) + stp.src_slope_formula(h_old_c, Sy_c)); 
+      sol_dyn.get_owned_data ()[kk+1] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+1]/mass_dyn.get_owned_data ()[kk+1];
+      sol_dyn.get_owned_data ()[kk+2] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+2]/mass_dyn.get_owned_data ()[kk+2]; 
     }
     sol_dyn.assemble(replace_op);
 
@@ -1511,10 +1449,9 @@ main (int argc, char **argv)
     //TOC("Apply increment");
 
 
-
-
     // Save solution
-    if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) {
+    //if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) 
+    {
       //TIC();
       if (rank == 0)
         std::cout << "savecount = " << savecount << std::endl;
@@ -1831,13 +1768,12 @@ main (int argc, char **argv)
       Q0 sol_onehalf (ln_elements * 3);
       sol_onehalf.assign (sol_onehalf.size(), 0.0);
 
+      Q0 Z_onehalf (ln_elements);
+      Z_onehalf.assign (Z_onehalf.size(), 0.0);
+
 
       Q1 Z (ln_nodes);
       Q1 Newton_it (ln_nodes);
-      Q1 slope_x_node(ln_nodes);
-      Q1 slope_y_node(ln_nodes);
-      Q0 slope_x(ln_elements);
-      Q0 slope_y(ln_elements);
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
@@ -1845,9 +1781,6 @@ main (int argc, char **argv)
 
         double xx_c=quadrant->centroid(0);
         double yy_c=quadrant->centroid(1); 
-
-        slope_x[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
-        slope_y[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
         
         for (int ii = 0; ii < 4; ++ii)
         {
@@ -1856,8 +1789,6 @@ main (int argc, char **argv)
             double yy=quadrant->p(1,ii);
             Z           [quadrant->gt (ii)] = dem        [global_coord_2_raster(xx,yy)[0]]; 
 	          Newton_it   [quadrant->gt (ii)] = 0.;
-            slope_x_node[quadrant->gt (ii)] = dem_slope_x[global_coord_2_raster(xx,yy)[0]]; 
-            slope_y_node[quadrant->gt (ii)] = dem_slope_y[global_coord_2_raster(xx,yy)[0]]; 
           }
            
           else
@@ -1867,12 +1798,6 @@ main (int argc, char **argv)
 
 	          Newton_it[quadrant->gparent(0,ii)] += 0.;
             Newton_it[quadrant->gparent(1,ii)] += 0.;
-
-            slope_x_node[quadrant->gparent(0,ii)] += 0.;
-            slope_x_node[quadrant->gparent(1,ii)] += 0.;
-
-            slope_y_node[quadrant->gparent(0,ii)] += 0.;
-            slope_y_node[quadrant->gparent(1,ii)] += 0.;
           }
         }
       }
@@ -1880,10 +1805,6 @@ main (int argc, char **argv)
       bim2a_solution_with_ghosts (tmsh, Newton_it, replace_op);
       
       bim2a_solution_with_ghosts (tmsh, Z, replace_op);
-
-      bim2a_solution_with_ghosts (tmsh, slope_x_node, replace_op);
-
-      bim2a_solution_with_ghosts (tmsh, slope_y_node, replace_op);
       
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
@@ -1908,12 +1829,9 @@ main (int argc, char **argv)
       spec_radius_nodal_dyn   = incr;
       mass_dyn                = mass;
       sol_onehalf_dyn         = sol_onehalf;
+      Z_onehalf_dyn           = Z_onehalf;
       Z_dyn                   = Z;
       Newton_it_dyn 	        = Newton_it;	
-      slope_x_node_dyn        = slope_x_node;
-      slope_y_node_dyn        = slope_y_node;
-      slope_x_dyn             = slope_x;
-      slope_y_dyn             = slope_y;
 
 
       space_adapt_count = 0.0;
