@@ -138,10 +138,40 @@ global_coord_2_raster(const double& x,
   // nearest neighbor
   i_x =   std::round(x / res);
   i_y = - std::round(y / res) + (Ny-1);
-  
+
   ii = raster_2_vector(i_x,i_y);
   
   return(std::array<int,3>{{ ii,int(i_x),int(i_y) }});
+}
+
+
+static double
+dem_value(const double& x,
+          const double& y)
+{
+  // bilinear interp.
+  const double ix = x/res;
+  const double iy = -y/res + (Ny-1);
+
+  const std::array<double,2> ix_q = {std::floor(ix), std::ceil (ix)}; 
+  const std::array<double,2> iy_q = {std::floor(iy), std::ceil (iy)};
+
+  const auto Dx_adi = ix_q[1]-ix_q[0];
+  const auto Dy_adi = iy_q[1]-iy_q[0];
+
+  std::array<double,4> gamma = {0,0,0,0};
+  for (int i=0; i<2; i++)
+  {
+    for (int j=0; j<2; j++)
+    {
+      gamma[i+j*2] = dem[raster_2_vector(ix_q[(i+1)%2],iy_q[(j+1)%2])];
+
+      gamma[i+j*2] *= Dx_adi!= 0 ? std::abs(ix_q[i]-ix)/Dx_adi : .5;
+      gamma[i+j*2] *= Dy_adi!= 0 ? std::abs(iy_q[j]-iy)/Dy_adi : .5;
+    }
+  }
+  
+  return(gamma[0]+gamma[1]+gamma[2]+gamma[3]);
 }
 
 
@@ -176,7 +206,7 @@ double h0_fun (const double& xx, const double& yy)
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
   //return(10. - dem[global_coord_2_raster(xx,yy)[0]]);
   //return(10. - (5.+xx/L));
-  return(10. - dem[global_coord_2_raster(xx,yy)[0]]);
+  return(10. - dem_value(xx,yy));
 
   return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38. : 0.);
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
@@ -627,7 +657,7 @@ main (int argc, char **argv)
         sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
         sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
         
-        Z           [quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; 
+        Z           [quadrant->gt (ii)] = dem_value(xx,yy); 
 	      Newton_it   [quadrant->gt (ii)] = 0.;
       }
       
@@ -801,7 +831,7 @@ main (int argc, char **argv)
           sol_ [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
           sol_ [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
 
-          Z_[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]];
+          Z_[quadrant->gt (ii)] = dem_value(xx,yy);
 
 	        Newton_it_[quadrant->gt (ii)] = 0.;
 
@@ -1450,7 +1480,7 @@ main (int argc, char **argv)
 
 
     // Save solution
-    //if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) 
+    if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) 
     {
       //TIC();
       if (rank == 0)
@@ -1787,7 +1817,7 @@ main (int argc, char **argv)
           if (! quadrant->is_hanging (ii)){
             double xx=quadrant->p(0,ii);
             double yy=quadrant->p(1,ii);
-            Z           [quadrant->gt (ii)] = dem        [global_coord_2_raster(xx,yy)[0]]; 
+            Z           [quadrant->gt (ii)] = dem_value(xx,yy); 
 	          Newton_it   [quadrant->gt (ii)] = 0.;
           }
            
