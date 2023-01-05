@@ -25,7 +25,6 @@ public:
              Q1& incr,
              Q1& incr_initial_source,
              Q1& incr_source,
-             Q1& incr_source_balance,
              std::vector<std::array<double,4>>& incr_anti_diff,
              Q1& stress_initial_step,
              Q1& stress_step,
@@ -51,8 +50,7 @@ public:
              const double& surface_pressure,
              const double& bed_friction_angle_rad,
              const double& fluid_viscosity,
-             const double& yield_shear_stress,
-             const double& erosion_coefficient);
+             const double& yield_shear_stress);
   
   TG2_scheme() = delete;
   
@@ -73,9 +71,6 @@ public:
 
   void
   loop_step (const int& kk, const bool& isInitial);
-
-  void
-  loop_step_balance (tmesh::quadrant_iterator quadrant);
 
   void
   compute_stress_slope (tmesh::quadrant_iterator quadrant, const bool& isInitial);
@@ -161,6 +156,7 @@ public:
   std::array<double, 4> yn = {0, 0, 0, 0};
   
   // local dofs for state vector components
+  std::array<double, 4> etadof  = {0, 0, 0, 0};
   std::array<double, 4> hdof    = {0, 0, 0, 0};
   std::array<double, 4> Uxdof   = {0, 0, 0, 0};
   std::array<double, 4> Uydof   = {0, 0, 0, 0};
@@ -256,7 +252,6 @@ public:
   Q1& soldd_rkc;
   Q1& sol_ini_rkc;
   Q1& incr;
-  Q1& incr_source_balance;
   Q1& incr_initial_source;
   Q1& incr_source;
   std::vector<std::array<double,4>>& incr_anti_diff;
@@ -291,7 +286,6 @@ private:
   const double& bed_friction_angle_rad;
   const double& fluid_viscosity;
   const double& yield_shear_stress;
-  const double& erosion_coefficient;
 
   double w0, w1;
 

@@ -19,12 +19,12 @@
 #include "Taylor_Galerkin_IMEX-RKC_Strang_balanced.h"
 
 
-// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_second_test.octbin.gz inputs/mask_in_vladi.octbin.gz 
-// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_vladi.octbin.gz 
+// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_c_prop.octbin.gz inputs/mask_in_vladi.octbin.gz 
+// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
 
 
 static constexpr char VARNAME_1[255] = "dem"; 
-static constexpr char VARNAME_2[255] = "mask_in"; 
+static constexpr char VARNAME_2[255] = "mask_in";  
 //static constexpr char VARNAME_3[255] = "mask_fin";
 
 // properties of the input dem
@@ -36,20 +36,17 @@ static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
 static constexpr double L = res*(Nx-1);
 static constexpr double H = res*(Ny-1);
 static std::vector<double>   dem;
-static std::vector<double>   dem_slope_x;
-static std::vector<double>   dem_slope_y;
 static std::vector<double>   basin_mask;
-static std::vector<double>   basin_mask_fin; 
 static constexpr int NUM_REFINEMENTS  = 8; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10 
 
 
 
 static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = .01; // must never be null 
+static constexpr double SAVEDT = .5; // must never be null 
 static constexpr double DELTAT = .01; 
-static constexpr double REDCDT = .6; // it is the limit of the CFL condition
-static constexpr double T      = .1;
+static constexpr double REDCDT = .9; // it is the limit of the CFL condition
+static constexpr double T      = .5;
  
 static constexpr bool is_time_adaptivity        = false; 
 static constexpr bool is_initial_refinement     = false;
@@ -70,7 +67,6 @@ static constexpr double turbulence_coeff = 1.e3;
 static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double fluid_viscosity = 0.05;//10000;
 static constexpr double yield_shear_stress = 0.;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
-static constexpr double erosion_coefficient = 0.;
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution! 
@@ -206,6 +202,7 @@ double h0_fun (const double& xx, const double& yy)
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=150 ? 70 : 0. ); 
   //return(10. - dem[global_coord_2_raster(xx,yy)[0]]);
   //return(10. - (5.+xx/L));
+  //return(1.);
   return(10. - dem_value(xx,yy));
 
   return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38. : 0.);
@@ -273,137 +270,6 @@ assemble_vector (tmesh::quadrant_iterator& quadrant,
     rhs[ord (rows[r])] +=
     locrhs[i] / rows.size ();
   }
-}
-
-
-void
-compute_slope()
-{
-
-  int ii, jj;
-  for (ii=1; ii<(Ny-1); ii++)
-  {
-    for (jj=1; jj<(Nx-1); jj++)
-    {
-      const auto i_vec = raster_2_vector(jj,ii);
-
-      const auto i_vec_north = raster_2_vector(jj,ii-1);
-      const auto i_vec_south = raster_2_vector(jj,ii+1);
-
-      const auto i_vec_east = raster_2_vector(jj+1,ii);
-      const auto i_vec_west = raster_2_vector(jj-1,ii);
-
-      dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec_west ])/(2*res);
-      dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec_south])/(2*res);
-    }
-  }
-
-  ii = 0;
-  for (jj=1; jj<(Nx-1); jj++)
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_south = raster_2_vector(jj,ii+1);
-
-    const auto i_vec_east = raster_2_vector(jj+1,ii);
-    const auto i_vec_west = raster_2_vector(jj-1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec_west ])/(2*res);
-    dem_slope_y[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
-  }
-
-  ii = Ny-1;
-  for (jj=1; jj<(Nx-1); jj++)
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_north = raster_2_vector(jj,ii-1);
-
-    const auto i_vec_east = raster_2_vector(jj+1,ii);
-    const auto i_vec_west = raster_2_vector(jj-1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec_west ])/(2*res);
-    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
-  }
-
-  jj = 0;
-  for (ii=1; ii<(Ny-1); ii++)
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_north = raster_2_vector(jj,ii-1);
-    const auto i_vec_south = raster_2_vector(jj,ii+1);
-
-    const auto i_vec_east = raster_2_vector(jj+1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
-    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec_south])/(2*res);
-  }
-
-  jj = Nx-1;
-  for (ii=1; ii<(Ny-1); ii++)
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_north = raster_2_vector(jj,ii-1);
-    const auto i_vec_south = raster_2_vector(jj,ii+1);
-
-    const auto i_vec_west = raster_2_vector(jj-1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec ]-dem[i_vec_west ])/res;
-    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec_south])/(2*res);
-  }
-
-
-  // compute corner points
-  ii = 0; jj = 0;
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_south = raster_2_vector(jj,ii+1);
-
-    const auto i_vec_east = raster_2_vector(jj+1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec])/res;
-    dem_slope_y[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
-  }
-
-  ii = Ny-1; jj = 0;
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_north = raster_2_vector(jj,ii-1);
-
-    const auto i_vec_east = raster_2_vector(jj+1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec])/res;
-    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
-  }
-
-  ii = 0; jj = Nx-1;
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_south = raster_2_vector(jj,ii+1);
-
-    const auto i_vec_west = raster_2_vector(jj-1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec]-dem[i_vec_west ])/res;
-    dem_slope_y[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
-  }  
-
-  ii = Ny-1; jj = Nx-1;
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_north = raster_2_vector(jj,ii-1);
-
-    const auto i_vec_west = raster_2_vector(jj-1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec]-dem[i_vec_west ])/res;
-    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
-  }
-
 }
 
 
@@ -618,23 +484,7 @@ main (int argc, char **argv)
   basin_mask.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask.begin ());
 
-  /*
-  str = std::string(MASKFIN_DIR); 
-  strcpy(arr, str.c_str());
-  sprintf(filename, arr, 0);
-
-  
-  octave_io_open (filename, m_in, &m_out);
-  octave_load (VARNAME_3, v);
-  M = v.matrix_value ();
-  basin_mask_fin.resize (M.numel ());
-  std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask_fin.begin ());*/
   TOC("Load data matrix");
-  
-  // compute raster slope
-  dem_slope_x.resize(Nx*Ny);
-  dem_slope_y.resize(Nx*Ny);
-  compute_slope();
 
 
   // Initialize 
@@ -834,8 +684,6 @@ main (int argc, char **argv)
           Z_[quadrant->gt (ii)] = dem_value(xx,yy);
 
 	        Newton_it_[quadrant->gt (ii)] = 0.;
-
-          //mask_fin_ [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]];
         }
         
         else
@@ -895,7 +743,6 @@ main (int argc, char **argv)
   Q1 incr_dyn                = incr;
   Q1 incr_initial_source_dyn = incr;
   Q1 incr_source_dyn         = incr;
-  Q1 incr_source_balance_dyn = incr;
   Q1 stress_initial_step_dyn = incr;
   Q1 stress_step_dyn         = incr;
   Q1 P_plus_dyn              = incr;
@@ -919,7 +766,6 @@ main (int argc, char **argv)
                  incr_dyn,
                  incr_initial_source_dyn,
                  incr_source_dyn, 
-                 incr_source_balance_dyn,
                  incr_anti_diff_dyn,
                  stress_initial_step_dyn,
                  stress_step_dyn,
@@ -933,7 +779,7 @@ main (int argc, char **argv)
                  Z_onehalf_dyn,
 		             Newton_it_dyn, 
                  DELTAT, h_min, is_non_reflBC, is_bed_friction, is_stress_tensor, grav,
-                 density, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress, erosion_coefficient);
+                 density, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress);
   
   
   // Save initial conditions
@@ -1140,32 +986,12 @@ main (int argc, char **argv)
     stp.set_times(time, time_old, time_oldd);
     soldd_dyn = sold_dyn;
     sold_dyn  = sol_dyn;
-
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      const auto & index_quadrant = quadrant->get_forest_quad_idx (); 
-
-      //if (std::abs(sol_onehalf[ordUx   (index_quadrant)])>1.e-14)
-      //std::cout << sol_onehalf[ordUx   (index_quadrant)] << std::endl;
-    }
     
 
     // low order solution
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
+    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
     {
-      const auto & h_old_c = sol_dyn.         get_owned_data ()[kk  ];
-
-      //std::cout << sol_dyn.get_owned_data ()[kk  ]+Z_dyn.get_owned_data()[int(kk/3)] << std::endl;
-
-      sol_dyn.get_owned_data ()[kk  ] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk  ]/mass_dyn.get_owned_data ()[kk  ];
-      
-      const auto & h_c     = sol_dyn.         get_owned_data ()[kk  ];
-
-      //std::cout << sol_dyn.         get_owned_data ()[kk  ]+Z_dyn.get_owned_data()[int(kk/3)] << std::endl;
-
-      sol_dyn.get_owned_data ()[kk+1] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+1]/mass_dyn.get_owned_data ()[kk+1];
-      sol_dyn.get_owned_data ()[kk+2] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+2]/mass_dyn.get_owned_data ()[kk+2];
+      sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
     }
     sol_dyn.assemble(replace_op); 
 
@@ -1252,20 +1078,6 @@ main (int argc, char **argv)
       stp.loop_step(kk, true);
     }
     incr_initial_source_dyn.assemble (replace_op);
-
-    /*
-
-    incr_source_balance_dyn.get_owned_data ().assign (incr_source_balance_dyn.get_owned_data ().size (), 0.0);
-    incr_source_balance_dyn.assemble (replace_op);
-
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.loop_step_balance(quadrant);
-    }
-    incr_source_balance_dyn.assemble ();
-    */
-    
 
 
 
@@ -1849,7 +1661,6 @@ main (int argc, char **argv)
       sol_ini_rkc_dyn         = soldd;
       incr_dyn                = incr;
       incr_source_dyn         = incr;
-      incr_source_balance_dyn = incr;
       incr_initial_source_dyn = incr;
       incr_anti_diff_dyn      = incr_anti_diff;
       stress_initial_step_dyn = incr;
