@@ -5,7 +5,7 @@
 #include <bim_distributed_vector.h>
 #include <tmesh.h>
 #include <quad_operators.h>
-
+#include <complex>
  
 
 
@@ -33,26 +33,23 @@ public:
              Q1& spec_radius_nodal,
              Q0& sol_onehalf,
              Q1& mass,
-             const ordering& oh,
-             const ordering& on,
+             const ordering& ohw,
+             const ordering& ohs,
              const ordering& oUxw,
              const ordering& oUyw,
              const ordering& oUxs,
              const ordering& oUys,
              const Q1& Z,
              Q0& Z_onehalf,
-	           Q1& Newton_it,
              const double& DELTAT,
              const double& h_min,
              const bool& is_non_reflBC,
-             const bool& is_stress_tensor,
+             const bool& is_bed_friction,
              const double& grav,
              const double& density_w,
              const double& density_s,
              const double& turbulence_coeff,
              const double& bed_friction_angle_rad,
-             const double& fluid_viscosity,
-             const double& yield_shear_stress,
              const double& erosion_coefficient,
              const double& m_coeff,
              const double& terminal_velocity);
@@ -165,16 +162,17 @@ public:
   // local dofs for state vector components
   std::array<double, 4> etadof  = {0, 0, 0, 0};
   std::array<double, 4> hdof    = {0, 0, 0, 0};
-  std::array<double, 4> ndof    = {0, 0, 0, 0};
+  std::array<double, 4> hwdof   = {0, 0, 0, 0};
+  std::array<double, 4> hsdof   = {0, 0, 0, 0};
   std::array<double, 4> Uxwdof  = {0, 0, 0, 0};
   std::array<double, 4> Uywdof  = {0, 0, 0, 0};
   std::array<double, 4> Uxsdof  = {0, 0, 0, 0};
   std::array<double, 4> Uysdof  = {0, 0, 0, 0};
   std::array<double, 4> Z_node  = {0, 0, 0, 0};
-  std::array<double, 4> P_plus_h_dof    = {0, 0, 0, 0};
-  std::array<double, 4> P_minus_h_dof   = {0, 0, 0, 0};
-  std::array<double, 4> P_plus_n_dof    = {0, 0, 0, 0};
-  std::array<double, 4> P_minus_n_dof   = {0, 0, 0, 0};
+  std::array<double, 4> P_plus_hw_dof   = {0, 0, 0, 0};
+  std::array<double, 4> P_minus_hw_dof  = {0, 0, 0, 0};
+  std::array<double, 4> P_plus_hs_dof   = {0, 0, 0, 0};
+  std::array<double, 4> P_minus_hs_dof  = {0, 0, 0, 0};
   std::array<double, 4> P_plus_Uxw_dof  = {0, 0, 0, 0};
   std::array<double, 4> P_minus_Uxw_dof = {0, 0, 0, 0};
   std::array<double, 4> P_plus_Uyw_dof  = {0, 0, 0, 0};
@@ -188,8 +186,8 @@ public:
   // std::array<double, 4> source_Ux_node = {0, 0, 0, 0};
   // std::array<double, 4> source_Uy_node = {0, 0, 0, 0};
   
-  std::array<double, 4> fluxx_h_node     = {0, 0, 0, 0}, fluxy_h_node     = {0, 0, 0, 0};
-  std::array<double, 4> fluxx_n_node     = {0, 0, 0, 0}, fluxy_n_node     = {0, 0, 0, 0};
+  std::array<double, 4> fluxx_hw_node    = {0, 0, 0, 0}, fluxy_hw_node    = {0, 0, 0, 0};
+  std::array<double, 4> fluxx_hs_node    = {0, 0, 0, 0}, fluxy_hs_node    = {0, 0, 0, 0};
   std::array<double, 4> fluxx_Uwx_node   = {0, 0, 0, 0}, fluxy_Uwx_node   = {0, 0, 0, 0};
   std::array<double, 4> fluxx_Uwy_node   = {0, 0, 0, 0}, fluxy_Uwy_node   = {0, 0, 0, 0};
   std::array<double, 4> fluxx_Usx_node   = {0, 0, 0, 0}, fluxy_Usx_node   = {0, 0, 0, 0};
@@ -201,40 +199,40 @@ public:
   
   // flux functions
   double
-  h_flux_formula_x (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  hw_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  h_flux_formula_y (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  hw_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
 
   double
-  n_flux_formula_x (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  hs_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
 
   double
-  n_flux_formula_y (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  hs_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uwx_flux_formula_x (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uwx_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uwx_flux_formula_y (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uwx_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uwy_flux_formula_x (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uwy_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uwy_flux_formula_y (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uwy_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
 
   double
-  Usx_flux_formula_x (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Usx_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Usx_flux_formula_y (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Usx_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Usy_flux_formula_x (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Usy_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Usy_flux_formula_y (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Usy_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
 
 
   // stress functions
@@ -244,7 +242,7 @@ public:
 
   // max eigenvalues func
   std::array<double,2>
-  max_eigen (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  max_eigen (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
 
 
@@ -270,19 +268,22 @@ public:
   
   // source terms
   double
-  h_src_formula (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  hw_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uxs_src_formula (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  hs_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uys_src_formula (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uxs_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  
+  double
+  Uys_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
 
   double
-  Uxw_src_formula (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uxw_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uyw_src_formula (const double& h, const double& n, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uyw_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
 
 
   void
@@ -310,7 +311,6 @@ public:
   Q0& sol_onehalf;
   const Q1& Z;
   Q0& Z_onehalf;
-  Q1& Newton_it;
   Q1& stress_initial_step; 
   Q1& stress_step;
   Q1& mass;
@@ -318,10 +318,10 @@ public:
 private:
 
   std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y, der_coeffs_x_s, der_coeffs_y_s, D_U;
-  std::array<double, 2> grad_cell_eta, grad_cell_h, grad_cell_n, grad_cell_Uxw, grad_cell_Uyw, grad_cell_Uxs, grad_cell_Uys, grad_cell_ux, grad_cell_uy, grad_cell_spec;
+  std::array<double, 2> grad_cell_eta, grad_cell_hw, grad_cell_hs, grad_cell_Uxw, grad_cell_Uyw, grad_cell_Uxs, grad_cell_Uys, grad_cell_ux, grad_cell_uy, grad_cell_spec;
   
-  const ordering& ordh;
-  const ordering& ordn;
+  const ordering& ordhw;
+  const ordering& ordhs;
   const ordering& ordUxw;
   const ordering& ordUyw;
   const ordering& ordUxs;
@@ -329,15 +329,13 @@ private:
   const double& DELTAT;
   const double& epsilon;
   const bool& is_non_reflBC;
-  const bool& is_stress_tensor; 
   const double& grav;
   const double& erosion_coefficient;
   const double& density_w;
   const double& density_s;
   const double& turbulence_coeff;
+  const double& is_bed_friction;
   const double& bed_friction_angle_rad;
-  const double& fluid_viscosity;
-  const double& yield_shear_stress;
   const double& m_coeff;
   const double& terminal_velocity;
 
