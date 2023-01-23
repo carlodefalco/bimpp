@@ -5,7 +5,7 @@
 #include <bim_distributed_vector.h>
 #include <tmesh.h>
 #include <quad_operators.h>
-#include <complex>
+
  
 
 
@@ -26,11 +26,8 @@ public:
              Q1& incr_initial_source,
              Q1& incr_source,
              std::vector<std::array<double,4>>& incr_anti_diff,
-             Q1& stress_initial_step,
-             Q1& stress_step,
              Q1& P_plus,
              Q1& P_minus,
-             Q1& spec_radius_nodal,
              Q0& sol_onehalf,
              Q1& mass,
              const ordering& ohw,
@@ -58,30 +55,24 @@ public:
   
   ~TG2_scheme() = default;
   
+
+  std::array<double,2>
+  max_eigen (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   void
   compute_dt (tmesh::quadrant_iterator quadrant);
   
   void
   compute_dt_adaptive (tmesh::quadrant_iterator quadrant);
+
+  void
+  solve_non_lin(const int& kk);
   
   void
   first_step (tmesh::quadrant_iterator quadrant);
 
   void
   compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadrant);
-
-  void
-  solve_non_lin(const int& kk);
-
-  void
-  low_order_sol(const int& kk);
-
-  void
-  loop_step (const int& kk, const bool& isInitial);
-
-  void
-  compute_stress_slope (tmesh::quadrant_iterator quadrant, const bool& isInitial);
   
   void
   second_step (tmesh::quadrant_iterator quadrant);
@@ -91,8 +82,6 @@ public:
 
   void
   rkc(const int& j, const int& s, const int& kk);
-
-
 
   /*
   void
@@ -182,19 +171,13 @@ public:
   std::array<double, 4> P_plus_Uys_dof  = {0, 0, 0, 0};
   std::array<double, 4> P_minus_Uys_dof = {0, 0, 0, 0};
   
-  // std::array<double, 4> source_h_node  = {0, 0, 0, 0};
-  // std::array<double, 4> source_Ux_node = {0, 0, 0, 0};
-  // std::array<double, 4> source_Uy_node = {0, 0, 0, 0};
-  
   std::array<double, 4> fluxx_hw_node    = {0, 0, 0, 0}, fluxy_hw_node    = {0, 0, 0, 0};
   std::array<double, 4> fluxx_hs_node    = {0, 0, 0, 0}, fluxy_hs_node    = {0, 0, 0, 0};
-  std::array<double, 4> fluxx_Uwx_node   = {0, 0, 0, 0}, fluxy_Uwx_node   = {0, 0, 0, 0};
-  std::array<double, 4> fluxx_Uwy_node   = {0, 0, 0, 0}, fluxy_Uwy_node   = {0, 0, 0, 0};
-  std::array<double, 4> fluxx_Usx_node   = {0, 0, 0, 0}, fluxy_Usx_node   = {0, 0, 0, 0};
-  std::array<double, 4> fluxx_Usy_node   = {0, 0, 0, 0}, fluxy_Usy_node   = {0, 0, 0, 0};
+  std::array<double, 4> fluxx_Uxw_node   = {0, 0, 0, 0}, fluxy_Uxw_node   = {0, 0, 0, 0};
+  std::array<double, 4> fluxx_Uyw_node   = {0, 0, 0, 0}, fluxy_Uyw_node   = {0, 0, 0, 0};
+  std::array<double, 4> fluxx_Uxs_node   = {0, 0, 0, 0}, fluxy_Uxs_node   = {0, 0, 0, 0};
+  std::array<double, 4> fluxx_Uys_node   = {0, 0, 0, 0}, fluxy_Uys_node   = {0, 0, 0, 0};
   
-  
-  std::array<double, 3> sigma_stress = {0., 0., 0.};
   
   
   // flux functions
@@ -211,52 +194,31 @@ public:
   hs_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uwx_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uxw_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uwx_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uxw_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uwy_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uyw_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uwy_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uyw_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
 
   double
-  Usx_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uxs_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Usx_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uxs_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Usy_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uys_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Usy_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
-
-
-  // stress functions
-  double
-  U_stress_formula (const double& h, const double& Ux, const double& Uy);
-
-
-  // max eigenvalues func
-  std::array<double,2>
-  max_eigen (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uys_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
 
 
-  std::array<double,3>
-  compute_cell_stress (const double& Uxdof_0, const double& Uxdof_1, 
-  const double& Uxdof_2, const double& Uxdof_3, 
-  const double& Uydof_0, const double& Uydof_1, 
-  const double& Uydof_2, const double& Uydof_3);
-
-  std::array<double,6>
-  compute_cell_def_grad (const double& Uxdof_0, const double& Uxdof_1, 
-  const double& Uxdof_2, const double& Uxdof_3, 
-  const double& Uydof_0, const double& Uydof_1, 
-  const double& Uydof_2, const double& Uydof_3);
 
   // slope source terms
   double 
@@ -307,12 +269,9 @@ public:
   std::vector<std::array<double,4>>& incr_anti_diff;
   Q1& P_plus;
   Q1& P_minus;
-  Q1& spec_radius_nodal;
   Q0& sol_onehalf;
   const Q1& Z;
   Q0& Z_onehalf;
-  Q1& stress_initial_step; 
-  Q1& stress_step;
   Q1& mass;
   
 private:
@@ -343,6 +302,8 @@ private:
 
   // 5 arrays of storage as in Verwer's paper IMEX-RKCs,
   std::vector<double> b_vect, mu_tilde_vect, gamma_tilde_vect, v_vect, mu_vect;
+
+  const double r_coeff = density_w/density_s;
 
   const double tol_incr = 1e-8;
 

@@ -19,29 +19,25 @@
 #include "Taylor_Galerkin_IMEX-RKC_Strang_balanced_two_phase.h"
 
 
-// mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz 
-// mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz 
-// mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal_2.octbin.gz 
-
-/*
-Two-Phase Two-Layer Depth-Integrated SPH-FD Model:
-Application to Lahars and Debris Flows
-*/
+// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_c_prop.octbin.gz inputs/mask_in_vladi.octbin.gz 
+// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
+// mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
 
 
 static constexpr char VARNAME_1[255] = "dem"; 
-static constexpr char VARNAME_2[255] = "mask_in";
+static constexpr char VARNAME_2[255] = "mask_in"; 
+//static constexpr char VARNAME_3[255] = "mask_fin";
 
 // properties of the input dem
-static constexpr double res = .1;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 101;//449;//101; // # columns
-static constexpr double Ny = 101;//544;//101; // # rows
+static constexpr double res = 10.;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 449;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 544;//101;//175;//201;//180; // # rows
  
   
 static constexpr double L = res*(Nx-1);
 static constexpr double H = res*(Ny-1);
-static std::vector<double> dem;
-static std::vector<double> h_initial_cond;
+static std::vector<double>   dem;
+static std::vector<double>   h_initial_cond;
 static constexpr int NUM_REFINEMENTS  = 7; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10 
 
@@ -50,22 +46,22 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
 static constexpr double SAVEDT = .1; // must never be null 
 static constexpr double DELTAT = .1; 
-static constexpr double REDCDT = .7; // it is the limit of the CFL condition
-static constexpr double T      = 5.;
+static constexpr double REDCDT = .9; // it is the limit of the CFL condition
+static constexpr double T      = .5;
  
 static constexpr bool is_time_adaptivity        = false; 
 static constexpr bool is_initial_refinement     = false;
-static constexpr bool is_space_adaptivity       = false;
-static constexpr bool is_non_reflBC             = true; 
-static constexpr bool is_bed_friction           = false;
-static constexpr bool is_max_time_step_from_CFL = true; 
+static constexpr bool is_space_adaptivity       = false; 
+static constexpr bool is_non_reflBC             = true;
+static constexpr bool is_bed_friction           = true;
+static constexpr bool is_max_time_step_from_CFL = true;  
  
 
 static constexpr double h_min = 1e-5;
 static constexpr double grav = 9.81;
 
 // variables that can be used for UQ
-static constexpr double density = 2370.;
+static constexpr double density = 1800.;
 static constexpr double density_s = 2000.; 
 static constexpr double density_w = 1000.; 
 static constexpr double turbulence_coeff = 1.e10;
@@ -76,7 +72,7 @@ static constexpr double terminal_velocity = 1.e10; // non può essere nulla!
 
 
 static constexpr double level_wet           = 3;  
-static constexpr double level_interface     = 6; // minimum resolution! 
+static constexpr double level_interface     = 6; // minimum resolution!  
 static constexpr double mesh_size_dry       = res/3;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
 static constexpr double mesh_size_wet       = res/10;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
 static constexpr double mesh_size_interface = res/10;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
@@ -148,6 +144,7 @@ global_coord_2_raster(const double& x,
 }
 
 
+
 static double
 raster_value(const double& x,
              const double& y,
@@ -178,14 +175,16 @@ raster_value(const double& x,
   return(gamma[0]+gamma[1]+gamma[2]+gamma[3]);
 }
 
-
-
 using Q1  = q1_vec<distributed_vector>;  // Typedef for distributed q_1 vector
-using Q0  = std::vector<double>; // Typedef for local q_0 vector 
+using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;         // Typedef for local q_0 vector // distributed_vector
+
 
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 { 
+  //return(yy<L/2. ? 10 : 0.);
+  //return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
+  //return(std::sqrt( (xx-L/2.)*(xx-L/2.) + (yy-H/2.)*(yy-H/2.) )<=L/10 ? 10 : 0. );
   return(raster_value(xx,yy,h_initial_cond));
 }
 
@@ -194,7 +193,6 @@ double Uy0_w_fun (double xx, double yy) { return 0.; }
 
 double Ux0_s_fun (double xx, double yy) { return 0.; }
 double Uy0_s_fun (double xx, double yy) { return 0.; }
-
 
 // Assemble vector from mesh.
 // FIXME  the following two functions are copied over from
@@ -444,17 +442,6 @@ main (int argc, char **argv)
   h_initial_cond.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), h_initial_cond.begin ());
 
-  /*
-  str = std::string(MASKFIN_DIR); 
-  strcpy(arr, str.c_str());
-  sprintf(filename, arr, 0);
-
-  
-  octave_io_open (filename, m_in, &m_out);
-  octave_load (VARNAME_3, v);
-  M = v.matrix_value ();
-  basin_mask_fin.resize (M.numel ());
-  std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask_fin.begin ());*/
   TOC("Load data matrix");
 
 
@@ -473,18 +460,18 @@ main (int argc, char **argv)
       if (! quadrant->is_hanging (ii)){
         double xx=quadrant->p(0,ii);
         double yy=quadrant->p(1,ii); 
-
+        
         const double initial_porosity_coeff = (density_s - density)/(density_s - density_w);
 
         
-        sol [ordhw    (quadrant->gt (ii))] = xx>L/2. ? (1.-.4)*2 : (1.-.7)*3;//h0_fun  (xx, yy)*initial_porosity_coeff;
-        sol [ordhs    (quadrant->gt (ii))] = xx>L/2. ? .4*2 : .7*3;//h0_fun  (xx, yy)*(1.-initial_porosity_coeff);
-        sol [ordUxw   (quadrant->gt (ii))] = sol [ordhw    (quadrant->gt (ii))]* (xx>L/2. ? -.1 : .3);//Ux0_w_fun (xx, yy);
+        sol [ordhw    (quadrant->gt (ii))] = h0_fun  (xx, yy)*initial_porosity_coeff;
+        sol [ordhs    (quadrant->gt (ii))] = h0_fun  (xx, yy)*(1.-initial_porosity_coeff);
+        sol [ordUxw   (quadrant->gt (ii))] = Ux0_w_fun (xx, yy);
         sol [ordUyw   (quadrant->gt (ii))] = Uy0_w_fun (xx, yy);
-        sol [ordUxs   (quadrant->gt (ii))] = sol [ordhs    (quadrant->gt (ii))]* (xx>L/2. ? -.9 : -1.4);//Ux0_s_fun (xx, yy);
+        sol [ordUxs   (quadrant->gt (ii))] = Ux0_s_fun (xx, yy);
         sol [ordUys   (quadrant->gt (ii))] = Uy0_s_fun (xx, yy);
         
-        Z           [quadrant->gt (ii)] = raster_value(xx,yy,dem); //15.-h0_fun  (xx, yy);//raster_value(xx,yy,dem); 
+        Z           [quadrant->gt (ii)] = raster_value(xx,yy,dem);
       }
       
       else
@@ -648,7 +635,6 @@ main (int argc, char **argv)
 
     Q1 sol_ (ln_nodes * 6);
     Q1 Z_ (ln_nodes);
-    // Q1 mask_fin_ (ln_nodes);
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep ();
          ++quadrant)
@@ -670,10 +656,9 @@ main (int argc, char **argv)
           sol_ [ordUyw   (quadrant->gt (ii))] = Uy0_w_fun (xx, yy);
           sol_ [ordUxs   (quadrant->gt (ii))] = Ux0_s_fun (xx, yy);
           sol_ [ordUys   (quadrant->gt (ii))] = Uy0_s_fun (xx, yy);
+          
 
           Z_[quadrant->gt (ii)] = raster_value(xx,yy,dem);
-
-          //mask_fin_ [quadrant->gt (ii)] = basin_mask_fin[global_coord_2_raster(xx,yy)[0]];
         }
         
         else
@@ -696,6 +681,9 @@ main (int argc, char **argv)
         }
       }
     }
+
+
+
 
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordhw,  false);
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordhs,  false);
@@ -736,11 +724,8 @@ main (int argc, char **argv)
   Q1 incr_dyn                = incr;
   Q1 incr_initial_source_dyn = incr;
   Q1 incr_source_dyn         = incr;
-  Q1 stress_initial_step_dyn = incr;
-  Q1 stress_step_dyn         = incr;
   Q1 P_plus_dyn              = incr;
   Q1 P_minus_dyn             = incr;  
-  Q1 spec_radius_nodal_dyn   = incr;
   Q1 mass_dyn                = mass;
   Q1 Z_dyn                   = Z;
   Q0 sol_onehalf_dyn         = sol_onehalf;
@@ -759,18 +744,30 @@ main (int argc, char **argv)
                  incr_initial_source_dyn,
                  incr_source_dyn, 
                  incr_anti_diff_dyn,
-                 stress_initial_step_dyn,
-                 stress_step_dyn,
                  P_plus_dyn, 
                  P_minus_dyn, 
-                 spec_radius_nodal_dyn,
                  sol_onehalf_dyn, 
                  mass_dyn,
-                 ordhw, ordhs, ordUxw, ordUyw, ordUxs, ordUys, 
+                 ordhw, 
+                 ordhs, 
+                 ordUxw, 
+                 ordUyw, 
+                 ordUxs, 
+                 ordUys, 
                  Z_dyn,
                  Z_onehalf_dyn,
-                 DELTAT, h_min, is_non_reflBC, is_bed_friction, grav,
-                 density_w, density_s, turbulence_coeff, bed_friction_angle_rad, erosion_coefficient, m_coeff, terminal_velocity);
+                 DELTAT, 
+                 h_min, 
+                 is_non_reflBC, 
+                 is_bed_friction, 
+                 grav,
+                 density_w, 
+                 density_s, 
+                 turbulence_coeff, 
+                 bed_friction_angle_rad, 
+                 erosion_coefficient, 
+                 m_coeff, 
+                 terminal_velocity);
   
   
   // Save initial conditions
@@ -809,7 +806,6 @@ main (int argc, char **argv)
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0); 
   tmsh.octbin_export (filename, Z_dyn);
-
 
   // str = std::string(SAVE_DIR) + "/results/mask_fin_%4.4d";
   // strcpy(arr, str.c_str());
@@ -876,12 +872,6 @@ main (int argc, char **argv)
 
     P_minus_dyn.get_owned_data ().assign (P_minus_dyn.get_owned_data ().size (), 0.0);
     P_minus_dyn.assemble (replace_op);
-
-    stress_initial_step_dyn.get_owned_data ().assign (stress_initial_step_dyn.get_owned_data ().size (), 0.0);
-    stress_initial_step_dyn.assemble (replace_op);
-
-    spec_radius_nodal_dyn.get_owned_data ().assign (spec_radius_nodal_dyn.get_owned_data ().size (), 0.0);
-    spec_radius_nodal_dyn.assemble (replace_op);
     //TOC("Reset");
     //TIC();
     
@@ -972,8 +962,7 @@ main (int argc, char **argv)
     {
       stp.first_step(quadrant);
     }
-
-
+    
 
     // 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -998,11 +987,6 @@ main (int argc, char **argv)
     }
     sol_dyn.assemble(replace_op); 
 
-    //for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
-    //{
-    //  sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
-    //}
-    //sol_dyn.assemble(replace_op); 
 
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -1050,16 +1034,17 @@ main (int argc, char **argv)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhw (quadrant->gt (ii))] < 0){
+        if (! quadrant->is_hanging (ii) && sol_dyn [ordhw    (quadrant->gt (ii))]<0){
           sol_dyn [ordhw    (quadrant->gt (ii))] = 0.; //h_min; //0.;
         }
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhs (quadrant->gt (ii))] < 0){
+        if (! quadrant->is_hanging (ii) && sol_dyn [ordhs    (quadrant->gt (ii))]<0){
           sol_dyn [ordhs    (quadrant->gt (ii))] = 0.; //h_min; //0.;
         }
       }
     }
     sol_dyn.assemble (replace_op);
     //TOC("Apply increment");
+
 
 
     // Verwer IMEX-RKC
@@ -1069,23 +1054,20 @@ main (int argc, char **argv)
 
     double s = 1.;
 
-
     // compute here the coefficients!, it is to prepare the following loop
     stp.prepare_IMEXRKC_coefficients(s);
 
     
 
+    //double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653)); // # of stages minimum is 2!!! otherwise errors inside for the recursion!
     for (int jj = 1; jj <= s; jj++)
     {
       for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
       {
         stp.rkc(jj, s, kk);
       }
-      sol_dyn.assemble(replace_op);   
+      sol_dyn.assemble(replace_op);        
     }
-    
-
-
     
 
     stp.set_old_dt(stp.dt);
@@ -1136,12 +1118,6 @@ main (int argc, char **argv)
     }
     sol_dyn.assemble(replace_op); 
 
-    //for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
-    //{
-    //  sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk]; 
-    //}
-    //sol_dyn.assemble(replace_op);
-
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
       quadrant != tmsh.end_quadrant_sweep ();
@@ -1182,18 +1158,18 @@ main (int argc, char **argv)
 
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
-     quadrant != tmsh.end_quadrant_sweep ();
-     ++quadrant)
+      quadrant != tmsh.end_quadrant_sweep ();
+      ++quadrant)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhw (quadrant->gt (ii))] < 0)
+        if (! quadrant->is_hanging (ii) && sol_dyn [ordhw    (quadrant->gt (ii))]<0)
         {
-          sol_dyn [ordhw    (quadrant->gt (ii))] = 0.; //h_min; //0.;
+          sol_dyn [ordhw    (quadrant->gt (ii))] = 0.; 
         }
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhs (quadrant->gt (ii))] < 0)
+        if (! quadrant->is_hanging (ii) && sol_dyn [ordhs    (quadrant->gt (ii))]<0)
         {
-          sol_dyn [ordhs    (quadrant->gt (ii))] = 0.; //h_min; //0.;
+          sol_dyn [ordhs    (quadrant->gt (ii))] = 0.; 
         }
       }
     }
@@ -1209,7 +1185,6 @@ main (int argc, char **argv)
         std::cout << "savecount = " << savecount << std::endl;
       count++;
       save_time_vector.push_back (time);
-
 
      
       str = std::string(SAVE_DIR) + "/results/swe_hw_%4.4d";
@@ -1470,7 +1445,7 @@ main (int argc, char **argv)
           if (! quadrant->is_hanging (ii)){
             double xx=quadrant->p(0,ii);
             double yy=quadrant->p(1,ii);
-            Z           [quadrant->gt (ii)] = raster_value(xx,yy,dem); 
+            Z           [quadrant->gt (ii)] = raster_value(xx,yy,dem);
           }
            
           else
@@ -1501,11 +1476,8 @@ main (int argc, char **argv)
       incr_source_dyn         = incr;
       incr_initial_source_dyn = incr;
       incr_anti_diff_dyn      = incr_anti_diff;
-      stress_initial_step_dyn = incr;
-      stress_step_dyn         = incr;
       P_plus_dyn              = incr;
       P_minus_dyn             = incr;
-      spec_radius_nodal_dyn   = incr;
       mass_dyn                = mass;
       sol_onehalf_dyn         = sol_onehalf;
       Z_onehalf_dyn           = Z_onehalf;
