@@ -212,7 +212,7 @@ void
 TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 {
   
-  const auto & index_quadrant = quadrant->get_forest_quad_idx (); 
+  const auto & index_quadrant = quadrant->get_global_quad_idx (); 
   
   for (int ii = 0; ii < 4; ++ii)
   {
@@ -523,7 +523,7 @@ TG2_scheme::solve_non_lin(const int& kk)
   const double rhs_1x = Uxw_c;
   const double rhs_2x = Uxs_c;
 
-  const double big_detx = big_Ax*big_Dx-big_Bx*big_Cx;
+  const double big_detx = big_Ax*big_Dx-big_Bx*big_Cx; 
 
   const double big_Ay = 1. + ((hw_c>epsilon) ? tau*cy_sgn/hw_c*h_c : 0.);
   const double big_By = hs_c>epsilon ? -tau*cy_sgn/hs_c*h_c : 0.;
@@ -552,8 +552,9 @@ void
 TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadrant)
 {
 
-  // look at tmesh.h
-  const auto & index_quadrant = quadrant->get_forest_quad_idx (); 
+  // look at tmesh.h 
+  const auto & index_quadrant = quadrant->get_global_quad_idx (); 
+  const auto & index_quadrant_local = quadrant->get_forest_quad_idx ();
 
   std::array<int,4> bimpp_to_rev_ord = {0, 1, 3, 2};
   
@@ -670,7 +671,10 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
         Yn[ii] = quadrant_nei->p(1, ii);
       }
 
-      const auto & index_quadrant_nei = quadrant_nei->get_forest_quad_idx (); 
+      const auto & index_quadrant_nei = quadrant_nei->get_global_quad_idx ();
+      //const auto & index_quadrant_nei_global = quadrant_nei->get_global_quad_idx (); 
+
+      //std::cout << quadrant_nei->get_forest_quad_idx () << " " << quadrant_nei->get_global_quad_idx (); << std::endl;
 
       for (int jEdge = 0; jEdge < 4; ++jEdge) { // cycle neigh edges 
 
@@ -883,13 +887,13 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
     const auto Uxs_al = der_coeffs_x[ii]*diff_term_Uxs_x + der_coeffs_y[ii]*diff_term_Uxs_y;
     const auto Uys_al = der_coeffs_x[ii]*diff_term_Uys_x + der_coeffs_y[ii]*diff_term_Uys_y;
 
-    incr_anti_diff[ordhw (index_quadrant)][ii] = hw_al;
-    incr_anti_diff[ordUxw(index_quadrant)][ii] = Uxw_al;
-    incr_anti_diff[ordUyw(index_quadrant)][ii] = Uyw_al;
+    incr_anti_diff[ordhw (index_quadrant_local)][ii] = hw_al;
+    incr_anti_diff[ordUxw(index_quadrant_local)][ii] = Uxw_al;
+    incr_anti_diff[ordUyw(index_quadrant_local)][ii] = Uyw_al;
 
-    incr_anti_diff[ordhs (index_quadrant)][ii] = hs_al;
-    incr_anti_diff[ordUxs(index_quadrant)][ii] = Uxs_al;
-    incr_anti_diff[ordUys(index_quadrant)][ii] = Uys_al;
+    incr_anti_diff[ordhs (index_quadrant_local)][ii] = hs_al;
+    incr_anti_diff[ordUxs(index_quadrant_local)][ii] = Uxs_al;
+    incr_anti_diff[ordUys(index_quadrant_local)][ii] = Uys_al;
 
 
     if (! quadrant->is_hanging (ii)){

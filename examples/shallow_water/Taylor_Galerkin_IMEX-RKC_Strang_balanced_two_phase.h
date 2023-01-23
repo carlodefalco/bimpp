@@ -12,7 +12,7 @@
 class TG2_scheme  
 {
   using Q1  = q1_vec<distributed_vector>;
-  using Q0  = std::vector<double>;
+  using Q0  = distributed_vector;
   
 public:
   

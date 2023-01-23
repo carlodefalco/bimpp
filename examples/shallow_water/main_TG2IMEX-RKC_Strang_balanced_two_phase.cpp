@@ -23,15 +23,16 @@
 // mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
 // mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
 
+// mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
 
 static constexpr char VARNAME_1[255] = "dem"; 
 static constexpr char VARNAME_2[255] = "mask_in"; 
 //static constexpr char VARNAME_3[255] = "mask_fin";
 
 // properties of the input dem
-static constexpr double res = 10.;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 449;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 544;//101;//175;//201;//180; // # rows
+static constexpr double res = .1;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
  
   
 static constexpr double L = res*(Nx-1);
@@ -53,7 +54,7 @@ static constexpr bool is_time_adaptivity        = false;
 static constexpr bool is_initial_refinement     = false;
 static constexpr bool is_space_adaptivity       = false; 
 static constexpr bool is_non_reflBC             = true;
-static constexpr bool is_bed_friction           = true;
+static constexpr bool is_bed_friction           = false;
 static constexpr bool is_max_time_step_from_CFL = true;  
  
 
@@ -61,11 +62,11 @@ static constexpr double h_min = 1e-5;
 static constexpr double grav = 9.81;
 
 // variables that can be used for UQ
-static constexpr double density = 1800.;
+static constexpr double density = 2370.;
 static constexpr double density_s = 2000.; 
 static constexpr double density_w = 1000.; 
 static constexpr double turbulence_coeff = 1.e10;
-static constexpr double bed_friction_angle_rad = 0.*33.9*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
+static constexpr double bed_friction_angle_rad = 0.*17.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double erosion_coefficient = 0.*5e-5; // 0.
 static constexpr double m_coeff = 1.;
 static constexpr double terminal_velocity = 1.e10; // non può essere nulla!
@@ -73,8 +74,8 @@ static constexpr double terminal_velocity = 1.e10; // non può essere nulla!
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution!  
-static constexpr double mesh_size_dry       = res/3;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res/10;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_dry       = res*10.;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
+static constexpr double mesh_size_wet       = res/5;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
 static constexpr double mesh_size_interface = res/10;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
@@ -176,7 +177,7 @@ raster_value(const double& x,
 }
 
 using Q1  = q1_vec<distributed_vector>;  // Typedef for distributed q_1 vector
-using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;         // Typedef for local q_0 vector // distributed_vector
+using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;         // Typedef for local q_0 vector // distributed_vector
 
 
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
@@ -400,10 +401,11 @@ main (int argc, char **argv)
   mass.assemble ();
   
   Q0 sol_onehalf (ln_elements * 6);
-  sol_onehalf.assign(sol_onehalf.size(), 0.0);
+  sol_onehalf.get_owned_data  ().assign (sol_onehalf.get_owned_data  ().size (), 0.0);
 
   Q0 Z_onehalf (ln_elements);
-  Z_onehalf.assign(Z_onehalf.size(), 0.0);
+  Z_onehalf.get_owned_data  ().assign (Z_onehalf.get_owned_data  ().size (), 0.0);
+
 
   std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 6);
   
@@ -464,11 +466,11 @@ main (int argc, char **argv)
         const double initial_porosity_coeff = (density_s - density)/(density_s - density_w);
 
         
-        sol [ordhw    (quadrant->gt (ii))] = h0_fun  (xx, yy)*initial_porosity_coeff;
-        sol [ordhs    (quadrant->gt (ii))] = h0_fun  (xx, yy)*(1.-initial_porosity_coeff);
-        sol [ordUxw   (quadrant->gt (ii))] = Ux0_w_fun (xx, yy);
+        sol [ordhw    (quadrant->gt (ii))] = xx>L/2. ? (1.-.4)*2 : (1.-.7)*3;
+        sol [ordhs    (quadrant->gt (ii))] = xx>L/2. ? .4*2 : .7*3;
+        sol [ordUxw   (quadrant->gt (ii))] = sol [ordhw    (quadrant->gt (ii))]* (xx>L/2. ? -.1 : .3);
         sol [ordUyw   (quadrant->gt (ii))] = Uy0_w_fun (xx, yy);
-        sol [ordUxs   (quadrant->gt (ii))] = Ux0_s_fun (xx, yy);
+        sol [ordUxs   (quadrant->gt (ii))] = sol [ordhs    (quadrant->gt (ii))]* (xx>L/2. ? -.9 : -1.4);
         sol [ordUys   (quadrant->gt (ii))] = Uy0_s_fun (xx, yy);
         
         Z           [quadrant->gt (ii)] = raster_value(xx,yy,dem);
@@ -616,8 +618,8 @@ main (int argc, char **argv)
     incr_.assemble ();
   
     Q1 mass_ (ln_nodes * 6);
-    bim2a_mass_vector (tmsh, mass_, ordhw);
-    bim2a_mass_vector (tmsh, mass_, ordhs);
+    bim2a_mass_vector (tmsh, mass_, ordhw );
+    bim2a_mass_vector (tmsh, mass_, ordhs );
     bim2a_mass_vector (tmsh, mass_, ordUxw);
     bim2a_mass_vector (tmsh, mass_, ordUyw);
     bim2a_mass_vector (tmsh, mass_, ordUxs);
@@ -625,10 +627,11 @@ main (int argc, char **argv)
     mass_.assemble ();
   
     Q0 sol_onehalf_ (ln_elements * 6);
-    sol_onehalf_.assign (sol_onehalf_.size(), 0.0);
+    sol_onehalf_.get_owned_data ().assign (sol_onehalf_.get_owned_data ().size(), 0.0);
 
     Q0 Z_onehalf_ (ln_elements);
-    Z_onehalf_.assign (Z_onehalf_.size(), 0.0);
+    Z_onehalf_.get_owned_data ().assign (Z_onehalf_.get_owned_data ().size(), 0.0);
+
 
     std::vector<std::array<double,4>> incr_anti_diff_ (ln_elements * 6);
 
@@ -988,6 +991,16 @@ main (int argc, char **argv)
     sol_dyn.assemble(replace_op); 
 
 
+    //std::cout << incr_dyn.get_owned_data ().size () << " " << sol_dyn.get_owned_data ().size() << " " <<  mass_dyn.get_owned_data ().size() << std::endl; 
+
+    // low order solution
+    //for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
+    //{
+    //  sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
+    //}
+    //sol_dyn.assemble(replace_op); 
+
+
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep ();
@@ -1019,6 +1032,7 @@ main (int argc, char **argv)
     //TOC("Compute step");
 
     
+    // mpirun -np 2 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
     
 
     //TIC();
@@ -1075,6 +1089,7 @@ main (int argc, char **argv)
  
     stp.set_old_dt(0.);
 
+
     // first, Strang half step!
 
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
@@ -1105,11 +1120,7 @@ main (int argc, char **argv)
     P_plus_dyn.assemble ();
     P_minus_dyn.assemble ();
 
-    /*
-    stp.set_times(time, time_old, time_oldd);
-    soldd_dyn = sold_dyn;
-    sold_dyn  = sol_dyn;
-    */
+
 
     // low order solution
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
@@ -1425,10 +1436,11 @@ main (int argc, char **argv)
       mass.assemble ();
       
       Q0 sol_onehalf (ln_elements * 6);
-      sol_onehalf.assign (sol_onehalf.size(), 0.0);
+      sol_onehalf.get_owned_data ().assign (sol_onehalf.get_owned_data ().size(), 0.0);
+
 
       Q0 Z_onehalf (ln_elements);
-      Z_onehalf.assign (Z_onehalf.size(), 0.0);
+      Z_onehalf.get_owned_data ().assign (Z_onehalf.get_owned_data ().size(), 0.0);
 
 
       Q1 Z (ln_nodes);
