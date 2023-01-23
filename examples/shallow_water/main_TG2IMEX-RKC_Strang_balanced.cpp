@@ -28,7 +28,7 @@ static constexpr char VARNAME_2[255] = "mask_in";
 //static constexpr char VARNAME_3[255] = "mask_fin";
 
 // properties of the input dem
-static constexpr double res = 1.e-1;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double res = .1;//0.005*500; // it is also the minimum resolution of the bim element
 static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
 static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
  
@@ -37,13 +37,13 @@ static constexpr double L = res*(Nx-1);
 static constexpr double H = res*(Ny-1);
 static std::vector<double>   dem;
 static std::vector<double>   basin_mask;
-static constexpr int NUM_REFINEMENTS  = 8; // 8 
+static constexpr int NUM_REFINEMENTS  = 7; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10 
 
 
 
 static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = .5; // must never be null 
+static constexpr double SAVEDT = .01; // must never be null 
 static constexpr double DELTAT = .01; 
 static constexpr double REDCDT = .9; // it is the limit of the CFL condition
 static constexpr double T      = .5;
@@ -69,7 +69,7 @@ static constexpr double fluid_viscosity = 0.05;//10000;
 static constexpr double yield_shear_stress = 0.;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
 static constexpr double level_wet           = 3;  
-static constexpr double level_interface     = 6; // minimum resolution! 
+static constexpr double level_interface     = 6; // minimum resolution!  
 static constexpr double mesh_size_dry       = res/3;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
 static constexpr double mesh_size_wet       = res/10;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
 static constexpr double mesh_size_interface = res/10;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
@@ -173,14 +173,14 @@ dem_value(const double& x,
 
 
 using Q1  = q1_vec<distributed_vector>;  // Typedef for distributed q_1 vector
-using Q0  = std::vector<double>; //distributed_vector; //std::vector<double>;         // Typedef for local q_0 vector // distributed_vector
+using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;         // Typedef for local q_0 vector // distributed_vector
 
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
   //return(1.);
   //return(xx/L*1500);
-  //return (xx<=L/2. ? 30. : 0.);
+  return (yy<=L/2. ? 10. : 0.);
   //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+1.*std::exp(-0.5*( std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
@@ -439,10 +439,10 @@ main (int argc, char **argv)
   mass.assemble ();
   
   Q0 sol_onehalf (ln_elements * 3);
-  sol_onehalf.assign(sol_onehalf.size(), 0.0);
+  sol_onehalf.get_owned_data  ().assign (sol_onehalf.get_owned_data  ().size (), 0.0);
 
   Q0 Z_onehalf (ln_elements);
-  Z_onehalf.assign(Z_onehalf.size(), 0.0);
+  Z_onehalf.get_owned_data  ().assign (Z_onehalf.get_owned_data  ().size (), 0.0);
 
   std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 3);
   
@@ -652,10 +652,10 @@ main (int argc, char **argv)
     mass_.assemble ();
   
     Q0 sol_onehalf_ (ln_elements * 3);
-    sol_onehalf_.assign (sol_onehalf_.size(), 0.0);
+    sol_onehalf_.get_owned_data ().assign (sol_onehalf_.get_owned_data ().size(), 0.0);
 
     Q0 Z_onehalf_ (ln_elements);
-    Z_onehalf_.assign (Z_onehalf_.size(), 0.0);
+    Z_onehalf_.get_owned_data ().assign (Z_onehalf_.get_owned_data ().size(), 0.0);
 
     std::vector<std::array<double,4>> incr_anti_diff_ (ln_elements * 3);
 
@@ -1608,10 +1608,11 @@ main (int argc, char **argv)
       mass.assemble ();
       
       Q0 sol_onehalf (ln_elements * 3);
-      sol_onehalf.assign (sol_onehalf.size(), 0.0);
+      sol_onehalf.get_owned_data ().assign (sol_onehalf.get_owned_data ().size(), 0.0);
+
 
       Q0 Z_onehalf (ln_elements);
-      Z_onehalf.assign (Z_onehalf.size(), 0.0);
+      Z_onehalf.get_owned_data ().assign (Z_onehalf.get_owned_data ().size(), 0.0);
 
 
       Q1 Z (ln_nodes);

@@ -136,7 +136,7 @@ void
 TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 {
   
-  const auto & index_quadrant = quadrant->get_forest_quad_idx (); 
+  const auto & index_quadrant_global = quadrant->get_global_quad_idx (); 
   
   for (int ii = 0; ii < 4; ++ii)
   {
@@ -219,11 +219,11 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const auto slope_y_c = ((Z_node[2] - Z_node[0]) + (Z_node[3] - Z_node[1]))/Dy/2.;
 
 
-  Z_onehalf[index_quadrant] = (Z_node[0]+Z_node[1]+Z_node[2]+Z_node[3])*.25;
+  Z_onehalf[index_quadrant_global] = (Z_node[0]+Z_node[1]+Z_node[2]+Z_node[3])*.25;
   
-  sol_onehalf[ordh    (index_quadrant)] = h_current;
-  sol_onehalf[ordUx   (index_quadrant)] = Ux_cell_average - (dt + dt_old)*.5*.5 * (div_FUx_cell/area - src_slope_formula (h_cell_average, slope_x_c));
-  sol_onehalf[ordUy   (index_quadrant)] = Uy_cell_average - (dt + dt_old)*.5*.5 * (div_FUy_cell/area - src_slope_formula (h_cell_average, slope_y_c));
+  sol_onehalf[ordh    (index_quadrant_global)] = h_current;
+  sol_onehalf[ordUx   (index_quadrant_global)] = Ux_cell_average - (dt + dt_old)*.5*.5 * (div_FUx_cell/area - src_slope_formula (h_cell_average, slope_x_c));
+  sol_onehalf[ordUy   (index_quadrant_global)] = Uy_cell_average - (dt + dt_old)*.5*.5 * (div_FUy_cell/area - src_slope_formula (h_cell_average, slope_y_c));
 
   //if (std::abs(sol_onehalf[ordUx   (index_quadrant)])>1e-14)
   //std::cout << sol_onehalf[ordUx   (index_quadrant)] << std::endl;
@@ -237,6 +237,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
   // look at tmesh.h
   const auto & index_quadrant = quadrant->get_forest_quad_idx (); 
+  const auto & index_quadrant_global = quadrant->get_global_quad_idx (); 
 
   std::array<int,4> bimpp_to_rev_ord = {0, 1, 3, 2};
   
@@ -251,19 +252,19 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
   for (int ii = 0; ii < 4; ++ii){
     if (! quadrant->is_hanging (ii)){
-      hdof[ii]    = sol [ordh    (quadrant->gt (ii))];
-      Uxdof[ii]   = sol [ordUx   (quadrant->gt (ii))];
-      Uydof[ii]   = sol [ordUy   (quadrant->gt (ii))];
+      hdof  [ii]  = sol [ordh    (quadrant->gt (ii))];
+      Uxdof [ii]  = sol [ordUx   (quadrant->gt (ii))];
+      Uydof [ii]  = sol [ordUy   (quadrant->gt (ii))];
 
       Z_node[ii]  = Z [quadrant->gt (ii)];
       
       isdof_or_hanging[ii] = 1.;
     } else {
-      hdof[ii]    = .5 * (sol [ordh  (quadrant->gparent(0,ii))] +
+      hdof  [ii]  = .5 * (sol [ordh  (quadrant->gparent(0,ii))] +
                           sol [ordh  (quadrant->gparent(1,ii))]);
-      Uxdof[ii]   = .5 * (sol [ordUx (quadrant->gparent(0,ii))] +
+      Uxdof [ii]  = .5 * (sol [ordUx (quadrant->gparent(0,ii))] +
                           sol [ordUx (quadrant->gparent(1,ii))]);
-      Uydof[ii]   = .5 * (sol [ordUy (quadrant->gparent(0,ii))] +
+      Uydof [ii]  = .5 * (sol [ordUy (quadrant->gparent(0,ii))] +
                           sol [ordUy (quadrant->gparent(1,ii))]);
 
       Z_node[ii]  = .5 * (Z [quadrant->gparent(0,ii)] +
@@ -299,11 +300,11 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
  
   //std::cout << grad_cell_eta[0] << " " << grad_cell_eta[1] << " " << grad_cell_eta[2] << " " << grad_cell_eta[3] << std::endl;
 
-  const double & h_cell    = sol_onehalf[ordh    (index_quadrant)];
-  const double & Ux_cell   = sol_onehalf[ordUx   (index_quadrant)];
-  const double & Uy_cell   = sol_onehalf[ordUy   (index_quadrant)];
+  const double & h_cell    = sol_onehalf[ordh    (index_quadrant_global)];
+  const double & Ux_cell   = sol_onehalf[ordUx   (index_quadrant_global)];
+  const double & Uy_cell   = sol_onehalf[ordUy   (index_quadrant_global)];
 
-  const double & Z_cell    = Z_onehalf[index_quadrant];
+  const double & Z_cell    = Z_onehalf[index_quadrant_global];
 
   std::array<double,4> contr_x = {0., 0., 0., 0.}, contr_y = {0., 0., 0., 0.};
 
@@ -331,7 +332,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
         Yn[ii] = quadrant_nei->p(1, ii);
       }
 
-      const auto & index_quadrant_nei = quadrant_nei->get_forest_quad_idx (); 
+      const auto & index_quadrant_nei_global = quadrant_nei->get_global_quad_idx (); 
 
       for (int jEdge = 0; jEdge < 4; ++jEdge) { // cycle neigh edges 
 
@@ -346,12 +347,12 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
         if ( (((xn[i_1] == Xn[j_1] && yn[i_1] == Yn[j_1]) || 
                (xn[i_2] == Xn[j_1] && yn[i_2] == Yn[j_1]))||
               ((xn[i_1] == Xn[j_2] && yn[i_1] == Yn[j_2]) ||
-               (xn[i_2] == Xn[j_2] && yn[i_2] == Yn[j_2]))) && check_orthogonality && index_quadrant!=index_quadrant_nei )
+               (xn[i_2] == Xn[j_2] && yn[i_2] == Yn[j_2]))) && check_orthogonality && index_quadrant_global!=index_quadrant_nei_global )
         {
           is_boundary_edge = false;
 
           // scrivere qui la somma dei contributi per i termini non-cons.!
-          auto Z_cell_nei = Z_onehalf[index_quadrant_nei];
+          auto Z_cell_nei = Z_onehalf[index_quadrant_nei_global];
 
           // .5 salta fuori dall'integrazione per trapezi tra 0 e 1 in coordinata \xi (è il valore in LHS da metter qui sotto!)
           contr_x[i_1] += .5*signum(outward_normal_edge[0])*grav*h_cell*(Z_cell_nei - Z_cell)*isdof_or_hanging[i_1];
