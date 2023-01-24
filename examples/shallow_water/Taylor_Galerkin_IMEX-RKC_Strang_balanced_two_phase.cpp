@@ -401,20 +401,7 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 
   }
 
-
-  for (auto n = quadrant->begin_neighbor_sweep (); n != quadrant->end_neighbor_sweep (); ++n)
-  {
-    const auto & index_quadrant_nei = n->get_global_quad_idx (); 
-    
-    sol_onehalf[ordhw  (index_quadrant_nei)] += 0;
-    sol_onehalf[ordhs  (index_quadrant_nei)] += 0;
-    sol_onehalf[ordUxw (index_quadrant_nei)] += 0;
-    sol_onehalf[ordUyw (index_quadrant_nei)] += 0;
-    sol_onehalf[ordUxs (index_quadrant_nei)] += 0;
-    sol_onehalf[ordUys (index_quadrant_nei)] += 0;
-
-    Z_onehalf  [index_quadrant_nei] += 0;
-  }
+  //std::cout << sol_onehalf[ordhw   (index_quadrant)] << " " << sol_onehalf[ordhs   (index_quadrant)] << std::endl;
 
 }
 
@@ -718,7 +705,22 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
           auto Uxs_cell_nei   = sol_onehalf[ordUxs   (index_quadrant_nei)];
           auto Uys_cell_nei   = sol_onehalf[ordUys   (index_quadrant_nei)];
 
+// mpirun -np 5 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
 
+          //if (hw_cell==8 && hw_cell_nei!=8)
+          //{
+            //std::cout << hw_cell_nei << " " << Z_cell_nei << std::endl;
+          //}
+
+/*
+      auto hw_cell_nei  = hw_cell;
+      auto Uxw_cell_nei = Uxw_cell;
+      auto Uyw_cell_nei = Uyw_cell;
+
+      auto hs_cell_nei  = hs_cell;
+      auto Uxs_cell_nei = Uxs_cell;
+      auto Uys_cell_nei = Uys_cell;
+*/
           // .5 salta fuori dall'integrazione per trapezi tra 0 e 1 in coordinata \xi (è il valore in LHS da metter qui sotto!)
           contr_x_w[i_1] += .5*signum(outward_normal_edge[0])*(grav*hw_cell*(Z_cell_nei - Z_cell) -.5*grav*hs_cell*(hw_cell_nei - hw_cell) +.5*grav*hw_cell*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_1];
           contr_x_w[i_2] += .5*signum(outward_normal_edge[0])*(grav*hw_cell*(Z_cell_nei - Z_cell) -.5*grav*hs_cell*(hw_cell_nei - hw_cell) +.5*grav*hw_cell*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_2];
@@ -1033,7 +1035,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   }
 
   
-  for (int ii = 0; ii < 4; ++ii){
+  for (int ii = 0; ii < 4; ++ii){ 
 
     double hwdof_c, Uxwdof_c, Uywdof_c, P_plus_hw_c, P_minus_hw_c, P_plus_Uxw_c, P_minus_Uxw_c, P_plus_Uyw_c, P_minus_Uyw_c;
     double hsdof_c, Uxsdof_c, Uysdof_c, P_plus_hs_c, P_minus_hs_c, P_plus_Uxs_c, P_minus_Uxs_c, P_plus_Uys_c, P_minus_Uys_c;

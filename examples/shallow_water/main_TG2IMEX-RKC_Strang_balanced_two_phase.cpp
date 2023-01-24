@@ -973,10 +973,14 @@ main (int argc, char **argv)
     {
       stp.first_step(quadrant);
     }
-    Z_onehalf_dyn.remap();
-    Z_onehalf_dyn.assemble(replace_op);
-    sol_onehalf_dyn.remap();
-    sol_onehalf_dyn.assemble(replace_op);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhw,  false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhs,  false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxw, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUyw, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxs, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUys);
+
+    bim2a_solution_with_ghosts_center (tmsh, Z_onehalf_dyn, replace_op);
     
 
     // 
@@ -986,7 +990,7 @@ main (int argc, char **argv)
       stp.compute_nodal_anti_diffusive_fluxes(quadrant);
     }
     incr_dyn.assemble ();
-    P_plus_dyn.assemble ();
+    P_plus_dyn.assemble (); 
     P_minus_dyn.assemble ();
 
 
@@ -1000,48 +1004,12 @@ main (int argc, char **argv)
     {
       stp.solve_non_lin(kk);
     }
-    sol_dyn.assemble(replace_op); 
-
 
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep ();
          ++quadrant)
     {
-      for (auto n = quadrant->begin_neighbor_sweep ();
-           n != quadrant->end_neighbor_sweep ();
-           ++n)
-        for (int node = 0; node < 4; ++node)
-          if (! n->is_hanging (node))
-          {
-            sol_dyn[ordhw  (n->gt (node))] += 0;
-            sol_dyn[ordhs  (n->gt (node))] += 0;
-            sol_dyn[ordUxw (n->gt (node))] += 0;
-            sol_dyn[ordUyw (n->gt (node))] += 0;
-            sol_dyn[ordUxs (n->gt (node))] += 0;
-            sol_dyn[ordUys (n->gt (node))] += 0;
-          }
-          else
-            {
-              sol_dyn[ordhw (n->gparent (0, node))] += 0;
-              sol_dyn[ordhw (n->gparent (1, node))] += 0;
-
-              sol_dyn[ordhs (n->gparent (0, node))] += 0;
-              sol_dyn[ordhs (n->gparent (1, node))] += 0;
-
-              sol_dyn[ordUxw (n->gparent (0, node))] += 0;
-              sol_dyn[ordUxw (n->gparent (1, node))] += 0;
-
-              sol_dyn[ordUyw (n->gparent (0, node))] += 0;
-              sol_dyn[ordUyw (n->gparent (1, node))] += 0;
-
-              sol_dyn[ordUxs (n->gparent (0, node))] += 0;
-              sol_dyn[ordUxs (n->gparent (1, node))] += 0;
-
-              sol_dyn[ordUys (n->gparent (0, node))] += 0;
-              sol_dyn[ordUys (n->gparent (1, node))] += 0;
-            }
-
       for (int ii = 0; ii < 4; ++ii)
       {
         if (! quadrant->is_hanging (ii) && sol_dyn [ordhw    (quadrant->gt (ii))]<0){
@@ -1052,8 +1020,13 @@ main (int argc, char **argv)
         }
       }
     }
-    sol_dyn.remap();
-    sol_dyn.assemble (replace_op);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxw, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUyw, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxs, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUys);
+
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
 
@@ -1090,10 +1063,14 @@ main (int argc, char **argv)
         }
       }
     }
-    sol_dyn.assemble (replace_op);
-    //TOC("Apply increment");
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxw, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUyw, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxs, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUys);
 
-
+/*
 
     // Verwer IMEX-RKC
     sol_ini_rkc_dyn = sol_dyn; // copy
@@ -1141,10 +1118,14 @@ main (int argc, char **argv)
     {
       stp.first_step(quadrant);
     }
-    Z_onehalf_dyn.remap();
-    Z_onehalf_dyn.assemble(replace_op);
-    sol_onehalf_dyn.remap();
-    sol_onehalf_dyn.assemble(replace_op);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhw,  false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhs,  false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxw, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUyw, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxs, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUys);
+
+    bim2a_solution_with_ghosts_center (tmsh, Z_onehalf_dyn, replace_op);
 
 
     // 
@@ -1171,40 +1152,6 @@ main (int argc, char **argv)
       quadrant != tmsh.end_quadrant_sweep ();
       ++quadrant)
     {
-      for (auto n = quadrant->begin_neighbor_sweep ();
-           n != quadrant->end_neighbor_sweep ();
-           ++n)
-        for (int node = 0; node < 4; ++node)
-          if (! n->is_hanging (node))
-          {
-            sol_dyn[ordhw  (n->gt (node))] += 0;
-            sol_dyn[ordhs  (n->gt (node))] += 0;
-            sol_dyn[ordUxw (n->gt (node))] += 0;
-            sol_dyn[ordUyw (n->gt (node))] += 0;
-            sol_dyn[ordUxs (n->gt (node))] += 0;
-            sol_dyn[ordUys (n->gt (node))] += 0;
-          }
-          else
-            {
-              sol_dyn[ordhw (n->gparent (0, node))] += 0;
-              sol_dyn[ordhw (n->gparent (1, node))] += 0;
-
-              sol_dyn[ordhs (n->gparent (0, node))] += 0;
-              sol_dyn[ordhs (n->gparent (1, node))] += 0;
-
-              sol_dyn[ordUxw (n->gparent (0, node))] += 0;
-              sol_dyn[ordUxw (n->gparent (1, node))] += 0;
-
-              sol_dyn[ordUyw (n->gparent (0, node))] += 0;
-              sol_dyn[ordUyw (n->gparent (1, node))] += 0;
-
-              sol_dyn[ordUxs (n->gparent (0, node))] += 0;
-              sol_dyn[ordUxs (n->gparent (1, node))] += 0;
-
-              sol_dyn[ordUys (n->gparent (0, node))] += 0;
-              sol_dyn[ordUys (n->gparent (1, node))] += 0;
-            }
-
       for (int ii = 0; ii < 4; ++ii)
       {
         if (! quadrant->is_hanging (ii) && sol_dyn [ordhw    (quadrant->gt (ii))]<0)
@@ -1217,8 +1164,15 @@ main (int argc, char **argv)
         }
       }
     }
-    sol_dyn.remap();
-    sol_dyn.assemble (replace_op);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxw, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUyw, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxs, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUys);
+
+
+
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
 
@@ -1256,9 +1210,13 @@ main (int argc, char **argv)
         }
       }
     }
-    sol_dyn.assemble (replace_op);
-    //TOC("Apply increment");
-
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxw, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUyw, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxs, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUys);
+*/
 
     // Save solution
     if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) 
