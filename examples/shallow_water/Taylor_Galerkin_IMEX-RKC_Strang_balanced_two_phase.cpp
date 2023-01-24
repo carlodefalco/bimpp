@@ -401,6 +401,21 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 
   }
 
+
+  for (auto n = quadrant->begin_neighbor_sweep (); n != quadrant->end_neighbor_sweep (); ++n)
+  {
+    const auto & index_quadrant_nei = n->get_global_quad_idx (); 
+    
+    sol_onehalf[ordhw  (index_quadrant_nei)] += 0;
+    sol_onehalf[ordhs  (index_quadrant_nei)] += 0;
+    sol_onehalf[ordUxw (index_quadrant_nei)] += 0;
+    sol_onehalf[ordUyw (index_quadrant_nei)] += 0;
+    sol_onehalf[ordUxs (index_quadrant_nei)] += 0;
+    sol_onehalf[ordUys (index_quadrant_nei)] += 0;
+
+    Z_onehalf  [index_quadrant_nei] += 0;
+  }
+
 }
 
 
@@ -572,8 +587,8 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   {
     if (! quadrant->is_hanging (ii) )
     {
-      hwdof[ii]  = sol [ordhw  (quadrant->gt (ii) )];
-      hsdof[ii]  = sol [ordhs  (quadrant->gt (ii) )];
+      hwdof [ii] = sol [ordhw  (quadrant->gt (ii) )];
+      hsdof [ii] = sol [ordhs  (quadrant->gt (ii) )];
       Uxwdof[ii] = sol [ordUxw (quadrant->gt (ii) )];
       Uywdof[ii] = sol [ordUyw (quadrant->gt (ii) )]; 
       Uxsdof[ii] = sol [ordUxs (quadrant->gt (ii) )];
@@ -585,9 +600,9 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
     }
     else
     {
-      hwdof[ii]  = .5 * (sol [ordhw  (quadrant->gparent (0, ii) )] +
+      hwdof [ii] = .5 * (sol [ordhw  (quadrant->gparent (0, ii) )] +
                          sol [ordhw  (quadrant->gparent (1, ii) )]);
-      hsdof[ii]  = .5 * (sol [ordhs  (quadrant->gparent (0, ii) )] +
+      hsdof [ii] = .5 * (sol [ordhs  (quadrant->gparent (0, ii) )] +
                          sol [ordhs  (quadrant->gparent (1, ii) )]);
       Uxwdof[ii] = .5 * (sol [ordUxw (quadrant->gparent (0, ii) )] +
                          sol [ordUxw (quadrant->gparent (1, ii) )]);
@@ -702,6 +717,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
           auto Uyw_cell_nei   = sol_onehalf[ordUyw   (index_quadrant_nei)];
           auto Uxs_cell_nei   = sol_onehalf[ordUxs   (index_quadrant_nei)];
           auto Uys_cell_nei   = sol_onehalf[ordUys   (index_quadrant_nei)];
+
 
           // .5 salta fuori dall'integrazione per trapezi tra 0 e 1 in coordinata \xi (è il valore in LHS da metter qui sotto!)
           contr_x_w[i_1] += .5*signum(outward_normal_edge[0])*(grav*hw_cell*(Z_cell_nei - Z_cell) -.5*grav*hs_cell*(hw_cell_nei - hw_cell) +.5*grav*hw_cell*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_1];

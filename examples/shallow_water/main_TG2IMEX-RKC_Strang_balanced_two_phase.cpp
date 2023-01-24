@@ -21,7 +21,7 @@
 
 // mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_c_prop.octbin.gz inputs/mask_in_vladi.octbin.gz 
 // mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
-// mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
+// mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
 
 // mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
 
@@ -48,7 +48,7 @@ static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at ea
 static constexpr double SAVEDT = .1; // must never be null 
 static constexpr double DELTAT = .1; 
 static constexpr double REDCDT = .9; // it is the limit of the CFL condition
-static constexpr double T      = .5;
+static constexpr double T      = 1.;
  
 static constexpr bool is_time_adaptivity        = false; 
 static constexpr bool is_initial_refinement     = false;
@@ -62,7 +62,7 @@ static constexpr double h_min = 1e-5;
 static constexpr double grav = 9.81;
 
 // variables that can be used for UQ
-static constexpr double density = 2370.;
+static constexpr double density = 1800.;
 static constexpr double density_s = 2000.; 
 static constexpr double density_w = 1000.; 
 static constexpr double turbulence_coeff = 1.e10;
@@ -401,10 +401,15 @@ main (int argc, char **argv)
   mass.assemble ();
   
   Q0 sol_onehalf (ln_elements * 6);
-  sol_onehalf.get_owned_data  ().assign (sol_onehalf.get_owned_data  ().size (), 0.0);
+  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordhw,  false);
+  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordhs,  false);
+  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUxw, false);
+  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUyw, false);
+  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUys, false);
+  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUys);
 
   Q0 Z_onehalf (ln_elements);
-  Z_onehalf.get_owned_data  ().assign (Z_onehalf.get_owned_data  ().size (), 0.0);
+  bim2a_solution_with_ghosts_center (tmsh, Z_onehalf, replace_op);
 
 
   std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 6);
@@ -466,14 +471,14 @@ main (int argc, char **argv)
         const double initial_porosity_coeff = (density_s - density)/(density_s - density_w);
 
         
-        sol [ordhw    (quadrant->gt (ii))] = xx>L/2. ? (1.-.4)*2 : (1.-.7)*3;
-        sol [ordhs    (quadrant->gt (ii))] = xx>L/2. ? .4*2 : .7*3;
-        sol [ordUxw   (quadrant->gt (ii))] = sol [ordhw    (quadrant->gt (ii))]* (xx>L/2. ? -.1 : .3);
+        sol [ordhw    (quadrant->gt (ii))] = h0_fun  (xx, yy)*initial_porosity_coeff;
+        sol [ordhs    (quadrant->gt (ii))] = h0_fun  (xx, yy)*(1.-initial_porosity_coeff);
+        sol [ordUxw   (quadrant->gt (ii))] = Ux0_w_fun (xx, yy);
         sol [ordUyw   (quadrant->gt (ii))] = Uy0_w_fun (xx, yy);
-        sol [ordUxs   (quadrant->gt (ii))] = sol [ordhs    (quadrant->gt (ii))]* (xx>L/2. ? -.9 : -1.4);
+        sol [ordUxs   (quadrant->gt (ii))] = Ux0_s_fun (xx, yy);
         sol [ordUys   (quadrant->gt (ii))] = Uy0_s_fun (xx, yy);
         
-        Z           [quadrant->gt (ii)] = raster_value(xx,yy,dem);
+        Z           [quadrant->gt (ii)] = 15.-h0_fun  (xx, yy);
       }
       
       else
@@ -627,10 +632,15 @@ main (int argc, char **argv)
     mass_.assemble ();
   
     Q0 sol_onehalf_ (ln_elements * 6);
-    sol_onehalf_.get_owned_data ().assign (sol_onehalf_.get_owned_data ().size(), 0.0);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordhw,  false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordhs,  false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordUxw, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordUyw, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordUys, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordUys);
 
     Q0 Z_onehalf_ (ln_elements);
-    Z_onehalf_.get_owned_data ().assign (Z_onehalf_.get_owned_data ().size(), 0.0);
+    bim2a_solution_with_ghosts_center (tmsh, Z_onehalf_, replace_op);
 
 
     std::vector<std::array<double,4>> incr_anti_diff_ (ln_elements * 6);
@@ -955,8 +965,6 @@ main (int argc, char **argv)
       full_time_vector.push_back (time);
     }
     
-    //std::cout << (time<T) << " " << time << " " << T << " " << time-T << std::endl;
-    
     
     
     // first step!
@@ -965,6 +973,10 @@ main (int argc, char **argv)
     {
       stp.first_step(quadrant);
     }
+    Z_onehalf_dyn.remap();
+    Z_onehalf_dyn.assemble(replace_op);
+    sol_onehalf_dyn.remap();
+    sol_onehalf_dyn.assemble(replace_op);
     
 
     // 
@@ -991,21 +1003,45 @@ main (int argc, char **argv)
     sol_dyn.assemble(replace_op); 
 
 
-    //std::cout << incr_dyn.get_owned_data ().size () << " " << sol_dyn.get_owned_data ().size() << " " <<  mass_dyn.get_owned_data ().size() << std::endl; 
-
-    // low order solution
-    //for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
-    //{
-    //  sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
-    //}
-    //sol_dyn.assemble(replace_op); 
-
-
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep ();
          ++quadrant)
     {
+      for (auto n = quadrant->begin_neighbor_sweep ();
+           n != quadrant->end_neighbor_sweep ();
+           ++n)
+        for (int node = 0; node < 4; ++node)
+          if (! n->is_hanging (node))
+          {
+            sol_dyn[ordhw  (n->gt (node))] += 0;
+            sol_dyn[ordhs  (n->gt (node))] += 0;
+            sol_dyn[ordUxw (n->gt (node))] += 0;
+            sol_dyn[ordUyw (n->gt (node))] += 0;
+            sol_dyn[ordUxs (n->gt (node))] += 0;
+            sol_dyn[ordUys (n->gt (node))] += 0;
+          }
+          else
+            {
+              sol_dyn[ordhw (n->gparent (0, node))] += 0;
+              sol_dyn[ordhw (n->gparent (1, node))] += 0;
+
+              sol_dyn[ordhs (n->gparent (0, node))] += 0;
+              sol_dyn[ordhs (n->gparent (1, node))] += 0;
+
+              sol_dyn[ordUxw (n->gparent (0, node))] += 0;
+              sol_dyn[ordUxw (n->gparent (1, node))] += 0;
+
+              sol_dyn[ordUyw (n->gparent (0, node))] += 0;
+              sol_dyn[ordUyw (n->gparent (1, node))] += 0;
+
+              sol_dyn[ordUxs (n->gparent (0, node))] += 0;
+              sol_dyn[ordUxs (n->gparent (1, node))] += 0;
+
+              sol_dyn[ordUys (n->gparent (0, node))] += 0;
+              sol_dyn[ordUys (n->gparent (1, node))] += 0;
+            }
+
       for (int ii = 0; ii < 4; ++ii)
       {
         if (! quadrant->is_hanging (ii) && sol_dyn [ordhw    (quadrant->gt (ii))]<0){
@@ -1016,6 +1052,7 @@ main (int argc, char **argv)
         }
       }
     }
+    sol_dyn.remap();
     sol_dyn.assemble (replace_op);
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
@@ -1031,9 +1068,6 @@ main (int argc, char **argv)
     incr_dyn.assemble ();
     //TOC("Compute step");
 
-    
-    // mpirun -np 2 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
-    
 
     //TIC();
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
@@ -1107,7 +1141,10 @@ main (int argc, char **argv)
     {
       stp.first_step(quadrant);
     }
-
+    Z_onehalf_dyn.remap();
+    Z_onehalf_dyn.assemble(replace_op);
+    sol_onehalf_dyn.remap();
+    sol_onehalf_dyn.assemble(replace_op);
 
 
     // 
@@ -1134,6 +1171,40 @@ main (int argc, char **argv)
       quadrant != tmsh.end_quadrant_sweep ();
       ++quadrant)
     {
+      for (auto n = quadrant->begin_neighbor_sweep ();
+           n != quadrant->end_neighbor_sweep ();
+           ++n)
+        for (int node = 0; node < 4; ++node)
+          if (! n->is_hanging (node))
+          {
+            sol_dyn[ordhw  (n->gt (node))] += 0;
+            sol_dyn[ordhs  (n->gt (node))] += 0;
+            sol_dyn[ordUxw (n->gt (node))] += 0;
+            sol_dyn[ordUyw (n->gt (node))] += 0;
+            sol_dyn[ordUxs (n->gt (node))] += 0;
+            sol_dyn[ordUys (n->gt (node))] += 0;
+          }
+          else
+            {
+              sol_dyn[ordhw (n->gparent (0, node))] += 0;
+              sol_dyn[ordhw (n->gparent (1, node))] += 0;
+
+              sol_dyn[ordhs (n->gparent (0, node))] += 0;
+              sol_dyn[ordhs (n->gparent (1, node))] += 0;
+
+              sol_dyn[ordUxw (n->gparent (0, node))] += 0;
+              sol_dyn[ordUxw (n->gparent (1, node))] += 0;
+
+              sol_dyn[ordUyw (n->gparent (0, node))] += 0;
+              sol_dyn[ordUyw (n->gparent (1, node))] += 0;
+
+              sol_dyn[ordUxs (n->gparent (0, node))] += 0;
+              sol_dyn[ordUxs (n->gparent (1, node))] += 0;
+
+              sol_dyn[ordUys (n->gparent (0, node))] += 0;
+              sol_dyn[ordUys (n->gparent (1, node))] += 0;
+            }
+
       for (int ii = 0; ii < 4; ++ii)
       {
         if (! quadrant->is_hanging (ii) && sol_dyn [ordhw    (quadrant->gt (ii))]<0)
@@ -1146,6 +1217,7 @@ main (int argc, char **argv)
         }
       }
     }
+    sol_dyn.remap();
     sol_dyn.assemble (replace_op);
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
@@ -1436,11 +1508,16 @@ main (int argc, char **argv)
       mass.assemble ();
       
       Q0 sol_onehalf (ln_elements * 6);
-      sol_onehalf.get_owned_data ().assign (sol_onehalf.get_owned_data ().size(), 0.0);
+      bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordhw,  false);
+      bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordhs,  false);
+      bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUxw, false);
+      bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUyw, false);
+      bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUys, false);
+      bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUys);
 
 
       Q0 Z_onehalf (ln_elements);
-      Z_onehalf.get_owned_data ().assign (Z_onehalf.get_owned_data ().size(), 0.0);
+      bim2a_solution_with_ghosts_center (tmsh, Z_onehalf, replace_op);
 
 
       Q1 Z (ln_nodes);
