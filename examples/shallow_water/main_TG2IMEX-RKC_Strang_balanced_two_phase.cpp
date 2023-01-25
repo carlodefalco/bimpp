@@ -401,15 +401,10 @@ main (int argc, char **argv)
   mass.assemble ();
   
   Q0 sol_onehalf (ln_elements * 6);
-  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordhw,  false);
-  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordhs,  false);
-  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUxw, false);
-  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUyw, false);
-  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUys, false);
-  bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUys);
+  sol_onehalf.get_owned_data ().assign (sol_onehalf.get_owned_data ().size (), 0.0);
 
   Q0 Z_onehalf (ln_elements);
-  bim2a_solution_with_ghosts_center (tmsh, Z_onehalf, replace_op);
+  Z_onehalf.get_owned_data ().assign (Z_onehalf.get_owned_data ().size (), 0.0);
 
 
   std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 6);
@@ -632,15 +627,10 @@ main (int argc, char **argv)
     mass_.assemble ();
   
     Q0 sol_onehalf_ (ln_elements * 6);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordhw,  false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordhs,  false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordUxw, false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordUyw, false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordUys, false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_, replace_op, ordUys);
+    sol_onehalf_.get_owned_data ().assign (sol_onehalf_.get_owned_data ().size(), 0.0);
 
     Q0 Z_onehalf_ (ln_elements);
-    bim2a_solution_with_ghosts_center (tmsh, Z_onehalf_, replace_op);
+    Z_onehalf_.get_owned_data ().assign (Z_onehalf_.get_owned_data ().size(), 0.0);
 
 
     std::vector<std::array<double,4>> incr_anti_diff_ (ln_elements * 6);
@@ -694,10 +684,6 @@ main (int argc, char **argv)
         }
       }
     }
-
-
-
-
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordhw,  false);
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordhs,  false);
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUxw, false);
@@ -746,6 +732,14 @@ main (int argc, char **argv)
 
   std::vector<std::array<double,4>> incr_anti_diff_dyn = incr_anti_diff;
 
+  std::vector<double> extrema_vector(size+1);
+  extrema_vector[rank  ] = Z_onehalf_dyn.get_range_start ();
+  extrema_vector[rank+1] = Z_onehalf_dyn.get_range_end   ();
+  MPI_Allreduce (MPI_IN_PLACE, extrema_vector.data(), size+1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
+
+  std::vector<std::array<double,7> > neig_state;
+  neig_state.resize(gn_elements);
+
   
   TG2_scheme stp(sol_dyn, 
                  sold_dyn, 
@@ -780,11 +774,13 @@ main (int argc, char **argv)
                  bed_friction_angle_rad, 
                  erosion_coefficient, 
                  m_coeff, 
-                 terminal_velocity);
-  
+                 terminal_velocity,
+                 extrema_vector,
+                 neig_state);
+
+
   
   // Save initial conditions
-
   str = std::string(SAVE_DIR) + "/results/swe_hw_%4.4d"; 
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
@@ -819,11 +815,6 @@ main (int argc, char **argv)
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0); 
   tmsh.octbin_export (filename, Z_dyn);
-
-  // str = std::string(SAVE_DIR) + "/results/mask_fin_%4.4d";
-  // strcpy(arr, str.c_str());
-  // sprintf(filename, arr, 0); 
-  // tmsh.octbin_export (filename, mask_fin);
   
 
 
@@ -869,14 +860,25 @@ main (int argc, char **argv)
   }
 
   int counter_savings = 0, tot_number_savings = std::round(T/SAVEDT);
-  
+
+  std::vector<MPI_Request> reqs;
+  int count_req = 0;
+
+  // 
+  int shift = 0;
+  for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+  {
+    stp.communication_part(quadrant, shift);
+  }
+  reqs.resize(2*shift * 7);
+
   TIC();
   while (counter_savings != tot_number_savings)
   {
     
     
     // Reset increment, and limiter terms
-    //TIC();
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
 
@@ -885,8 +887,6 @@ main (int argc, char **argv)
 
     P_minus_dyn.get_owned_data ().assign (P_minus_dyn.get_owned_data ().size (), 0.0);
     P_minus_dyn.assemble (replace_op);
-    //TOC("Reset");
-    //TIC();
     
   
     // compute time step, 
@@ -926,7 +926,6 @@ main (int argc, char **argv)
 
       const double candidate_dt = local_estimator_time_tolerance/std::sqrt(stp.nu_htot)*(stp.time-stp.timed);
       stp.set_dt( (stp.nu_htot>0 && candidate_dt<stp.dt) ? candidate_dt : stp.dt );
-      //stp.set_dt( (stp.nu_htot>0 && candidate_dt<stp.dt) ? std::max(candidate_dt, stp.dt/2.) : stp.dt ); // we set a minimum dt (std::max(,)), stp.dt/2.
     }
 
     
@@ -938,11 +937,7 @@ main (int argc, char **argv)
     }
 
     // check save with given frequency
-    //std::cout << (savecount) << " " << stp.dt << " " << (savecount+stp.dt)/SAVEDT << " " << (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) << std::endl;
-    // stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1))-SAVEDT : stp.dt);
-    //stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) : stp.dt);
     stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? SAVEDT-savecount : stp.dt);
-    //stp.set_dt((time+stp.dt)>T ? T-(time+stp.dt) : stp.dt);
 
 
 
@@ -952,11 +947,7 @@ main (int argc, char **argv)
     savecount += stp.dt;
     space_adapt_count += stp.dt;
 
-    // credo questi qui non servano
-    // MPI_Bcast (static_cast<void*> (&time),              1, MPI_DOUBLE, 0, tmsh.comm);
-    // MPI_Bcast (static_cast<void*> (&savecount),         1, MPI_DOUBLE, 0, tmsh.comm);
-    // MPI_Bcast (static_cast<void*> (&space_adapt_count), 1, MPI_DOUBLE, 0, tmsh.comm);
-    // MPI_Barrier (tmsh.comm); // tmsh.comm = MPI_COMM_WORLD
+
     
     // Print current time
     if(rank==0) 
@@ -965,22 +956,23 @@ main (int argc, char **argv)
       full_time_vector.push_back (time);
     }
     
-    
-    
+
     // first step!
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
     {
       stp.first_step(quadrant);
     }
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhw,  false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhs,  false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxw, false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUyw, false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxs, false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUys);
 
-    bim2a_solution_with_ghosts_center (tmsh, Z_onehalf_dyn, replace_op);
+
+    count_req = 0;
+    reqs.assign(reqs.size(), MPI_REQUEST_NULL);
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    {
+      stp.communication_part(quadrant, reqs, count_req, shift);
+    }
+    MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUS_IGNORE);
     
 
     // 
@@ -1020,6 +1012,7 @@ main (int argc, char **argv)
         }
       }
     }
+    //sol_dyn.assemble(replace_op);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxw, false);
@@ -1027,11 +1020,12 @@ main (int argc, char **argv)
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxs, false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUys);
 
+
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
 
 
-    
+
     // second order correction
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -1063,14 +1057,9 @@ main (int argc, char **argv)
         }
       }
     }
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxw, false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUyw, false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxs, false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUys);
+    sol_dyn.assemble(replace_op);
 
-/*
+
 
     // Verwer IMEX-RKC
     sol_ini_rkc_dyn = sol_dyn; // copy
@@ -1083,8 +1072,6 @@ main (int argc, char **argv)
     stp.prepare_IMEXRKC_coefficients(s);
 
     
-
-    //double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653)); // # of stages minimum is 2!!! otherwise errors inside for the recursion!
     for (int jj = 1; jj <= s; jj++)
     {
       for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
@@ -1112,20 +1099,22 @@ main (int argc, char **argv)
     P_minus_dyn.get_owned_data ().assign (P_minus_dyn.get_owned_data ().size (), 0.0);
     P_minus_dyn.assemble (replace_op);
 
+
     // first step!
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
      quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
     {
       stp.first_step(quadrant);
     }
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhw,  false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhs,  false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxw, false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUyw, false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxs, false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUys);
 
-    bim2a_solution_with_ghosts_center (tmsh, Z_onehalf_dyn, replace_op);
+    count_req = 0;
+    reqs.assign(reqs.size(), MPI_REQUEST_NULL);
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    {
+      stp.communication_part(quadrant, reqs, count_req, shift);
+    }
+    MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUS_IGNORE);
 
 
     // 
@@ -1145,7 +1134,6 @@ main (int argc, char **argv)
     {
       stp.solve_non_lin(kk);
     }
-    sol_dyn.assemble(replace_op); 
 
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -1164,6 +1152,7 @@ main (int argc, char **argv)
         }
       }
     }
+    //sol_dyn.assemble(replace_op); 
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxw, false);
@@ -1210,13 +1199,8 @@ main (int argc, char **argv)
         }
       }
     }
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxw, false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUyw, false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxs, false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUys);
-*/
+    sol_dyn.assemble(replace_op); 
+
 
     // Save solution
     if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) 
@@ -1319,34 +1303,10 @@ main (int argc, char **argv)
       //TOC ("gradient and hstar");
       
       //TIC();
-      // auto estimator = [& h_star, & only_h] (tmesh::quadrant_iterator q)
-      // {
-      //   return estimator_sol (q, h_star, only_h);
-      // };
       auto estimator = [& dh, & only_h] (tmesh::quadrant_iterator q)
       {
         return estimator_grad(q, dh, only_h);
       };
-
-      // auto estimator_flux = [& h_star, & only_h] (tmesh::quadrant_iterator q)
-      // {
-      //   std::array<double,4> h_mesh = {0,0,0,0};
-      //   for (int ii = 0; ii < 4; ++ii)
-      //   {
-      //     if (! q->is_hanging (ii)){
-      //       h_mesh[ii] = only_h[q->gt (ii)];
-      //     }
-      //     else
-      //     {
-      //       h_mesh[ii] = .5 * ( only_h[q->gparent(0,ii)] + only_h[q->gparent(1,ii)] );
-      //     } 
-      //   }
-
-      //   const auto basin_check = ((h_mesh[0]+h_mesh[1]+h_mesh[2]+h_mesh[3])>0 && (h_mesh[0]*h_mesh[1]*h_mesh[2]*h_mesh[3])==0) ? 1 : 0; 
-      //   //const auto basin_check = ((h_mesh[0]+h_mesh[1]+h_mesh[2]+h_mesh[3])>h_min && (h_mesh[0]*h_mesh[1]*h_mesh[2]*h_mesh[3])<=h_min) ? 1 : 0; 
-
-      //   return (basin_check); 
-      // };
 
 
       auto estimator_flux = [& global_index_quad] (tmesh::quadrant_iterator q)
@@ -1466,16 +1426,11 @@ main (int argc, char **argv)
       mass.assemble ();
       
       Q0 sol_onehalf (ln_elements * 6);
-      bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordhw,  false);
-      bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordhs,  false);
-      bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUxw, false);
-      bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUyw, false);
-      bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUys, false);
-      bim2a_solution_with_ghosts_center (tmsh, sol_onehalf, replace_op, ordUys);
+      sol_onehalf.get_owned_data ().assign (sol_onehalf.get_owned_data ().size(), 0.0);
 
 
       Q0 Z_onehalf (ln_elements);
-      bim2a_solution_with_ghosts_center (tmsh, Z_onehalf, replace_op);
+      Z_onehalf.get_owned_data ().assign (Z_onehalf.get_owned_data ().size(), 0.0);
 
 
       Q1 Z (ln_nodes);
@@ -1532,6 +1487,19 @@ main (int argc, char **argv)
 
 
       space_adapt_count = 0.0;
+
+      extrema_vector[rank  ] = Z_onehalf_dyn.get_range_start ();
+      extrema_vector[rank+1] = Z_onehalf_dyn.get_range_end   ();
+      MPI_Allreduce (MPI_IN_PLACE, extrema_vector.data(), size+1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
+
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+      {
+        stp.communication_part(quadrant, shift);
+      }
+      reqs.resize(2*shift * 7);
+
+      neig_state.resize(gn_elements);
 
       
       //TOC ("Interpolation");

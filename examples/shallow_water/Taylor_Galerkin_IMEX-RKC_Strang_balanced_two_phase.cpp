@@ -35,7 +35,9 @@ TG2_scheme::TG2_scheme(Q1& sol,
              const double& bed_friction_angle_rad,
              const double& erosion_coefficient,
              const double& m_coeff,
-             const double& terminal_velocity)
+             const double& terminal_velocity,
+             const std::vector<double>& extrema_vector,
+             std::vector<std::array<double, 7> >& neig_state)
 : sol(sol), 
 sold(sold), 
 soldd(soldd), 
@@ -69,7 +71,9 @@ turbulence_coeff(turbulence_coeff),
 bed_friction_angle_rad(bed_friction_angle_rad), 
 erosion_coefficient(erosion_coefficient),
 m_coeff(m_coeff), 
-terminal_velocity(terminal_velocity)
+terminal_velocity(terminal_velocity),
+extrema_vector(extrema_vector),
+neig_state(neig_state)
 { }
  
 
@@ -549,6 +553,187 @@ TG2_scheme::solve_non_lin(const int& kk)
 }
 
 
+void
+TG2_scheme::communication_part (tmesh::quadrant_iterator quadrant, int& shift)
+{
+  // look at tmesh.h 
+  const auto & index_quadrant = quadrant->get_global_quad_idx (); 
+
+  std::array<int,4> bimpp_to_rev_ord = {0, 1, 3, 2};
+  
+  for (int ii = 0; ii < 4; ++ii) {
+    xn[ii] = quadrant->p(0, ii);
+    yn[ii] = quadrant->p(1, ii);
+  }
+
+
+  // get the rank of the processor that own,
+  for (int iEdge = 0; iEdge < 4; ++iEdge){
+
+    const auto i_1 = bimpp_to_rev_ord[iEdge];
+    const auto i_2 = bimpp_to_rev_ord[(iEdge+1)%4];
+
+    const auto edge_length = std::sqrt(std::pow((xn[i_1]-xn[i_2]),2.) + std::pow((yn[i_1]-yn[i_2]),2.));
+    const std::array<double,2> outward_normal_edge = {(-yn[i_1]+yn[i_2])/edge_length, ( xn[i_1]-xn[i_2])/edge_length};  
+
+    for (auto quadrant_nei = quadrant->begin_neighbor_sweep();
+     quadrant_nei != quadrant->end_neighbor_sweep (); ++quadrant_nei)
+    {
+      std::array<double,4> Xn, Yn;
+
+      for (int ii = 0; ii < 4; ++ii) {
+        Xn[ii] = quadrant_nei->p(0, ii);
+        Yn[ii] = quadrant_nei->p(1, ii);
+      }
+
+      const auto & index_quadrant_nei = quadrant_nei->get_global_quad_idx ();
+
+
+      for (int jEdge = 0; jEdge < 4; ++jEdge) { // cycle neigh edges 
+
+        const auto j_1 = bimpp_to_rev_ord[jEdge];
+        const auto j_2 = bimpp_to_rev_ord[(jEdge+1)%4];
+
+        const auto edge_length_nei = std::sqrt(std::pow((Xn[j_1]-Xn[j_2]),2.) + std::pow((Yn[j_1]-Yn[j_2]),2.));
+        const std::array<double,2> outward_normal_edge_nei = {(-Yn[j_1]+Yn[j_2])/edge_length_nei, ( Xn[j_1]-Xn[j_2])/edge_length_nei};  
+        const bool check_orthogonality = std::inner_product(outward_normal_edge_nei.begin(), outward_normal_edge_nei.end(), outward_normal_edge.begin(), 0.) == -1;
+
+        bool is_owned_quadrant = index_quadrant_nei>=Z_onehalf.get_range_start () && index_quadrant_nei<Z_onehalf.get_range_end ();
+
+
+        if ( (((xn[i_1] == Xn[j_1] && yn[i_1] == Yn[j_1]) || 
+         (xn[i_2] == Xn[j_1] && yn[i_2] == Yn[j_1]))||
+          ((xn[i_1] == Xn[j_2] && yn[i_1] == Yn[j_2]) ||
+           (xn[i_2] == Xn[j_2] && yn[i_2] == Yn[j_2]))) && check_orthogonality && index_quadrant!=index_quadrant_nei && !is_owned_quadrant )
+        {
+          shift++;
+        }
+      }
+
+    }
+  }
+  
+}
+
+
+void
+TG2_scheme::communication_part (tmesh::quadrant_iterator quadrant, 
+  std::vector<MPI_Request>& reqs, int& count_req, int& shift)
+{
+  // look at tmesh.h 
+  const auto & index_quadrant = quadrant->get_global_quad_idx (); 
+
+  std::array<int,4> bimpp_to_rev_ord = {0, 1, 3, 2};
+  
+  for (int ii = 0; ii < 4; ++ii) {
+    xn[ii] = quadrant->p(0, ii);
+    yn[ii] = quadrant->p(1, ii);
+  }
+  
+
+  const double & hw_cell    = sol_onehalf[ordhw    (index_quadrant)];
+  const double & Uxw_cell   = sol_onehalf[ordUxw   (index_quadrant)];
+  const double & Uyw_cell   = sol_onehalf[ordUyw   (index_quadrant)];
+
+  const double & hs_cell    = sol_onehalf[ordhs    (index_quadrant)];
+  const double & Uxs_cell   = sol_onehalf[ordUxs   (index_quadrant)];
+  const double & Uys_cell   = sol_onehalf[ordUys   (index_quadrant)];
+
+  const double & Z_cell     = Z_onehalf[index_quadrant];
+
+
+  // get the rank of the processor that own,
+  for (int iEdge = 0; iEdge < 4; ++iEdge){
+
+    const auto i_1 = bimpp_to_rev_ord[iEdge];
+    const auto i_2 = bimpp_to_rev_ord[(iEdge+1)%4];
+
+    const auto edge_length = std::sqrt(std::pow((xn[i_1]-xn[i_2]),2.) + std::pow((yn[i_1]-yn[i_2]),2.));
+    const std::array<double,2> outward_normal_edge = {(-yn[i_1]+yn[i_2])/edge_length, ( xn[i_1]-xn[i_2])/edge_length};  
+
+    for (auto quadrant_nei = quadrant->begin_neighbor_sweep();
+     quadrant_nei != quadrant->end_neighbor_sweep (); ++quadrant_nei)
+    {
+      std::array<double,4> Xn, Yn;
+
+      for (int ii = 0; ii < 4; ++ii) {
+        Xn[ii] = quadrant_nei->p(0, ii);
+        Yn[ii] = quadrant_nei->p(1, ii);
+      }
+
+      const auto & index_quadrant_nei = quadrant_nei->get_global_quad_idx ();
+
+
+      for (int jEdge = 0; jEdge < 4; ++jEdge) { // cycle neigh edges 
+
+        const auto j_1 = bimpp_to_rev_ord[jEdge];
+        const auto j_2 = bimpp_to_rev_ord[(jEdge+1)%4];
+
+        const auto edge_length_nei = std::sqrt(std::pow((Xn[j_1]-Xn[j_2]),2.) + std::pow((Yn[j_1]-Yn[j_2]),2.));
+        const std::array<double,2> outward_normal_edge_nei = {(-Yn[j_1]+Yn[j_2])/edge_length_nei, ( Xn[j_1]-Xn[j_2])/edge_length_nei};  
+        const bool check_orthogonality = std::inner_product(outward_normal_edge_nei.begin(), outward_normal_edge_nei.end(), outward_normal_edge.begin(), 0.) == -1;
+
+        bool is_owned_quadrant = index_quadrant_nei>=Z_onehalf.get_range_start () && index_quadrant_nei<Z_onehalf.get_range_end ();
+
+
+        if ( (((xn[i_1] == Xn[j_1] && yn[i_1] == Yn[j_1]) || 
+         (xn[i_2] == Xn[j_1] && yn[i_2] == Yn[j_1]))||
+          ((xn[i_1] == Xn[j_2] && yn[i_1] == Yn[j_2]) ||
+           (xn[i_2] == Xn[j_2] && yn[i_2] == Yn[j_2]))) && check_orthogonality && index_quadrant!=index_quadrant_nei && !is_owned_quadrant )
+        {
+          auto & hw_cell_nei    = neig_state[index_quadrant_nei][1];
+          auto & Uxw_cell_nei   = neig_state[index_quadrant_nei][3];
+          auto & Uyw_cell_nei   = neig_state[index_quadrant_nei][4];
+
+          auto & hs_cell_nei    = neig_state[index_quadrant_nei][2];
+          auto & Uxs_cell_nei   = neig_state[index_quadrant_nei][5];
+          auto & Uys_cell_nei   = neig_state[index_quadrant_nei][6];
+
+          auto & Z_cell_nei     = neig_state[index_quadrant_nei][0];
+
+
+          // rank_of_source: rank da dove viene il dato
+          int rank_of_source;
+          for (int ii = 0; ii < extrema_vector.size()-1; ii++)
+          {
+            if (index_quadrant_nei>=extrema_vector[ii] && index_quadrant_nei<extrema_vector[ii+1])
+            {
+              rank_of_source = ii;
+              break;
+            }
+          }
+
+          // mpirun -np 6 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
+
+          MPI_Irecv(&Z_cell_nei,   1, MPI_DOUBLE, rank_of_source, index_quadrant_nei,         MPI_COMM_WORLD, &reqs[count_req            ]);
+          MPI_Isend(&Z_cell,       1, MPI_DOUBLE, rank_of_source, index_quadrant,             MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);
+
+          MPI_Irecv(&hw_cell_nei,  1, MPI_DOUBLE, rank_of_source, ordhw(index_quadrant_nei),  MPI_COMM_WORLD, &reqs[count_req            ]);
+          MPI_Isend(&hw_cell,      1, MPI_DOUBLE, rank_of_source, ordhw(index_quadrant),      MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);
+
+          MPI_Irecv(&hs_cell_nei,  1, MPI_DOUBLE, rank_of_source, ordhs(index_quadrant_nei),  MPI_COMM_WORLD, &reqs[count_req            ]);
+          MPI_Isend(&hs_cell,      1, MPI_DOUBLE, rank_of_source, ordhs(index_quadrant),      MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);
+
+          MPI_Irecv(&Uxw_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUxw(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_req            ]);
+          MPI_Isend(&Uxw_cell,     1, MPI_DOUBLE, rank_of_source, ordUxw(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);
+
+          MPI_Irecv(&Uyw_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUyw(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_req            ]);
+          MPI_Isend(&Uyw_cell,     1, MPI_DOUBLE, rank_of_source, ordUyw(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);
+
+          MPI_Irecv(&Uxs_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUxs(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_req            ]);
+          MPI_Isend(&Uxs_cell,     1, MPI_DOUBLE, rank_of_source, ordUxs(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);
+
+          MPI_Irecv(&Uys_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUys(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_req            ]);
+          MPI_Isend(&Uys_cell,     1, MPI_DOUBLE, rank_of_source, ordUys(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);
+
+          // continuare con questi qui! poi testare se ci sono errori di esecuzione con vari processori          
+        }
+      }
+
+    }
+  }
+  
+}
 
 void
 TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadrant)
@@ -642,7 +827,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   const double & Uxs_cell   = sol_onehalf[ordUxs   (index_quadrant)];
   const double & Uys_cell   = sol_onehalf[ordUys   (index_quadrant)];
 
-  const double & Z_cell    = Z_onehalf[index_quadrant];
+  const double & Z_cell     = Z_onehalf[index_quadrant];
 
   const auto h_cell = hw_cell+hs_cell;
   const auto n_cell = h_cell>epsilon ? hw_cell/h_cell : 0.;
@@ -674,9 +859,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
       }
 
       const auto & index_quadrant_nei = quadrant_nei->get_global_quad_idx ();
-      //const auto & index_quadrant_nei_global = quadrant_nei->get_global_quad_idx (); 
 
-      //std::cout << quadrant_nei->get_forest_quad_idx () << " " << quadrant_nei->get_global_quad_idx (); << std::endl;
 
       for (int jEdge = 0; jEdge < 4; ++jEdge) { // cycle neigh edges 
 
@@ -696,31 +879,35 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
           is_boundary_edge = false;
 
           // scrivere qui la somma dei contributi per i termini non-cons.!
-          auto Z_cell_nei = Z_onehalf[index_quadrant_nei];
+          double Z_cell_nei, hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei;
 
-          auto hw_cell_nei    = sol_onehalf[ordhw    (index_quadrant_nei)];
-          auto hs_cell_nei    = sol_onehalf[ordhs    (index_quadrant_nei)];
-          auto Uxw_cell_nei   = sol_onehalf[ordUxw   (index_quadrant_nei)];
-          auto Uyw_cell_nei   = sol_onehalf[ordUyw   (index_quadrant_nei)];
-          auto Uxs_cell_nei   = sol_onehalf[ordUxs   (index_quadrant_nei)];
-          auto Uys_cell_nei   = sol_onehalf[ordUys   (index_quadrant_nei)];
+          bool is_owned_quadrant = index_quadrant_nei>=Z_onehalf.get_range_start () && index_quadrant_nei<Z_onehalf.get_range_end ();
 
-// mpirun -np 5 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
+          if (is_owned_quadrant)
+          {
+            Z_cell_nei     = Z_onehalf  [          index_quadrant_nei ];
+            hw_cell_nei    = sol_onehalf[ordhw    (index_quadrant_nei)];
+            hs_cell_nei    = sol_onehalf[ordhs    (index_quadrant_nei)];
+            Uxw_cell_nei   = sol_onehalf[ordUxw   (index_quadrant_nei)];
+            Uyw_cell_nei   = sol_onehalf[ordUyw   (index_quadrant_nei)];
+            Uxs_cell_nei   = sol_onehalf[ordUxs   (index_quadrant_nei)];
+            Uys_cell_nei   = sol_onehalf[ordUys   (index_quadrant_nei)];
+          }
+          else
+          {
+            Z_cell_nei     = neig_state[index_quadrant_nei][0];
+            hw_cell_nei    = neig_state[index_quadrant_nei][1];
+            hs_cell_nei    = neig_state[index_quadrant_nei][2];
+            Uxw_cell_nei   = neig_state[index_quadrant_nei][3];
+            Uyw_cell_nei   = neig_state[index_quadrant_nei][4];
+            Uxs_cell_nei   = neig_state[index_quadrant_nei][5];
+            Uys_cell_nei   = neig_state[index_quadrant_nei][6];
 
-          //if (hw_cell==8 && hw_cell_nei!=8)
-          //{
-            //std::cout << hw_cell_nei << " " << Z_cell_nei << std::endl;
-          //}
+            //std::cout << Z_cell << " " << Z_cell_nei << " " << hw_cell_nei << " " << hs_cell_nei << " " << Uyw_cell_nei << " " << Uys_cell_nei << std::endl;
+          }
 
-/*
-      auto hw_cell_nei  = hw_cell;
-      auto Uxw_cell_nei = Uxw_cell;
-      auto Uyw_cell_nei = Uyw_cell;
+          // mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
 
-      auto hs_cell_nei  = hs_cell;
-      auto Uxs_cell_nei = Uxs_cell;
-      auto Uys_cell_nei = Uys_cell;
-*/
           // .5 salta fuori dall'integrazione per trapezi tra 0 e 1 in coordinata \xi (è il valore in LHS da metter qui sotto!)
           contr_x_w[i_1] += .5*signum(outward_normal_edge[0])*(grav*hw_cell*(Z_cell_nei - Z_cell) -.5*grav*hs_cell*(hw_cell_nei - hw_cell) +.5*grav*hw_cell*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_1];
           contr_x_w[i_2] += .5*signum(outward_normal_edge[0])*(grav*hw_cell*(Z_cell_nei - Z_cell) -.5*grav*hs_cell*(hw_cell_nei - hw_cell) +.5*grav*hw_cell*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_2];

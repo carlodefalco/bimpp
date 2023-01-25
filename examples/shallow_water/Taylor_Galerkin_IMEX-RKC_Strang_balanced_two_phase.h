@@ -49,7 +49,9 @@ public:
              const double& bed_friction_angle_rad,
              const double& erosion_coefficient,
              const double& m_coeff,
-             const double& terminal_velocity);
+             const double& terminal_velocity,
+             const std::vector<double>& extrema_vector,
+             std::vector<std::array<double, 7> >& neig_state);
   
   TG2_scheme() = delete;
   
@@ -123,6 +125,12 @@ public:
   
   void
   set_times(const double& time, const double& time_old, const double& time_oldd);
+
+  void
+  communication_part(tmesh::quadrant_iterator quadrant, std::vector<MPI_Request>& reqs, int& count_req, int& shift);
+
+  void
+  communication_part(tmesh::quadrant_iterator quadrant, int& shift);
   
   double
   get_dt ();
@@ -297,6 +305,8 @@ private:
   const double& bed_friction_angle_rad;
   const double& m_coeff;
   const double& terminal_velocity;
+  const std::vector<double>& extrema_vector;
+  std::vector<std::array<double, 7> >& neig_state;
 
   double w0, w1;
 
