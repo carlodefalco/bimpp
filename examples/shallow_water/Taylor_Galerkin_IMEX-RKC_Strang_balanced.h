@@ -161,6 +161,7 @@ public:
   std::array<double, 4> Uxdof   = {0, 0, 0, 0};
   std::array<double, 4> Uydof   = {0, 0, 0, 0};
   std::array<double, 4> Z_node  = {0, 0, 0, 0};
+  std::array<double, 4> Z_node_nei  = {0, 0, 0, 0};
   std::array<double, 4> P_plus_h_dof   = {0, 0, 0, 0};
   std::array<double, 4> P_minus_h_dof  = {0, 0, 0, 0};
   std::array<double, 4> P_plus_Ux_dof  = {0, 0, 0, 0};

@@ -714,8 +714,6 @@ main (int argc, char **argv)
     bim2a_solution_with_ghosts (tmsh, Z_, replace_op);
 
     bim2a_solution_with_ghosts (tmsh, Newton_it_, replace_op);
-
-    //bim2a_solution_with_ghosts (tmsh, mask_fin_, replace_op);
     
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordh,  false);
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUx, false);
@@ -808,11 +806,6 @@ main (int argc, char **argv)
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
   tmsh.octbin_export (filename, Newton_it_dyn);
-
-  // str = std::string(SAVE_DIR) + "/results/mask_fin_%4.4d";
-  // strcpy(arr, str.c_str());
-  // sprintf(filename, arr, 0); 
-  // tmsh.octbin_export (filename, mask_fin);
   
 
 
@@ -1008,7 +1001,11 @@ main (int argc, char **argv)
         }
       }
     }
-    sol_dyn.assemble (replace_op);
+    //sol_dyn.assemble (replace_op);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordh,  false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUx, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUy);
+
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
 
@@ -1181,13 +1178,9 @@ main (int argc, char **argv)
     }
     Newton_it_dyn.assemble (replace_op);
 
-    //std::cout << "stop here!! " << std::endl;
-    //return(0);
     
 
     stp.set_old_dt(stp.dt);
-    
- 
     stp.set_old_dt(0.);
 
     // first, Strang half step!
@@ -1220,25 +1213,14 @@ main (int argc, char **argv)
     P_plus_dyn.assemble ();
     P_minus_dyn.assemble ();
 
-    /*
-    stp.set_times(time, time_old, time_oldd);
-    soldd_dyn = sold_dyn;
-    sold_dyn  = sol_dyn;
-    */
 
     // low order solution
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
+    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
     {
-      const auto & h_old_c = sol_dyn.         get_owned_data ()[kk  ];
-
       sol_dyn.get_owned_data ()[kk  ] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk  ]/mass_dyn.get_owned_data ()[kk  ];
-      
-      const auto & h_c     = sol_dyn.         get_owned_data ()[kk  ];
-
-      sol_dyn.get_owned_data ()[kk+1] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+1]/mass_dyn.get_owned_data ()[kk+1];
-      sol_dyn.get_owned_data ()[kk+2] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk+2]/mass_dyn.get_owned_data ()[kk+2]; 
     }
-    sol_dyn.assemble(replace_op);
+    //sol_dyn.assemble(replace_op);
+    
 
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -1253,7 +1235,12 @@ main (int argc, char **argv)
         }
       }
     }
-    sol_dyn.assemble (replace_op);
+    //sol_dyn.assemble (replace_op);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordh,  false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUx, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUy);
+
+
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
 
@@ -1299,107 +1286,6 @@ main (int argc, char **argv)
         std::cout << "savecount = " << savecount << std::endl;
       count++;
       save_time_vector.push_back (time);
-
- /*
-      stp.set_old_dt(0.);
-
-      // first, Strang half step!
-
-      incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
-      incr_dyn.assemble (replace_op);
-
-      P_plus_dyn.get_owned_data ().assign (P_plus_dyn.get_owned_data ().size (), 0.0);
-      P_plus_dyn.assemble (replace_op);
-
-      P_minus_dyn.get_owned_data ().assign (P_minus_dyn.get_owned_data ().size (), 0.0);
-      P_minus_dyn.assemble (replace_op);
-
-      // first step!
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-       quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-      {
-        stp.first_step(quadrant);
-      }
-
-
-      // 
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-       quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-      {
-        stp.compute_nodal_anti_diffusive_fluxes(quadrant);
-      }
-      incr_dyn.assemble ();
-      P_plus_dyn.assemble ();
-      P_minus_dyn.assemble ();
-
-
-      stp.set_times(time, time_old, time_oldd);
-      soldd_dyn = sold_dyn;
-      sold_dyn  = sol_dyn;
-
-     // low order solution
-      for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
-      {
-        sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk]; 
-      }
-      sol_dyn.assemble(replace_op);
-
-
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-        quadrant != tmsh.end_quadrant_sweep ();
-        ++quadrant)
-      {
-        for (int ii = 0; ii < 4; ++ii)
-        {
-          if (! quadrant->is_hanging (ii) && sol_dyn [ordh    (quadrant->gt (ii))]<0)
-          {
-            sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
-          }
-        }
-      }
-      sol_dyn.assemble (replace_op);
-      incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
-      incr_dyn.assemble (replace_op);
-    
-
-
-      // second order correction
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-       quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-      {
-        stp.second_step(quadrant);
-      }
-      incr_dyn.assemble ();
-      //TOC("Compute step");
-    
-
-      //TIC();
-      for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
-      {
-        sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
-      }
-
-
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-       quadrant != tmsh.end_quadrant_sweep ();
-       ++quadrant)
-      {
-        for (int ii = 0; ii < 4; ++ii)
-        {
-          if (! quadrant->is_hanging (ii) && sol_dyn [ordh (quadrant->gt (ii))] < 0)
-          {
-            sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
-          }
-        }
-      }
-      sol_dyn.assemble (replace_op);
-      //TOC("Apply increment");
-*/
-
-
-
-
-
 
      
       str = std::string(SAVE_DIR) + "/results/swe_h_%4.4d";

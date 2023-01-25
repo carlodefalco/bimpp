@@ -330,6 +330,14 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
       for (int ii = 0; ii < 4; ++ii) {
         Xn[ii] = quadrant_nei->p(0, ii);
         Yn[ii] = quadrant_nei->p(1, ii);
+
+        if (! quadrant->is_hanging (ii)){
+          Z_node_nei[ii]  = Z [quadrant->gt (ii)];
+        } else {
+          Z_node_nei[ii]  = .5 * (Z [quadrant->gparent(0,ii)] +
+            Z [quadrant->gparent(1,ii)]);
+        }
+  
       }
 
       const auto & index_quadrant_nei_global = quadrant_nei->get_global_quad_idx (); 
@@ -343,6 +351,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
         const std::array<double,2> outward_normal_edge_nei = {(-Yn[j_1]+Yn[j_2])/edge_length_nei, ( Xn[j_1]-Xn[j_2])/edge_length_nei};  
         const bool check_orthogonality = std::inner_product(outward_normal_edge_nei.begin(), outward_normal_edge_nei.end(), outward_normal_edge.begin(), 0.) == -1;
 
+        bool is_owned_quadrant = index_quadrant_nei_global>=Z_onehalf.get_range_start () && index_quadrant_nei<Z_onehalf.get_range_end ();
 
         if ( (((xn[i_1] == Xn[j_1] && yn[i_1] == Yn[j_1]) || 
                (xn[i_2] == Xn[j_1] && yn[i_2] == Yn[j_1]))||
@@ -352,8 +361,8 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
           is_boundary_edge = false;
 
           // scrivere qui la somma dei contributi per i termini non-cons.!
-          auto Z_cell_nei = Z_onehalf[index_quadrant_nei_global];
-
+          double Z_cell_nei = is_owned_quadrant ? Z_onehalf[index_quadrant_nei_global] : (Z_node_nei[0]+Z_node_nei[1]+Z_node_nei[2]+Z_node_nei[3])*.25;
+          
           // .5 salta fuori dall'integrazione per trapezi tra 0 e 1 in coordinata \xi (è il valore in LHS da metter qui sotto!)
           contr_x[i_1] += .5*signum(outward_normal_edge[0])*grav*h_cell*(Z_cell_nei - Z_cell)*isdof_or_hanging[i_1];
           contr_x[i_2] += .5*signum(outward_normal_edge[0])*grav*h_cell*(Z_cell_nei - Z_cell)*isdof_or_hanging[i_2];
