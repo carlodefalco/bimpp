@@ -351,7 +351,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
         const std::array<double,2> outward_normal_edge_nei = {(-Yn[j_1]+Yn[j_2])/edge_length_nei, ( Xn[j_1]-Xn[j_2])/edge_length_nei};  
         const bool check_orthogonality = std::inner_product(outward_normal_edge_nei.begin(), outward_normal_edge_nei.end(), outward_normal_edge.begin(), 0.) == -1;
 
-        bool is_owned_quadrant = index_quadrant_nei_global>=Z_onehalf.get_range_start () && index_quadrant_nei<Z_onehalf.get_range_end ();
+        bool is_owned_quadrant = index_quadrant_nei_global>=Z_onehalf.get_range_start () && index_quadrant_nei_global<Z_onehalf.get_range_end ();
 
         if ( (((xn[i_1] == Xn[j_1] && yn[i_1] == Yn[j_1]) || 
                (xn[i_2] == Xn[j_1] && yn[i_2] == Yn[j_1]))||
