@@ -174,6 +174,10 @@ public:
   std::vector<double> &
   get_owned_data ()
   { return owned_data; };
+
+  int
+  local_size () const
+  { return owned_data.size (); }
   
 };
 

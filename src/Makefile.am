@@ -1,4 +1,4 @@
-AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src 
+AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src
 AUTOMAKE_OPTIONS = nostdinc
 
 BIMXXHEADERS =  bimutils.h bim_timing.h mesh.h operators.h \
@@ -26,25 +26,25 @@ libbim_la_LDFLAGS = @OCTAVE_LINK_FLAGS@ @OCTAVE_FILE_IO_LDFLAGS@ @OCTAVE_FILE_IO
 libbim_la_CPPFLAGS = @OCTAVE_COMPILE_FLAGS@ @OCTAVE_FILE_IO_CPPFLAGS@ $(AM_CPPFLAGS)
 
 libbimlinalg_la_SOURCES = $(BIMXXLINALGSRC)
-libbimlinalg_la_CPPFLAGS = $(AM_CPPFLAGS) 
-libbimlinalg_la_LIBADD = 
+libbimlinalg_la_CPPFLAGS = $(AM_CPPFLAGS)
+libbimlinalg_la_LIBADD =
 
 libbimmumps_la_SOURCES = $(BIMXXMUMPSSRC)
-libbimmumps_la_LDFLAGS = #@MUMPS_LDFLAGS@ 
+libbimmumps_la_LDFLAGS = @MUMPS_LDFLAGS@
 libbimmumps_la_CPPFLAGS = $(AM_CPPFLAGS) @MUMPS_CPPFLAGS@
-libbimmumps_la_LIBADD =  libbimlinalg.la 
+libbimmumps_la_LIBADD =  libbimlinalg.la @MUMPS_LIBS@
 
 libbimlis_la_SOURCES = $(BIMXXLISSRC)
-libbimlis_la_LDFLAGS = #@LIS_LDFLAGS@ 
+libbimlis_la_LDFLAGS = #@LIS_LDFLAGS@
 libbimlis_la_CPPFLAGS = $(AM_CPPFLAGS) @LIS_CPPFLAGS@
 libbimlis_la_LIBADD = libbimlinalg.la #@LIS_LIB@
 
 libbimp4est_la_SOURCES = $(BIMXXP4ESTSRC)
 libbimp4est_la_LDFLAGS = @P4EST_LDFLAGS@  @OCTAVE_LINK_FLAGS@
 libbimp4est_la_CPPFLAGS = $(AM_CPPFLAGS) @P4EST_CPPFLAGS@ @OCTAVE_COMPILE_FLAGS@ @OCTAVE_FILE_IO_CPPFLAGS@
-libbimp4est_la_LIBADD = libbimlinalg.la @P4EST_LIB@ 
+libbimp4est_la_LIBADD = libbimlinalg.la @P4EST_LIB@
 
 libbimsystemsolver_la_SOURCES = $(BIMXXMUMPSP4ESTSRC)
 libbimsystemsolver_la_LDFLAGS = @MUMPS_LDFLAGS@ @P4EST_LDFLAGS@
 libbimsystemsolver_la_CPPFLAGS = $(AM_CPPFLAGS) @MUMPS_CPPFLAGS@ @P4EST_CPPFLAGS@
-libbimsystemsolver_la_LIBADD = libbimlinalg.la @P4EST_LIB@ #@MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@ 
+libbimsystemsolver_la_LIBADD = libbimlinalg.la @P4EST_LIB@ #@MUMPS_LIBS@ @MUMPS_EXTRA_LIBS@
