@@ -1,3 +1,4 @@
+
 /*! \file tmesh_3d.h
   \brief Interface for p4est library
 */
@@ -100,7 +101,7 @@ public:
 
     /// Default constructor.
     neighbor_iterator (quadrant_t *_data = nullptr,
-                       int _face_idx = -1) :
+		       int _face_idx = -1) :
       quadrant_iterator (_data),
       face_neighbor (new p8est_mesh_face_neighbor_t),
       face_idx (_face_idx)
@@ -110,10 +111,10 @@ public:
     ~neighbor_iterator ()
     {
       if (data != nullptr)
-        delete data;
+	delete data;
 
       if (face_neighbor != nullptr)
-        delete face_neighbor;
+	delete face_neighbor;
     }
 
     /// Get the face index associated to the current neighbor.
@@ -140,8 +141,8 @@ public:
     /// Simple constructor needs at least a pointer
     /// to the container tmesh.
     quadrant_t (tmesh_3d *_tmesh,
-                p4est_topidx_t _tree = 0,
-                p8est_quadrant_t *_quadrant = nullptr) :
+		p4est_topidx_t _tree = 0,
+		p8est_quadrant_t *_quadrant = nullptr) :
       the_tmesh (_tmesh), the_quadrant (_quadrant), tree_idx (_tree),
       is_ghost (false), qtq (-1)
     { };
@@ -221,7 +222,7 @@ public:
     get_global_quad_idx ()
     {
       return forest_quad_idx +
-        the_tmesh->p8est->global_first_quadrant[the_tmesh->rank];
+	the_tmesh->p8est->global_first_quadrant[the_tmesh->rank];
     };
 
     /// Return index of current tree.
@@ -232,7 +233,7 @@ public:
     /// Update stored data.
     void
     update (p4est_topidx_t tree,
-            p8est_quadrant_t *q);
+	    p8est_quadrant_t *q);
 
     /// A pointer to the owning mesh is needed
     /// to get physical mapping.
@@ -260,7 +261,7 @@ public:
 
     /// Buffer used when quering coordinates.
     double vxyz [3 * 8] = {0,0,0, 0,0,0, 0,0,0, 0,0,0,
-                           0,0,0, 0,0,0, 0,0,0, 0,0,0};
+			   0,0,0, 0,0,0, 0,0,0, 0,0,0};
 
     /// Buffer for index of the i-th vertex.
     idx_t  tbuff[8]     = {0,0,0,0,0,0,0,0};
@@ -268,9 +269,9 @@ public:
     int    hbuff[8]     = {0,0,0,0,0,0,0,0};
     /// Buffer for parents' t(-1 if not hanging or less than 4 parents).
     int    pbuff[4 * 8] = {-1,-1,-1,-1, -1,-1,-1,-1,
-                           -1,-1,-1,-1, -1,-1,-1,-1,
-                           -1,-1,-1,-1, -1,-1,-1,-1,
-                           -1,-1,-1,-1, -1,-1,-1,-1};
+			   -1,-1,-1,-1, -1,-1,-1,-1,
+			   -1,-1,-1,-1, -1,-1,-1,-1,
+			   -1,-1,-1,-1, -1,-1,-1,-1};
   };
 
   /// Struct for p8est user_data.
@@ -320,16 +321,16 @@ public:
   /// Octave file then init the p8est.
   void
   read_connectivity (const char *filename,
-                     int source = 0);
+		     int source = 0);
 
   /// Load a p8est and connectivity from a set of arrays
   /// then init the p8est.
   void
   read_connectivity (const double *p,
-                     const p4est_topidx_t num_vertices,
-                     const p4est_topidx_t *t,
-                     const p4est_topidx_t num_trees,
-                     int source = 0);
+		     const p4est_topidx_t num_vertices,
+		     const p4est_topidx_t *t,
+		     const p4est_topidx_t num_trees,
+		     int source = 0);
 
   /// Save the p8est and connectivity to a file.
   void
@@ -346,19 +347,19 @@ public:
   /// Export nodal field f to a octbin.gz file for visualization.
   void
   octbin_export (const char * filename,
-                 const std::vector<double> & f,
-                 const ordering& ord = default_ord);
+		 const std::vector<double> & f,
+		 const ordering& ord = default_ord);
 
   /// Export nodal field f to a octbin.gz file for visualization.
   void
   octbin_export (const char * filename,
-                 const distributed_vector & f,
-                 const ordering& ord = default_ord);
+		 const distributed_vector & f,
+		 const ordering& ord = default_ord);
 
   /// Export quadrant field f to a octbin.gz file for visualization.
   void
   octbin_export_quadrant (const char * filename,
-                          const std::vector<double> & f);
+			  const std::vector<double> & f);
 
   /// Get an iterator to the first quadrant of the mesh.
   quadrant_iterator
@@ -378,17 +379,17 @@ public:
     int val = 0;
 
     for (auto q = this->begin_quadrant_sweep ();
-         q != this->end_quadrant_sweep ();
-         ++q)
+	 q != this->end_quadrant_sweep ();
+	 ++q)
       {
-        set_interpolation_matrix (q);
+	set_interpolation_matrix (q);
 
-        val = fun (q);
-        if (val)
-          {
-            data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
-            data->refine_count = std::abs (val);
-          }
+	val = fun (q);
+	if (val)
+	  {
+	    data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
+	    data->refine_count = std::abs (val);
+	  }
       }
   };
 
@@ -401,26 +402,26 @@ public:
     int val = 0;
 
     for (auto q = this->begin_quadrant_sweep ();
-         q != this->end_quadrant_sweep ();
-         ++q)
+	 q != this->end_quadrant_sweep ();
+	 ++q)
       {
-        set_interpolation_matrix (q);
+	set_interpolation_matrix (q);
 
-        val = fun (q);
-        if (val)
-          {
-            data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
-            data->refine_count = -std::abs (val);
-          }
+	val = fun (q);
+	if (val)
+	  {
+	    data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
+	    data->refine_count = -std::abs (val);
+	  }
       }
   };
 
   /// Mark quadrants for refinement based on metrics.
   void
   set_metrics_marker (std::function<double (quadrant_iterator)>,
-                      double, int max_depth = 5,
-                      int n_refine = 0,
-                      int n_coarsen = 0);
+		      double, int max_depth = 5,
+		      int n_refine = 0,
+		      int n_coarsen = 0);
 
   /// Set functor to replace quadrants while being
   /// refined or coarsened.
@@ -521,7 +522,7 @@ public:
 
 private:
   std::function<void (std::vector<tmesh_3d::data_t *>,
-                      std::vector<tmesh_3d::data_t>&)> replace_fun;
+		      std::vector<tmesh_3d::data_t>&)> replace_fun;
 
   static int
   refine_callback (p8est_t*, p4est_topidx_t, p8est_quadrant_t*);
@@ -531,14 +532,20 @@ private:
 
   static void
   replace_callback (p8est_t*, p4est_topidx_t,
-                    int, p8est_quadrant_t* [],
-                    int, p8est_quadrant_t* []);
+		    int, p8est_quadrant_t* [],
+		    int, p8est_quadrant_t* []);
 
   void
   set_interpolation_matrix (tmesh_3d::quadrant_iterator &);
 
   int metrics_max_depth;
 };
+
+
+void
+make_connectivity_3d (const p4est_topidx_t num_trees[3], const double step[3],
+		      double *& p, p4est_topidx_t & num_vertices,
+		      p4est_topidx_t *& t, p4est_topidx_t & total_num_trees);
 
 
 #endif /* TMESH_3D_H */
