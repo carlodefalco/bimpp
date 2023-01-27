@@ -23,8 +23,6 @@ public:
              Q1& soldd_rkc,
              Q1& sol_ini_rkc,
              Q1& incr,
-             Q1& incr_initial_source,
-             Q1& incr_source,
              std::vector<std::array<double,4>>& incr_anti_diff,
              Q1& P_plus,
              Q1& P_minus,
@@ -51,7 +49,9 @@ public:
              const double& m_coeff,
              const double& terminal_velocity,
              const std::vector<double>& extrema_vector,
-             std::vector<std::array<double, 7> >& neig_state);
+             std::vector<std::array<double, 7> >& neig_state,
+             const std::vector<double>& slope_x,
+             const std::vector<double>& slope_y);
   
   TG2_scheme() = delete;
   
@@ -272,8 +272,6 @@ public:
   Q1& soldd_rkc;
   Q1& sol_ini_rkc;
   Q1& incr;
-  Q1& incr_initial_source;
-  Q1& incr_source;
   std::vector<std::array<double,4>>& incr_anti_diff;
   Q1& P_plus;
   Q1& P_minus;
@@ -301,12 +299,14 @@ private:
   const double& density_w;
   const double& density_s;
   const double& turbulence_coeff;
-  const double& is_bed_friction;
+  const bool& is_bed_friction;
   const double& bed_friction_angle_rad;
   const double& m_coeff;
   const double& terminal_velocity;
   const std::vector<double>& extrema_vector;
   std::vector<std::array<double, 7> >& neig_state;
+  const std::vector<double>& slope_x;
+  const std::vector<double>& slope_y;
 
   double w0, w1;
 
@@ -319,7 +319,7 @@ private:
 
   const double epsilon_IMEXRKC = 2./13.;
 
-  const double tolerance_sign = 1e-2;
+  const double tolerance_sign = 1.;
 
   const double regularization_parameter = 1e3; // has dimension of seconds, in this case the limit of the Bingham viscosity for small I_{2,D} exists finites
   

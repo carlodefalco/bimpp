@@ -19,25 +19,26 @@
 #include "Taylor_Galerkin_IMEX-RKC_Strang_balanced_two_phase.h"
 
 
-// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_c_prop.octbin.gz inputs/mask_in_vladi.octbin.gz 
-// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
-// mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
 
-// mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
+// mpirun -np 4 main_TG2IMEXRKC2PHASE $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
+// mpirun -np 2 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
+
 
 static constexpr char VARNAME_1[255] = "dem"; 
 static constexpr char VARNAME_2[255] = "mask_in"; 
 //static constexpr char VARNAME_3[255] = "mask_fin";
 
 // properties of the input dem
-static constexpr double res = .1;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
+static constexpr double res = 10;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 449;//449;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 544;//544;//101;//175;//201;//180; // # rows
  
   
 static constexpr double L = res*(Nx-1);
 static constexpr double H = res*(Ny-1);
 static std::vector<double>   dem;
+static std::vector<double>   dem_slope_x;
+static std::vector<double>   dem_slope_y; 
 static std::vector<double>   h_initial_cond;
 static constexpr int NUM_REFINEMENTS  = 7; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10 
@@ -45,38 +46,38 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = .1; // must never be null 
-static constexpr double DELTAT = .1; 
-static constexpr double REDCDT = .9; // it is the limit of the CFL condition
-static constexpr double T      = 1.;
+static constexpr double SAVEDT = 1.; // must never be null 
+static constexpr double DELTAT = 1.; 
+static constexpr double REDCDT = .8; // it is the limit of the CFL condition
+static constexpr double T      = 230.;
  
 static constexpr bool is_time_adaptivity        = false; 
 static constexpr bool is_initial_refinement     = false;
 static constexpr bool is_space_adaptivity       = false; 
 static constexpr bool is_non_reflBC             = true;
-static constexpr bool is_bed_friction           = false;
+static constexpr bool is_bed_friction           = true; 
 static constexpr bool is_max_time_step_from_CFL = true;  
  
 
-static constexpr double h_min = 1e-5;
+static constexpr double h_min = 1.e-1;
 static constexpr double grav = 9.81;
 
 // variables that can be used for UQ
-static constexpr double density = 1800.;
-static constexpr double density_s = 2000.; 
+static constexpr double density = 2350.;
+static constexpr double density_s = 2700.; 
 static constexpr double density_w = 1000.; 
-static constexpr double turbulence_coeff = 1.e10;
-static constexpr double bed_friction_angle_rad = 0.*17.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double erosion_coefficient = 0.*5e-5; // 0.
+static constexpr double turbulence_coeff = 1e10;
+static constexpr double bed_friction_angle_rad = 17.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
+static constexpr double erosion_coefficient = 5e-5; // 0.
 static constexpr double m_coeff = 1.;
-static constexpr double terminal_velocity = 1.e10; // non può essere nulla!
+static constexpr double terminal_velocity = 1.e-2; // non può essere nulla!
 
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution!  
-static constexpr double mesh_size_dry       = res*10.;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res/5;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = res/10;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+static constexpr double mesh_size_dry       = res*1e3;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
+static constexpr double mesh_size_wet       = res;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = res;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
 // Connectivity of local element
@@ -95,6 +96,7 @@ const p4est_topidx_t simple_conn_t[simple_conn_num_trees*5] =
 static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return NUM_REFINEMENTS; }
+
 
 static int
 hanging_refinement (tmesh::quadrant_iterator quadrant)
@@ -183,7 +185,7 @@ using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;    
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 { 
-  //return(yy<L/2. ? 10 : 0.);
+  //return(yy>L/2. ? 10. : 0.);
   //return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
   //return(std::sqrt( (xx-L/2.)*(xx-L/2.) + (yy-H/2.)*(yy-H/2.) )<=L/10 ? 10 : 0. );
   return(raster_value(xx,yy,h_initial_cond));
@@ -311,6 +313,136 @@ quadrant_marker_list (tmesh::quadrant_iterator& q,
 
 
 
+void
+compute_slope()
+{
+
+  int ii, jj;
+  for (ii=1; ii<(Ny-1); ii++)
+  {
+    for (jj=1; jj<(Nx-1); jj++)
+    {
+      const auto i_vec = raster_2_vector(jj,ii);
+
+      const auto i_vec_north = raster_2_vector(jj,ii-1);
+      const auto i_vec_south = raster_2_vector(jj,ii+1);
+
+      const auto i_vec_east = raster_2_vector(jj+1,ii);
+      const auto i_vec_west = raster_2_vector(jj-1,ii);
+
+      dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec_west ])/(2*res);
+      dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec_south])/(2*res);
+    }
+  }
+
+  ii = 0;
+  for (jj=1; jj<(Nx-1); jj++)
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_south = raster_2_vector(jj,ii+1);
+
+    const auto i_vec_east = raster_2_vector(jj+1,ii);
+    const auto i_vec_west = raster_2_vector(jj-1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec_west ])/(2*res);
+    dem_slope_y[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
+  }
+
+  ii = Ny-1;
+  for (jj=1; jj<(Nx-1); jj++)
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_north = raster_2_vector(jj,ii-1);
+
+    const auto i_vec_east = raster_2_vector(jj+1,ii);
+    const auto i_vec_west = raster_2_vector(jj-1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec_west ])/(2*res);
+    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
+  }
+
+  jj = 0;
+  for (ii=1; ii<(Ny-1); ii++)
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_north = raster_2_vector(jj,ii-1);
+    const auto i_vec_south = raster_2_vector(jj,ii+1);
+
+    const auto i_vec_east = raster_2_vector(jj+1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
+    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec_south])/(2*res);
+  }
+
+  jj = Nx-1;
+  for (ii=1; ii<(Ny-1); ii++)
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_north = raster_2_vector(jj,ii-1);
+    const auto i_vec_south = raster_2_vector(jj,ii+1);
+
+    const auto i_vec_west = raster_2_vector(jj-1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec ]-dem[i_vec_west ])/res;
+    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec_south])/(2*res);
+  }
+
+
+  // compute corner points
+  ii = 0; jj = 0;
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_south = raster_2_vector(jj,ii+1);
+
+    const auto i_vec_east = raster_2_vector(jj+1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
+    dem_slope_x[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
+  }
+
+  ii = Ny-1; jj = 0;
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_north = raster_2_vector(jj,ii-1);
+
+    const auto i_vec_east = raster_2_vector(jj+1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
+    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
+  }
+
+  ii = 0; jj = Nx-1;
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_south = raster_2_vector(jj,ii+1);
+
+    const auto i_vec_west = raster_2_vector(jj-1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec]-dem[i_vec_west ])/res;
+    dem_slope_y[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
+  }  
+
+  ii = Ny-1; jj = Nx-1;
+  {
+    const auto i_vec = raster_2_vector(jj,ii);
+
+    const auto i_vec_north = raster_2_vector(jj,ii-1);
+
+    const auto i_vec_west = raster_2_vector(jj-1,ii);
+
+    dem_slope_x[i_vec] = (dem[i_vec]-dem[i_vec_west ])/res;
+    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
+  }
+
+}
+
 
 
 
@@ -412,8 +544,11 @@ main (int argc, char **argv)
   Q1 Z (ln_nodes);
   Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
 
-  // Q1 mask_fin (ln_nodes);
-  // mask_fin.get_owned_data ().assign (mask_fin.get_owned_data ().size (), 0.0);
+  std::vector<double> slope_x (ln_elements);
+  slope_x.assign (slope_x.size (), 0.0);
+
+  std::vector<double> slope_y (ln_elements);
+  slope_y.assign (slope_y.size (), 0.0);
 
 
   std::string str = ""; 
@@ -443,8 +578,12 @@ main (int argc, char **argv)
   M = v.matrix_value ();
   h_initial_cond.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), h_initial_cond.begin ());
-
   TOC("Load data matrix");
+
+  // compute raster slope
+  dem_slope_x.resize(Nx*Ny);
+  dem_slope_y.resize(Nx*Ny);
+  compute_slope();
 
 
   // Initialize 
@@ -455,6 +594,11 @@ main (int argc, char **argv)
   {
     double xx_c=quadrant->centroid(0);
     double yy_c=quadrant->centroid(1); 
+
+    const auto & index_quad = quadrant->get_forest_quad_idx ();
+
+    slope_x[index_quad] = raster_value(xx_c,yy_c,dem_slope_x);
+    slope_y[index_quad] = raster_value(xx_c,yy_c,dem_slope_y);
     
 
     for (int ii = 0; ii < 4; ++ii)
@@ -462,10 +606,10 @@ main (int argc, char **argv)
       if (! quadrant->is_hanging (ii)){
         double xx=quadrant->p(0,ii);
         double yy=quadrant->p(1,ii); 
+
         
         const double initial_porosity_coeff = (density_s - density)/(density_s - density_w);
 
-        
         sol [ordhw    (quadrant->gt (ii))] = h0_fun  (xx, yy)*initial_porosity_coeff;
         sol [ordhs    (quadrant->gt (ii))] = h0_fun  (xx, yy)*(1.-initial_porosity_coeff);
         sol [ordUxw   (quadrant->gt (ii))] = Ux0_w_fun (xx, yy);
@@ -473,7 +617,7 @@ main (int argc, char **argv)
         sol [ordUxs   (quadrant->gt (ii))] = Ux0_s_fun (xx, yy);
         sol [ordUys   (quadrant->gt (ii))] = Uy0_s_fun (xx, yy);
         
-        Z           [quadrant->gt (ii)] = 15.-h0_fun  (xx, yy);
+        Z           [quadrant->gt (ii)] = raster_value(xx,yy,dem);
       }
       
       else
@@ -516,7 +660,6 @@ main (int argc, char **argv)
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUxs, false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUys);
 
-  
 
   if (is_initial_refinement)
   {
@@ -593,7 +736,7 @@ main (int argc, char **argv)
 
     tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
     //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1);
-    tmsh.metrics_refine (1e7);  // RAFFINAMENTO (arg is max element)
+    tmsh.metrics_refine (1e4);  // RAFFINAMENTO (arg is max element)
 
     // tmsh.set_coarsen_marker (coarsen_function);
     // tmsh.set_refine_marker  (refine_function);
@@ -632,6 +775,12 @@ main (int argc, char **argv)
     Q0 Z_onehalf_ (ln_elements);
     Z_onehalf_.get_owned_data ().assign (Z_onehalf_.get_owned_data ().size(), 0.0);
 
+    std::vector<double> slope_x_(ln_elements);
+    slope_x_.assign(slope_x_.size(), 0.0);
+
+    std::vector<double> slope_y_(ln_elements);
+    slope_y_.assign(slope_y_.size(), 0.0);
+
 
     std::vector<std::array<double,4>> incr_anti_diff_ (ln_elements * 6);
 
@@ -644,12 +793,18 @@ main (int argc, char **argv)
     {
       double xx_c=quadrant->centroid(0);
       double yy_c=quadrant->centroid(1); 
+
+      const auto & index_quad = quadrant->get_forest_quad_idx();
+
+      slope_x_[index_quad] = raster_value(xx_c,yy_c,dem_slope_x);
+      slope_y_[index_quad] = raster_value(xx_c,yy_c,dem_slope_y);
       
       for (int ii = 0; ii < 4; ++ii)
       {
         if (! quadrant->is_hanging (ii)){
           double xx=quadrant->p(0,ii);
           double yy=quadrant->p(1,ii);
+
 
           const double initial_porosity_coeff = (density_s - density)/(density_s - density_w);
           
@@ -710,6 +865,8 @@ main (int argc, char **argv)
     sol_onehalf         = sol_onehalf_;
     Z                   = Z_;
     Z_onehalf           = Z_onehalf_;
+    slope_x             = slope_x_;
+    slope_y             = slope_y_;
   
     TOC ("compute initial condition");
   }
@@ -721,8 +878,6 @@ main (int argc, char **argv)
   Q1 soldd_rkc_dyn           = sol;
   Q1 sol_ini_rkc_dyn         = sol;
   Q1 incr_dyn                = incr;
-  Q1 incr_initial_source_dyn = incr;
-  Q1 incr_source_dyn         = incr;
   Q1 P_plus_dyn              = incr;
   Q1 P_minus_dyn             = incr;  
   Q1 mass_dyn                = mass;
@@ -732,13 +887,18 @@ main (int argc, char **argv)
 
   std::vector<std::array<double,4>> incr_anti_diff_dyn = incr_anti_diff;
 
+  std::vector<double> slope_x_dyn = slope_x;
+  std::vector<double> slope_y_dyn = slope_y;
+
   std::vector<double> extrema_vector(size+1);
   extrema_vector[rank  ] = Z_onehalf_dyn.get_range_start ();
   extrema_vector[rank+1] = Z_onehalf_dyn.get_range_end   ();
   MPI_Allreduce (MPI_IN_PLACE, extrema_vector.data(), size+1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
 
-  std::vector<std::array<double,7> > neig_state;
-  neig_state.resize(gn_elements);
+  std::vector<std::array<double,7> > neig_state(gn_elements);
+
+  std::vector<MPI_Request> reqs;
+  int count_req = 0;
 
   
   TG2_scheme stp(sol_dyn, 
@@ -748,8 +908,6 @@ main (int argc, char **argv)
                  soldd_rkc_dyn,
                  sol_ini_rkc_dyn,
                  incr_dyn,
-                 incr_initial_source_dyn,
-                 incr_source_dyn, 
                  incr_anti_diff_dyn,
                  P_plus_dyn, 
                  P_minus_dyn, 
@@ -776,10 +934,20 @@ main (int argc, char **argv)
                  m_coeff, 
                  terminal_velocity,
                  extrema_vector,
-                 neig_state);
+                 neig_state,
+                 slope_x_dyn,
+                 slope_y_dyn);
+
+  // 
+  int shift = 0;
+  for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+  {
+    stp.communication_part(quadrant, shift);
+  }
+  reqs.resize(2*shift * 7);
 
 
-  
   // Save initial conditions
   str = std::string(SAVE_DIR) + "/results/swe_hw_%4.4d"; 
   strcpy(arr, str.c_str());
@@ -816,7 +984,6 @@ main (int argc, char **argv)
   sprintf(filename, arr, 0); 
   tmsh.octbin_export (filename, Z_dyn);
   
-
 
   std::vector<double> full_time_vector;
   full_time_vector.reserve (static_cast<int> (T/DELTAT));
@@ -861,22 +1028,12 @@ main (int argc, char **argv)
 
   int counter_savings = 0, tot_number_savings = std::round(T/SAVEDT);
 
-  std::vector<MPI_Request> reqs;
-  int count_req = 0;
 
-  // 
-  int shift = 0;
-  for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-  {
-    stp.communication_part(quadrant, shift);
-  }
-  reqs.resize(2*shift * 7);
+
 
   TIC();
   while (counter_savings != tot_number_savings)
   {
-    
     
     // Reset increment, and limiter terms
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
@@ -997,7 +1154,6 @@ main (int argc, char **argv)
       stp.solve_non_lin(kk);
     }
 
-
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep ();
          ++quadrant)
@@ -1012,7 +1168,6 @@ main (int argc, char **argv)
         }
       }
     }
-    //sol_dyn.assemble(replace_op);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxw, false);
@@ -1042,7 +1197,6 @@ main (int argc, char **argv)
       sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
     }
 
-    
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep ();
          ++quadrant)
@@ -1072,19 +1226,14 @@ main (int argc, char **argv)
     stp.prepare_IMEXRKC_coefficients(s);
 
     
-    for (int jj = 1; jj <= s; jj++)
+    for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
     {
-      for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
-      {
-        stp.rkc(jj, s, kk);
-      }
-      sol_dyn.assemble(replace_op);        
+      stp.rkc(1, s, kk);
     }
+    sol_dyn.assemble(replace_op);        
     
 
     stp.set_old_dt(stp.dt);
-    
- 
     stp.set_old_dt(0.);
 
 
@@ -1107,6 +1256,7 @@ main (int argc, char **argv)
       stp.first_step(quadrant);
     }
 
+
     count_req = 0;
     reqs.assign(reqs.size(), MPI_REQUEST_NULL);
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -1114,7 +1264,7 @@ main (int argc, char **argv)
     {
       stp.communication_part(quadrant, reqs, count_req, shift);
     }
-    MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUS_IGNORE);
+    MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUS_IGNORE); 
 
 
     // 
@@ -1135,24 +1285,20 @@ main (int argc, char **argv)
       stp.solve_non_lin(kk);
     }
 
-
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
-      quadrant != tmsh.end_quadrant_sweep ();
-      ++quadrant)
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhw    (quadrant->gt (ii))]<0)
-        {
-          sol_dyn [ordhw    (quadrant->gt (ii))] = 0.; 
+        if (! quadrant->is_hanging (ii) && sol_dyn [ordhw    (quadrant->gt (ii))]<0){
+          sol_dyn [ordhw    (quadrant->gt (ii))] = 0.; //h_min; //0.;
         }
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhs    (quadrant->gt (ii))]<0)
-        {
-          sol_dyn [ordhs    (quadrant->gt (ii))] = 0.; 
+        if (! quadrant->is_hanging (ii) && sol_dyn [ordhs    (quadrant->gt (ii))]<0){
+          sol_dyn [ordhs    (quadrant->gt (ii))] = 0.; //h_min; //0.;
         }
       }
     }
-    //sol_dyn.assemble(replace_op); 
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxw, false);
@@ -1182,24 +1328,22 @@ main (int argc, char **argv)
       sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
     }
 
-
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
-      quadrant != tmsh.end_quadrant_sweep ();
-      ++quadrant)
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
     {
       for (int ii = 0; ii < 4; ++ii)
       {
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhw    (quadrant->gt (ii))]<0)
-        {
-          sol_dyn [ordhw    (quadrant->gt (ii))] = 0.; 
+        if (! quadrant->is_hanging (ii) && sol_dyn [ordhw    (quadrant->gt (ii))]<0){
+          sol_dyn [ordhw    (quadrant->gt (ii))] = 0.; //h_min; //0.;
         }
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhs    (quadrant->gt (ii))]<0)
-        {
-          sol_dyn [ordhs    (quadrant->gt (ii))] = 0.; 
+        if (! quadrant->is_hanging (ii) && sol_dyn [ordhs    (quadrant->gt (ii))]<0){
+          sol_dyn [ordhs    (quadrant->gt (ii))] = 0.; //h_min; //0.;
         }
       }
     }
     sol_dyn.assemble(replace_op); 
+
 
 
     // Save solution
@@ -1253,8 +1397,7 @@ main (int argc, char **argv)
       counter_savings++;
 
     }
-
-
+      
 
     
     if (is_space_adaptivity &&  ((space_adapt_count-SPACE_ADAPTDT) >= -std::numeric_limits<double>::epsilon()*SPACE_ADAPTDT))
@@ -1342,8 +1485,8 @@ main (int argc, char **argv)
 
 
       tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
-      //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1); 
-      tmsh.metrics_refine (1e7);  // RAFFINAMENTO (arg is max element)
+      tmsh.metrics_refine (1e4);  // RAFFINAMENTO (arg is max element)
+
 
       // tmsh.set_coarsen_marker (coarsen_function);
       // tmsh.set_refine_marker  (refine_function);
@@ -1398,14 +1541,14 @@ main (int argc, char **argv)
       bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordhs,  false);
       bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUxw, false);
       bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUyw, false);
-      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUys, false);
+      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUxs, false);
       bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUys);
       interpolate_vector (tmsh, soldd_dyn, soldd, ordhw );
       interpolate_vector (tmsh, soldd_dyn, soldd, ordhs );
-      interpolate_vector (tmsh, soldd_dyn, soldd, ordUyw);
       interpolate_vector (tmsh, soldd_dyn, soldd, ordUxw);
-      interpolate_vector (tmsh, soldd_dyn, soldd, ordUys);
+      interpolate_vector (tmsh, soldd_dyn, soldd, ordUyw);
       interpolate_vector (tmsh, soldd_dyn, soldd, ordUxs);
+      interpolate_vector (tmsh, soldd_dyn, soldd, ordUys);
       //soldd.assemble (replace_op);
       
       
@@ -1432,6 +1575,12 @@ main (int argc, char **argv)
       Q0 Z_onehalf (ln_elements);
       Z_onehalf.get_owned_data ().assign (Z_onehalf.get_owned_data ().size(), 0.0);
 
+      std::vector<double> slope_x_(ln_elements);
+      slope_x.assign(slope_x.size(), 0.0);
+
+      std::vector<double> slope_y_(ln_elements);
+      slope_y.assign(slope_y.size(), 0.0);
+
 
       Q1 Z (ln_nodes);
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -1441,13 +1590,18 @@ main (int argc, char **argv)
 
         double xx_c=quadrant->centroid(0);
         double yy_c=quadrant->centroid(1); 
+
+        const auto & index_quad = quadrant->get_forest_quad_idx();
+
+        slope_x[index_quad] = raster_value(xx_c,yy_c,dem_slope_x);
+        slope_y[index_quad] = raster_value(xx_c,yy_c,dem_slope_y);
         
         for (int ii = 0; ii < 4; ++ii)
         {
           if (! quadrant->is_hanging (ii)){
             double xx=quadrant->p(0,ii);
             double yy=quadrant->p(1,ii);
-            Z           [quadrant->gt (ii)] = raster_value(xx,yy,dem);
+            Z[quadrant->gt (ii)] = raster_value(xx,yy,dem);
           }
            
           else
@@ -1464,7 +1618,7 @@ main (int argc, char **argv)
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordhs,  false);
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUxw, false);
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUyw, false);
-      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUys, false);
+      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUxs, false);
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUys);
       
        
@@ -1475,8 +1629,6 @@ main (int argc, char **argv)
       soldd_rkc_dyn           = soldd;
       sol_ini_rkc_dyn         = soldd;
       incr_dyn                = incr;
-      incr_source_dyn         = incr;
-      incr_initial_source_dyn = incr;
       incr_anti_diff_dyn      = incr_anti_diff;
       P_plus_dyn              = incr;
       P_minus_dyn             = incr;
@@ -1484,28 +1636,36 @@ main (int argc, char **argv)
       sol_onehalf_dyn         = sol_onehalf;
       Z_onehalf_dyn           = Z_onehalf;
       Z_dyn                   = Z;
-
+      slope_x_dyn             = slope_x;
+      slope_y_dyn             = slope_y;
 
       space_adapt_count = 0.0;
 
+
+      extrema_vector.assign(extrema_vector.size(), 0);
       extrema_vector[rank  ] = Z_onehalf_dyn.get_range_start ();
       extrema_vector[rank+1] = Z_onehalf_dyn.get_range_end   ();
       MPI_Allreduce (MPI_IN_PLACE, extrema_vector.data(), size+1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
 
+
+      std::vector<std::array<double,7> > neig_state_(gn_elements);
+
+      std::vector<MPI_Request> reqs_;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
       {
         stp.communication_part(quadrant, shift);
       }
-      reqs.resize(2*shift * 7);
+      reqs_.resize(2*shift * 7);
 
-      neig_state.resize(gn_elements);
+      neig_state = neig_state_;
+      reqs = reqs_;
+      
 
       
       //TOC ("Interpolation");
       
     }
-      
     
     
     
