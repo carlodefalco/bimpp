@@ -867,9 +867,7 @@ TG2_scheme::compute_stress_slope (tmesh::quadrant_iterator quadrant, const bool&
     double h_s = 0., Ux_s = 0., Uy_s = 0.;
     for (int jj = 0; jj < 4; ++jj)
     {
-      //std::cout << sigma_stress_incr_Ux[jj][0] << " " << sigma_stress[0] << std::endl;
-      //std::cout << der_coeffs_x[ii]*(1./3.)*(sigma_stress_incr_Ux[jj][0]-sigma_stress[0])/tol_incr*contribution_exact << std::endl;
-
+      
       const auto sUx1_incr = (sigma_stress_incr_Ux[jj][0]-sigma_stress[0])/tol_incr;
       const auto sUx2_incr = (sigma_stress_incr_Ux[jj][2]-sigma_stress[2])/tol_incr;
       const auto sUx3_incr = (sigma_stress_incr_Uy[jj][0]-sigma_stress[0])/tol_incr;
@@ -1150,16 +1148,8 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     flux_limiter(Uy_min[ii], Uy_max[ii], Uydof [ii], P_plus_Uy_dof[ii], P_minus_Uy_dof [ii], flux_on_the_node_Uy, vel_square_rusanov_cell, phi_cell_Uy);
   }
 
-  //std::cout << phi_cell_h << " " << phi_cell_Ux << " " << phi_cell_Uy << std::endl;
-
-  //<phi_cell_h = 1., phi_cell_Ux = 1., phi_cell_Uy = 1.; 
-  //std::cout << "we put limiter equal to one" << std::endl;
-
-
 
   for (int ii = 0; ii < 4; ++ii){
-
-    //std::cout << phi_cell_h << " " << phi_cell_Ux << " " << phi_cell_Uy << std::endl;
 
     const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h;
     const auto flux_on_the_node_Ux = incr_anti_diff[ordUx(index_quadrant)][ii]*phi_cell_Ux;
@@ -1227,8 +1217,8 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
   else
   {
     v_x = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+1] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+1] + 
-    v_vect[j]*soldd_rkc.get_owned_data ()[kk+1] + mu_tilde_vect[j]*dt*stress_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+1];
-    gamma_tilde_vect[j]*dt*stress_initial_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + 
+    v_vect[j]*soldd_rkc.get_owned_data ()[kk+1] + mu_tilde_vect[j]*dt*stress_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + 
+    gamma_tilde_vect[j]*dt*stress_initial_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] +  
     (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk+1] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+1];
 
     v_y = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+2] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+2] + 
@@ -1240,7 +1230,7 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
 
   // solve non-linearities
   count = -1;
-  error = tolerance + 1; 
+  error = tolerance + 1;
   while (count++<Nmax && error>tolerance)
   {
     const auto & h_c  = sol.get_owned_data ()[kk  ];
