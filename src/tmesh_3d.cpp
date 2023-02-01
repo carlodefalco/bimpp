@@ -1275,9 +1275,10 @@ make_connectivity_3d (const p4est_topidx_t num_trees[3],
   p = new double[num_vertices*3];
   t = new p4est_topidx_t[total_num_trees*9];
 
+  /*
   std::cout << " size (p) = " << num_vertices*3 << std::endl;
   std::cout << " size (t) = " << total_num_trees*9 << std::endl;
-
+  */
 
   double x = 0, y = 0, z = 0;
   for (p4est_topidx_t ix = 0; ix <= num_trees[0]; ++ix){
@@ -1315,6 +1316,7 @@ make_connectivity_3d (const p4est_topidx_t num_trees[3],
     }
   }
 
+  /*
   int k = 0;
   for (int i = 0; i < num_vertices; ++i) {
     for (int j = 0; j < 3; ++j) {
@@ -1330,6 +1332,8 @@ make_connectivity_3d (const p4est_topidx_t num_trees[3],
     }
     std::cout << std::endl;
   }
+  */
+  
 };
 
 
