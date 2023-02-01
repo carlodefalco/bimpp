@@ -23,6 +23,8 @@ public:
              Q1& soldd_rkc,
              Q1& sol_ini_rkc,
              Q1& incr,
+             Q1& incr_initial_source,
+             Q1& incr_source,
              std::vector<std::array<double,4>>& incr_anti_diff,
              Q1& P_plus,
              Q1& P_minus,
@@ -131,6 +133,12 @@ public:
 
   void
   communication_part(tmesh::quadrant_iterator quadrant, int& shift);
+
+  void
+  loop_step (const int& kk, const bool& isInitial);
+
+  void
+  stabilization_term(const int& kk);
   
   double
   get_dt ();
@@ -272,6 +280,8 @@ public:
   Q1& soldd_rkc;
   Q1& sol_ini_rkc;
   Q1& incr;
+  Q1& incr_initial_source;
+  Q1& incr_source;
   std::vector<std::array<double,4>>& incr_anti_diff;
   Q1& P_plus;
   Q1& P_minus;

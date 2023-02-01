@@ -20,7 +20,7 @@
 
 
 
-// mpirun -np 4 main_TG2IMEXRKC2PHASE $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
+// mpirun -np 2 main_TG2IMEXRKC2PHASE $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
 // mpirun -np 2 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
 
 
@@ -46,8 +46,8 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = 1.; // must never be null 
-static constexpr double DELTAT = 1.; 
+static constexpr double SAVEDT = .1; // must never be null 
+static constexpr double DELTAT = 1.;
 static constexpr double REDCDT = .8; // it is the limit of the CFL condition
 static constexpr double T      = 230.;
  
@@ -59,7 +59,7 @@ static constexpr bool is_bed_friction           = true;
 static constexpr bool is_max_time_step_from_CFL = true;  
  
 
-static constexpr double h_min = 1.e-1;
+static constexpr double h_min = 1.e-2;
 static constexpr double grav = 9.81;
 
 // variables that can be used for UQ
@@ -878,6 +878,8 @@ main (int argc, char **argv)
   Q1 soldd_rkc_dyn           = sol;
   Q1 sol_ini_rkc_dyn         = sol;
   Q1 incr_dyn                = incr;
+  Q1 incr_initial_source_dyn = incr;
+  Q1 incr_source_dyn         = incr;
   Q1 P_plus_dyn              = incr;
   Q1 P_minus_dyn             = incr;  
   Q1 mass_dyn                = mass;
@@ -908,6 +910,8 @@ main (int argc, char **argv)
                  soldd_rkc_dyn,
                  sol_ini_rkc_dyn,
                  incr_dyn,
+                 incr_initial_source_dyn,
+                 incr_source_dyn, 
                  incr_anti_diff_dyn,
                  P_plus_dyn, 
                  P_minus_dyn, 
@@ -948,6 +952,7 @@ main (int argc, char **argv)
   reqs.resize(2*shift * 7);
 
 
+
   // Save initial conditions
   str = std::string(SAVE_DIR) + "/results/swe_hw_%4.4d"; 
   strcpy(arr, str.c_str());
@@ -984,6 +989,7 @@ main (int argc, char **argv)
   sprintf(filename, arr, 0); 
   tmsh.octbin_export (filename, Z_dyn);
   
+
 
   std::vector<double> full_time_vector;
   full_time_vector.reserve (static_cast<int> (T/DELTAT));
@@ -1220,17 +1226,43 @@ main (int argc, char **argv)
     soldd_rkc_dyn   = sol_dyn; // copy
     sold_rkc_dyn    = sol_dyn; // copy
 
-    double s = 1.;
+    for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
+    {
+      stp.loop_step(kk, true);
+    }
+    incr_initial_source_dyn.assemble (replace_op);
+
+    int s = 2;
 
     // compute here the coefficients!, it is to prepare the following loop
     stp.prepare_IMEXRKC_coefficients(s);
 
-    
+    for (int jj = 1; jj <= s; jj++)
+    {
+      if (rank==0) std::cout << "current IMEX-RKC step, " << jj << std::endl;
+
+      for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
+      {
+        stp.rkc(jj, s, kk);
+      }
+      sol_dyn.assemble(replace_op);    
+
+      soldd_rkc_dyn = sold_rkc_dyn; // copy
+      sold_rkc_dyn  = sol_dyn;      // copy
+
+      for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
+      {
+        stp.loop_step(kk, false);
+      }
+      incr_source_dyn.assemble (replace_op); 
+    }   
+
+
     for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
     {
-      stp.rkc(1, s, kk);
+      stp.stabilization_term(kk);
     }
-    sol_dyn.assemble(replace_op);        
+    sol_dyn.assemble(replace_op);
     
 
     stp.set_old_dt(stp.dt);
@@ -1238,7 +1270,6 @@ main (int argc, char **argv)
 
 
     // first, Strang half step!
-
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
 
@@ -1629,6 +1660,8 @@ main (int argc, char **argv)
       soldd_rkc_dyn           = soldd;
       sol_ini_rkc_dyn         = soldd;
       incr_dyn                = incr;
+      incr_source_dyn         = incr;
+      incr_initial_source_dyn = incr;
       incr_anti_diff_dyn      = incr_anti_diff;
       P_plus_dyn              = incr;
       P_minus_dyn             = incr;
