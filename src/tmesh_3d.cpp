@@ -1266,7 +1266,8 @@ make_connectivity_3d (const p4est_topidx_t num_trees[3],
 		      double *& p,
 		      p4est_topidx_t & num_vertices,
 		      p4est_topidx_t *& t,
-		      p4est_topidx_t & total_num_trees) {
+		      p4est_topidx_t & total_num_trees,
+		      std::vector<std::pair<p4est_topidx_t, p4est_topidx_t>> &bcells) {
 
 
   num_vertices = (num_trees[0]+1)*(num_trees[1]+1)*(num_trees[2]+1);
@@ -1316,23 +1317,36 @@ make_connectivity_3d (const p4est_topidx_t num_trees[3],
     }
   }
 
-  /*
-  int k = 0;
-  for (int i = 0; i < num_vertices; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      std::cout << p[k++] << "    ";
+  // Sides 4 and 5
+  bcells.clear ();
+  for (p4est_topidx_t ix = 0; ix < num_trees[0]; ++ix) {
+    for (p4est_topidx_t iy = 0; iy < num_trees[1]; ++iy) {
+      for (p4est_topidx_t iz : {0, num_trees[2]-1}) {
+	auto idx = (iz + num_trees[2] * (iy + num_trees[1] * ix));
+	bcells.push_back(std::make_pair(idx, iz+4));
+      }
     }
-    std::cout << std::endl;
   }
 
-  k = 0;
-  for (int i = 0; i < total_num_trees; ++i) {
-    for (int j = 0; j < 9; ++j) {
-      std::cout << t[k++] << "    ";
+  // Sides 2 and 3
+  for (p4est_topidx_t ix = 0; ix < num_trees[0]; ++ix) {
+    for (p4est_topidx_t iy : {0, num_trees[1]-1}) {
+      for (p4est_topidx_t iz = 0; iz < num_trees[2]; ++iz) {
+	auto idx = (iz + num_trees[2] * (iy + num_trees[1] * ix));
+	bcells.push_back(std::make_pair(idx, iy+2));
+      }
     }
-    std::cout << std::endl;
   }
-  */
+
+  // Sides 0 and 1
+  for (p4est_topidx_t ix : {0, num_trees[0]-1}) {
+    for (p4est_topidx_t iy = 0; iy < num_trees[1]; ++iy) {
+      for (p4est_topidx_t iz = 0; iz < num_trees[2]; ++iz) {
+	auto idx = (iz + num_trees[2] * (iy + num_trees[1] * ix));
+	bcells.push_back(std::make_pair(idx, ix));
+      }
+    }
+  }
   
 };
 
