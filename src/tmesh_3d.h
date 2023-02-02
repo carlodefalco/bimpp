@@ -20,6 +20,7 @@
 
 #include <functional>
 #include <array>
+#include <utility>
 #include <vector>
 
 /// C++ interface class for p4est 3d quadrant meshes.
@@ -545,7 +546,8 @@ private:
 void
 make_connectivity_3d (const p4est_topidx_t num_trees[3], const double step[3],
 		      double *& p, p4est_topidx_t & num_vertices,
-		      p4est_topidx_t *& t, p4est_topidx_t & total_num_trees);
+		      p4est_topidx_t *& t, p4est_topidx_t & total_num_trees,
+		      std::vector<std::pair<p4est_topidx_t, p4est_topidx_t>> & bcells);
 
 
 #endif /* TMESH_3D_H */

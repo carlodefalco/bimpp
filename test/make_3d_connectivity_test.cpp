@@ -49,10 +49,13 @@ main (int argc, char **argv)
   double *p{nullptr};
   p4est_topidx_t num_vertices{0}, total_num_trees{0};
   p4est_topidx_t *t{nullptr};
-  
-  make_connectivity_3d (num_trees, step, p, num_vertices, t, total_num_trees);
+  std::vector<std::pair<p4est_topidx_t, p4est_topidx_t>> bcells;
+  make_connectivity_3d (num_trees, step, p, num_vertices, t, total_num_trees, bcells);
   tmsh.read_connectivity (p, num_vertices, t, total_num_trees);
-
+  for (auto const & pippo : bcells) {
+    std::cout << "bcells : " << pippo.first << " " << pippo.second << std::endl;
+  }
+  
   recursive = 0;
   partforcoarsen = 0;
  
