@@ -21,17 +21,17 @@
 
 
 // mpirun -np 2 main_TG2IMEXRKC2PHASE $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
-// mpirun -np 2 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
+// mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
 
 
 static constexpr char VARNAME_1[255] = "dem"; 
 static constexpr char VARNAME_2[255] = "mask_in"; 
-//static constexpr char VARNAME_3[255] = "mask_fin";
+//static constexpr char VARNAME_3[255] = "mask_fin"; 
 
 // properties of the input dem
-static constexpr double res = 10;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 449;//449;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 544;//544;//101;//175;//201;//180; // # rows
+static constexpr double res = .1;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 101;//449;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 101;//544;//101;//175;//201;//180; // # rows
  
   
 static constexpr double L = res*(Nx-1);
@@ -45,30 +45,30 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
+static constexpr double SPACE_ADAPTDT = .025;//1e-2; // put zero if you want at each time step
 static constexpr double SAVEDT = .1; // must never be null 
 static constexpr double DELTAT = 1.;
 static constexpr double REDCDT = .8; // it is the limit of the CFL condition
 static constexpr double T      = 230.;
  
-static constexpr bool is_time_adaptivity        = false; 
-static constexpr bool is_initial_refinement     = false;
-static constexpr bool is_space_adaptivity       = false; 
+static constexpr bool is_time_adaptivity        = false;
+static constexpr bool is_initial_refinement     = true;
+static constexpr bool is_space_adaptivity       = true;
 static constexpr bool is_non_reflBC             = true;
-static constexpr bool is_bed_friction           = true; 
-static constexpr bool is_max_time_step_from_CFL = true;  
+static constexpr bool is_bed_friction           = true;
+static constexpr bool is_max_time_step_from_CFL = true;
  
 
-static constexpr double h_min = 1.e-2;
+static constexpr double h_min = 1.e-3;
 static constexpr double grav = 9.81;
 
 // variables that can be used for UQ
 static constexpr double density = 2350.;
-static constexpr double density_s = 2700.; 
-static constexpr double density_w = 1000.; 
+static constexpr double density_s = 2700.;
+static constexpr double density_w = 1000.;
 static constexpr double turbulence_coeff = 1e10;
-static constexpr double bed_friction_angle_rad = 17.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double erosion_coefficient = 5e-5; // 0.
+static constexpr double bed_friction_angle_rad = 0*17.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
+static constexpr double erosion_coefficient = 0*5e-5; // 0.
 static constexpr double m_coeff = 1.;
 static constexpr double terminal_velocity = 1.e-2; // non può essere nulla!
 
@@ -183,7 +183,7 @@ using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;    
 
 
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
-double h0_fun (const double& xx, const double& yy) 
+double h0_fun (const double& xx, const double& yy)
 { 
   //return(yy>L/2. ? 10. : 0.);
   //return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
@@ -586,6 +586,7 @@ main (int argc, char **argv)
   compute_slope();
 
 
+
   // Initialize 
   TIC ();
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -898,9 +899,14 @@ main (int argc, char **argv)
   MPI_Allreduce (MPI_IN_PLACE, extrema_vector.data(), size+1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
 
   std::vector<std::array<double,7> > neig_state(gn_elements);
+  std::vector<bool> is_already_rec(gn_elements);
+  std::vector<bool> is_already_send(gn_elements);
+
+  is_already_rec.assign(false, gn_elements);
+  is_already_send.assign(false, gn_elements);
 
   std::vector<MPI_Request> reqs;
-  int count_req = 0;
+  int count_req = 0, count_send = 0;
 
   
   TG2_scheme stp(sol_dyn, 
@@ -939,17 +945,19 @@ main (int argc, char **argv)
                  terminal_velocity,
                  extrema_vector,
                  neig_state,
+                 is_already_rec,
+                 is_already_send,
                  slope_x_dyn,
                  slope_y_dyn);
 
   // 
-  int shift = 0;
+  int shift_send = 0, shift_rec = 0;
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
   {
-    stp.communication_part(quadrant, shift);
+    stp.communication_part(quadrant, shift_send, shift_rec);
   }
-  reqs.resize(2*shift * 7);
+  reqs.resize((shift_send+shift_rec) * 7);
 
 
 
@@ -986,7 +994,7 @@ main (int argc, char **argv)
   
   str = std::string(SAVE_DIR) + "/results/swe_Z_%4.4d";
   strcpy(arr, str.c_str());
-  sprintf(filename, arr, 0); 
+  sprintf(filename, arr, 0);
   tmsh.octbin_export (filename, Z_dyn);
   
 
@@ -1128,15 +1136,19 @@ main (int argc, char **argv)
     }
 
 
+    is_already_rec.assign(false, gn_elements);
+    is_already_send.assign(false, gn_elements);
     count_req = 0;
+    count_send = 0;
     reqs.assign(reqs.size(), MPI_REQUEST_NULL);
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
     {
-      stp.communication_part(quadrant, reqs, count_req, shift);
+      stp.communication_part(quadrant, reqs, count_req, count_send, shift_send, shift_rec);
     }
     MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUS_IGNORE);
     
+
 
     // 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -1149,37 +1161,26 @@ main (int argc, char **argv)
     P_minus_dyn.assemble ();
 
 
+
     stp.set_times(time, time_old, time_oldd);
     soldd_dyn = sold_dyn;
     sold_dyn  = sol_dyn;
+
     
 
     // low order solution with the corrector step, 
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
     {
       stp.solve_non_lin(kk);
-    }
-
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep ();
-         ++quadrant)
-    {
-      for (int ii = 0; ii < 4; ++ii)
-      {
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhw    (quadrant->gt (ii))]<0){
-          sol_dyn [ordhw    (quadrant->gt (ii))] = 0.; //h_min; //0.;
-        }
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhs    (quadrant->gt (ii))]<0){
-          sol_dyn [ordhs    (quadrant->gt (ii))] = 0.; //h_min; //0.;
-        }
-      }
-    }
+      stp.stabilization_term(kk);
+    } 
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxw, false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUyw, false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxs, false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUys);
+
 
 
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
@@ -1256,13 +1257,6 @@ main (int argc, char **argv)
       }
       incr_source_dyn.assemble (replace_op); 
     }   
-
-
-    for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
-    {
-      stp.stabilization_term(kk);
-    }
-    sol_dyn.assemble(replace_op);
     
 
     stp.set_old_dt(stp.dt);
@@ -1288,12 +1282,15 @@ main (int argc, char **argv)
     }
 
 
+    is_already_rec.assign(false, gn_elements);
+    is_already_send.assign(false, gn_elements);
     count_req = 0;
+    count_send = 0;
     reqs.assign(reqs.size(), MPI_REQUEST_NULL);
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
     {
-      stp.communication_part(quadrant, reqs, count_req, shift);
+      stp.communication_part(quadrant, reqs, count_req, count_send, shift_send, shift_rec);
     }
     MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUS_IGNORE); 
 
@@ -1314,21 +1311,7 @@ main (int argc, char **argv)
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
     {
       stp.solve_non_lin(kk);
-    }
-
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep ();
-         ++quadrant)
-    {
-      for (int ii = 0; ii < 4; ++ii)
-      {
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhw    (quadrant->gt (ii))]<0){
-          sol_dyn [ordhw    (quadrant->gt (ii))] = 0.; //h_min; //0.;
-        }
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhs    (quadrant->gt (ii))]<0){
-          sol_dyn [ordhs    (quadrant->gt (ii))] = 0.; //h_min; //0.;
-        }
-      }
+      stp.stabilization_term(kk);
     }
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
@@ -1336,7 +1319,6 @@ main (int argc, char **argv)
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUyw, false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxs, false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUys);
-
 
 
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
@@ -1373,12 +1355,12 @@ main (int argc, char **argv)
         }
       }
     }
-    sol_dyn.assemble(replace_op); 
-
+    sol_dyn.assemble(replace_op);
+ 
 
 
     // Save solution
-    if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) 
+    //if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) 
     {
       //TIC();
       if (rank == 0)
@@ -1428,10 +1410,11 @@ main (int argc, char **argv)
       counter_savings++;
 
     }
-      
 
-    
-    if (is_space_adaptivity &&  ((space_adapt_count-SPACE_ADAPTDT) >= -std::numeric_limits<double>::epsilon()*SPACE_ADAPTDT))
+
+
+    if (is_space_adaptivity && ((space_adapt_count-SPACE_ADAPTDT) >= -std::numeric_limits<double>::epsilon()*SPACE_ADAPTDT))
+    //(is_space_adaptivity && counter_savings%8==0)//  ((space_adapt_count-SPACE_ADAPTDT) >= -std::numeric_limits<double>::epsilon()*SPACE_ADAPTDT))
     {
 
       //TIC();
@@ -1469,6 +1452,7 @@ main (int argc, char **argv)
         quadrant_marker_list(q, only_h,  only_Ux, only_Uy, stp.dt, global_index_quad);
       }      
       //TOC("front track.");  
+
       
       
       //TIC();
@@ -1606,10 +1590,10 @@ main (int argc, char **argv)
       Q0 Z_onehalf (ln_elements);
       Z_onehalf.get_owned_data ().assign (Z_onehalf.get_owned_data ().size(), 0.0);
 
-      std::vector<double> slope_x_(ln_elements);
+      std::vector<double> slope_x(ln_elements);
       slope_x.assign(slope_x.size(), 0.0);
 
-      std::vector<double> slope_y_(ln_elements);
+      std::vector<double> slope_y(ln_elements);
       slope_y.assign(slope_y.size(), 0.0);
 
 
@@ -1651,6 +1635,7 @@ main (int argc, char **argv)
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUyw, false);
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUxs, false);
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUys);
+
       
        
       sol_dyn                 = sol;
@@ -1672,6 +1657,7 @@ main (int argc, char **argv)
       slope_x_dyn             = slope_x;
       slope_y_dyn             = slope_y;
 
+
       space_adapt_count = 0.0;
 
 
@@ -1682,27 +1668,40 @@ main (int argc, char **argv)
 
 
       std::vector<std::array<double,7> > neig_state_(gn_elements);
-
+      std::vector<bool> is_already_rec_(gn_elements);
+      std::vector<bool> is_already_send_(gn_elements);
       std::vector<MPI_Request> reqs_;
+
+      is_already_rec_.assign(false, gn_elements);
+      is_already_send_.assign(false, gn_elements);
+
+      shift_send = 0; 
+      shift_rec = 0;
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
       {
-        stp.communication_part(quadrant, shift);
+        stp.communication_part(quadrant, shift_send, shift_rec);
       }
-      reqs_.resize(2*shift * 7);
+      reqs_.resize((shift_send+shift_rec) * 7);
+
 
       neig_state = neig_state_;
       reqs = reqs_;
-      
+      is_already_rec = is_already_rec_;
+      is_already_send = is_already_send_;
 
       
       //TOC ("Interpolation");
       
     }
     
-    
+
     
   }
+
+
+
+
   
   
   if (rank == 0)

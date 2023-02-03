@@ -9,7 +9,7 @@
  
 
 
-class TG2_scheme  
+class TG2_scheme   
 {
   using Q1  = q1_vec<distributed_vector>;
   using Q0  = distributed_vector;
@@ -36,7 +36,7 @@ public:
              const ordering& oUyw,
              const ordering& oUxs,
              const ordering& oUys,
-             const Q1& Z,
+             Q1& Z,
              Q0& Z_onehalf,
              const double& DELTAT,
              const double& h_min,
@@ -50,10 +50,12 @@ public:
              const double& erosion_coefficient,
              const double& m_coeff,
              const double& terminal_velocity,
-             const std::vector<double>& extrema_vector,
+             std::vector<double>& extrema_vector,
              std::vector<std::array<double, 7> >& neig_state,
-             const std::vector<double>& slope_x,
-             const std::vector<double>& slope_y);
+             std::vector<bool>& is_already_rec,
+             std::vector<bool>& is_already_send,
+             std::vector<double>& slope_x,
+             std::vector<double>& slope_y);
   
   TG2_scheme() = delete;
   
@@ -129,10 +131,10 @@ public:
   set_times(const double& time, const double& time_old, const double& time_oldd);
 
   void
-  communication_part(tmesh::quadrant_iterator quadrant, std::vector<MPI_Request>& reqs, int& count_req, int& shift);
+  communication_part(tmesh::quadrant_iterator quadrant, std::vector<MPI_Request>& reqs, int& count_req, int& count_send, int& shift_send, int& shift_rec);
 
   void
-  communication_part(tmesh::quadrant_iterator quadrant, int& shift);
+  communication_part(tmesh::quadrant_iterator quadrant, int& shift_send, int& shift_rec);
 
   void
   loop_step (const int& kk, const bool& isInitial);
@@ -286,7 +288,7 @@ public:
   Q1& P_plus;
   Q1& P_minus;
   Q0& sol_onehalf;
-  const Q1& Z;
+  Q1& Z;
   Q0& Z_onehalf;
   Q1& mass;
   
@@ -313,10 +315,12 @@ private:
   const double& bed_friction_angle_rad;
   const double& m_coeff;
   const double& terminal_velocity;
-  const std::vector<double>& extrema_vector;
+  std::vector<double>& extrema_vector;
   std::vector<std::array<double, 7> >& neig_state;
-  const std::vector<double>& slope_x;
-  const std::vector<double>& slope_y;
+  std::vector<bool>& is_already_rec;
+  std::vector<bool>& is_already_send;
+  std::vector<double>& slope_x;
+  std::vector<double>& slope_y;
 
   double w0, w1;
 

@@ -22,7 +22,7 @@ TG2_scheme::TG2_scheme(Q1& sol,
              const ordering& oUyw,
              const ordering& oUxs,
              const ordering& oUys,
-             const Q1& Z,
+             Q1& Z,
              Q0& Z_onehalf,
              const double& DELTAT,
              const double& h_min,
@@ -31,15 +31,17 @@ TG2_scheme::TG2_scheme(Q1& sol,
              const double& grav,
              const double& density_w,
              const double& density_s,
-             const double& turbulence_coeff, 
+             const double& turbulence_coeff,
              const double& bed_friction_angle_rad,
              const double& erosion_coefficient,
              const double& m_coeff,
              const double& terminal_velocity,
-             const std::vector<double>& extrema_vector,
+             std::vector<double>& extrema_vector,
              std::vector<std::array<double, 7> >& neig_state,
-             const std::vector<double>& slope_x,
-             const std::vector<double>& slope_y)
+             std::vector<bool>& is_already_rec,
+             std::vector<bool>& is_already_send,
+             std::vector<double>& slope_x,
+             std::vector<double>& slope_y)
 : sol(sol), 
 sold(sold), 
 soldd(soldd), 
@@ -76,6 +78,8 @@ m_coeff(m_coeff),
 terminal_velocity(terminal_velocity),
 extrema_vector(extrema_vector),
 neig_state(neig_state),
+is_already_rec(is_already_rec),
+is_already_send(is_already_send),
 slope_x(slope_x),
 slope_y(slope_y)
 { }
@@ -442,6 +446,7 @@ TG2_scheme::solve_non_lin(const int& kk)
   sol.get_owned_data ()[kk+4] = v_Ux_s;
   sol.get_owned_data ()[kk+5] = v_Uy_s;
 
+
   const auto & Uxw_c = sol.get_owned_data ()[kk+2];
   const auto & Uyw_c = sol.get_owned_data ()[kk+3];
   const auto & Uxs_c = sol.get_owned_data ()[kk+4];
@@ -493,12 +498,14 @@ TG2_scheme::solve_non_lin(const int& kk)
     sol.get_owned_data ()[kk  ] += delta_hw;
     sol.get_owned_data ()[kk+1] += delta_hs;
   }
+  sol.get_owned_data ()[kk  ] = sol.get_owned_data ()[kk  ]>0 ? sol.get_owned_data ()[kk  ] : 0.;
+  sol.get_owned_data ()[kk+1] = sol.get_owned_data ()[kk+1]>0 ? sol.get_owned_data ()[kk+1] : 0.;
 
 }
 
 
 void
-TG2_scheme::communication_part (tmesh::quadrant_iterator quadrant, int& shift)
+TG2_scheme::communication_part (tmesh::quadrant_iterator quadrant, int& shift_send, int& shift_rec)
 {
   // look at tmesh.h 
   const auto & index_quadrant = quadrant->get_global_quad_idx (); 
@@ -550,7 +557,17 @@ TG2_scheme::communication_part (tmesh::quadrant_iterator quadrant, int& shift)
           ((xn[i_1] == Xn[j_2] && yn[i_1] == Yn[j_2]) ||
            (xn[i_2] == Xn[j_2] && yn[i_2] == Yn[j_2]))) && check_orthogonality && index_quadrant!=index_quadrant_nei && !is_owned_quadrant )
         {
-          shift++;
+          if (!is_already_rec[index_quadrant_nei])
+          {
+            shift_rec++;
+            is_already_rec[index_quadrant_nei] = true;
+          }
+
+          if (!is_already_send[index_quadrant])
+          {
+            shift_send++;
+            is_already_send[index_quadrant] = true;
+          }
         }
       }
 
@@ -562,7 +579,7 @@ TG2_scheme::communication_part (tmesh::quadrant_iterator quadrant, int& shift)
 
 void
 TG2_scheme::communication_part (tmesh::quadrant_iterator quadrant, 
-  std::vector<MPI_Request>& reqs, int& count_req, int& shift)
+  std::vector<MPI_Request>& reqs, int& count_req, int& count_send, int& shift_send, int& shift_rec)
 {
   // look at tmesh.h 
   const auto & index_quadrant = quadrant->get_global_quad_idx (); 
@@ -647,27 +664,32 @@ TG2_scheme::communication_part (tmesh::quadrant_iterator quadrant,
             }
           }
 
-          // qui probabilmente si deve modificare nel caso di hanging nodes che si invia più volte lo stesso messaggio
-          MPI_Irecv(&Z_cell_nei,   1, MPI_DOUBLE, rank_of_source, index_quadrant_nei,         MPI_COMM_WORLD, &reqs[count_req            ]);
-          MPI_Isend(&Z_cell,       1, MPI_DOUBLE, rank_of_source, index_quadrant,             MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);
+          if (!is_already_rec[index_quadrant_nei])
+          {
+            MPI_Irecv(&Z_cell_nei,   1, MPI_DOUBLE, rank_of_source,        index_quadrant_nei,  MPI_COMM_WORLD, &reqs[count_send++              ]); 
+            MPI_Irecv(&hw_cell_nei,  1, MPI_DOUBLE, rank_of_source, ordhw (index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_send++              ]);
+            MPI_Irecv(&hs_cell_nei,  1, MPI_DOUBLE, rank_of_source, ordhs (index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_send++              ]);
+            MPI_Irecv(&Uxw_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUxw(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_send++              ]);
+            MPI_Irecv(&Uyw_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUyw(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_send++              ]);
+            MPI_Irecv(&Uxs_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUxs(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_send++              ]);
+            MPI_Irecv(&Uys_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUys(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_send++              ]);
 
-          MPI_Irecv(&hw_cell_nei,  1, MPI_DOUBLE, rank_of_source, ordhw(index_quadrant_nei),  MPI_COMM_WORLD, &reqs[count_req            ]);
-          MPI_Isend(&hw_cell,      1, MPI_DOUBLE, rank_of_source, ordhw(index_quadrant),      MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);
+            is_already_rec[index_quadrant_nei] = true;
+          }
 
-          MPI_Irecv(&hs_cell_nei,  1, MPI_DOUBLE, rank_of_source, ordhs(index_quadrant_nei),  MPI_COMM_WORLD, &reqs[count_req            ]);
-          MPI_Isend(&hs_cell,      1, MPI_DOUBLE, rank_of_source, ordhs(index_quadrant),      MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);
+          if (!is_already_send[index_quadrant])
+          {
+            MPI_Isend(&Z_cell,       1, MPI_DOUBLE, rank_of_source,        index_quadrant,      MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
+            MPI_Isend(&hw_cell,      1, MPI_DOUBLE, rank_of_source, ordhw (index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
+            MPI_Isend(&hs_cell,      1, MPI_DOUBLE, rank_of_source, ordhs (index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
+            MPI_Isend(&Uxw_cell,     1, MPI_DOUBLE, rank_of_source, ordUxw(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
+            MPI_Isend(&Uyw_cell,     1, MPI_DOUBLE, rank_of_source, ordUyw(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
+            MPI_Isend(&Uxs_cell,     1, MPI_DOUBLE, rank_of_source, ordUxs(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
+            MPI_Isend(&Uys_cell,     1, MPI_DOUBLE, rank_of_source, ordUys(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
 
-          MPI_Irecv(&Uxw_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUxw(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_req            ]);
-          MPI_Isend(&Uxw_cell,     1, MPI_DOUBLE, rank_of_source, ordUxw(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);
+            is_already_send[index_quadrant] = true;
+          }
 
-          MPI_Irecv(&Uyw_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUyw(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_req            ]);
-          MPI_Isend(&Uyw_cell,     1, MPI_DOUBLE, rank_of_source, ordUyw(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);
-
-          MPI_Irecv(&Uxs_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUxs(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_req            ]);
-          MPI_Isend(&Uxs_cell,     1, MPI_DOUBLE, rank_of_source, ordUxs(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);
-
-          MPI_Irecv(&Uys_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUys(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_req            ]);
-          MPI_Isend(&Uys_cell,     1, MPI_DOUBLE, rank_of_source, ordUys(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift*7]);         
         }
       }
 
@@ -770,8 +792,9 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
   const double & Z_cell     = Z_onehalf[index_quadrant];
 
-  const auto & slope_x_cell = slope_x[index_quadrant_local];
-  const auto & slope_y_cell = slope_y[index_quadrant_local];
+  const auto slope_x_cell = slope_x[index_quadrant_local];
+  const auto slope_y_cell = slope_y[index_quadrant_local];
+
 
   const auto contr_slope_xs = .5*.5*src_slope_formula (hs_cell, slope_x_cell)*Dx*Dy;
   const auto contr_slope_ys = .5*.5*src_slope_formula (hs_cell, slope_y_cell)*Dx*Dy;
@@ -1064,7 +1087,6 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
 
 
-
       incr [ordhs  (quadrant->gt (ii))] += hs_;
       incr [ordUxs (quadrant->gt (ii))] += Uxs_;
       incr [ordUys (quadrant->gt (ii))] += Uys_;
@@ -1146,13 +1168,9 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
       P_minus [ordUys (quadrant->gparent(0,ii))] += std::min(0., Uys_al);
       P_minus [ordUys (quadrant->gparent(1,ii))] += std::min(0., Uys_al);
 
-
-
-      
     }
+
   }
-
-
 
 }
 
@@ -1676,17 +1694,12 @@ TG2_scheme::stabilization_term (const int& kk)
   const auto hyp_diff_x_ = abs_delta_vel_x - 2.*kinematic_speed_wave;
   const auto hyp_diff_y_ = abs_delta_vel_y - 2.*kinematic_speed_wave;
 
-  const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x_<0 ? hyp_diff_x/density/dt*std::sqrt(n)*(1.-n)*density_s*density_w/(2.*kinematic_speed_wave*beta_coeff_) : 0., 0.);
-  const double cy_sgn = std::max( h_c>epsilon && hyp_diff_y_<0 ? hyp_diff_y/density/dt*std::sqrt(n)*(1.-n)*density_s*density_w/(2.*kinematic_speed_wave*beta_coeff_) : 0., 0.);
+  double cx_sgn = std::max( h_c>epsilon && hyp_diff_x_<0 ? hyp_diff_x/density/dt*std::sqrt(n)*(1.-n)*density_s*density_w/(2.*kinematic_speed_wave*beta_coeff_) : 0., 0.);
+  double cy_sgn = std::max( h_c>epsilon && hyp_diff_y_<0 ? hyp_diff_y/density/dt*std::sqrt(n)*(1.-n)*density_s*density_w/(2.*kinematic_speed_wave*beta_coeff_) : 0., 0.);
+
 
   //const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x>0 && hyp_diff_x_<0 ? 1.e6 : 0., 0.);
   //const double cy_sgn = std::max( h_c>epsilon && hyp_diff_y>0 && hyp_diff_y_<0 ? 1.e6 : 0., 0.);
-
-
-  //if (cx_sgn!=0)
-  //{
-  //  std::cout << cx_sgn << std::endl;
-  //}
 
 
   const double big_Ax = 1. + ((hw_c>epsilon) ? dt*cx_sgn/hw_c*h_c/density_w : 0.);
