@@ -50,10 +50,6 @@ public:
              const double& erosion_coefficient,
              const double& m_coeff,
              const double& terminal_velocity,
-             std::vector<double>& extrema_vector,
-             std::vector<std::array<double, 7> >& neig_state,
-             std::vector<bool>& is_already_rec,
-             std::vector<bool>& is_already_send,
              std::vector<double>& slope_x,
              std::vector<double>& slope_y);
   
@@ -315,10 +311,6 @@ private:
   const double& bed_friction_angle_rad;
   const double& m_coeff;
   const double& terminal_velocity;
-  std::vector<double>& extrema_vector;
-  std::vector<std::array<double, 7> >& neig_state;
-  std::vector<bool>& is_already_rec;
-  std::vector<bool>& is_already_send;
   std::vector<double>& slope_x;
   std::vector<double>& slope_y;
 

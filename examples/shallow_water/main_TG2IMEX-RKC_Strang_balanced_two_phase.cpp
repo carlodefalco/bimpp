@@ -65,7 +65,7 @@ static constexpr double grav = 9.81;
 // variables that can be used for UQ
 static constexpr double density = 2350.;
 static constexpr double density_s = 2700.;
-static constexpr double density_w = 1000.;
+static constexpr double density_w = 1000.; 
 static constexpr double turbulence_coeff = 1e10;
 static constexpr double bed_friction_angle_rad = 17.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double erosion_coefficient = 5e-5; // 0.
@@ -534,10 +534,11 @@ main (int argc, char **argv)
   
   Q0 sol_onehalf (ln_elements * 6);
   sol_onehalf.get_owned_data ().assign (sol_onehalf.get_owned_data ().size (), 0.0);
+  sol_onehalf.assemble();
 
   Q0 Z_onehalf (ln_elements);
   Z_onehalf.get_owned_data ().assign (Z_onehalf.get_owned_data ().size (), 0.0);
-
+  Z_onehalf.assemble();
 
   std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 6);
   
@@ -584,8 +585,7 @@ main (int argc, char **argv)
   dem_slope_x.resize(Nx*Ny);
   dem_slope_y.resize(Nx*Ny);
   compute_slope();
-
-
+  
 
   // Initialize 
   TIC ();
@@ -772,9 +772,11 @@ main (int argc, char **argv)
   
     Q0 sol_onehalf_ (ln_elements * 6);
     sol_onehalf_.get_owned_data ().assign (sol_onehalf_.get_owned_data ().size(), 0.0);
+    sol_onehalf_.assemble();
 
     Q0 Z_onehalf_ (ln_elements);
     Z_onehalf_.get_owned_data ().assign (Z_onehalf_.get_owned_data ().size(), 0.0);
+    Z_onehalf_.assemble();
 
     std::vector<double> slope_x_(ln_elements);
     slope_x_.assign(slope_x_.size(), 0.0);
@@ -893,21 +895,6 @@ main (int argc, char **argv)
   std::vector<double> slope_x_dyn = slope_x;
   std::vector<double> slope_y_dyn = slope_y;
 
-  std::vector<double> extrema_vector(size+1);
-  extrema_vector[rank  ] = Z_onehalf_dyn.get_range_start ();
-  extrema_vector[rank+1] = Z_onehalf_dyn.get_range_end   ();
-  MPI_Allreduce (MPI_IN_PLACE, extrema_vector.data(), size+1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
-
-  std::vector<std::array<double,7> > neig_state(gn_elements);
-  std::vector<bool> is_already_rec(gn_elements);
-  std::vector<bool> is_already_send(gn_elements);
-
-  is_already_rec.assign(false, gn_elements);
-  is_already_send.assign(false, gn_elements);
-
-  std::vector<MPI_Request> reqs;
-  int count_req = 0, count_send = 0;
-
   
   TG2_scheme stp(sol_dyn, 
                  sold_dyn, 
@@ -943,21 +930,8 @@ main (int argc, char **argv)
                  erosion_coefficient, 
                  m_coeff, 
                  terminal_velocity,
-                 extrema_vector,
-                 neig_state,
-                 is_already_rec,
-                 is_already_send,
                  slope_x_dyn,
                  slope_y_dyn);
-
-  // 
-  int shift_send = 0, shift_rec = 0;
-  for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-  {
-    stp.communication_part(quadrant, shift_send, shift_rec);
-  }
-  reqs.resize((shift_send+shift_rec) * 7);
 
 
 
@@ -1093,7 +1067,7 @@ main (int argc, char **argv)
       }
       MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
 
-      const double local_estimator_time_tolerance = 1e-5;//5e-3*(stp.time-stp.timed)*std::sqrt(stp.time-stp.timed)/std::sqrt(stp.nu_htot);
+      const double local_estimator_time_tolerance = 1e-5;
 
       const double candidate_dt = local_estimator_time_tolerance/std::sqrt(stp.nu_htot)*(stp.time-stp.timed);
       stp.set_dt( (stp.nu_htot>0 && candidate_dt<stp.dt) ? candidate_dt : stp.dt );
@@ -1134,19 +1108,14 @@ main (int argc, char **argv)
     {
       stp.first_step(quadrant);
     }
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhw,  false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhs,  false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxw, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUyw, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxs, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUys);
 
-
-    is_already_rec.assign(false, gn_elements);
-    is_already_send.assign(false, gn_elements);
-    count_req = 0;
-    count_send = 0;
-    reqs.assign(reqs.size(), MPI_REQUEST_NULL);
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.communication_part(quadrant, reqs, count_req, count_send, shift_send, shift_rec);
-    }
-    MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUS_IGNORE);
+    bim2a_solution_with_ghosts_center (tmsh, Z_onehalf_dyn, replace_op);
     
 
 
@@ -1280,19 +1249,14 @@ main (int argc, char **argv)
     {
       stp.first_step(quadrant);
     }
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhw,  false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhs,  false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxw, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUyw, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxs, false);
+    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUys);
 
-
-    is_already_rec.assign(false, gn_elements);
-    is_already_send.assign(false, gn_elements);
-    count_req = 0;
-    count_send = 0;
-    reqs.assign(reqs.size(), MPI_REQUEST_NULL);
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.communication_part(quadrant, reqs, count_req, count_send, shift_send, shift_rec);
-    }
-    MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUS_IGNORE); 
+    bim2a_solution_with_ghosts_center (tmsh, Z_onehalf_dyn, replace_op);
 
 
     // 
@@ -1356,17 +1320,16 @@ main (int argc, char **argv)
       }
     }
     sol_dyn.assemble(replace_op);
- 
 
 
     // Save solution
-    //if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) 
+    if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) 
     {
       //TIC();
       if (rank == 0)
         std::cout << "savecount = " << savecount << std::endl;
       count++;
-      save_time_vector.push_back (time);
+      save_time_vector.push_back (time); 
 
      
       str = std::string(SAVE_DIR) + "/results/swe_hw_%4.4d";
@@ -1585,10 +1548,12 @@ main (int argc, char **argv)
       
       Q0 sol_onehalf (ln_elements * 6);
       sol_onehalf.get_owned_data ().assign (sol_onehalf.get_owned_data ().size(), 0.0);
+      sol_onehalf.assemble();
 
 
       Q0 Z_onehalf (ln_elements);
       Z_onehalf.get_owned_data ().assign (Z_onehalf.get_owned_data ().size(), 0.0);
+      Z_onehalf.assemble();
 
       std::vector<double> slope_x(ln_elements);
       slope_x.assign(slope_x.size(), 0.0);
@@ -1659,36 +1624,6 @@ main (int argc, char **argv)
 
 
       space_adapt_count = 0.0;
-
-
-      extrema_vector.assign(extrema_vector.size(), 0);
-      extrema_vector[rank  ] = Z_onehalf_dyn.get_range_start ();
-      extrema_vector[rank+1] = Z_onehalf_dyn.get_range_end   ();
-      MPI_Allreduce (MPI_IN_PLACE, extrema_vector.data(), size+1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
-
-
-      std::vector<std::array<double,7> > neig_state_(gn_elements);
-      std::vector<bool> is_already_rec_(gn_elements);
-      std::vector<bool> is_already_send_(gn_elements);
-      std::vector<MPI_Request> reqs_;
-
-      is_already_rec_.assign(false, gn_elements);
-      is_already_send_.assign(false, gn_elements);
-
-      shift_send = 0; 
-      shift_rec = 0;
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-      {
-        stp.communication_part(quadrant, shift_send, shift_rec);
-      }
-      reqs_.resize((shift_send+shift_rec) * 7);
-
-
-      neig_state = neig_state_;
-      reqs = reqs_;
-      is_already_rec = is_already_rec_;
-      is_already_send = is_already_send_;
 
       
       //TOC ("Interpolation");

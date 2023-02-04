@@ -36,10 +36,6 @@ TG2_scheme::TG2_scheme(Q1& sol,
              const double& erosion_coefficient,
              const double& m_coeff,
              const double& terminal_velocity,
-             std::vector<double>& extrema_vector,
-             std::vector<std::array<double, 7> >& neig_state,
-             std::vector<bool>& is_already_rec,
-             std::vector<bool>& is_already_send,
              std::vector<double>& slope_x,
              std::vector<double>& slope_y)
 : sol(sol), 
@@ -76,10 +72,6 @@ bed_friction_angle_rad(bed_friction_angle_rad),
 erosion_coefficient(erosion_coefficient),
 m_coeff(m_coeff), 
 terminal_velocity(terminal_velocity),
-extrema_vector(extrema_vector),
-neig_state(neig_state),
-is_already_rec(is_already_rec),
-is_already_send(is_already_send),
 slope_x(slope_x),
 slope_y(slope_y)
 { }
@@ -504,199 +496,6 @@ TG2_scheme::solve_non_lin(const int& kk)
 }
 
 
-void
-TG2_scheme::communication_part (tmesh::quadrant_iterator quadrant, int& shift_send, int& shift_rec)
-{
-  // look at tmesh.h 
-  const auto & index_quadrant = quadrant->get_global_quad_idx (); 
-
-  std::array<int,4> bimpp_to_rev_ord = {0, 1, 3, 2};
-  
-  for (int ii = 0; ii < 4; ++ii) {
-    xn[ii] = quadrant->p(0, ii);
-    yn[ii] = quadrant->p(1, ii);
-  }
-
-
-  // get the rank of the processor that own,
-  for (int iEdge = 0; iEdge < 4; ++iEdge){
-
-    const auto i_1 = bimpp_to_rev_ord[iEdge];
-    const auto i_2 = bimpp_to_rev_ord[(iEdge+1)%4];
-
-    const auto edge_length = std::sqrt(std::pow((xn[i_1]-xn[i_2]),2.) + std::pow((yn[i_1]-yn[i_2]),2.));
-    const std::array<double,2> outward_normal_edge = {(-yn[i_1]+yn[i_2])/edge_length, ( xn[i_1]-xn[i_2])/edge_length};  
-
-    for (auto quadrant_nei = quadrant->begin_neighbor_sweep();
-     quadrant_nei != quadrant->end_neighbor_sweep (); ++quadrant_nei)
-    {
-      std::array<double,4> Xn, Yn;
-
-      for (int ii = 0; ii < 4; ++ii) {
-        Xn[ii] = quadrant_nei->p(0, ii);
-        Yn[ii] = quadrant_nei->p(1, ii);
-      }
-
-      const auto & index_quadrant_nei = quadrant_nei->get_global_quad_idx ();
-
-
-      for (int jEdge = 0; jEdge < 4; ++jEdge) { // cycle neigh edges 
-
-        const auto j_1 = bimpp_to_rev_ord[jEdge];
-        const auto j_2 = bimpp_to_rev_ord[(jEdge+1)%4];
-
-        const auto edge_length_nei = std::sqrt(std::pow((Xn[j_1]-Xn[j_2]),2.) + std::pow((Yn[j_1]-Yn[j_2]),2.));
-        const std::array<double,2> outward_normal_edge_nei = {(-Yn[j_1]+Yn[j_2])/edge_length_nei, ( Xn[j_1]-Xn[j_2])/edge_length_nei};  
-        const bool check_orthogonality = std::inner_product(outward_normal_edge_nei.begin(), outward_normal_edge_nei.end(), outward_normal_edge.begin(), 0.) == -1;
-
-        bool is_owned_quadrant = index_quadrant_nei>=Z_onehalf.get_range_start () && index_quadrant_nei<Z_onehalf.get_range_end ();
-
-
-        if ( (((xn[i_1] == Xn[j_1] && yn[i_1] == Yn[j_1]) || 
-         (xn[i_2] == Xn[j_1] && yn[i_2] == Yn[j_1]))||
-          ((xn[i_1] == Xn[j_2] && yn[i_1] == Yn[j_2]) ||
-           (xn[i_2] == Xn[j_2] && yn[i_2] == Yn[j_2]))) && check_orthogonality && index_quadrant!=index_quadrant_nei && !is_owned_quadrant )
-        {
-          if (!is_already_rec[index_quadrant_nei])
-          {
-            shift_rec++;
-            is_already_rec[index_quadrant_nei] = true;
-          }
-
-          if (!is_already_send[index_quadrant])
-          {
-            shift_send++;
-            is_already_send[index_quadrant] = true;
-          }
-        }
-      }
-
-    }
-  }
-  
-}
-
-
-void
-TG2_scheme::communication_part (tmesh::quadrant_iterator quadrant, 
-  std::vector<MPI_Request>& reqs, int& count_req, int& count_send, int& shift_send, int& shift_rec)
-{
-  // look at tmesh.h 
-  const auto & index_quadrant = quadrant->get_global_quad_idx (); 
-
-  std::array<int,4> bimpp_to_rev_ord = {0, 1, 3, 2};
-  
-  for (int ii = 0; ii < 4; ++ii) {
-    xn[ii] = quadrant->p(0, ii);
-    yn[ii] = quadrant->p(1, ii);
-  }
-  
-
-  const double & hw_cell    = sol_onehalf[ordhw    (index_quadrant)];
-  const double & Uxw_cell   = sol_onehalf[ordUxw   (index_quadrant)];
-  const double & Uyw_cell   = sol_onehalf[ordUyw   (index_quadrant)];
-
-  const double & hs_cell    = sol_onehalf[ordhs    (index_quadrant)];
-  const double & Uxs_cell   = sol_onehalf[ordUxs   (index_quadrant)];
-  const double & Uys_cell   = sol_onehalf[ordUys   (index_quadrant)];
-
-  const double & Z_cell     = Z_onehalf[index_quadrant];
-
-
-  // get the rank of the processor that own,
-  for (int iEdge = 0; iEdge < 4; ++iEdge){
-
-    const auto i_1 = bimpp_to_rev_ord[iEdge];
-    const auto i_2 = bimpp_to_rev_ord[(iEdge+1)%4];
-
-    const auto edge_length = std::sqrt(std::pow((xn[i_1]-xn[i_2]),2.) + std::pow((yn[i_1]-yn[i_2]),2.));
-    const std::array<double,2> outward_normal_edge = {(-yn[i_1]+yn[i_2])/edge_length, ( xn[i_1]-xn[i_2])/edge_length};  
-
-    for (auto quadrant_nei = quadrant->begin_neighbor_sweep();
-     quadrant_nei != quadrant->end_neighbor_sweep (); ++quadrant_nei)
-    {
-      std::array<double,4> Xn, Yn;
-
-      for (int ii = 0; ii < 4; ++ii) {
-        Xn[ii] = quadrant_nei->p(0, ii);
-        Yn[ii] = quadrant_nei->p(1, ii);
-      }
-
-      const auto & index_quadrant_nei = quadrant_nei->get_global_quad_idx ();
-
-
-      for (int jEdge = 0; jEdge < 4; ++jEdge) { // cycle neigh edges 
-
-        const auto j_1 = bimpp_to_rev_ord[jEdge];
-        const auto j_2 = bimpp_to_rev_ord[(jEdge+1)%4];
-
-        const auto edge_length_nei = std::sqrt(std::pow((Xn[j_1]-Xn[j_2]),2.) + std::pow((Yn[j_1]-Yn[j_2]),2.));
-        const std::array<double,2> outward_normal_edge_nei = {(-Yn[j_1]+Yn[j_2])/edge_length_nei, ( Xn[j_1]-Xn[j_2])/edge_length_nei};  
-        const bool check_orthogonality = std::inner_product(outward_normal_edge_nei.begin(), outward_normal_edge_nei.end(), outward_normal_edge.begin(), 0.) == -1;
-
-        bool is_owned_quadrant = index_quadrant_nei>=Z_onehalf.get_range_start () && index_quadrant_nei<Z_onehalf.get_range_end ();
-
-
-        if ( (((xn[i_1] == Xn[j_1] && yn[i_1] == Yn[j_1]) || 
-         (xn[i_2] == Xn[j_1] && yn[i_2] == Yn[j_1]))||
-          ((xn[i_1] == Xn[j_2] && yn[i_1] == Yn[j_2]) ||
-           (xn[i_2] == Xn[j_2] && yn[i_2] == Yn[j_2]))) && check_orthogonality && index_quadrant!=index_quadrant_nei && !is_owned_quadrant )
-        {
-          auto & hw_cell_nei    = neig_state[index_quadrant_nei][1];
-          auto & Uxw_cell_nei   = neig_state[index_quadrant_nei][3];
-          auto & Uyw_cell_nei   = neig_state[index_quadrant_nei][4];
-
-          auto & hs_cell_nei    = neig_state[index_quadrant_nei][2];
-          auto & Uxs_cell_nei   = neig_state[index_quadrant_nei][5];
-          auto & Uys_cell_nei   = neig_state[index_quadrant_nei][6];
-
-          auto & Z_cell_nei     = neig_state[index_quadrant_nei][0];
-
-
-          // rank_of_source: rank da dove viene il dato
-          int rank_of_source;
-          for (int ii = 0; ii < extrema_vector.size()-1; ii++)
-          {
-            if (index_quadrant_nei>=extrema_vector[ii] && index_quadrant_nei<extrema_vector[ii+1])
-            {
-              rank_of_source = ii;
-              break;
-            }
-          }
-
-          if (!is_already_rec[index_quadrant_nei])
-          {
-            MPI_Irecv(&Z_cell_nei,   1, MPI_DOUBLE, rank_of_source,        index_quadrant_nei,  MPI_COMM_WORLD, &reqs[count_send++              ]); 
-            MPI_Irecv(&hw_cell_nei,  1, MPI_DOUBLE, rank_of_source, ordhw (index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_send++              ]);
-            MPI_Irecv(&hs_cell_nei,  1, MPI_DOUBLE, rank_of_source, ordhs (index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_send++              ]);
-            MPI_Irecv(&Uxw_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUxw(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_send++              ]);
-            MPI_Irecv(&Uyw_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUyw(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_send++              ]);
-            MPI_Irecv(&Uxs_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUxs(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_send++              ]);
-            MPI_Irecv(&Uys_cell_nei, 1, MPI_DOUBLE, rank_of_source, ordUys(index_quadrant_nei), MPI_COMM_WORLD, &reqs[count_send++              ]);
-
-            is_already_rec[index_quadrant_nei] = true;
-          }
-
-          if (!is_already_send[index_quadrant])
-          {
-            MPI_Isend(&Z_cell,       1, MPI_DOUBLE, rank_of_source,        index_quadrant,      MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
-            MPI_Isend(&hw_cell,      1, MPI_DOUBLE, rank_of_source, ordhw (index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
-            MPI_Isend(&hs_cell,      1, MPI_DOUBLE, rank_of_source, ordhs (index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
-            MPI_Isend(&Uxw_cell,     1, MPI_DOUBLE, rank_of_source, ordUxw(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
-            MPI_Isend(&Uyw_cell,     1, MPI_DOUBLE, rank_of_source, ordUyw(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
-            MPI_Isend(&Uxs_cell,     1, MPI_DOUBLE, rank_of_source, ordUxs(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
-            MPI_Isend(&Uys_cell,     1, MPI_DOUBLE, rank_of_source, ordUys(index_quadrant),     MPI_COMM_WORLD, &reqs[count_req++ + shift_rec*7]);
-
-            is_already_send[index_quadrant] = true;
-          }
-
-        }
-      }
-
-    }
-  }
-  
-}
 
 void
 TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadrant)
@@ -855,29 +654,13 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
           // scrivere qui la somma dei contributi per i termini non-cons.!
           double Z_cell_nei, hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei;
 
-          bool is_owned_quadrant = index_quadrant_nei>=Z_onehalf.get_range_start () && index_quadrant_nei<Z_onehalf.get_range_end ();
-
-          if (is_owned_quadrant)
-          {
-            Z_cell_nei     = Z_onehalf  [          index_quadrant_nei ];
-            hw_cell_nei    = sol_onehalf[ordhw    (index_quadrant_nei)];
-            hs_cell_nei    = sol_onehalf[ordhs    (index_quadrant_nei)];
-            Uxw_cell_nei   = sol_onehalf[ordUxw   (index_quadrant_nei)];
-            Uyw_cell_nei   = sol_onehalf[ordUyw   (index_quadrant_nei)];
-            Uxs_cell_nei   = sol_onehalf[ordUxs   (index_quadrant_nei)];
-            Uys_cell_nei   = sol_onehalf[ordUys   (index_quadrant_nei)];
-          }
-          else
-          {
-            Z_cell_nei     = neig_state[index_quadrant_nei][0];
-            hw_cell_nei    = neig_state[index_quadrant_nei][1];
-            hs_cell_nei    = neig_state[index_quadrant_nei][2];
-            Uxw_cell_nei   = neig_state[index_quadrant_nei][3];
-            Uyw_cell_nei   = neig_state[index_quadrant_nei][4];
-            Uxs_cell_nei   = neig_state[index_quadrant_nei][5];
-            Uys_cell_nei   = neig_state[index_quadrant_nei][6];
-          }
-
+          Z_cell_nei     = Z_onehalf  [          index_quadrant_nei ];
+          hw_cell_nei    = sol_onehalf[ordhw    (index_quadrant_nei)];
+          hs_cell_nei    = sol_onehalf[ordhs    (index_quadrant_nei)];
+          Uxw_cell_nei   = sol_onehalf[ordUxw   (index_quadrant_nei)];
+          Uyw_cell_nei   = sol_onehalf[ordUyw   (index_quadrant_nei)];
+          Uxs_cell_nei   = sol_onehalf[ordUxs   (index_quadrant_nei)];
+          Uys_cell_nei   = sol_onehalf[ordUys   (index_quadrant_nei)];
 
           // .5 salta fuori dall'integrazione per trapezi tra 0 e 1 in coordinata \xi (è il valore in LHS da metter qui sotto!)
           contr_x_w[i_1] += .5*signum(outward_normal_edge[0])*(grav*hw_cell*(Z_cell_nei - Z_cell) +         grav*hw_cell*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_1];
@@ -1276,6 +1059,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       
     }
 
+
     double hdof_c = hwdof_c+hsdof_c;
     double ndof_c = hdof_c>epsilon ? hwdof_c/hdof_c : 0.;
 
@@ -1351,33 +1135,35 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
       if (is_node_in_element)
       {
-        for (int jj = 0; jj < 4; ++jj) {
+        for (int jj = 0; jj < 4; ++jj) { 
 
           double n_current_cell, hw_current_cell, hs_current_cell, Uxw_current_cell, Uyw_current_cell, Uxs_current_cell, Uys_current_cell;
 
           if (! quadrant_nei->is_hanging (jj)){
             n_current_cell = (sol [ordhw  (quadrant_nei->gt (jj))]+sol [ordhs  (quadrant_nei->gt (jj))])>epsilon ? sol [ordhw  (quadrant_nei->gt (jj))]/(sol [ordhw  (quadrant_nei->gt (jj))]+sol [ordhs  (quadrant_nei->gt (jj))]) : 0.;
 
-            hw_current_cell  = sol [ordhw  (quadrant_nei->gt (jj))] + Z [quadrant->gt (ii)]*n_current_cell;
-            hs_current_cell  = sol [ordhs  (quadrant_nei->gt (jj))] + Z [quadrant->gt (ii)]*(1.-n_current_cell);
+            hw_current_cell  = sol [ordhw  (quadrant_nei->gt (jj))] + Z [quadrant_nei->gt (jj)]*n_current_cell;
+            hs_current_cell  = sol [ordhs  (quadrant_nei->gt (jj))] + Z [quadrant_nei->gt (jj)]*(1.-n_current_cell);
             Uxw_current_cell = sol [ordUxw (quadrant_nei->gt (jj))];
             Uyw_current_cell = sol [ordUyw (quadrant_nei->gt (jj))];
             Uxs_current_cell = sol [ordUxs (quadrant_nei->gt (jj))];
             Uys_current_cell = sol [ordUys (quadrant_nei->gt (jj))];
           } else {
+            
             n_current_cell = (.5 * (sol [ordhw  (quadrant_nei->gparent(0,jj))] +
                                     sol [ordhw  (quadrant_nei->gparent(1,jj))])+
                               .5 * (sol [ordhs  (quadrant_nei->gparent(0,jj))] +
                                     sol [ordhs  (quadrant_nei->gparent(1,jj))]))>epsilon ? (.5 * (sol [ordhw  (quadrant_nei->gparent(0,jj))] + sol [ordhw  (quadrant_nei->gparent(1,jj))]))/(.5 * (sol [ordhw  (quadrant_nei->gparent(0,jj))]+sol [ordhw  (quadrant_nei->gparent(1,jj))])+.5 * (sol [ordhs  (quadrant_nei->gparent(0,jj))] + sol [ordhs  (quadrant_nei->gparent(1,jj))])) : 0.;
 
+
             hw_current_cell  = .5 * (sol [ordhw  (quadrant_nei->gparent(0,jj))] +
                                      sol [ordhw  (quadrant_nei->gparent(1,jj))]) + 
-                               .5 * (Z [quadrant->gparent(0,ii)] +
-                                     Z [quadrant->gparent(1,ii)])*n_current_cell;
+                               .5 * (Z [quadrant_nei->gparent(0,jj)] +
+                                     Z [quadrant_nei->gparent(1,jj)])*n_current_cell;
             hs_current_cell  = .5 * (sol [ordhs  (quadrant_nei->gparent(0,jj))] +
                                      sol [ordhs  (quadrant_nei->gparent(1,jj))]) +
-                               .5 * (Z [quadrant->gparent(0,ii)] +
-                                     Z [quadrant->gparent(1,ii)])*(1.-n_current_cell);
+                               .5 * (Z [quadrant_nei->gparent(0,jj)] +
+                                     Z [quadrant_nei->gparent(1,jj)])*(1.-n_current_cell);
             Uxw_current_cell = .5 * (sol [ordUxw (quadrant_nei->gparent(0,jj))] +
                                      sol [ordUxw (quadrant_nei->gparent(1,jj))]);
             Uyw_current_cell = .5 * (sol [ordUyw (quadrant_nei->gparent(0,jj))] +
