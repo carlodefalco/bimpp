@@ -70,7 +70,7 @@ static constexpr double turbulence_coeff = 1e10;
 static constexpr double bed_friction_angle_rad = 0*17.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double erosion_coefficient = 0*5e-5; // 0.
 static constexpr double m_coeff = 1.;
-static constexpr double terminal_velocity = 1.e-2; // non può essere nulla!
+static constexpr double terminal_velocity = 1.e10; // non può essere nulla!
 
 
 static constexpr double level_wet           = 3;  

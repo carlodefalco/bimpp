@@ -371,7 +371,7 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const double density = ns_c*density_s + n_c*density_w;
   const double density_prime = ns_c*(density_s-density_w);
 
-
+/*
   // solve non-linearities
   const double tolerance = 1.e-4;
   const int Nmax = 1.e3;
@@ -427,6 +427,7 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
     //std::cout << count << " " << error << std::endl;
 
   }
+  */
 
 }
 
@@ -470,7 +471,7 @@ TG2_scheme::solve_non_lin(const int& kk)
   const double density = ns_c*density_s + n_c*density_w;
   const double density_prime = ns_c*(density_s-density_w);
 
-
+/*
   // solve non-linearities
   const double tolerance = 1.e-4;
   const int Nmax = 1.e3;
@@ -524,7 +525,7 @@ TG2_scheme::solve_non_lin(const int& kk)
 
     //std::cout << count << " " << error << std::endl;
 
-  }
+  }*/
 
 
 }
@@ -1484,8 +1485,8 @@ TG2_scheme::stabilization_term (const int& kk)
   const auto hyp_diff_x_ = abs_delta_vel_x - 2.*kinematic_speed_wave;
   const auto hyp_diff_y_ = abs_delta_vel_y - 2.*kinematic_speed_wave;
 
-  const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x_<0 ? 100*hyp_diff_x/density/dt*std::sqrt(n)*ns*density_s*density_w/(2.*kinematic_speed_wave*beta_coeff_) : 0., 0.);
-  const double cy_sgn = std::max( h_c>epsilon && hyp_diff_y_<0 ? 100*hyp_diff_y/density/dt*std::sqrt(n)*ns*density_s*density_w/(2.*kinematic_speed_wave*beta_coeff_) : 0., 0.);
+  const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x_<0 ? hyp_diff_x/density/dt*std::sqrt(n)*ns*density_s*density_w/(2.*kinematic_speed_wave*beta_coeff_) : 0., 0.);
+  const double cy_sgn = std::max( h_c>epsilon && hyp_diff_y_<0 ? hyp_diff_y/density/dt*std::sqrt(n)*ns*density_s*density_w/(2.*kinematic_speed_wave*beta_coeff_) : 0., 0.);
 
   //const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x>0 && hyp_diff_x_<0 ? 1.e7 : 0., 0.);
   //const double cy_sgn = std::max( h_c>epsilon && hyp_diff_y>0 && hyp_diff_y_<0 ? 1.e7 : 0., 0.);
