@@ -45,15 +45,15 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-static constexpr double SPACE_ADAPTDT = 1.;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = 5.; // must never be null 
+static constexpr double SPACE_ADAPTDT = 2.;//1e-2; // put zero if you want at each time step
+static constexpr double SAVEDT = .1; // must never be null 
 static constexpr double DELTAT = 1.;
 static constexpr double REDCDT = .8; // it is the limit of the CFL condition
 static constexpr double T      = 230.;
  
 static constexpr bool is_time_adaptivity        = false;
 static constexpr bool is_initial_refinement     = true;
-static constexpr bool is_space_adaptivity       = true;
+static constexpr bool is_space_adaptivity       = true; 
 static constexpr bool is_non_reflBC             = true;
 static constexpr bool is_bed_friction           = true;
 static constexpr bool is_max_time_step_from_CFL = true;
@@ -65,19 +65,19 @@ static constexpr double grav = 9.81;
 // variables that can be used for UQ
 static constexpr double density = 2350.;
 static constexpr double density_s = 2700.;
-static constexpr double density_w = 1000.;
+static constexpr double density_w = 1000.; 
 static constexpr double turbulence_coeff = 1e10;
 static constexpr double bed_friction_angle_rad = 0*17.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double erosion_coefficient = 0*5e-5; // 0.
 static constexpr double m_coeff = 1.;
-static constexpr double terminal_velocity = 1.e10; // non può essere nulla!
+static constexpr double terminal_velocity = 1.e20; // non può essere nulla!
 
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution!  
 static constexpr double mesh_size_dry       = res*1e3;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res*2;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = res;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+static constexpr double mesh_size_wet       = res;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = res/2;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
 // Connectivity of local element
@@ -1190,7 +1190,7 @@ main (int argc, char **argv)
     sol_dyn.assemble(replace_op);
 
 
-/*
+
     // Verwer IMEX-RKC
     sol_ini_rkc_dyn = sol_dyn; // copy
     soldd_rkc_dyn   = sol_dyn; // copy
@@ -1226,7 +1226,7 @@ main (int argc, char **argv)
       }
       incr_source_dyn.assemble (replace_op); 
     }   
-    */
+    
 
     stp.set_old_dt(stp.dt);
     stp.set_old_dt(0.);
