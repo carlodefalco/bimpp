@@ -336,37 +336,43 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 
   const double tau =(dt + dt_old)*.5*.5;
 
+
   Z_onehalf[index_quadrant] = (Z_node[0]+Z_node[1]+Z_node[2]+Z_node[3])*.25;
 
+  auto & hw_c  = sol_onehalf[ordhw   (index_quadrant)];
+  auto & hs_c  = sol_onehalf[ordhs   (index_quadrant)];
+  auto & Uxw_c = sol_onehalf[ordUxw  (index_quadrant)];
+  auto & Uyw_c = sol_onehalf[ordUyw  (index_quadrant)];
+  auto & Uxs_c = sol_onehalf[ordUxs  (index_quadrant)];
+  auto & Uys_c = sol_onehalf[ordUys  (index_quadrant)];
 
-  const auto v_hw   = hw_cell_average - tau *  div_Fhw_cell /area;
-  const auto v_hs   = hs_cell_average - tau *  div_Fhs_cell /area;
+  const auto v_hw   = hw_cell_average  - tau *  div_Fhw_cell /area;
+  const auto v_hs   = hs_cell_average  - tau *  div_Fhs_cell /area;
+  const auto v_Ux_w = Uxw_cell_average - tau * (div_FUxw_cell/area - src_slope_formula (hw_cell_average, slope_x_c) +         grav*hw_cell_average*grad_hs_x);
+  const auto v_Uy_w = Uyw_cell_average - tau * (div_FUyw_cell/area - src_slope_formula (hw_cell_average, slope_y_c) +         grav*hw_cell_average*grad_hs_y);
+  const auto v_Ux_s = Uxs_cell_average - tau * (div_FUxs_cell/area - src_slope_formula (hs_cell_average, slope_x_c) + r_coeff*grav*hs_cell_average*grad_hw_x);
+  const auto v_Uy_s = Uys_cell_average - tau * (div_FUys_cell/area - src_slope_formula (hs_cell_average, slope_y_c) + r_coeff*grav*hs_cell_average*grad_hw_y);
+
+  hw_c  = v_hw;
+  hs_c  = v_hs;
+  Uxw_c = v_Ux_w;
+  Uyw_c = v_Uy_w;
+  Uxs_c = v_Ux_s;
+  Uys_c = v_Uy_s;
+
+  hw_c = hw_c>0 ? hw_c : 0.;
+  hs_c = hs_c>0 ? hs_c : 0.;
+
+  const double h_c = hw_c+hs_c;
+
+  const double n_c  = h_c>epsilon ? hw_c/h_c : 0.;
+  const double ns_c = h_c>epsilon ? hs_c/h_c : 0.;
+
+  const double density = ns_c*density_s + n_c*density_w;
+  const double density_prime = ns_c*(density_s-density_w);
 
 
-  sol_onehalf[ordUxw  (index_quadrant)] = Uxw_cell_average - tau * (div_FUxw_cell/area - src_slope_formula (hw_cell_average, slope_x_c) +         grav*hw_cell_average*grad_hs_x);
-  sol_onehalf[ordUyw  (index_quadrant)] = Uyw_cell_average - tau * (div_FUyw_cell/area - src_slope_formula (hw_cell_average, slope_y_c) +         grav*hw_cell_average*grad_hs_y);
-  sol_onehalf[ordUxs  (index_quadrant)] = Uxs_cell_average - tau * (div_FUxs_cell/area - src_slope_formula (hs_cell_average, slope_x_c) + r_coeff*grav*hs_cell_average*grad_hw_x);
-  sol_onehalf[ordUys  (index_quadrant)] = Uys_cell_average - tau * (div_FUys_cell/area - src_slope_formula (hs_cell_average, slope_y_c) + r_coeff*grav*hs_cell_average*grad_hw_y);
-
-
-
-  const auto & Uxw_c = sol_onehalf[ordUxw  (index_quadrant)];
-  const auto & Uyw_c = sol_onehalf[ordUyw  (index_quadrant)];
-  const auto & Uxs_c = sol_onehalf[ordUxs  (index_quadrant)];
-  const auto & Uys_c = sol_onehalf[ordUys  (index_quadrant)];
-
-  sol_onehalf[ordhw   (index_quadrant)] = v_hw;
-  sol_onehalf[ordhs   (index_quadrant)] = v_hs;
-
-
-  const auto U_tot_x = Uxs_c + Uxw_c;
-  const auto U_tot_y = Uys_c + Uyw_c;
-
-  const auto abs_mass_flux = std::sqrt(U_tot_x*U_tot_x + U_tot_y*U_tot_y);
-
-  const auto erosion_contribution = erosion_coefficient*abs_mass_flux;
-
-
+  // solve non-linearities
   const double tolerance = 1.e-4;
   const int Nmax = 1.e3;
   int count = -1;
@@ -374,37 +380,53 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   while (count++<Nmax && error>tolerance)
   {
 
-    const auto & hw_c  = sol_onehalf[ordhw   (index_quadrant)];
-    const auto & hs_c  = sol_onehalf[ordhs   (index_quadrant)];
+    const auto U_tot_x = Uxs_c + Uxw_c;
+    const auto U_tot_y = Uys_c + Uyw_c;
 
-    const auto h_c = hw_c+hs_c;
+    const double Cw_d = (hw_c>epsilon && h_c>epsilon) ? ns_c/terminal_velocity/std::pow(n_c, m_coeff)*(density_s-density_w)*grav : 0.;
+    const double Cs_d = (hw_c>epsilon && h_c>epsilon) ? n_c /terminal_velocity/std::pow(n_c, m_coeff)*(density_s-density_w)*grav : 0.;
 
-    const double nw_c = h_c>epsilon ? hw_c/h_c : 0.;
-    const auto ns_c = 1.-nw_c;
+    const double delta_x = std::abs(U_tot_x)>tolerance_sign ? 0. : 1./tolerance_sign;
+    const double delta_y = std::abs(U_tot_y)>tolerance_sign ? 0. : 1./tolerance_sign;
+
+    const double fric_x = (h_c*h_c)>epsilon ? (density*grav/turbulence_coeff/(h_c*h_c)*2.*std::abs(U_tot_x)) : 0.;
+    const double fric_y = (h_c*h_c)>epsilon ? (density*grav/turbulence_coeff/(h_c*h_c)*2.*std::abs(U_tot_y)) : 0.;
+
+    //if (Cw_d!=0)
+    //std::cout << mu_tilde_vect[1]*dt* Cw_d/density_w << std::endl;
+
+    const double big_A  = 1. + tau* Cw_d/density_w;
+    const double big_B  =    - tau* Cs_d/density_w;
+    const double big_Cx =      tau* (is_bed_friction ? (density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_x + fric_x) : 0.) /density_s - tau*Cw_d/density_s;
+    const double big_Cy =      tau* (is_bed_friction ? (density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_y + fric_y) : 0.) /density_s - tau*Cw_d/density_s;
+    const double big_Dx = 1. + tau* (is_bed_friction ? (density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_x + fric_x) : 0.) /density_s + tau*Cs_d/density_s;
+    const double big_Dy = 1. + tau* (is_bed_friction ? (density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_y + fric_y) : 0.) /density_s + tau*Cs_d/density_s;
 
 
-    // solve the lin. system,
-    const double big_A = 1.-(h_c>epsilon ? tau*ns_c/h_c*erosion_contribution : 0.);
-    const double big_B =     h_c>epsilon ? tau*nw_c/h_c*erosion_contribution : 0.;
-    const double big_C =     h_c>epsilon ? tau*ns_c/h_c*erosion_contribution : 0.;
-    const double big_D = 1.-(h_c>epsilon ? tau*nw_c/h_c*erosion_contribution : 0.);
+    const double big_detx = big_A*big_Dx-big_B*big_Cx;
+    const double big_dety = big_A*big_Dy-big_B*big_Cy;
 
-    const auto f_hw = v_hw + tau*hw_src_formula (hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c) - hw_c;
-    const auto f_hs = v_hs + tau*hs_src_formula (hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c) - hs_c;
+    const double f_Uwx = - Uxw_c + v_Ux_w + tau*Uxw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+    const double f_Uwy = - Uyw_c + v_Uy_w + tau*Uyw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+    const double f_Usx = - Uxs_c + v_Ux_s + tau*Uxs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+    const double f_Usy = - Uys_c + v_Uy_s + tau*Uys_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
 
-    const double big_det = big_A*big_D-big_B*big_C;
+    const double delta_Uwx = (f_Uwx*big_Dx-f_Usx*big_B )/big_detx;
+    const double delta_Usx = (f_Usx*big_A -f_Uwx*big_Cx)/big_detx;
 
-    const auto delta_hw = (f_hw*big_D-f_hs*big_B)/big_det;
-    const auto delta_hs = (f_hs*big_A-f_hw*big_C)/big_det;
-    
+    const double delta_Uwy = (f_Uwy*big_Dy-f_Usy*big_B )/big_dety;
+    const double delta_Usy = (f_Usy*big_A -f_Uwy*big_Cy)/big_dety;
 
-    error = std::sqrt(delta_hw*delta_hw + delta_hs*delta_hs);
+    error = std::sqrt(delta_Uwx*delta_Uwx + delta_Uwy*delta_Uwy + delta_Usx*delta_Usx + delta_Usy*delta_Usy);
 
-    sol_onehalf[ordhw  (index_quadrant)] += delta_hw;
-    sol_onehalf[ordhs  (index_quadrant)] += delta_hs;
+    Uxw_c += delta_Uwx;
+    Uyw_c += delta_Uwy;
+    Uxs_c += delta_Usx;
+    Uys_c += delta_Usy;
+
+    //std::cout << count << " " << error << std::endl;
 
   }
-
 
 }
 
@@ -412,86 +434,98 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 void
 TG2_scheme::solve_non_lin(const int& kk)
 {
-  const auto & hwold_c  = sol.get_owned_data ()[kk  ];
-  const auto & hsold_c  = sol.get_owned_data ()[kk+1];
-  const auto & Uxwold_c = sol.get_owned_data ()[kk+2];
-  const auto & Uywold_c = sol.get_owned_data ()[kk+3];
-  const auto & Uxsold_c = sol.get_owned_data ()[kk+4];
-  const auto & Uysold_c = sol.get_owned_data ()[kk+5];
+  auto & hw_c  = sol.get_owned_data ()[kk  ];
+  auto & hs_c  = sol.get_owned_data ()[kk+1];
+  auto & Uxw_c = sol.get_owned_data ()[kk+2];
+  auto & Uyw_c = sol.get_owned_data ()[kk+3];
+  auto & Uxs_c = sol.get_owned_data ()[kk+4];
+  auto & Uys_c = sol.get_owned_data ()[kk+5];
 
   double tau = (dt+dt_old)*.5*.5;
 
   // solve non-linearities like the first step of the TG2 method to get the complete low order solution,
   // terminated this part add the nodal correction to get the hyperbolicity,
-  const auto v_hw   = sol.get_owned_data ()[kk  ] + (dt+dt_old)*.5*incr.get_owned_data ()[kk  ]/mass.get_owned_data ()[kk  ] + tau*hw_src_formula(hwold_c, hsold_c, Uxwold_c, Uywold_c, Uxsold_c, Uysold_c);
-  const auto v_hs   = sol.get_owned_data ()[kk+1] + (dt+dt_old)*.5*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + tau*hs_src_formula(hwold_c, hsold_c, Uxwold_c, Uywold_c, Uxsold_c, Uysold_c);
-  const auto v_Ux_w = sol.get_owned_data ()[kk+2] + (dt+dt_old)*.5*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2];
-  const auto v_Uy_w = sol.get_owned_data ()[kk+3] + (dt+dt_old)*.5*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3];
-  const auto v_Ux_s = sol.get_owned_data ()[kk+4] + (dt+dt_old)*.5*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4];
-  const auto v_Uy_s = sol.get_owned_data ()[kk+5] + (dt+dt_old)*.5*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5];
+  const auto v_hw   = hw_c  + 2.*tau*incr.get_owned_data ()[kk  ]/mass.get_owned_data ()[kk  ];
+  const auto v_hs   = hs_c  + 2.*tau*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1];
+  const auto v_Ux_w = Uxw_c + 2.*tau*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau*Uxw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+  const auto v_Uy_w = Uyw_c + 2.*tau*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + tau*Uyw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+  const auto v_Ux_s = Uxs_c + 2.*tau*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4] + tau*Uxs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+  const auto v_Uy_s = Uys_c + 2.*tau*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5] + tau*Uys_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+
+  hw_c  = v_hw;
+  hs_c  = v_hs;
+  Uxw_c = v_Ux_w;
+  Uyw_c = v_Uy_w;
+  Uxs_c = v_Ux_s;
+  Uys_c = v_Uy_s;
+
+  hw_c = hw_c>0 ? hw_c : 0.;
+  hs_c = hs_c>0 ? hs_c : 0.;
+
+  const double h_c = hw_c+hs_c;
+
+  const double n_c  = h_c>epsilon ? hw_c/h_c : 0.;
+  const double ns_c = h_c>epsilon ? hs_c/h_c : 0.;
+
+  const double density = ns_c*density_s + n_c*density_w;
+  const double density_prime = ns_c*(density_s-density_w);
 
 
-  sol.get_owned_data ()[kk  ] = v_hw;
-  sol.get_owned_data ()[kk+1] = v_hs;
-  sol.get_owned_data ()[kk+2] = v_Ux_w;
-  sol.get_owned_data ()[kk+3] = v_Uy_w;
-  sol.get_owned_data ()[kk+4] = v_Ux_s;
-  sol.get_owned_data ()[kk+5] = v_Uy_s;
-
-
-  const auto & Uxw_c = sol.get_owned_data ()[kk+2];
-  const auto & Uyw_c = sol.get_owned_data ()[kk+3];
-  const auto & Uxs_c = sol.get_owned_data ()[kk+4];
-  const auto & Uys_c = sol.get_owned_data ()[kk+5];
-
-
-  const auto U_tot_x = Uxs_c + Uxw_c;
-  const auto U_tot_y = Uys_c + Uyw_c;
-
-  const auto abs_mass_flux = std::sqrt(U_tot_x*U_tot_x + U_tot_y*U_tot_y);
-
-  const auto erosion_contribution = erosion_coefficient*abs_mass_flux;
-
-
+  // solve non-linearities
   const double tolerance = 1.e-4;
-  const int Nmax = 1e3;
+  const int Nmax = 1.e3;
   int count = -1;
-  double error = tolerance + 1;
+  double error = tolerance + 1.; 
   while (count++<Nmax && error>tolerance)
   {
-    const auto & hw_c = sol.get_owned_data ()[kk  ];
-    const auto & hs_c = sol.get_owned_data ()[kk+1];
+    const auto U_tot_x = Uxs_c + Uxw_c;
+    const auto U_tot_y = Uys_c + Uyw_c;
 
-    const auto h_c = hw_c+hs_c;
-    const auto nw_c = h_c>epsilon ? hw_c/h_c : 0.;
-    const auto ns_c = 1.-nw_c;
- 
+    const double Cw_d = (hw_c>epsilon && h_c>epsilon) ? ns_c/terminal_velocity/std::pow(n_c, m_coeff)*(density_s-density_w)*grav : 0.;
+    const double Cs_d = (hw_c>epsilon && h_c>epsilon) ? n_c /terminal_velocity/std::pow(n_c, m_coeff)*(density_s-density_w)*grav : 0.;
 
-    // Newton Jacobian matrix, 
-    // diagonalizzazione dei termini extra-diag delle matrici g e f
-    const double big_A = 1.-(h_c>epsilon ? tau*ns_c/h_c*erosion_contribution : 0.);
-    const double big_B =     h_c>epsilon ? tau*nw_c/h_c*erosion_contribution : 0.;
-    const double big_C =     h_c>epsilon ? tau*ns_c/h_c*erosion_contribution : 0.;
-    const double big_D = 1.-(h_c>epsilon ? tau*nw_c/h_c*erosion_contribution : 0.);
+    const double delta_x = std::abs(U_tot_x)>tolerance_sign ? 0. : 1./tolerance_sign;
+    const double delta_y = std::abs(U_tot_y)>tolerance_sign ? 0. : 1./tolerance_sign;
 
-    // rhs terms of the Newton matrix,
-    const auto f_hw = v_hw + tau*hw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c) - hw_c;
-    const auto f_hs = v_hs + tau*hs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c) - hs_c;
+    const double fric_x = (h_c*h_c)>epsilon ? (density*grav/turbulence_coeff/(h_c*h_c)*2.*std::abs(U_tot_x)) : 0.;
+    const double fric_y = (h_c*h_c)>epsilon ? (density*grav/turbulence_coeff/(h_c*h_c)*2.*std::abs(U_tot_y)) : 0.;
 
-    const double big_det = big_A*big_D-big_B*big_C;
+    //if (Cw_d!=0)
+    //std::cout << mu_tilde_vect[1]*dt* Cw_d/density_w << std::endl;
+
+    const double big_A  = 1. + tau* Cw_d/density_w;
+    const double big_B  =    - tau* Cs_d/density_w;
+    const double big_Cx =      tau* (is_bed_friction ? (density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_x + fric_x) : 0.) /density_s - tau*Cw_d/density_s;
+    const double big_Cy =      tau* (is_bed_friction ? (density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_y + fric_y) : 0.) /density_s - tau*Cw_d/density_s;
+    const double big_Dx = 1. + tau* (is_bed_friction ? (density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_x + fric_x) : 0.) /density_s + tau*Cs_d/density_s;
+    const double big_Dy = 1. + tau* (is_bed_friction ? (density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_y + fric_y) : 0.) /density_s + tau*Cs_d/density_s;
 
 
-    const auto delta_hw = (f_hw*big_D-f_hs*big_B)/big_det;
-    const auto delta_hs = (f_hs*big_A-f_hw*big_C)/big_det;
-    
+    const double big_detx = big_A*big_Dx-big_B*big_Cx;
+    const double big_dety = big_A*big_Dy-big_B*big_Cy;
 
-    error = std::sqrt(delta_hw*delta_hw + delta_hs*delta_hs);
+    const double f_Uwx = - Uxw_c + v_Ux_w + tau*Uxw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+    const double f_Uwy = - Uyw_c + v_Uy_w + tau*Uyw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+    const double f_Usx = - Uxs_c + v_Ux_s + tau*Uxs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+    const double f_Usy = - Uys_c + v_Uy_s + tau*Uys_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
 
-    sol.get_owned_data ()[kk  ] += delta_hw;
-    sol.get_owned_data ()[kk+1] += delta_hs;
+    const double delta_Uwx = (f_Uwx*big_Dx-f_Usx*big_B )/big_detx;
+    const double delta_Usx = (f_Usx*big_A -f_Uwx*big_Cx)/big_detx;
+
+    const double delta_Uwy = (f_Uwy*big_Dy-f_Usy*big_B )/big_dety;
+    const double delta_Usy = (f_Usy*big_A -f_Uwy*big_Cy)/big_dety;
+
+    error = std::sqrt(delta_Uwx*delta_Uwx + delta_Uwy*delta_Uwy + delta_Usx*delta_Usx + delta_Usy*delta_Usy);
+
+    Uxw_c += delta_Uwx;
+    Uyw_c += delta_Uwy;
+    Uxs_c += delta_Usx;
+    Uys_c += delta_Usy;
+
+    //std::cout << count << " " << error << std::endl;
+
   }
-  sol.get_owned_data ()[kk  ] = sol.get_owned_data ()[kk  ]>0 ? sol.get_owned_data ()[kk  ] : 0.;
-  sol.get_owned_data ()[kk+1] = sol.get_owned_data ()[kk+1]>0 ? sol.get_owned_data ()[kk+1] : 0.;
+
 
 }
 
@@ -602,8 +636,9 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   const auto contr_slope_yw = .5*.5*src_slope_formula (hw_cell, slope_y_cell)*Dx*Dy;
 
 
-  const auto h_cell = hw_cell+hs_cell;
-  const auto n_cell = h_cell>epsilon ? hw_cell/h_cell : 0.;
+  const auto h_cell  = hw_cell+hs_cell;
+  const auto n_cell  = h_cell>epsilon ? hw_cell/h_cell : 0.;
+  const auto ns_cell = h_cell>epsilon ? hs_cell/h_cell : 0.;
 
   std::array<double,4> contr_x_w = {0., 0., 0., 0.}, contr_y_w = {0., 0., 0., 0.}, contr_x_s = {0., 0., 0., 0.}, contr_y_s = {0., 0., 0., 0.};
 
@@ -788,8 +823,8 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   const auto diff_term_hw_x  = h_cell>epsilon ? n_cell*grad_cell_eta[0]*vel_rusanov_cell_y*.5 : grad_cell_hw[0]*vel_rusanov_cell_y*.5;
   const auto diff_term_hw_y  = h_cell>epsilon ? n_cell*grad_cell_eta[1]*vel_rusanov_cell_x*.5 : grad_cell_hw[1]*vel_rusanov_cell_x*.5;
 
-  const auto diff_term_hs_x  = h_cell>epsilon ? (1.-n_cell)*grad_cell_eta[1]*vel_rusanov_cell_x*.5 : grad_cell_hs[0]*vel_rusanov_cell_y*.5;
-  const auto diff_term_hs_y  = h_cell>epsilon ? (1.-n_cell)*grad_cell_eta[1]*vel_rusanov_cell_x*.5 : grad_cell_hs[1]*vel_rusanov_cell_x*.5;
+  const auto diff_term_hs_x  = h_cell>epsilon ? ns_cell*grad_cell_eta[1]*vel_rusanov_cell_x*.5 : grad_cell_hs[0]*vel_rusanov_cell_y*.5;
+  const auto diff_term_hs_y  = h_cell>epsilon ? ns_cell*grad_cell_eta[1]*vel_rusanov_cell_x*.5 : grad_cell_hs[1]*vel_rusanov_cell_x*.5;
 
   const auto diff_term_Uxw_x = grad_cell_Uxw [0]*vel_rusanov_cell_y*.5;
   const auto diff_term_Uxw_y = grad_cell_Uxw [1]*vel_rusanov_cell_x*.5;
@@ -1060,11 +1095,12 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     }
 
 
-    double hdof_c = hwdof_c+hsdof_c;
-    double ndof_c = hdof_c>epsilon ? hwdof_c/hdof_c : 0.;
+    double hdof_c  = hwdof_c+hsdof_c;
+    double ndof_c  = hdof_c>epsilon ? hwdof_c/hdof_c : 0.;
+    double nsdof_c = hdof_c>epsilon ? hsdof_c/hdof_c : 0.;
 
-    hwdof      [ii] = hdof_c>epsilon ? hwdof_c+Z_node[ii]*ndof_c      : hwdof_c;
-    hsdof      [ii] = hdof_c>epsilon ? hsdof_c+Z_node[ii]*(1.-ndof_c) : hsdof_c;
+    hwdof      [ii] = hdof_c>epsilon ? hwdof_c+Z_node[ii]*ndof_c  : hwdof_c;
+    hsdof      [ii] = hdof_c>epsilon ? hsdof_c+Z_node[ii]*nsdof_c : hsdof_c;
     Uxwdof     [ii] = Uxwdof_c;
     Uywdof     [ii] = Uywdof_c;
     Uxsdof     [ii] = Uxsdof_c;
@@ -1137,13 +1173,14 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       {
         for (int jj = 0; jj < 4; ++jj) { 
 
-          double n_current_cell, hw_current_cell, hs_current_cell, Uxw_current_cell, Uyw_current_cell, Uxs_current_cell, Uys_current_cell;
+          double n_current_cell, ns_current_cell, hw_current_cell, hs_current_cell, Uxw_current_cell, Uyw_current_cell, Uxs_current_cell, Uys_current_cell;
 
           if (! quadrant_nei->is_hanging (jj)){
-            n_current_cell = (sol [ordhw  (quadrant_nei->gt (jj))]+sol [ordhs  (quadrant_nei->gt (jj))])>epsilon ? sol [ordhw  (quadrant_nei->gt (jj))]/(sol [ordhw  (quadrant_nei->gt (jj))]+sol [ordhs  (quadrant_nei->gt (jj))]) : 0.;
+            n_current_cell  = (sol [ordhw  (quadrant_nei->gt (jj))]+sol [ordhs  (quadrant_nei->gt (jj))])>epsilon ? sol [ordhw  (quadrant_nei->gt (jj))]/(sol [ordhw  (quadrant_nei->gt (jj))]+sol [ordhs  (quadrant_nei->gt (jj))]) : 0.;
+            ns_current_cell = (sol [ordhw  (quadrant_nei->gt (jj))]+sol [ordhs  (quadrant_nei->gt (jj))])>epsilon ? sol [ordhs  (quadrant_nei->gt (jj))]/(sol [ordhw  (quadrant_nei->gt (jj))]+sol [ordhs  (quadrant_nei->gt (jj))]) : 0.;
 
             hw_current_cell  = sol [ordhw  (quadrant_nei->gt (jj))] + Z [quadrant_nei->gt (jj)]*n_current_cell;
-            hs_current_cell  = sol [ordhs  (quadrant_nei->gt (jj))] + Z [quadrant_nei->gt (jj)]*(1.-n_current_cell);
+            hs_current_cell  = sol [ordhs  (quadrant_nei->gt (jj))] + Z [quadrant_nei->gt (jj)]*ns_current_cell;
             Uxw_current_cell = sol [ordUxw (quadrant_nei->gt (jj))];
             Uyw_current_cell = sol [ordUyw (quadrant_nei->gt (jj))];
             Uxs_current_cell = sol [ordUxs (quadrant_nei->gt (jj))];
@@ -1155,6 +1192,11 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
                               .5 * (sol [ordhs  (quadrant_nei->gparent(0,jj))] +
                                     sol [ordhs  (quadrant_nei->gparent(1,jj))]))>epsilon ? (.5 * (sol [ordhw  (quadrant_nei->gparent(0,jj))] + sol [ordhw  (quadrant_nei->gparent(1,jj))]))/(.5 * (sol [ordhw  (quadrant_nei->gparent(0,jj))]+sol [ordhw  (quadrant_nei->gparent(1,jj))])+.5 * (sol [ordhs  (quadrant_nei->gparent(0,jj))] + sol [ordhs  (quadrant_nei->gparent(1,jj))])) : 0.;
 
+            ns_current_cell = (.5 * (sol [ordhw  (quadrant_nei->gparent(0,jj))] +
+                                    sol [ordhw  (quadrant_nei->gparent(1,jj))])+
+                               .5 * (sol [ordhs  (quadrant_nei->gparent(0,jj))] +
+                                    sol [ordhs  (quadrant_nei->gparent(1,jj))]))>epsilon ? (.5 * (sol [ordhs  (quadrant_nei->gparent(0,jj))] + sol [ordhs  (quadrant_nei->gparent(1,jj))]))/(.5 * (sol [ordhw  (quadrant_nei->gparent(0,jj))]+sol [ordhw  (quadrant_nei->gparent(1,jj))])+.5 * (sol [ordhs  (quadrant_nei->gparent(0,jj))] + sol [ordhs  (quadrant_nei->gparent(1,jj))])) : 0.;
+
 
             hw_current_cell  = .5 * (sol [ordhw  (quadrant_nei->gparent(0,jj))] +
                                      sol [ordhw  (quadrant_nei->gparent(1,jj))]) + 
@@ -1163,7 +1205,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
             hs_current_cell  = .5 * (sol [ordhs  (quadrant_nei->gparent(0,jj))] +
                                      sol [ordhs  (quadrant_nei->gparent(1,jj))]) +
                                .5 * (Z [quadrant_nei->gparent(0,jj)] +
-                                     Z [quadrant_nei->gparent(1,jj)])*(1.-n_current_cell);
+                                     Z [quadrant_nei->gparent(1,jj)])*ns_current_cell;
             Uxw_current_cell = .5 * (sol [ordUxw (quadrant_nei->gparent(0,jj))] +
                                      sol [ordUxw (quadrant_nei->gparent(1,jj))]);
             Uyw_current_cell = .5 * (sol [ordUyw (quadrant_nei->gparent(0,jj))] +
@@ -1309,27 +1351,21 @@ TG2_scheme::loop_step (const int& kk, const bool& isInitial)
   const auto & Uy_w = soldd_rkc.get_owned_data ()[kk+3]; 
   const auto & Ux_s = soldd_rkc.get_owned_data ()[kk+4];
   const auto & Uy_s = soldd_rkc.get_owned_data ()[kk+5]; 
-    
 
-  const auto Ux_w_ = Uxw_src_formula(h_w, h_s, Ux_w, Uy_w, Ux_s, Uy_s); 
-  const auto Uy_w_ = Uyw_src_formula(h_w, h_s, Ux_w, Uy_w, Ux_s, Uy_s); 
-  const auto Ux_s_ = Uxs_src_formula(h_w, h_s, Ux_w, Uy_w, Ux_s, Uy_s); 
-  const auto Uy_s_ = Uys_src_formula(h_w, h_s, Ux_w, Uy_w, Ux_s, Uy_s); 
+
+  const auto hw_ = hw_src_formula(h_w, h_s, Ux_w, Uy_w, Ux_s, Uy_s);
+  const auto hs_ = hs_src_formula(h_w, h_s, Ux_w, Uy_w, Ux_s, Uy_s);
 
   
   if (isInitial)
   {
-    incr_initial_source.get_owned_data ()[kk+2] = Ux_w_;
-    incr_initial_source.get_owned_data ()[kk+3] = Uy_w_;  
-    incr_initial_source.get_owned_data ()[kk+4] = Ux_s_;
-    incr_initial_source.get_owned_data ()[kk+5] = Uy_s_;    
+    incr_initial_source.get_owned_data ()[kk  ] = hw_;
+    incr_initial_source.get_owned_data ()[kk+1] = hs_;  
   }
   else
   {
-    incr_source.get_owned_data ()[kk+2] = Ux_w_;
-    incr_source.get_owned_data ()[kk+3] = Uy_w_;
-    incr_source.get_owned_data ()[kk+4] = Ux_s_;
-    incr_source.get_owned_data ()[kk+5] = Uy_s_;
+    incr_source.get_owned_data ()[kk  ] = hw_;
+    incr_source.get_owned_data ()[kk+1] = hs_;
   }
 
 }
@@ -1338,110 +1374,77 @@ void
 TG2_scheme::rkc(const int& j, const int& s, const int& kk)
 {
   // kk is the current owned node
-  double v_x_w, v_y_w, v_x_s, v_y_s;
-
-  int count; 
-
-  const double tolerance = 1.e-4;
-  const int Nmax = 1e3;
-
-  double error; 
-
+  double v_hw, v_hs;
 
   if (j == 1)
   {
-    v_x_w = sol_ini_rkc.get_owned_data ()[kk+2];
-    v_y_w = sol_ini_rkc.get_owned_data ()[kk+3];
-    v_x_s = sol_ini_rkc.get_owned_data ()[kk+4];
-    v_y_s = sol_ini_rkc.get_owned_data ()[kk+5];
+    v_hw = sol_ini_rkc.get_owned_data ()[kk  ];
+    v_hs = sol_ini_rkc.get_owned_data ()[kk+1];
   }
   else
   {
-    v_x_w = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+2] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+2] + v_vect[j]*soldd_rkc.get_owned_data ()[kk+2] +  
-    (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk+2] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+2];
+    v_hw = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk  ] + mu_vect[j]*sold_rkc.get_owned_data ()[kk  ] + v_vect[j]*soldd_rkc.get_owned_data ()[kk  ] +  
+    (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk  ] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk  ];
 
-    v_y_w = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+3] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+3] + v_vect[j]*soldd_rkc.get_owned_data ()[kk+3] + 
-    (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk+3] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+3];
-
-    v_x_s = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+4] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+4] + v_vect[j]*soldd_rkc.get_owned_data ()[kk+4] +  
-    (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk+4] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+4];
-
-    v_y_s = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+5] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+5] + v_vect[j]*soldd_rkc.get_owned_data ()[kk+5] +  
-    (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk+5] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+5];
-
+    v_hs = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+1] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+1] + v_vect[j]*soldd_rkc.get_owned_data ()[kk+1] +  
+    (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk+1] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+1];
   }
 
 
-  const auto & hw_c = sol.get_owned_data ()[kk  ];
-  const auto & hs_c = sol.get_owned_data ()[kk+1];
+  auto & hw_c  = sol.get_owned_data ()[kk  ];
+  auto & hs_c  = sol.get_owned_data ()[kk+1];
+  auto & Uxw_c = sol.get_owned_data ()[kk+2];
+  auto & Uyw_c = sol.get_owned_data ()[kk+3];
+  auto & Uxs_c = sol.get_owned_data ()[kk+4];
+  auto & Uys_c = sol.get_owned_data ()[kk+5];
 
-  const double h_c = hw_c+hs_c;
-
-  const double n_c = h_c>epsilon ? hw_c/h_c : 0.;
-
-  const double density = (1.-n_c)*density_s + n_c*density_w;
-  const double density_prime = (1.-n_c)*(density_s-density_w);
+  hw_c = v_hw;
+  hs_c = v_hs;
 
 
-  // solve non-linearities
-  count = -1;
-  error = tolerance + 1; 
+  const auto U_tot_x = Uxs_c + Uxw_c;
+  const auto U_tot_y = Uys_c + Uyw_c;
+
+  const auto abs_mass_flux = std::sqrt(U_tot_x*U_tot_x + U_tot_y*U_tot_y);
+
+  const auto erosion_contribution = erosion_coefficient*abs_mass_flux;
+
+
+  const double tolerance = 1.e-4;
+  const int Nmax = 1e3;
+  int count = -1;
+  double error = tolerance + 1;
   while (count++<Nmax && error>tolerance)
   {
-    const auto & Uwx_c = sol.get_owned_data ()[kk+2];
-    const auto & Uwy_c = sol.get_owned_data ()[kk+3];
-    const auto & Usx_c = sol.get_owned_data ()[kk+4];
-    const auto & Usy_c = sol.get_owned_data ()[kk+5];
+    const auto h_c = hw_c+hs_c;
+    const auto nw_c = h_c>epsilon ? hw_c/h_c : 0.;
+    const auto ns_c = h_c>epsilon ? hs_c/h_c : 0.;
+ 
+
+    // Newton Jacobian matrix, 
+    // diagonalizzazione dei termini extra-diag delle matrici g e f
+    const double big_A = 1.-(h_c>epsilon ? mu_tilde_vect[1]*dt*ns_c/h_c*erosion_contribution : 0.);
+    const double big_B =     h_c>epsilon ? mu_tilde_vect[1]*dt*nw_c/h_c*erosion_contribution : 0.;
+    const double big_C =     h_c>epsilon ? mu_tilde_vect[1]*dt*ns_c/h_c*erosion_contribution : 0.;
+    const double big_D = 1.-(h_c>epsilon ? mu_tilde_vect[1]*dt*nw_c/h_c*erosion_contribution : 0.);
+
+    // rhs terms of the Newton matrix,
+    const auto f_hw = v_hw + mu_tilde_vect[1]*dt*hw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c) - hw_c;
+    const auto f_hs = v_hs + mu_tilde_vect[1]*dt*hs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c) - hs_c;
+
+    const double big_det = big_A*big_D-big_B*big_C;
 
 
-    const auto U_tot_x = Usx_c + Uwx_c;
-    const auto U_tot_y = Usy_c + Uwy_c;
+    const auto delta_hw = (f_hw*big_D-f_hs*big_B)/big_det;
+    const auto delta_hs = (f_hs*big_A-f_hw*big_C)/big_det;
+    
 
+    error = std::sqrt(delta_hw*delta_hw + delta_hs*delta_hs);
 
-    const double Cw_d = (hw_c>epsilon && h_c>epsilon) ? (1.-n_c)/terminal_velocity/std::pow(n_c, m_coeff)*(density_s-density_w)*grav : 0.;
-    const double Cs_d = (hw_c>epsilon && h_c>epsilon) ?     n_c /terminal_velocity/std::pow(n_c, m_coeff)*(density_s-density_w)*grav : 0.;
-
-    const double delta_x = std::abs(U_tot_x)>tolerance_sign ? 0. : 1./tolerance_sign;
-    const double delta_y = std::abs(U_tot_y)>tolerance_sign ? 0. : 1./tolerance_sign;
-
-    const double fric_x = (h_c*h_c)>epsilon ? (density*grav/turbulence_coeff/(h_c*h_c)*2.*std::abs(U_tot_x)) : 0.;
-    const double fric_y = (h_c*h_c)>epsilon ? (density*grav/turbulence_coeff/(h_c*h_c)*2.*std::abs(U_tot_y)) : 0.;
-
-    //if (Cw_d!=0)
-    //std::cout << mu_tilde_vect[1]*dt* Cw_d/density_w << std::endl;
-
-    const double big_A  = 1. + mu_tilde_vect[1]*dt* Cw_d/density_w;
-    const double big_B  =    - mu_tilde_vect[1]*dt* Cs_d/density_w;
-    const double big_Cx =      mu_tilde_vect[1]*dt* (is_bed_friction ? (density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_x + fric_x) : 0.) /density_s - mu_tilde_vect[1]*dt*Cw_d/density_s;
-    const double big_Cy =      mu_tilde_vect[1]*dt* (is_bed_friction ? (density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_y + fric_y) : 0.) /density_s - mu_tilde_vect[1]*dt*Cw_d/density_s;
-    const double big_Dx = 1. + mu_tilde_vect[1]*dt* (is_bed_friction ? (density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_x + fric_x) : 0.) /density_s + mu_tilde_vect[1]*dt*Cs_d/density_s;
-    const double big_Dy = 1. + mu_tilde_vect[1]*dt* (is_bed_friction ? (density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_y + fric_y) : 0.) /density_s + mu_tilde_vect[1]*dt*Cs_d/density_s;
-
-
-    const double big_detx = big_A*big_Dx-big_B*big_Cx;
-    const double big_dety = big_A*big_Dy-big_B*big_Cy;
-
-    const double f_Uwx = - Uwx_c + v_x_w + mu_tilde_vect[1]*dt*Uxw_src_formula(hw_c, hs_c, Uwx_c, Uwy_c, Usx_c, Usy_c);
-    const double f_Uwy = - Uwy_c + v_y_w + mu_tilde_vect[1]*dt*Uyw_src_formula(hw_c, hs_c, Uwx_c, Uwy_c, Usx_c, Usy_c);
-    const double f_Usx = - Usx_c + v_x_s + mu_tilde_vect[1]*dt*Uxs_src_formula(hw_c, hs_c, Uwx_c, Uwy_c, Usx_c, Usy_c);
-    const double f_Usy = - Usy_c + v_y_s + mu_tilde_vect[1]*dt*Uys_src_formula(hw_c, hs_c, Uwx_c, Uwy_c, Usx_c, Usy_c);
-
-    const double delta_Uwx = (f_Uwx*big_Dx-f_Usx*big_B )/big_detx;
-    const double delta_Usx = (f_Usx*big_A -f_Uwx*big_Cx)/big_detx;
-
-    const double delta_Uwy = (f_Uwy*big_Dy-f_Usy*big_B )/big_dety;
-    const double delta_Usy = (f_Usy*big_A -f_Uwy*big_Cy)/big_dety;
-
-    error = std::sqrt(delta_Uwx*delta_Uwx + delta_Uwy*delta_Uwy + delta_Usx*delta_Usx + delta_Usy*delta_Usy);
-
-    sol.get_owned_data ()[kk+2] += delta_Uwx;
-    sol.get_owned_data ()[kk+3] += delta_Uwy;
-    sol.get_owned_data ()[kk+4] += delta_Usx;
-    sol.get_owned_data ()[kk+5] += delta_Usy;
-
-    //std::cout << count << " " << error << std::endl;
-
+    hw_c += delta_hw;
+    hs_c += delta_hs;
   }
+
 
 }
 
@@ -1464,13 +1467,14 @@ TG2_scheme::stabilization_term (const int& kk)
   const double vel_w_y = hw_c>epsilon ? Uyw_c/hw_c : 0.;
   const double vel_s_y = hs_c>epsilon ? Uys_c/hs_c : 0.;
 
-  const auto n = h_c>epsilon ? hw_c/h_c : 0.;
+  const auto n  = h_c>epsilon ? hw_c/h_c : 0.;
+  const auto ns = h_c>epsilon ? hs_c/h_c : 0.;
 
   const double kinematic_speed_wave = std::sqrt(grav*h_c);
   const double beta_coeff  = std::sqrt(.5*n*(1.-r_coeff));
   const double beta_coeff_ = std::sqrt(.5*  (1.-r_coeff));
 
-  const auto density = (1.-n)*density_s + n*density_w;
+  const auto density = ns*density_s + n*density_w;
 
   const auto abs_delta_vel_x = std::abs(vel_w_x-vel_s_x);
   const auto abs_delta_vel_y = std::abs(vel_w_y-vel_s_y);
@@ -1480,12 +1484,11 @@ TG2_scheme::stabilization_term (const int& kk)
   const auto hyp_diff_x_ = abs_delta_vel_x - 2.*kinematic_speed_wave;
   const auto hyp_diff_y_ = abs_delta_vel_y - 2.*kinematic_speed_wave;
 
-  double cx_sgn = std::max( h_c>epsilon && hyp_diff_x_<0 ? hyp_diff_x/density/dt*std::sqrt(n)*(1.-n)*density_s*density_w/(2.*kinematic_speed_wave*beta_coeff_) : 0., 0.);
-  double cy_sgn = std::max( h_c>epsilon && hyp_diff_y_<0 ? hyp_diff_y/density/dt*std::sqrt(n)*(1.-n)*density_s*density_w/(2.*kinematic_speed_wave*beta_coeff_) : 0., 0.);
+  const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x_<0 ? 100*hyp_diff_x/density/dt*std::sqrt(n)*ns*density_s*density_w/(2.*kinematic_speed_wave*beta_coeff_) : 0., 0.);
+  const double cy_sgn = std::max( h_c>epsilon && hyp_diff_y_<0 ? 100*hyp_diff_y/density/dt*std::sqrt(n)*ns*density_s*density_w/(2.*kinematic_speed_wave*beta_coeff_) : 0., 0.);
 
-
-  //const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x>0 && hyp_diff_x_<0 ? 1.e6 : 0., 0.);
-  //const double cy_sgn = std::max( h_c>epsilon && hyp_diff_y>0 && hyp_diff_y_<0 ? 1.e6 : 0., 0.);
+  //const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x>0 && hyp_diff_x_<0 ? 1.e7 : 0., 0.);
+  //const double cy_sgn = std::max( h_c>epsilon && hyp_diff_y>0 && hyp_diff_y_<0 ? 1.e7 : 0., 0.);
 
 
   const double big_Ax = 1. + ((hw_c>epsilon) ? dt*cx_sgn/hw_c*h_c/density_w : 0.);
@@ -1729,12 +1732,13 @@ double
 TG2_scheme::Uxw_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys)
 {
   const auto h = hw+hs;
-  const auto n = h>epsilon ? hw/h : 0.;
+  const auto n  = h>epsilon ? hw/h : 0.;
+  const auto ns = h>epsilon ? hs/h : 0.;
 
   const double vel_w_x = hw>epsilon ? Uxw/hw : 0.;
   const double vel_s_x = hs>epsilon ? Uxs/hs : 0.;
 
-  const double C_d = hw>epsilon && h>epsilon ? n*(1.-n)/std::pow(n, m_coeff)/terminal_velocity*(density_s/density_w-1.)*grav : 0.;
+  const double C_d = hw>epsilon && h>epsilon ? n*ns/std::pow(n, m_coeff)/terminal_velocity*(density_s/density_w-1.)*grav : 0.;
   const double R_x = C_d*(vel_w_x-vel_s_x);
 
 
@@ -1745,12 +1749,13 @@ double
 TG2_scheme::Uyw_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys)
 {
   const auto h = hw+hs;
-  const auto n = h>epsilon ? hw/h : 0.;
+  const auto n  = h>epsilon ? hw/h : 0.;
+  const auto ns = h>epsilon ? hs/h : 0.;
 
   const double vel_w_y = hw>epsilon ? Uyw/hw : 0.;
   const double vel_s_y = hs>epsilon ? Uys/hs : 0.;
 
-  const double C_d = (hw>epsilon && h>epsilon) ? n*(1.-n)/std::pow(n, m_coeff)/terminal_velocity*(density_s/density_w-1.)*grav : 0.;
+  const double C_d = (hw>epsilon && h>epsilon) ? n*ns/std::pow(n, m_coeff)/terminal_velocity*(density_s/density_w-1.)*grav : 0.;
   const double R_y = C_d*(vel_w_y-vel_s_y);
 
   return ( -h*R_y );
@@ -1760,8 +1765,9 @@ double
 TG2_scheme::Uxs_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys)
 {
   const auto h = hw+hs;
-  const auto n = h>epsilon ? hw/h : 0.;
-  const double bed_pressure = grav*h*(1.-n)*(1.-density_w/density_s); 
+  const auto n  = h>epsilon ? hw/h : 0.;
+  const auto ns = h>epsilon ? hs/h : 0.;
+  const double bed_pressure = grav*h*ns*(1.-density_w/density_s); 
   const auto Ux = Uxw + Uxs; 
   const auto Uy = Uyw + Uys;
   const double vel_x = h>epsilon ? Ux/h : 0.;
@@ -1772,9 +1778,9 @@ TG2_scheme::Uxs_src_formula (const double& hw, const double& hs, const double& U
   const double vel_w_x = hw>epsilon ? Uxw/hw : 0.;
   const double vel_s_x = hs>epsilon ? Uxs/hs : 0.;
 
-  const double density = (1.-n) + n*density_w/density_s;
+  const double density = ns + n*density_w/density_s;
 
-  const double C_d = (hw>epsilon && h>epsilon) ? n*(1.-n)/std::pow(n, m_coeff)/terminal_velocity*(1.-density_w/density_s)*grav : 0.;
+  const double C_d = (hw>epsilon && h>epsilon) ? n*ns/std::pow(n, m_coeff)/terminal_velocity*(1.-density_w/density_s)*grav : 0.;
   const double R_x = C_d*(vel_w_x-vel_s_x);
 
   //std::cout << h << " " << dhdx << " " << dZdx << " " << grav*h*(dZdx+dhdx) << std::endl;
@@ -1795,8 +1801,9 @@ double
 TG2_scheme::Uys_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys)
 {
   const auto h = hw+hs;
-  const auto n = h>epsilon ? hw/h : 0.;
-  const double bed_pressure = grav*h*(1.-n)*(1.-density_w/density_s);
+  const auto n  = h>epsilon ? hw/h : 0.;
+  const auto ns = h>epsilon ? hs/h : 0.;
+  const double bed_pressure = grav*h*ns*(1.-density_w/density_s);
   const auto Ux = Uxw + Uxs;
   const auto Uy = Uyw + Uys;
   const double vel_x = h>epsilon ? Ux/h : 0.;
@@ -1808,9 +1815,9 @@ TG2_scheme::Uys_src_formula (const double& hw, const double& hs, const double& U
   const double vel_w_y = hw>epsilon ? Uyw/hw : 0.;
   const double vel_s_y = hs>epsilon ? Uys/hs : 0.;
 
-  const double density = (1.-n) + n*density_w/density_s;
+  const double density = ns + n*density_w/density_s;
 
-  const double C_d = (hw>epsilon && h>epsilon) ? n*(1.-n)/std::pow(n, m_coeff)/terminal_velocity*(1.-density_w/density_s)*grav : 0.;
+  const double C_d = (hw>epsilon && h>epsilon) ? n*ns/std::pow(n, m_coeff)/terminal_velocity*(1.-density_w/density_s)*grav : 0.;
 
   const double R_y = C_d*(vel_w_y-vel_s_y);
 
