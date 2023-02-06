@@ -45,8 +45,8 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 
-static constexpr double SPACE_ADAPTDT = 2.;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = .1; // must never be null 
+static constexpr double SPACE_ADAPTDT = 1.;//1e-2; // put zero if you want at each time step
+static constexpr double SAVEDT = 2.5; // must never be null 
 static constexpr double DELTAT = 1.;
 static constexpr double REDCDT = .8; // it is the limit of the CFL condition
 static constexpr double T      = 230.;
@@ -68,9 +68,9 @@ static constexpr double density_s = 2700.;
 static constexpr double density_w = 1000.; 
 static constexpr double turbulence_coeff = 1e10;
 static constexpr double bed_friction_angle_rad = 0*17.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double erosion_coefficient = 0*5e-5; // 0.
+static constexpr double erosion_coefficient = 5e-5; // 0.
 static constexpr double m_coeff = 1.;
-static constexpr double terminal_velocity = 1.e20; // non può essere nulla!
+static constexpr double terminal_velocity = 1.e-2; // non può essere nulla!
 
 
 static constexpr double level_wet           = 3;  
@@ -737,7 +737,7 @@ main (int argc, char **argv)
 
     tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
     //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1);
-    tmsh.metrics_refine (1e4);  // RAFFINAMENTO (arg is max element)
+    tmsh.metrics_refine (1e5);  // RAFFINAMENTO (arg is max element)
 
     // tmsh.set_coarsen_marker (coarsen_function);
     // tmsh.set_refine_marker  (refine_function);
@@ -1376,7 +1376,7 @@ main (int argc, char **argv)
 
 
 
-    if (is_space_adaptivity && ((space_adapt_count-SPACE_ADAPTDT) >= -std::numeric_limits<double>::epsilon()*SPACE_ADAPTDT))
+    //if (is_space_adaptivity && ((space_adapt_count-SPACE_ADAPTDT) >= -std::numeric_limits<double>::epsilon()*SPACE_ADAPTDT))
     //(is_space_adaptivity && counter_savings%8==0)//  ((space_adapt_count-SPACE_ADAPTDT) >= -std::numeric_limits<double>::epsilon()*SPACE_ADAPTDT))
     {
 
@@ -1463,7 +1463,7 @@ main (int argc, char **argv)
 
 
       tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
-      tmsh.metrics_refine (1e4);  // RAFFINAMENTO (arg is max element)
+      tmsh.metrics_refine (1e7);  // RAFFINAMENTO (arg is max element)
 
 
       // tmsh.set_coarsen_marker (coarsen_function);
