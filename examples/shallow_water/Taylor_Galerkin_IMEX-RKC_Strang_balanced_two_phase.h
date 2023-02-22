@@ -162,8 +162,10 @@ public:
   std::array<double, 4> xn = {0, 0, 0, 0};
   std::array<double, 4> yn = {0, 0, 0, 0};
   
+  
   // local dofs for state vector components
-  std::array<double, 4> etadof  = {0, 0, 0, 0};
+  std::array<double, 4> etawdof = {0, 0, 0, 0};
+  std::array<double, 4> etasdof = {0, 0, 0, 0};
   std::array<double, 4> hdof    = {0, 0, 0, 0};
   std::array<double, 4> hwdof   = {0, 0, 0, 0};
   std::array<double, 4> hsdof   = {0, 0, 0, 0};
@@ -172,6 +174,8 @@ public:
   std::array<double, 4> Uxsdof  = {0, 0, 0, 0};
   std::array<double, 4> Uysdof  = {0, 0, 0, 0};
   std::array<double, 4> Z_node  = {0, 0, 0, 0};
+  std::array<double, 4> n_node  = {0, 0, 0, 0};
+  std::array<double, 4> ns_node = {0, 0, 0, 0};
   std::array<double, 4> P_plus_hw_dof   = {0, 0, 0, 0};
   std::array<double, 4> P_minus_hw_dof  = {0, 0, 0, 0};
   std::array<double, 4> P_plus_hs_dof   = {0, 0, 0, 0};
@@ -291,7 +295,7 @@ public:
 private:
 
   std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y, der_coeffs_x_s, der_coeffs_y_s, D_U;
-  std::array<double, 2> grad_cell_eta, grad_cell_hw, grad_cell_hs, grad_cell_Uxw, grad_cell_Uyw, grad_cell_Uxs, grad_cell_Uys, grad_cell_ux, grad_cell_uy, grad_cell_spec;
+  std::array<double, 2> grad_cell_Zn, grad_cell_Zns, grad_cell_hw, grad_cell_hs, grad_cell_Uxw, grad_cell_Uyw, grad_cell_Uxs, grad_cell_Uys, grad_cell_ux, grad_cell_uy, grad_cell_spec;
   
   const ordering& ordhw;
   const ordering& ordhs;
@@ -325,7 +329,7 @@ private:
 
   const double epsilon_IMEXRKC = 2./13.;
 
-  const double tolerance_sign = 1.;
+  const double tolerance_sign = 10.;
 
   const double regularization_parameter = 1e3; // has dimension of seconds, in this case the limit of the Bingham viscosity for small I_{2,D} exists finites
   

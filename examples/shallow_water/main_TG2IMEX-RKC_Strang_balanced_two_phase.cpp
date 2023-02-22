@@ -20,8 +20,12 @@
 
 
 
-// mpirun -np 2 main_TG2IMEXRKC2PHASE $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz >out
+// mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz >out
 // mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
+
+// sqrt((Uxw+Uxs)/((hw+hs)*((hw+hs)>1e-2))*(Uxw+Uxs)/((hw+hs)*((hw+hs)>1e-2)) + (Uyw+Uys)/((hw+hs)*((hw+hs)>1e-2))*(Uyw+Uys)/((hw+hs)*((hw+hs)>1e-2)))
+// (Uxw+Uxs)/((hw+hs)*((hw+hs)>1e-2))
+// sqrt((Uxw+Uxs)*(Uxw+Uxs) + (Uyw+Uys)*(Uyw+Uys))
 
 
 static constexpr char VARNAME_1[255] = "dem"; 
@@ -29,16 +33,16 @@ static constexpr char VARNAME_2[255] = "mask_in";
 //static constexpr char VARNAME_3[255] = "mask_fin"; 
 
 // properties of the input dem
-static constexpr double res = 10;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 449;//449;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 544;//544;//101;//175;//201;//180; // # rows
+static constexpr double res = 1.;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double Nx = 101;//449;//101;//165;//201;//188; // # columns
+static constexpr double Ny = 101;//544;//101;//175;//201;//180; // # rows
  
   
 static constexpr double L = res*(Nx-1);
 static constexpr double H = res*(Ny-1);
 static std::vector<double>   dem;
 static std::vector<double>   dem_slope_x;
-static std::vector<double>   dem_slope_y; 
+static std::vector<double>   dem_slope_y;
 static std::vector<double>   h_initial_cond;
 static constexpr int NUM_REFINEMENTS  = 7; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10 
@@ -46,38 +50,39 @@ static constexpr int NUM_TREFINEMENTS = 1; // 10
 
 
 static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = 1.; // must never be null 
-static constexpr double DELTAT = 1.;
-static constexpr double REDCDT = .8; // it is the limit of the CFL condition
-static constexpr double T      = 230.;
+static constexpr double SAVEDT = .5; // must never be null 
+static constexpr double DELTAT = .5; 
+static constexpr double REDCDT = .9; // it is the limit of the CFL condition
+static constexpr double T      = 1.;
+
  
 static constexpr bool is_time_adaptivity        = false;
-static constexpr bool is_initial_refinement     = true;
-static constexpr bool is_space_adaptivity       = true;
+static constexpr bool is_initial_refinement     = false;
+static constexpr bool is_space_adaptivity       = false;
 static constexpr bool is_non_reflBC             = true;
 static constexpr bool is_bed_friction           = true;
 static constexpr bool is_max_time_step_from_CFL = true;
  
 
-static constexpr double h_min = 1.e-1;
+static constexpr double h_min = 1.e-5; 
 static constexpr double grav = 9.81;
 
 // variables that can be used for UQ
 static constexpr double density = 2350.;
 static constexpr double density_s = 2700.;
 static constexpr double density_w = 1000.;
-static constexpr double turbulence_coeff = 1e10;
+static constexpr double turbulence_coeff = 1.e10;
 static constexpr double bed_friction_angle_rad = 0*17.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double erosion_coefficient = 5e-5; // 0.
-static constexpr double m_coeff = 1.; 
+static constexpr double erosion_coefficient = 0*5e-5; // 0.
+static constexpr double m_coeff = 1.;
 static constexpr double terminal_velocity = 1.e-2; // non può essere nulla!
 
 
 static constexpr double level_wet           = 3;  
 static constexpr double level_interface     = 6; // minimum resolution!  
 static constexpr double mesh_size_dry       = res*1e3;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = res/2;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
+static constexpr double mesh_size_wet       = res*2;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
+static constexpr double mesh_size_interface = res;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
  
 
 // Connectivity of local element
@@ -182,11 +187,38 @@ using Q1  = q1_vec<distributed_vector>;  // Typedef for distributed q_1 vector
 using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;         // Typedef for local q_0 vector // distributed_vector
 
 
-//double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
-double h0_fun (const double& xx, const double& yy)
+double dem_fun (const double& xx, const double& yy)
 { 
+  return(0);
+  return(-xx+L);
+  return(raster_value(xx,yy,dem));
+}
+
+double slope_x_fun (const double& xx, const double& yy)
+{
+  return(0.);
+  return(raster_value(xx,yy,dem_slope_x));
+}
+
+double slope_y_fun (const double& xx, const double& yy)
+{
+  return(0.);
+  return(raster_value(xx,yy,dem_slope_y));
+}
+
+double poro_0_fun (const double& xx, const double& yy)
+{
+  //return(xx<L/2. ? .8 : 1.);
+  return((density_s - density)/(density_s - density_w));
+}
+
+
+double h0_fun (const double& xx, const double& yy) 
+{ 
+  //return(xx<L/2. ? 1. : 1.);
   //return(yy>L/2. ? 10. : 0.);
-  //return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
+  //return (xx<=L/2. ? 100. : 50.);
+  return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
   //return(std::sqrt( (xx-L/2.)*(xx-L/2.) + (yy-H/2.)*(yy-H/2.) )<=L/10 ? 10 : 0. );
   return(raster_value(xx,yy,h_initial_cond));
 }
@@ -196,6 +228,7 @@ double Uy0_w_fun (double xx, double yy) { return 0.; }
 
 double Ux0_s_fun (double xx, double yy) { return 0.; }
 double Uy0_s_fun (double xx, double yy) { return 0.; }
+
 
 // Assemble vector from mesh.
 // FIXME  the following two functions are copied over from
@@ -598,8 +631,8 @@ main (int argc, char **argv)
 
     const auto & index_quad = quadrant->get_forest_quad_idx ();
 
-    slope_x[index_quad] = raster_value(xx_c,yy_c,dem_slope_x);
-    slope_y[index_quad] = raster_value(xx_c,yy_c,dem_slope_y);
+    slope_x[index_quad] = slope_x_fun (xx_c,yy_c);
+    slope_y[index_quad] = slope_y_fun (xx_c,yy_c);
     
 
     for (int ii = 0; ii < 4; ++ii)
@@ -609,16 +642,16 @@ main (int argc, char **argv)
         double yy=quadrant->p(1,ii); 
 
         
-        const double initial_porosity_coeff = (density_s - density)/(density_s - density_w);
+        const double initial_porosity_coeff = poro_0_fun(xx,yy); //(density_s - density)/(density_s - density_w);
 
-        sol [ordhw    (quadrant->gt (ii))] = h0_fun  (xx, yy)*initial_porosity_coeff;
-        sol [ordhs    (quadrant->gt (ii))] = h0_fun  (xx, yy)*(1.-initial_porosity_coeff);
+        sol [ordhw    (quadrant->gt (ii))] = h0_fun    (xx, yy)*initial_porosity_coeff;
+        sol [ordhs    (quadrant->gt (ii))] = h0_fun    (xx, yy)*(1.-initial_porosity_coeff);
         sol [ordUxw   (quadrant->gt (ii))] = Ux0_w_fun (xx, yy);
         sol [ordUyw   (quadrant->gt (ii))] = Uy0_w_fun (xx, yy);
         sol [ordUxs   (quadrant->gt (ii))] = Ux0_s_fun (xx, yy);
         sol [ordUys   (quadrant->gt (ii))] = Uy0_s_fun (xx, yy);
         
-        Z           [quadrant->gt (ii)] = raster_value(xx,yy,dem);
+        Z           [quadrant->gt (ii)] = dem_fun (xx, yy); 
       }
       
       else
@@ -799,8 +832,8 @@ main (int argc, char **argv)
 
       const auto & index_quad = quadrant->get_forest_quad_idx();
 
-      slope_x_[index_quad] = raster_value(xx_c,yy_c,dem_slope_x);
-      slope_y_[index_quad] = raster_value(xx_c,yy_c,dem_slope_y);
+      slope_x_[index_quad] = slope_x_fun (xx_c,yy_c); //raster_value(xx_c,yy_c,dem_slope_x);
+      slope_y_[index_quad] = slope_y_fun (xx_c,yy_c); //raster_value(xx_c,yy_c,dem_slope_y);
       
       for (int ii = 0; ii < 4; ++ii)
       {
@@ -809,7 +842,7 @@ main (int argc, char **argv)
           double yy=quadrant->p(1,ii);
 
 
-          const double initial_porosity_coeff = (density_s - density)/(density_s - density_w);
+          const double initial_porosity_coeff = poro_0_fun (xx,yy); //(density_s - density)/(density_s - density_w);
           
           sol_ [ordhw    (quadrant->gt (ii))] = h0_fun  (xx, yy)*initial_porosity_coeff;
           sol_ [ordhs    (quadrant->gt (ii))] = h0_fun  (xx, yy)*(1.-initial_porosity_coeff);
@@ -819,7 +852,7 @@ main (int argc, char **argv)
           sol_ [ordUys   (quadrant->gt (ii))] = Uy0_s_fun (xx, yy);
           
 
-          Z_[quadrant->gt (ii)] = raster_value(xx,yy,dem);
+          Z_[quadrant->gt (ii)] = dem_fun (xx, yy); 
         }
         
         else
@@ -1032,8 +1065,58 @@ main (int argc, char **argv)
 
     P_minus_dyn.get_owned_data ().assign (P_minus_dyn.get_owned_data ().size (), 0.0);
     P_minus_dyn.assemble (replace_op);
-    
-  
+
+/*
+    double v_max = 0.;
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+       quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+      {
+        for (int ii = 0; ii < 4; ++ii)
+        {
+          if (! quadrant->is_hanging (ii) )
+          {
+            stp.hwdof[ii]  = sol_dyn [ordhw  (quadrant->gt (ii) )];
+            stp.hsdof[ii]  = sol_dyn [ordhs  (quadrant->gt (ii) )];
+            stp.Uxwdof[ii] = sol_dyn [ordUxw (quadrant->gt (ii) )];
+            stp.Uywdof[ii] = sol_dyn [ordUyw (quadrant->gt (ii) )]; 
+            stp.Uxsdof[ii] = sol_dyn [ordUxs (quadrant->gt (ii) )];
+            stp.Uysdof[ii] = sol_dyn [ordUys (quadrant->gt (ii) )]; 
+          }
+          else
+          {
+            stp.hwdof[ii]  = .5 * (sol_dyn [ordhw  (quadrant->gparent (0, ii) )] +
+             sol_dyn [ordhw  (quadrant->gparent (1, ii) )]);
+            stp.hsdof[ii]  = .5 * (sol_dyn [ordhs  (quadrant->gparent (0, ii) )] +
+             sol_dyn [ordhs  (quadrant->gparent (1, ii) )]); 
+            stp.Uxwdof[ii] = .5 * (sol_dyn [ordUxw (quadrant->gparent (0, ii) )] +
+             sol_dyn [ordUxw (quadrant->gparent (1, ii) )]);
+            stp.Uywdof[ii] = .5 * (sol_dyn [ordUyw (quadrant->gparent (0, ii) )] +
+             sol_dyn [ordUyw (quadrant->gparent (1, ii) )]);
+            stp.Uxsdof[ii] = .5 * (sol_dyn [ordUxs (quadrant->gparent (0, ii) )] +
+             sol_dyn [ordUxs (quadrant->gparent (1, ii) )]);
+            stp.Uysdof[ii] = .5 * (sol_dyn [ordUys (quadrant->gparent (0, ii) )] +
+             sol_dyn [ordUys (quadrant->gparent (1, ii) )]);
+          }
+
+          double h = stp.hwdof[ii]+stp.hsdof[ii];
+
+         auto vel_x  = h >h_min ? (stp.Uxwdof[ii]+stp.Uxsdof[ii])/h : 0.; 
+         auto vel_y  = h >h_min ? (stp.Uywdof[ii]+stp.Uysdof[ii])/h : 0.;
+
+          //auto vv = stp.max_eigen (stp.hwdof[ii], stp.hsdof[ii], stp.Uxwdof[ii], stp.Uywdof[ii], stp.Uxsdof[ii], stp.Uysdof[ii]);
+
+          v_max = std::max(std::sqrt(vel_x*vel_x+vel_y*vel_y), v_max);
+
+          //std::cout << std::sqrt(vel_x*vel_x+vel_y*vel_y) << std::endl;
+        }
+
+        
+
+      }
+
+      std::cout << "Max velocity, " << v_max << std::endl;
+*/
+
     // compute time step, 
     stp.set_dt (DELTAT);
     if (is_max_time_step_from_CFL)
@@ -1226,7 +1309,7 @@ main (int argc, char **argv)
       }
       incr_source_dyn.assemble (replace_op); 
     }   
-    
+
 
     stp.set_old_dt(stp.dt);
     stp.set_old_dt(0.);
@@ -1463,7 +1546,7 @@ main (int argc, char **argv)
 
 
       tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, 1e-5, 4, 0, 0);
-      tmsh.metrics_refine (1e4);  // RAFFINAMENTO (arg is max element)
+      tmsh.metrics_refine (1e6);  // RAFFINAMENTO (arg is max element)
 
 
       // tmsh.set_coarsen_marker (coarsen_function);
@@ -1573,15 +1656,15 @@ main (int argc, char **argv)
 
         const auto & index_quad = quadrant->get_forest_quad_idx();
 
-        slope_x[index_quad] = raster_value(xx_c,yy_c,dem_slope_x);
-        slope_y[index_quad] = raster_value(xx_c,yy_c,dem_slope_y);
+        slope_x[index_quad] = slope_x_fun (xx_c,yy_c);
+        slope_y[index_quad] = slope_y_fun (xx_c,yy_c);
         
         for (int ii = 0; ii < 4; ++ii)
         {
           if (! quadrant->is_hanging (ii)){
             double xx=quadrant->p(0,ii);
             double yy=quadrant->p(1,ii);
-            Z[quadrant->gt (ii)] = raster_value(xx,yy,dem);
+            Z[quadrant->gt (ii)] = dem_fun (xx, yy); 
           }
            
           else
