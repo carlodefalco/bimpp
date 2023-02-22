@@ -1491,6 +1491,11 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
     hs_c += delta_hs;
   }
 
+  if (error>tolerance)
+  {
+    std::cout << "No convergence!! " << error << std::endl;
+  }
+
 
 }
 
