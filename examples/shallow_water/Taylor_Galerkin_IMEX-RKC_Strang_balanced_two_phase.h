@@ -49,9 +49,7 @@ public:
              const double& bed_friction_angle_rad,
              const double& erosion_coefficient,
              const double& m_coeff,
-             const double& terminal_velocity,
-             std::vector<double>& slope_x,
-             std::vector<double>& slope_y);
+             const double& terminal_velocity);
   
   TG2_scheme() = delete;
   
@@ -274,6 +272,8 @@ public:
   
   double time, timed, timedd;
   double nu_htot = 0.;
+  double Fr = 0.;
+  double g_coeff = 0.;
   
   Q1& sol;
   Q1& sold;
@@ -295,7 +295,7 @@ public:
 private:
 
   std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y, der_coeffs_x_s, der_coeffs_y_s, D_U;
-  std::array<double, 2> grad_cell_Zn, grad_cell_Zns, grad_cell_hw, grad_cell_hs, grad_cell_Uxw, grad_cell_Uyw, grad_cell_Uxs, grad_cell_Uys, grad_cell_ux, grad_cell_uy, grad_cell_spec;
+  std::array<double, 2> grad_cell_Zn, grad_cell_Zns, grad_cell_eta, grad_cell_Z, grad_cell_hw, grad_cell_hs, grad_cell_Uxw, grad_cell_Uyw, grad_cell_Uxs, grad_cell_Uys, grad_cell_ux, grad_cell_uy, grad_cell_spec;
   
   const ordering& ordhw;
   const ordering& ordhs;
@@ -315,8 +315,6 @@ private:
   const double& bed_friction_angle_rad;
   const double& m_coeff;
   const double& terminal_velocity;
-  std::vector<double>& slope_x;
-  std::vector<double>& slope_y;
 
   double w0, w1;
 
@@ -329,7 +327,7 @@ private:
 
   const double epsilon_IMEXRKC = 2./13.;
 
-  const double tolerance_sign = 10.;
+  const double tolerance_sign = 1.e0; 
 
   const double regularization_parameter = 1e3; // has dimension of seconds, in this case the limit of the Bingham viscosity for small I_{2,D} exists finites
   

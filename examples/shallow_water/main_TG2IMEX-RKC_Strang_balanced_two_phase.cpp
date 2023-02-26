@@ -41,37 +41,35 @@ static constexpr double Ny = 101;//544;//101;//175;//201;//180; // # rows
 static constexpr double L = res*(Nx-1);
 static constexpr double H = res*(Ny-1);
 static std::vector<double>   dem;
-static std::vector<double>   dem_slope_x;
-static std::vector<double>   dem_slope_y;
 static std::vector<double>   h_initial_cond;
-static constexpr int NUM_REFINEMENTS  = 7; // 8 
+static constexpr int NUM_REFINEMENTS  = 6; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10 
 
 
 
 static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = .5; // must never be null 
-static constexpr double DELTAT = .5; 
+static constexpr double SAVEDT = .1; // must never be null 
+static constexpr double DELTAT = .1; 
 static constexpr double REDCDT = .9; // it is the limit of the CFL condition
-static constexpr double T      = 1.;
+static constexpr double T      = 3.4;
 
  
 static constexpr bool is_time_adaptivity        = false;
 static constexpr bool is_initial_refinement     = false;
 static constexpr bool is_space_adaptivity       = false;
 static constexpr bool is_non_reflBC             = true;
-static constexpr bool is_bed_friction           = true;
+static constexpr bool is_bed_friction           = false;
 static constexpr bool is_max_time_step_from_CFL = true;
  
 
-static constexpr double h_min = 1.e-5; 
+static constexpr double h_min = 1.e-2; 
 static constexpr double grav = 9.81;
 
 // variables that can be used for UQ
 static constexpr double density = 2350.;
 static constexpr double density_s = 2700.;
 static constexpr double density_w = 1000.;
-static constexpr double turbulence_coeff = 1.e10;
+static constexpr double turbulence_coeff = 1e10;
 static constexpr double bed_friction_angle_rad = 0*17.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
 static constexpr double erosion_coefficient = 0*5e-5; // 0.
 static constexpr double m_coeff = 1.;
@@ -189,21 +187,10 @@ using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;    
 
 double dem_fun (const double& xx, const double& yy)
 { 
-  return(0);
+  //return(0);
+  //return(xx>25 && xx<75 ? 4. : 0.);
   return(-xx+L);
   return(raster_value(xx,yy,dem));
-}
-
-double slope_x_fun (const double& xx, const double& yy)
-{
-  return(0.);
-  return(raster_value(xx,yy,dem_slope_x));
-}
-
-double slope_y_fun (const double& xx, const double& yy)
-{
-  return(0.);
-  return(raster_value(xx,yy,dem_slope_y));
 }
 
 double poro_0_fun (const double& xx, const double& yy)
@@ -218,6 +205,7 @@ double h0_fun (const double& xx, const double& yy)
   //return(xx<L/2. ? 1. : 1.);
   //return(yy>L/2. ? 10. : 0.);
   //return (xx<=L/2. ? 100. : 50.);
+  //return(10.-dem_fun(xx,yy));
   return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
   //return(std::sqrt( (xx-L/2.)*(xx-L/2.) + (yy-H/2.)*(yy-H/2.) )<=L/10 ? 10 : 0. );
   return(raster_value(xx,yy,h_initial_cond));
@@ -346,139 +334,6 @@ quadrant_marker_list (tmesh::quadrant_iterator& q,
 
 
 
-void
-compute_slope()
-{
-
-  int ii, jj;
-  for (ii=1; ii<(Ny-1); ii++)
-  {
-    for (jj=1; jj<(Nx-1); jj++)
-    {
-      const auto i_vec = raster_2_vector(jj,ii);
-
-      const auto i_vec_north = raster_2_vector(jj,ii-1);
-      const auto i_vec_south = raster_2_vector(jj,ii+1);
-
-      const auto i_vec_east = raster_2_vector(jj+1,ii);
-      const auto i_vec_west = raster_2_vector(jj-1,ii);
-
-      dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec_west ])/(2*res);
-      dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec_south])/(2*res);
-    }
-  }
-
-  ii = 0;
-  for (jj=1; jj<(Nx-1); jj++)
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_south = raster_2_vector(jj,ii+1);
-
-    const auto i_vec_east = raster_2_vector(jj+1,ii);
-    const auto i_vec_west = raster_2_vector(jj-1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec_west ])/(2*res);
-    dem_slope_y[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
-  }
-
-  ii = Ny-1;
-  for (jj=1; jj<(Nx-1); jj++)
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_north = raster_2_vector(jj,ii-1);
-
-    const auto i_vec_east = raster_2_vector(jj+1,ii);
-    const auto i_vec_west = raster_2_vector(jj-1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec_west ])/(2*res);
-    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
-  }
-
-  jj = 0;
-  for (ii=1; ii<(Ny-1); ii++)
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_north = raster_2_vector(jj,ii-1);
-    const auto i_vec_south = raster_2_vector(jj,ii+1);
-
-    const auto i_vec_east = raster_2_vector(jj+1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
-    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec_south])/(2*res);
-  }
-
-  jj = Nx-1;
-  for (ii=1; ii<(Ny-1); ii++)
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_north = raster_2_vector(jj,ii-1);
-    const auto i_vec_south = raster_2_vector(jj,ii+1);
-
-    const auto i_vec_west = raster_2_vector(jj-1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec ]-dem[i_vec_west ])/res;
-    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec_south])/(2*res);
-  }
-
-
-  // compute corner points
-  ii = 0; jj = 0;
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_south = raster_2_vector(jj,ii+1);
-
-    const auto i_vec_east = raster_2_vector(jj+1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
-    dem_slope_x[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
-  }
-
-  ii = Ny-1; jj = 0;
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_north = raster_2_vector(jj,ii-1);
-
-    const auto i_vec_east = raster_2_vector(jj+1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec_east ]-dem[i_vec ])/res;
-    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
-  }
-
-  ii = 0; jj = Nx-1;
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_south = raster_2_vector(jj,ii+1);
-
-    const auto i_vec_west = raster_2_vector(jj-1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec]-dem[i_vec_west ])/res;
-    dem_slope_y[i_vec] = (dem[i_vec]-dem[i_vec_south])/res;
-  }  
-
-  ii = Ny-1; jj = Nx-1;
-  {
-    const auto i_vec = raster_2_vector(jj,ii);
-
-    const auto i_vec_north = raster_2_vector(jj,ii-1);
-
-    const auto i_vec_west = raster_2_vector(jj-1,ii);
-
-    dem_slope_x[i_vec] = (dem[i_vec]-dem[i_vec_west ])/res;
-    dem_slope_y[i_vec] = (dem[i_vec_north]-dem[i_vec])/res;
-  }
-
-}
-
-
-
-
 
 // Re-Define tic and toc to add an MPI_Barrier
 #define TIC()  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
@@ -578,12 +433,6 @@ main (int argc, char **argv)
   Q1 Z (ln_nodes);
   Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
 
-  std::vector<double> slope_x (ln_elements);
-  slope_x.assign (slope_x.size (), 0.0);
-
-  std::vector<double> slope_y (ln_elements);
-  slope_y.assign (slope_y.size (), 0.0);
-
 
   std::string str = ""; 
   char filename[255]="", arr[255]="";
@@ -613,11 +462,6 @@ main (int argc, char **argv)
   h_initial_cond.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), h_initial_cond.begin ());
   TOC("Load data matrix");
-
-  // compute raster slope
-  dem_slope_x.resize(Nx*Ny);
-  dem_slope_y.resize(Nx*Ny);
-  compute_slope();
   
 
   // Initialize 
@@ -628,11 +472,6 @@ main (int argc, char **argv)
   {
     double xx_c=quadrant->centroid(0);
     double yy_c=quadrant->centroid(1); 
-
-    const auto & index_quad = quadrant->get_forest_quad_idx ();
-
-    slope_x[index_quad] = slope_x_fun (xx_c,yy_c);
-    slope_y[index_quad] = slope_y_fun (xx_c,yy_c);
     
 
     for (int ii = 0; ii < 4; ++ii)
@@ -811,12 +650,6 @@ main (int argc, char **argv)
     Z_onehalf_.get_owned_data ().assign (Z_onehalf_.get_owned_data ().size(), 0.0);
     Z_onehalf_.assemble();
 
-    std::vector<double> slope_x_(ln_elements);
-    slope_x_.assign(slope_x_.size(), 0.0);
-
-    std::vector<double> slope_y_(ln_elements);
-    slope_y_.assign(slope_y_.size(), 0.0);
-
 
     std::vector<std::array<double,4>> incr_anti_diff_ (ln_elements * 6);
 
@@ -830,10 +663,6 @@ main (int argc, char **argv)
       double xx_c=quadrant->centroid(0);
       double yy_c=quadrant->centroid(1); 
 
-      const auto & index_quad = quadrant->get_forest_quad_idx();
-
-      slope_x_[index_quad] = slope_x_fun (xx_c,yy_c); //raster_value(xx_c,yy_c,dem_slope_x);
-      slope_y_[index_quad] = slope_y_fun (xx_c,yy_c); //raster_value(xx_c,yy_c,dem_slope_y);
       
       for (int ii = 0; ii < 4; ++ii)
       {
@@ -901,8 +730,6 @@ main (int argc, char **argv)
     sol_onehalf         = sol_onehalf_;
     Z                   = Z_;
     Z_onehalf           = Z_onehalf_;
-    slope_x             = slope_x_;
-    slope_y             = slope_y_;
   
     TOC ("compute initial condition");
   }
@@ -924,9 +751,6 @@ main (int argc, char **argv)
   Q0 Z_onehalf_dyn           = Z_onehalf;
 
   std::vector<std::array<double,4>> incr_anti_diff_dyn = incr_anti_diff;
-
-  std::vector<double> slope_x_dyn = slope_x;
-  std::vector<double> slope_y_dyn = slope_y;
 
   
   TG2_scheme stp(sol_dyn, 
@@ -962,9 +786,7 @@ main (int argc, char **argv)
                  bed_friction_angle_rad, 
                  erosion_coefficient, 
                  m_coeff, 
-                 terminal_velocity,
-                 slope_x_dyn,
-                 slope_y_dyn);
+                 terminal_velocity);
 
 
 
@@ -1118,6 +940,7 @@ main (int argc, char **argv)
 */
 
     // compute time step, 
+    stp.Fr = 0.;
     stp.set_dt (DELTAT);
     if (is_max_time_step_from_CFL)
     {
@@ -1128,6 +951,8 @@ main (int argc, char **argv)
       }
     }
     max_dt = REDCDT * stp.dt;
+
+    stp.g_coeff = 1./(1.-stp.Fr*stp.Fr);
 
     stp.set_dt(max_dt); // deltat max
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
@@ -1272,7 +1097,7 @@ main (int argc, char **argv)
     }
     sol_dyn.assemble(replace_op);
 
-
+//return 0;
 
     // Verwer IMEX-RKC
     sol_ini_rkc_dyn = sol_dyn; // copy
@@ -1638,12 +1463,6 @@ main (int argc, char **argv)
       Z_onehalf.get_owned_data ().assign (Z_onehalf.get_owned_data ().size(), 0.0);
       Z_onehalf.assemble();
 
-      std::vector<double> slope_x(ln_elements);
-      slope_x.assign(slope_x.size(), 0.0);
-
-      std::vector<double> slope_y(ln_elements);
-      slope_y.assign(slope_y.size(), 0.0);
-
 
       Q1 Z (ln_nodes);
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -1653,11 +1472,6 @@ main (int argc, char **argv)
 
         double xx_c=quadrant->centroid(0);
         double yy_c=quadrant->centroid(1); 
-
-        const auto & index_quad = quadrant->get_forest_quad_idx();
-
-        slope_x[index_quad] = slope_x_fun (xx_c,yy_c);
-        slope_y[index_quad] = slope_y_fun (xx_c,yy_c);
         
         for (int ii = 0; ii < 4; ++ii)
         {
@@ -1702,8 +1516,6 @@ main (int argc, char **argv)
       sol_onehalf_dyn         = sol_onehalf;
       Z_onehalf_dyn           = Z_onehalf;
       Z_dyn                   = Z;
-      slope_x_dyn             = slope_x;
-      slope_y_dyn             = slope_y;
 
 
       space_adapt_count = 0.0;

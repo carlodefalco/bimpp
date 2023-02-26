@@ -19,16 +19,16 @@
 #include "Taylor_Galerkin_IMEX-RKC_Strang_balanced.h"
 
 
-// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_c_prop.octbin.gz inputs/mask_in_vladi.octbin.gz 
+// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_vladi.octbin.gz 
 // mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
-
+// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
 
 static constexpr char VARNAME_1[255] = "dem"; 
 static constexpr char VARNAME_2[255] = "mask_in";  
 //static constexpr char VARNAME_3[255] = "mask_fin";
 
 // properties of the input dem
-static constexpr double res = .1;//0.005*500; // it is also the minimum resolution of the bim element
+static constexpr double res = 1;//0.005*500; // it is also the minimum resolution of the bim element
 static constexpr double Nx = 101;//101;//165;//201;//188; // # columns
 static constexpr double Ny = 101;//101;//175;//201;//180; // # rows
  
@@ -37,16 +37,17 @@ static constexpr double L = res*(Nx-1);
 static constexpr double H = res*(Ny-1);
 static std::vector<double>   dem;
 static std::vector<double>   basin_mask;
-static constexpr int NUM_REFINEMENTS  = 7; // 8 
+static constexpr int NUM_REFINEMENTS  = 6; // 8 
 static constexpr int NUM_TREFINEMENTS = 1; // 10 
 
 
 
 static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = .01; // must never be null 
-static constexpr double DELTAT = .01; 
+static constexpr double SAVEDT = .1; // must never be null 
+static constexpr double DELTAT = .1; 
 static constexpr double REDCDT = .9; // it is the limit of the CFL condition
-static constexpr double T      = .5;
+static constexpr double T      = 3.4;
+
  
 static constexpr bool is_time_adaptivity        = false; 
 static constexpr bool is_initial_refinement     = false;
@@ -57,15 +58,15 @@ static constexpr bool is_stress_tensor          = false;
 static constexpr bool is_max_time_step_from_CFL = true; 
  
 
-static constexpr double h_min = 1e-5;
-static constexpr double grav = 9.81;
-static constexpr double surface_pressure = 101325.; 
+static constexpr double h_min = 1e-2;
+static constexpr double grav = 9.81; 
+static constexpr double surface_pressure = 0.; 
 
-// variables that can be used for UQ
-static constexpr double density = 1.;
-static constexpr double turbulence_coeff = 1.e3;
-static constexpr double bed_friction_angle_rad = 33.9*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double fluid_viscosity = 0.05;//10000;
+// variables that can be used for UQ 
+static constexpr double density = 2350.;
+static constexpr double turbulence_coeff = 1e10;
+static constexpr double bed_friction_angle_rad = 0*17*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
+static constexpr double fluid_viscosity = 0.;//10000;
 static constexpr double yield_shear_stress = 0.;//2e3;//.5*density*grav*38*std::sin(bed_friction_angle_rad);
 
 static constexpr double level_wet           = 3;  
@@ -142,8 +143,9 @@ global_coord_2_raster(const double& x,
 
 
 static double
-dem_value(const double& x,
-          const double& y)
+raster_value(const double& x,
+             const double& y,
+             std::vector<double> DD)
 {
   // bilinear interp.
   const double ix = x/res;
@@ -160,7 +162,7 @@ dem_value(const double& x,
   {
     for (int j=0; j<2; j++)
     {
-      gamma[i+j*2] = dem[raster_2_vector(ix_q[(i+1)%2],iy_q[(j+1)%2])];
+      gamma[i+j*2] = DD[raster_2_vector(ix_q[(i+1)%2],iy_q[(j+1)%2])];
 
       gamma[i+j*2] *= Dx_adi!= 0 ? std::abs(ix_q[i]-ix)/Dx_adi : .5;
       gamma[i+j*2] *= Dy_adi!= 0 ? std::abs(iy_q[j]-iy)/Dy_adi : .5;
@@ -168,6 +170,12 @@ dem_value(const double& x,
   }
   
   return(gamma[0]+gamma[1]+gamma[2]+gamma[3]);
+}
+
+double dem_fun (const double& xx, const double& yy)
+{ 
+  return(-xx+L);
+  return(raster_value(xx,yy,dem));
 }
 
 
@@ -180,21 +188,22 @@ double h0_fun (const double& xx, const double& yy)
 {
   //return(1.);
   //return(xx/L*1500);
-  return (yy<=L/2. ? 10. : 0.);
+  return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
+  return (xx<=L/2. ? 10. : 0.);
   //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+1.*std::exp(-0.5*( std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+.1*std::exp(-1.*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
-  //return( std::abs(xx-L/2.)<=1.5 && std::abs(yy-H/2.)<=1.5 ? 2 : 1. );
-  //return( xx<=L/2. && yy<=H/2. ? 2. : 1. ); 
+  return( std::abs(xx-L/2.)<=1.5 && std::abs(yy-H/2.)<=1.5 ? 10 : 0. );
+  //return( xx<=L/2. && yy<=H/2. ? 2. : 0. ); 
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=L/4. ? 2 : 0. ); 
   //return(xx<=L/2. ? 2 : 1. );
 
 
-  //const double HH = 30.;
-  //const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
-  //return(std::max (0., std::min (.6*500-(500 - 500 * xx/L), HH)) * omega); 
+  const double HH = 30.;
+  const double omega = (std::pow((xx-.5*L)/L,2.) + std::pow((yy-.5*L)/L,2.)) <= std::pow((.2 + .01 * std::sin(10.*M_PI*(yy-.5*L)/L)),2.) ? 1. : 0.;
+  return(std::max (0., std::min (.6*500-(500 - 500 * xx/L), HH)) * omega); 
   
   
 
@@ -203,7 +212,7 @@ double h0_fun (const double& xx, const double& yy)
   //return(10. - dem[global_coord_2_raster(xx,yy)[0]]);
   //return(10. - (5.+xx/L));
   //return(1.);
-  return(10. - dem_value(xx,yy));
+  return(10. - dem_fun(xx,yy));
 
   return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38. : 0.);
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
@@ -358,7 +367,6 @@ quadrant_marker_list (tmesh::quadrant_iterator& q,
 
 
 
-
 // Re-Define tic and toc to add an MPI_Barrier
 #define TIC()  MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { tic (); }
 #define TOC(S) MPI_Barrier (MPI_COMM_WORLD); if (rank == 0) { toc (S); }
@@ -449,6 +457,7 @@ main (int argc, char **argv)
   Q1 Z (ln_nodes);
   Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
 
+
   Q1 Newton_it (ln_nodes);
   Newton_it.get_owned_data ().assign (Newton_it.get_owned_data ().size (), 0.0);
 
@@ -483,8 +492,8 @@ main (int argc, char **argv)
   M = v.matrix_value ();
   basin_mask.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask.begin ());
-
   TOC("Load data matrix");
+
 
 
   // Initialize 
@@ -507,7 +516,7 @@ main (int argc, char **argv)
         sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
         sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
         
-        Z           [quadrant->gt (ii)] = dem_value(xx,yy); 
+        Z           [quadrant->gt (ii)] = dem_fun(xx,yy); 
 	      Newton_it   [quadrant->gt (ii)] = 0.;
       }
       
@@ -657,6 +666,7 @@ main (int argc, char **argv)
     Q0 Z_onehalf_ (ln_elements);
     Z_onehalf_.get_owned_data ().assign (Z_onehalf_.get_owned_data ().size(), 0.0);
 
+
     std::vector<std::array<double,4>> incr_anti_diff_ (ln_elements * 3);
 
 
@@ -670,7 +680,7 @@ main (int argc, char **argv)
     {
       double xx_c=quadrant->centroid(0);
       double yy_c=quadrant->centroid(1); 
-      
+
       for (int ii = 0; ii < 4; ++ii)
       {
         if (! quadrant->is_hanging (ii)){
@@ -681,7 +691,7 @@ main (int argc, char **argv)
           sol_ [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
           sol_ [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
 
-          Z_[quadrant->gt (ii)] = dem_value(xx,yy);
+          Z_[quadrant->gt (ii)] = dem_fun(xx,yy);
 
 	        Newton_it_[quadrant->gt (ii)] = 0.;
         }
@@ -878,6 +888,7 @@ main (int argc, char **argv)
     
   
     // compute time step, 
+    stp.Fr = 0.;
     stp.set_dt (DELTAT);
     if (is_max_time_step_from_CFL)
     {
@@ -888,6 +899,8 @@ main (int argc, char **argv)
       }
     }
     max_dt = REDCDT * stp.dt;
+
+    stp.g_coeff = 1./(1.-stp.Fr*stp.Fr);
 
     stp.set_dt(max_dt); // deltat max
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
@@ -1507,7 +1520,6 @@ main (int argc, char **argv)
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
       {
-
         double xx_c=quadrant->centroid(0);
         double yy_c=quadrant->centroid(1); 
         
@@ -1516,7 +1528,7 @@ main (int argc, char **argv)
           if (! quadrant->is_hanging (ii)){
             double xx=quadrant->p(0,ii);
             double yy=quadrant->p(1,ii);
-            Z           [quadrant->gt (ii)] = dem_value(xx,yy); 
+            Z           [quadrant->gt (ii)] = dem_fun(xx,yy); 
 	          Newton_it   [quadrant->gt (ii)] = 0.;
           }
            
