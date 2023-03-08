@@ -15,11 +15,15 @@
 #include <mumps_class.h>
 #include <tmesh.h>
 #include <quad_operators.h>
+#include <fstream>
 
+#include "json.hpp"
 #include "Taylor_Galerkin_IMEX-RKC_Strang_balanced_two_phase.h"
 
 
+using json = nlohmann::json;
 
+// mpirun -np 1 main_TG2IMEXRKC2PHASE glisX_input.json
 // mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz >out
 // mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
 
@@ -32,93 +36,19 @@ static constexpr char VARNAME_1[255] = "dem";
 static constexpr char VARNAME_2[255] = "mask_in"; 
 //static constexpr char VARNAME_3[255] = "mask_fin"; 
 
-// properties of the input dem
-static constexpr double res = 1.;//0.005*500; // it is also the minimum resolution of the bim element
-static constexpr double Nx = 101;//449;//101;//165;//201;//188; // # columns
-static constexpr double Ny = 101;//544;//101;//175;//201;//180; // # rows
- 
-  
-static constexpr double L = res*(Nx-1);
-static constexpr double H = res*(Ny-1);
-static std::vector<double>   dem;
-static std::vector<double>   h_initial_cond;
-static constexpr int NUM_REFINEMENTS  = 6; // 8 
-static constexpr int NUM_TREFINEMENTS = 1; // 10 
+
+static std::vector<double> dem;
+static std::vector<double> h_initial_cond;
+
+double h_min, L, H, res, density, density_w, density_s;
+int NUM_REFINEMENTS, Nx, Ny;
 
 
-
-static constexpr double SPACE_ADAPTDT = .5;//1e-2; // put zero if you want at each time step
-static constexpr double SAVEDT = .1; // must never be null 
-static constexpr double DELTAT = .1; 
-static constexpr double REDCDT = .9; // it is the limit of the CFL condition
-static constexpr double T      = 3.4;
-
- 
-static constexpr bool is_time_adaptivity        = false;
-static constexpr bool is_initial_refinement     = false;
-static constexpr bool is_space_adaptivity       = false;
-static constexpr bool is_non_reflBC             = true;
-static constexpr bool is_bed_friction           = false;
-static constexpr bool is_max_time_step_from_CFL = true;
- 
-
-static constexpr double h_min = 1.e-2; 
-static constexpr double grav = 9.81;
-
-// variables that can be used for UQ
-static constexpr double density = 2350.;
-static constexpr double density_s = 2700.;
-static constexpr double density_w = 1000.;
-static constexpr double turbulence_coeff = 1e10;
-static constexpr double bed_friction_angle_rad = 0*17.*M_PI/180; //33.9*M_PI/180; //0.0; //23*M_PI/180; 
-static constexpr double erosion_coefficient = 0*5e-5; // 0.
-static constexpr double m_coeff = 1.;
-static constexpr double terminal_velocity = 1.e-2; // non può essere nulla!
-
-
-static constexpr double level_wet           = 3;  
-static constexpr double level_interface     = 6; // minimum resolution!  
-static constexpr double mesh_size_dry       = res*1e3;//res/60*std::pow(2,level_interface); //res*std::pow(2,level_interface); 
-static constexpr double mesh_size_wet       = res*2;///10;//res/20;//res;//mesh_size_dry/std::pow(2,level_wet); // finest resolution
-static constexpr double mesh_size_interface = res;//res/30;//res/60;//mesh_size_dry/std::pow(2,level_interface);
- 
-
-// Connectivity of local element
-constexpr p4est_topidx_t simple_conn_num_vertices = 4;
-constexpr p4est_topidx_t simple_conn_num_trees = 1;
-const double simple_conn_p[simple_conn_num_vertices*2] =
-  {0,  0,
-   0,  H,
-   L,  0,
-   L,  H};
-
-const p4est_topidx_t simple_conn_t[simple_conn_num_trees*5] =
-  {  1,    3,    4,    2,    1 };
 
 // Refinement rule
 static int
 uniform_refinement (tmesh::quadrant_iterator q)
 { return NUM_REFINEMENTS; }
-
-
-static int
-hanging_refinement (tmesh::quadrant_iterator quadrant)
-{
-  
-  double x_minus, x_plus, y_minus, y_plus;
-  x_minus = quadrant->p (0, 0);
-  x_plus  = quadrant->p (0, 1);
-  y_minus = quadrant->p (1, 0);
-  y_plus  = quadrant->p (1, 2);
-  
-  double x_center, y_center;
-  x_center = quadrant->centroid (0);
-  y_center = quadrant->centroid (1);
-  
-  const auto marker = x_center<3./4.*L && x_center>L/4. && y_center<3./4.*H && y_center>H/4.;
-//  const auto marker = (x_minus+x_plus)/2<L/2;//(x_minus+x_plus)/2<L/2 && (y_minus+y_plus)/2>H/2 ? 1 : 0;
-  return marker; 
-}
 
 
 static int
@@ -129,24 +59,6 @@ raster_2_vector(const double& i_x,
   ii = i_y + Ny*i_x;
   
   return(ii);
-}
-
-static std::array<int,3>
-global_coord_2_raster(const double& x,
-                      const double& y)
-{
-  static double i_x;
-  static double i_y;
-  static int ii;
-  
-  
-  // nearest neighbor
-  i_x =   std::round(x / res);
-  i_y = - std::round(y / res) + (Ny-1);
-
-  ii = raster_2_vector(i_x,i_y);
-  
-  return(std::array<int,3>{{ ii,int(i_x),int(i_y) }});
 }
 
 
@@ -188,7 +100,8 @@ using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;    
 double dem_fun (const double& xx, const double& yy)
 { 
   //return(0);
-  //return(xx>25 && xx<75 ? 4. : 0.);
+  return(5.*std::exp(-2./5*(xx-5.)*(xx-5.)));
+  return(xx>4 && xx<8 ? 4. : 0.);
   return(-xx+L);
   return(raster_value(xx,yy,dem));
 }
@@ -205,7 +118,7 @@ double h0_fun (const double& xx, const double& yy)
   //return(xx<L/2. ? 1. : 1.);
   //return(yy>L/2. ? 10. : 0.);
   //return (xx<=L/2. ? 100. : 50.);
-  //return(10.-dem_fun(xx,yy));
+  return(10.-dem_fun(xx,yy));
   return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
   //return(std::sqrt( (xx-L/2.)*(xx-L/2.) + (yy-H/2.)*(yy-H/2.) )<=L/10 ? 10 : 0. );
   return(raster_value(xx,yy,h_initial_cond));
@@ -343,6 +256,68 @@ quadrant_marker_list (tmesh::quadrant_iterator& q,
 int
 main (int argc, char **argv)
 {
+
+  // parse input file,
+  MPI_Init (&argc, &argv);
+  std::ifstream input_file(argv[1]);
+  json input_data = json::parse(input_file);
+ 
+
+ 
+                 res                                      = input_data["raster resolution"];
+                 Nx                                       = input_data["number raster columns"];
+                 Ny                                       = input_data["number raster rows"];
+                 NUM_REFINEMENTS                          = input_data["initial level of reniment"];
+  const double & REDCDT                                   = input_data["CFL condition"];
+  const double & T                                        = input_data["final time in seconds"];
+  const double & SPACE_ADAPTDT                            = input_data["space adaptation procedure interval in seconds"];
+  const double & SAVEDT                                   = input_data["saving interval in seconds"];
+  const double & DELTAT                                   = input_data["maximum time step allowed"];
+  const double & mesh_size_dry                            = input_data["desired resolution in meters of the mesh size in dry regions"];
+  const double & mesh_size_wet                            = input_data["minimum resolution in meters of the mesh size in wet regions"];
+  const double & mesh_size_interface                      = input_data["desired resolution in meters of the mesh size in wet-dry interface regions"];
+  const bool   & is_time_adaptivity                       = input_data["do you want the time step predictor?"];
+  const bool   & is_initial_refinement                    = input_data["do you want to refine the mesh initially?"];
+  const bool   & is_space_adaptivity                      = input_data["do you want the space adaptation with interface tracking?"];
+  const bool   & is_non_reflBC                            = input_data["do you want non reflecting BC?"];
+  const bool   & is_bed_friction                          = input_data["do you want the bed friction?"];
+  const bool   & is_stress_tensor                         = input_data["do you want the stress tensor?"];
+  const bool   & is_max_time_step_from_CFL                = input_data["do you want the maximum time step given by CFL condition for the transport term?"];
+                 h_min                                    = input_data["minimum material height threshold"];
+  const double & grav                                     = input_data["gravitational field"];
+                 density                                  = input_data["material density"];
+                 density_s                                = input_data["solid density"];
+                 density_w                                = input_data["fluid density"];
+  const double & turbulence_coeff                         = input_data["turbulence coefficient"];
+  const double & surface_pressure                         = input_data["surface atmospheric pressure"];
+        double   bed_friction_angle_rad                   = input_data["bed friction angle in degrees"];
+                 bed_friction_angle_rad                  *= M_PI/180;
+  const double & erosion_coefficient                      = input_data["erosion coefficient"];
+  const double & terminal_velocity                        = input_data["terminal velocity"];
+  const double & m_coeff                                  = input_data["m coefficient"];
+
+  const std::string & SAVE_DIR    = input_data["home saving directory, i.e., where we can find the directory results"];
+  const std::string & DEM_DIR     = input_data["dem file, complete path"]; 
+  const std::string & MASK_DIR    = input_data["mask file, complete path"];
+
+  L = res*(Nx-1);
+  H = res*(Ny-1);
+
+
+  // Connectivity of local element
+  constexpr p4est_topidx_t simple_conn_num_vertices = 4;
+  constexpr p4est_topidx_t simple_conn_num_trees = 1;
+  const double simple_conn_p[simple_conn_num_vertices*2] =
+  {0,  0,
+  0,  H,
+  L,  0,
+  L,  H};
+
+  const p4est_topidx_t simple_conn_t[simple_conn_num_trees*5] =
+  {  1,    3,    4,    2,    1 };
+
+
+
   // Management of solutions ordering
   ordering ordhw  = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<6, 0> (gt); };
   ordering ordhs  = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<6, 1> (gt); };
@@ -354,26 +329,10 @@ main (int argc, char **argv)
   
   
   // Initialize MPI
-  MPI_Init (&argc, &argv);
   int rank, size;
   MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   MPI_Comm_size (MPI_COMM_WORLD, &size);
 
-  if (argc != 4) 
-  {
-    std::cerr << "You should provide as input respectively, save directory, dem directory, mask directory" << std::endl;
-
-    // Close MPI and print report
-    MPI_Barrier (MPI_COMM_WORLD);
-    if (rank == 0) { print_timing_report (); }
-    MPI_Finalize ();
-    return 0;
-  }
-
-  const auto SAVE_DIR    = argv[1];
-  const auto DEM_DIR     = argv[2]; 
-  const auto MASK_DIR    = argv[3];
-  //const auto MASKFIN_DIR = argv[4];
 
   
   /// Generate the mesh in 2d
@@ -387,12 +346,6 @@ main (int argc, char **argv)
   int recursive = 1;
   tmsh.set_refine_marker (uniform_refinement);
   tmsh.refine (recursive);
-  
-  // for (int ii=0; ii<1; ii++)
-  // {
-  //   tmsh.set_refine_marker (hanging_refinement);
-  //   tmsh.refine (recursive, 1);
-  // }
   TOC ("Uniform refinement");
   
   
