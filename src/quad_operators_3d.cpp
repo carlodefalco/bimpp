@@ -2588,11 +2588,15 @@ bim3a_dirichlet_bc (tmesh_3d&, const dirichlet_bcs3_quad&,
 
 template
 void
-bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
-                    sparse_matrix& A, T& rhs,
-                    const ordering& ordr,
-                    const ordering& ordc,
-                    const bool& only_rhs);
+bim3a_dirichlet_bc (tmesh_3d&, const dirichlet_bcs3&,
+                    sparse_matrix&, std::vector<double>&,
+                    const ordering&, const ordering&, const bool&);
+
+template
+void
+bim3a_dirichlet_bc (tmesh_3d&, const dirichlet_bcs3&,
+                    sparse_matrix&, distributed_vector&,
+                    const ordering&, const ordering&, const bool&);
 
 /* ---- */
 template
