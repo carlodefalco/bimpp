@@ -141,6 +141,13 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
 
 template <class T>
 void
+bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
+                    sparse_matrix& A, T& rhs,
+                    const ordering& ordr,
+                    const ordering& ordc,
+                    const bool& only_rhs);
+template <class T>
+void
 bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs_quad& bcs,
                     sparse_matrix& A, T& rhs,
                     const ordering& ord = default_ord,
