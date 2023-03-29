@@ -1011,7 +1011,7 @@ bim2a_dirichlet_bc (tmesh& mesh, const dirichlet_bcs& bcs,
                     value = (std::get<2> (bcs[bc]))
                       (quadrant->p (0, i), quadrant->p (1, i));
 
-                    bim2a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
+                    bim2a_dirichlet_bc_loc (A, rhs, row, col, value, only_rhs);
                   }
             }
         }
@@ -2309,7 +2309,7 @@ bim2a_dirichlet_bc_loc (sparse_matrix&,
 template
 void
 bim2a_dirichlet_bc_loc (sparse_matrix&,
-                        distributed_vector&,
+                        std::vector<double>&,
                         const unsigned int&,
                         const unsigned int&,
                         const double&,
@@ -2318,7 +2318,7 @@ bim2a_dirichlet_bc_loc (sparse_matrix&,
 template
 void
 bim2a_dirichlet_bc_loc (sparse_matrix&,
-                        std::vector<double>&,
+                        distributed_vector&,
                         const unsigned int&,
                         const unsigned int&,
                         const double&,
@@ -2342,7 +2342,7 @@ bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs&,
 template
 void
 bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs&,
-                    sparse_matrix&, distributed_vector&,
+                    sparse_matrix&, std::vector<double>&,
                     const ordering&,
                     const ordering&,
                     const bool&);
@@ -2350,7 +2350,7 @@ bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs&,
 template
 void
 bim2a_dirichlet_bc (tmesh&, const dirichlet_bcs&,
-                    sparse_matrix& A, std::vector<double>&,
+                    sparse_matrix&, distributed_vector&,
                     const ordering&,
                     const ordering&,
                     const bool&);
