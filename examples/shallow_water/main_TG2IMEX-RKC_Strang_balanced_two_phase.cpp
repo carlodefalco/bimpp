@@ -34,7 +34,6 @@ using json = nlohmann::json;
 
 static constexpr char VARNAME_1[255] = "dem"; 
 static constexpr char VARNAME_2[255] = "mask_in"; 
-//static constexpr char VARNAME_3[255] = "mask_fin"; 
 
 
 static std::vector<double> dem;
@@ -294,7 +293,15 @@ main (int argc, char **argv)
                  bed_friction_angle_rad                  *= M_PI/180;
   const double & erosion_coefficient                      = input_data["erosion coefficient"];
   const double & terminal_velocity                        = input_data["terminal velocity"];
+  const double & odometric_coeff                          = input_data["odometric coefficient"];
+  const double & consolidation_coefficient                = input_data["consolidation coefficient"];
   const double & m_coeff                                  = input_data["m coefficient"];
+  const double & Young_modulus                            = input_data["Young modulus"];
+  const double & Poissons_ratio                           = input_data["Poisson's ratio"];
+  const double & alfa_coeff                               = input_data["alpha coefficient"];
+  const int    & number_FD_points                         = input_data["number of points in the FD mesh"];
+  const double & thickness_basal_layer                    = input_data["thickness basal layer"];
+  const double & thr_erodible_layer                       = input_data["threshold of the orography height in meters under which we have no erodible layer"];
 
   const std::string & SAVE_DIR    = input_data["home saving directory, i.e., where we can find the directory results"];
   const std::string & DEM_DIR     = input_data["dem file, complete path"]; 
@@ -302,6 +309,9 @@ main (int argc, char **argv)
 
   L = res*(Nx-1);
   H = res*(Ny-1);
+
+  const auto K_v = Young_modulus/(3*(1.-2.*Poissons_ratio));
+  const auto number_FD_elements = number_FD_points-1;
 
 
   // Connectivity of local element
@@ -318,7 +328,7 @@ main (int argc, char **argv)
 
 
 
-  // Management of solutions ordering
+  // Management of solutions ordering for mass and momentum
   ordering ordhw  = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<6, 0> (gt); };
   ordering ordhs  = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<6, 1> (gt); };
   ordering ordUxw = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<6, 2> (gt); };
@@ -326,6 +336,17 @@ main (int argc, char **argv)
   ordering ordUxs = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<6, 4> (gt); };
   ordering ordUys = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<6, 5> (gt); };
 
+
+  // Management of solutions ordering for excess pwp
+  ordering ordBottom  = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<number_FD_points, 0> (gt); };
+  ordering ordSurface = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<number_FD_points, number_FD_elements> (gt); };
+
+  std::vector<ordering> ordPwp_set(number_FD_elements-1);
+  for (int kk=1; kk<number_FD_elements; kk++)
+  {
+    ordering ordInternal = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<number_FD_points, kk> (gt); };
+    ordPwp_set[kk] = ordInternal;
+  }
   
   
   // Initialize MPI
@@ -359,9 +380,12 @@ main (int argc, char **argv)
 
   /// Allocate initial data container
   Q1 sol  (ln_nodes * 6);
-  Q1 incr (ln_nodes * 6);
   sol.get_owned_data  ().assign (sol.get_owned_data  ().size (), 0.0);
+
+
+  Q1 incr (ln_nodes * 6);
   incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
+  incr.assemble();
 
   
   Q1 mass (ln_nodes * 6);
@@ -386,6 +410,14 @@ main (int argc, char **argv)
   Q1 Z (ln_nodes);
   Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
 
+  Q1 excess_pore_water_pressure(ln_nodes * number_FD_points);
+  excess_pore_water_pressure.get_owned_data  ().assign (excess_pore_water_pressure.get_owned_data  ().size (), 0.0);
+
+  Q1 excess_pore_water_pressure_incr(ln_nodes * number_FD_points);
+  excess_pore_water_pressure_incr.get_owned_data  ().assign (excess_pore_water_pressure_incr.get_owned_data  ().size (), 0.0);
+
+  Q0 excess_pore_water_pressure_onehalf(ln_elements * number_FD_points);
+  excess_pore_water_pressure_onehalf.get_owned_data  ().assign (excess_pore_water_pressure_onehalf.get_owned_data  ().size (), 0.0);
 
   std::string str = ""; 
   char filename[255]="", arr[255]="";
@@ -443,7 +475,13 @@ main (int argc, char **argv)
         sol [ordUxs   (quadrant->gt (ii))] = Ux0_s_fun (xx, yy);
         sol [ordUys   (quadrant->gt (ii))] = Uy0_s_fun (xx, yy);
         
-        Z           [quadrant->gt (ii)] = dem_fun (xx, yy); 
+        Z   [          quadrant->gt (ii) ] = dem_fun (xx, yy);
+
+        for (int kk=ordBottom(quadrant->gt (ii)); kk<=ordSurface(quadrant->gt (ii)); kk++)
+        {
+          const auto current_z_coord = h0_fun(xx, yy)/number_FD_elements*(kk%number_FD_points);
+          excess_pore_water_pressure[kk] = current_z_coord<=thickness_basal_layer ? (1.-initial_porosity_coeff)*(density_s - density_w)*grav*h0_fun(xx, yy)*0.65 : 0.;
+        }
       }
       
       else
@@ -462,12 +500,18 @@ main (int argc, char **argv)
         sol [ordUys  (quadrant->gparent(0,ii))] += 0.;
         sol [ordUys  (quadrant->gparent(1,ii))] += 0.;
         
-        Z   [quadrant->gparent(0,ii)] += 0.;
-        Z   [quadrant->gparent(1,ii)] += 0.;
+        Z   [         quadrant->gparent(0,ii) ] += 0.;
+        Z   [         quadrant->gparent(1,ii) ] += 0.;
+
+        for (int jj=0; jj<=1; jj++)
+          for (int kk=ordBottom(quadrant->gparent(jj,ii)); kk<=ordSurface(quadrant->gparent(jj,ii)); kk++)
+          {
+            excess_pore_water_pressure[kk] += 0.;
+          }
       }
     }
   }
-
+  excess_pore_water_pressure.assemble();
 
   // bim2a_solution_with_ghosts in quad_operators.cpp
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordhw,  false);
@@ -479,12 +523,13 @@ main (int argc, char **argv)
   
   bim2a_solution_with_ghosts (tmsh, Z, replace_op);
 
-  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordhw,  false);
-  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordhs,  false);
-  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUxw, false);
-  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUyw, false);
-  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUxs, false);
-  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUys);
+
+  // bim2a_solution_with_ghosts (tmsh, excess_pore_water_pressure, replace_op, ordBottom, false);
+  // for (const auto & ord_current : ordPwp_set)
+  // {
+  //   bim2a_solution_with_ghosts (tmsh, excess_pore_water_pressure, replace_op, ord_current,  false);
+  // }
+  // bim2a_solution_with_ghosts (tmsh, excess_pore_water_pressure, replace_op, ordSurface);
 
 
   if (is_initial_refinement)
@@ -606,6 +651,15 @@ main (int argc, char **argv)
 
     std::vector<std::array<double,4>> incr_anti_diff_ (ln_elements * 6);
 
+    Q1 excess_pore_water_pressure_(ln_nodes * number_FD_points);
+    excess_pore_water_pressure_.get_owned_data  ().assign (excess_pore_water_pressure_.get_owned_data  ().size (), 0.0);
+
+    Q1 excess_pore_water_pressure_incr_(ln_nodes * number_FD_points);
+    excess_pore_water_pressure_incr_.get_owned_data  ().assign (excess_pore_water_pressure_incr_.get_owned_data  ().size (), 0.0);
+
+    Q0 excess_pore_water_pressure_onehalf_(ln_elements * number_FD_points);
+    excess_pore_water_pressure_onehalf_.get_owned_data  ().assign (excess_pore_water_pressure_onehalf_.get_owned_data  ().size (), 0.0);
+
 
     Q1 sol_ (ln_nodes * 6);
     Q1 Z_ (ln_nodes);
@@ -635,6 +689,13 @@ main (int argc, char **argv)
           
 
           Z_[quadrant->gt (ii)] = dem_fun (xx, yy); 
+
+
+          for (int kk=ordBottom(quadrant->gt (ii)); kk<=ordSurface(quadrant->gt (ii)); kk++)
+          {
+            const auto current_z_coord = h0_fun(xx, yy)/number_FD_elements*(kk%number_FD_points);
+            excess_pore_water_pressure_[kk] = current_z_coord<=thickness_basal_layer ? (1.-initial_porosity_coeff)*(density_s - density_w)*grav*h0_fun(xx, yy)*0.65 : 0.;
+          }
         }
         
         else
@@ -654,9 +715,18 @@ main (int argc, char **argv)
 
           Z_[quadrant->gparent(0,ii)] += 0.;
           Z_[quadrant->gparent(1,ii)] += 0.;
+
+
+          for (int jj=0; jj<=1; jj++)
+            for (int kk=ordBottom(quadrant->gparent(jj,ii)); kk<=ordSurface(quadrant->gparent(jj,ii)); kk++)
+            {
+              excess_pore_water_pressure_[kk] += 0.;
+            }
         }
       }
     }
+    excess_pore_water_pressure_.assemble();
+
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordhw,  false);
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordhs,  false);
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUxw, false);
@@ -668,12 +738,12 @@ main (int argc, char **argv)
     bim2a_solution_with_ghosts (tmsh, Z_, replace_op);
 
 
-    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordhw,  false);
-    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordhs,  false);
-    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUxw, false);
-    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUyw, false);
-    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUxs, false);
-    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUys);
+    // bim2a_solution_with_ghosts (tmsh, excess_pore_water_pressure_, replace_op, ordBottom, false);
+    // for (const auto & ord_current : ordPwp_set)
+    // {
+    //   bim2a_solution_with_ghosts (tmsh, excess_pore_water_pressure_, replace_op, ord_current,  false);
+    // }
+    // bim2a_solution_with_ghosts (tmsh, excess_pore_water_pressure_, replace_op, ordSurface);
 
 
     sol                 = sol_;
@@ -683,6 +753,10 @@ main (int argc, char **argv)
     sol_onehalf         = sol_onehalf_;
     Z                   = Z_;
     Z_onehalf           = Z_onehalf_;
+
+    excess_pore_water_pressure         = excess_pore_water_pressure_;
+    excess_pore_water_pressure_onehalf = excess_pore_water_pressure_onehalf_;
+    excess_pore_water_pressure_incr    = excess_pore_water_pressure_incr_;
   
     TOC ("compute initial condition");
   }
@@ -697,13 +771,17 @@ main (int argc, char **argv)
   Q1 incr_initial_source_dyn = incr;
   Q1 incr_source_dyn         = incr;
   Q1 P_plus_dyn              = incr;
-  Q1 P_minus_dyn             = incr;  
+  Q1 P_minus_dyn             = incr;
   Q1 mass_dyn                = mass;
   Q1 Z_dyn                   = Z;
   Q0 sol_onehalf_dyn         = sol_onehalf;
   Q0 Z_onehalf_dyn           = Z_onehalf;
 
   std::vector<std::array<double,4>> incr_anti_diff_dyn = incr_anti_diff;
+
+  Q1 excess_pore_water_pressure_dyn = excess_pore_water_pressure;
+  Q0 excess_pore_water_pressure_onehalf_dyn = excess_pore_water_pressure_onehalf;
+  Q1 excess_pore_water_pressure_incr_dyn    = excess_pore_water_pressure_incr;
 
   
   TG2_scheme stp(sol_dyn, 
@@ -720,12 +798,18 @@ main (int argc, char **argv)
                  P_minus_dyn, 
                  sol_onehalf_dyn, 
                  mass_dyn,
+                 excess_pore_water_pressure_dyn,
+                 excess_pore_water_pressure_onehalf_dyn,
+                 excess_pore_water_pressure_incr_dyn,
                  ordhw, 
                  ordhs, 
                  ordUxw, 
                  ordUyw, 
                  ordUxs, 
                  ordUys, 
+                 ordPwp_set,
+                 ordBottom,
+                 ordSurface,
                  Z_dyn,
                  Z_onehalf_dyn,
                  DELTAT, 
@@ -739,7 +823,11 @@ main (int argc, char **argv)
                  bed_friction_angle_rad, 
                  erosion_coefficient, 
                  m_coeff, 
-                 terminal_velocity);
+                 terminal_velocity,
+                 odometric_coeff,
+                 consolidation_coefficient,
+                 thr_erodible_layer,
+                 number_FD_points);
 
 
 
@@ -841,56 +929,9 @@ main (int argc, char **argv)
     P_minus_dyn.get_owned_data ().assign (P_minus_dyn.get_owned_data ().size (), 0.0);
     P_minus_dyn.assemble (replace_op);
 
-/*
-    double v_max = 0.;
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-       quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-      {
-        for (int ii = 0; ii < 4; ++ii)
-        {
-          if (! quadrant->is_hanging (ii) )
-          {
-            stp.hwdof[ii]  = sol_dyn [ordhw  (quadrant->gt (ii) )];
-            stp.hsdof[ii]  = sol_dyn [ordhs  (quadrant->gt (ii) )];
-            stp.Uxwdof[ii] = sol_dyn [ordUxw (quadrant->gt (ii) )];
-            stp.Uywdof[ii] = sol_dyn [ordUyw (quadrant->gt (ii) )]; 
-            stp.Uxsdof[ii] = sol_dyn [ordUxs (quadrant->gt (ii) )];
-            stp.Uysdof[ii] = sol_dyn [ordUys (quadrant->gt (ii) )]; 
-          }
-          else
-          {
-            stp.hwdof[ii]  = .5 * (sol_dyn [ordhw  (quadrant->gparent (0, ii) )] +
-             sol_dyn [ordhw  (quadrant->gparent (1, ii) )]);
-            stp.hsdof[ii]  = .5 * (sol_dyn [ordhs  (quadrant->gparent (0, ii) )] +
-             sol_dyn [ordhs  (quadrant->gparent (1, ii) )]); 
-            stp.Uxwdof[ii] = .5 * (sol_dyn [ordUxw (quadrant->gparent (0, ii) )] +
-             sol_dyn [ordUxw (quadrant->gparent (1, ii) )]);
-            stp.Uywdof[ii] = .5 * (sol_dyn [ordUyw (quadrant->gparent (0, ii) )] +
-             sol_dyn [ordUyw (quadrant->gparent (1, ii) )]);
-            stp.Uxsdof[ii] = .5 * (sol_dyn [ordUxs (quadrant->gparent (0, ii) )] +
-             sol_dyn [ordUxs (quadrant->gparent (1, ii) )]);
-            stp.Uysdof[ii] = .5 * (sol_dyn [ordUys (quadrant->gparent (0, ii) )] +
-             sol_dyn [ordUys (quadrant->gparent (1, ii) )]);
-          }
+    excess_pore_water_pressure_incr_dyn.get_owned_data ().assign (excess_pore_water_pressure_incr_dyn.get_owned_data ().size (), 0.0);
+    excess_pore_water_pressure_incr_dyn.assemble (replace_op);
 
-          double h = stp.hwdof[ii]+stp.hsdof[ii];
-
-         auto vel_x  = h >h_min ? (stp.Uxwdof[ii]+stp.Uxsdof[ii])/h : 0.; 
-         auto vel_y  = h >h_min ? (stp.Uywdof[ii]+stp.Uysdof[ii])/h : 0.;
-
-          //auto vv = stp.max_eigen (stp.hwdof[ii], stp.hsdof[ii], stp.Uxwdof[ii], stp.Uywdof[ii], stp.Uxsdof[ii], stp.Uysdof[ii]);
-
-          v_max = std::max(std::sqrt(vel_x*vel_x+vel_y*vel_y), v_max);
-
-          //std::cout << std::sqrt(vel_x*vel_x+vel_y*vel_y) << std::endl;
-        }
-
-        
-
-      }
-
-      std::cout << "Max velocity, " << v_max << std::endl;
-*/
 
     // compute time step, 
     stp.Fr = 0.;
@@ -944,6 +985,7 @@ main (int argc, char **argv)
 
     // check save with given frequency
     stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? SAVEDT-savecount : stp.dt);
+    stp.set_tau();
 
 
 
@@ -952,7 +994,6 @@ main (int argc, char **argv)
     time += stp.dt; 
     savecount += stp.dt;
     space_adapt_count += stp.dt;
-
 
     
     // Print current time
@@ -967,6 +1008,7 @@ main (int argc, char **argv)
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
     {
+      stp.first_step_consolidation(quadrant);
       stp.first_step(quadrant);
     }
     bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhw,  false);
@@ -977,10 +1019,19 @@ main (int argc, char **argv)
     bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUys);
 
     bim2a_solution_with_ghosts_center (tmsh, Z_onehalf_dyn, replace_op);
-    
 
 
-    // 
+    bim2a_solution_with_ghosts_center (tmsh, excess_pore_water_pressure_onehalf_dyn, replace_op, ordBottom, false);
+    for (const auto & ord_current : ordPwp_set)
+    {
+      bim2a_solution_with_ghosts_center (tmsh, excess_pore_water_pressure_onehalf_dyn, replace_op, ord_current,  false);
+    }
+    bim2a_solution_with_ghosts_center (tmsh, excess_pore_water_pressure_onehalf_dyn, replace_op, ordSurface);
+
+
+
+
+    //
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
     {
@@ -990,20 +1041,17 @@ main (int argc, char **argv)
     P_plus_dyn.assemble (); 
     P_minus_dyn.assemble ();
 
-
-
     stp.set_times(time, time_old, time_oldd);
     soldd_dyn = sold_dyn;
     sold_dyn  = sol_dyn;
 
     
 
-    // low order solution with the corrector step, 
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
+    // low order solution, 
+    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
     {
-      stp.solve_non_lin(kk);
-      stp.stabilization_term(kk);
-    } 
+      sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
+    }
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxw, false);
@@ -1028,143 +1076,13 @@ main (int argc, char **argv)
     //TOC("Compute step");
 
 
-    //TIC();
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
-    {
-      sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
-    }
-
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep ();
-         ++quadrant)
-    {
-      for (int ii = 0; ii < 4; ++ii)
-      {
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhw    (quadrant->gt (ii))]<0){
-          sol_dyn [ordhw    (quadrant->gt (ii))] = 0.; //h_min; //0.;
-        }
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordhs    (quadrant->gt (ii))]<0){
-          sol_dyn [ordhs    (quadrant->gt (ii))] = 0.; //h_min; //0.;
-        }
-      }
-    }
-    sol_dyn.assemble(replace_op);
-
-//return 0;
-
-    // Verwer IMEX-RKC
-    sol_ini_rkc_dyn = sol_dyn; // copy
-    soldd_rkc_dyn   = sol_dyn; // copy
-    sold_rkc_dyn    = sol_dyn; // copy
-
-    for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
-    {
-      stp.loop_step(kk, true);
-    }
-    incr_initial_source_dyn.assemble (replace_op);
-
-    int s = 2;
-
-    // compute here the coefficients!, it is to prepare the following loop
-    stp.prepare_IMEXRKC_coefficients(s);
-
-    for (int jj = 1; jj <= s; jj++)
-    {
-      if (rank==0) std::cout << "current IMEX-RKC step, " << jj << std::endl;
-
-      for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
-      {
-        stp.rkc(jj, s, kk);
-      }
-      sol_dyn.assemble(replace_op);    
-
-      soldd_rkc_dyn = sold_rkc_dyn; // copy
-      sold_rkc_dyn  = sol_dyn;      // copy
-
-      for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
-      {
-        stp.loop_step(kk, false);
-      }
-      incr_source_dyn.assemble (replace_op); 
-    }   
-
-
-    stp.set_old_dt(stp.dt);
-    stp.set_old_dt(0.);
-
-
-    // first, Strang half step!
-    incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
-    incr_dyn.assemble (replace_op);
-
-    P_plus_dyn.get_owned_data ().assign (P_plus_dyn.get_owned_data ().size (), 0.0);
-    P_plus_dyn.assemble (replace_op);
-
-    P_minus_dyn.get_owned_data ().assign (P_minus_dyn.get_owned_data ().size (), 0.0);
-    P_minus_dyn.assemble (replace_op);
-
-
-    // first step!
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-     quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.first_step(quadrant);
-    }
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhw,  false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhs,  false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxw, false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUyw, false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxs, false);
-    bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUys);
-
-    bim2a_solution_with_ghosts_center (tmsh, Z_onehalf_dyn, replace_op);
-
-
-    // 
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-     quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.compute_nodal_anti_diffusive_fluxes(quadrant);
-    }
-    incr_dyn.assemble ();
-    P_plus_dyn.assemble ();
-    P_minus_dyn.assemble ();
-
-
-
-    // low order solution
+    // get the updated solution
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
     {
-      stp.solve_non_lin(kk);
-      stp.stabilization_term(kk);
+      stp.solve_non_lin_h(kk);
+      stp.solve_non_lin_U(kk);
     }
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhw,  false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordhs,  false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxw, false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUyw, false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUxs, false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUys);
 
-
-    incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
-    incr_dyn.assemble (replace_op);
-
-
-    // second order correction
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-     quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.second_step(quadrant);
-    }
-    incr_dyn.assemble ();
-    //TOC("Compute step");
-
-
-    //TIC();
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
-    {
-      sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
-    }
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep ();
@@ -1181,6 +1099,75 @@ main (int argc, char **argv)
       }
     }
     sol_dyn.assemble(replace_op);
+
+    // solve the consolidation problem here,
+    incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
+    incr_dyn.assemble (replace_op);
+
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    {
+      stp.terminate_second_step(quadrant);
+    }
+
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    {
+      stp.solve_second_step_cons_equation(quadrant);
+    }
+    excess_pore_water_pressure_incr_dyn.assemble();
+
+    for (auto kk = 0; kk < excess_pore_water_pressure_incr_dyn.get_owned_data ().size (); kk+=number_FD_points)
+    {
+      const double hdofold = sold_dyn.get_owned_data ()[kk/number_FD_points*6] + sold_dyn.get_owned_data ()[kk/number_FD_points*6+1];
+      const double delta_h_old = hdofold/(number_FD_points-1);
+
+      if (dt<=.5*delta_h_old*delta_h_old/consolidation_coefficient) // explicit case
+      {
+        // In case, Neumann BC
+        excess_pore_water_pressure_dyn.get_owned_data ()[kk] = Z_dyn.get_owned_data ()[kk]<thr_erodible_layer ? stp.dt*excess_pore_water_pressure_incr_dyn.get_owned_data ()[kk]/mass.get_owned_data ()[kk] : excess_pore_water_pressure_dyn.get_owned_data ()[kk];
+        for (int kkk=kk+1; kkk<kk+number_FD_elements-1; kkk++) // eliminate the boundaries 
+        {
+          excess_pore_water_pressure_dyn.get_owned_data ()[kkk] = stp.dt*excess_pore_water_pressure_incr_dyn.get_owned_data ()[kkk]/mass.get_owned_data ()[kkk];
+        }
+      }
+      else // implicit case
+      {
+        const double hdof_c = sol_dyn.get_owned_data ()[kk/number_FD_points*6] + sol_dyn.get_owned_data ()[kk/number_FD_points*6+1];
+        const double delta_h = hdof_c/(number_FD_points-1);
+        const double mu_coeff = delta_h>epsilon ? consolidation_coefficient*stp.dt/delta_h/delta_h : 0.;
+
+        // DD, modify excess_pore_water_pressure_incr_dyn
+        //excess_pore_water_pressure_incr_dyn.get_owned_data ()[kk+1] += mu_coeff*excess_pore_water_pressure_dyn.get_owned_data ()[kk];
+        Z_dyn.get_owned_data ()[kk]<thr_erodible_layer ? stp.thomas_algorithm(mu_coeff, kk, kk+number_FD_elements-2) : stp.thomas_algorithm(mu_coeff, kk+1, kk+number_FD_elements-2);
+
+        // ND
+      }
+      
+    }
+    excess_pore_water_pressure_dyn.assemble(replace_op);
+
+    // now that you have the dp, update the mass flux
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    {
+      stp.terminate_second_step(quadrant);
+    }
+    incr_dyn.assemble ();
+
+    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=6)
+    {
+      sol_dyn.get_owned_data ()[kk+2] += stp.dt*incr_dyn.get_owned_data ()[kk+2];
+      sol_dyn.get_owned_data ()[kk+3] += stp.dt*incr_dyn.get_owned_data ()[kk+3];
+      sol_dyn.get_owned_data ()[kk+4] += stp.dt*incr_dyn.get_owned_data ()[kk+4];
+      sol_dyn.get_owned_data ()[kk+5] += stp.dt*incr_dyn.get_owned_data ()[kk+5];
+
+      stp.stabilization_term(kk);
+    }
+    sol_dyn.assemble(replace_op);
+
+
+//return 0;
 
 
     // Save solution

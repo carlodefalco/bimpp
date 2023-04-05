@@ -16,12 +16,18 @@ TG2_scheme::TG2_scheme(Q1& sol,
              Q1& P_minus,
              Q0& sol_onehalf,
              Q1& mass,
+             Q1& excess_pore_water_pressure,
+             Q0& excess_pore_water_pressure_onehalf,
+             Q1& excess_pore_water_pressure_incr,
              const ordering& ohw,
              const ordering& ohs,
              const ordering& oUxw,
              const ordering& oUyw,
              const ordering& oUxs,
              const ordering& oUys,
+             const std::vector<ordering>& oPwp_set,
+             const ordering& oBottom,
+             const ordering& oSurface,
              Q1& Z,
              Q0& Z_onehalf,
              const double& DELTAT,
@@ -35,7 +41,11 @@ TG2_scheme::TG2_scheme(Q1& sol,
              const double& bed_friction_angle_rad,
              const double& erosion_coefficient,
              const double& m_coeff,
-             const double& terminal_velocity)
+             const double& terminal_velocity,
+             const double& odometric_coeff,
+             const double& consolidation_coefficient,
+             const double& thr_erodible_layer,
+             const int& number_FD_points)
 : sol(sol), 
 sold(sold), 
 soldd(soldd), 
@@ -50,12 +60,17 @@ P_plus(P_plus),
 P_minus(P_minus), 
 sol_onehalf(sol_onehalf), 
 mass(mass), 
+excess_pore_water_pressure(excess_pore_water_pressure),
+excess_pore_water_pressure_onehalf(excess_pore_water_pressure_onehalf),
 ordhw(ohw), 
 ordhs(ohs), 
 ordUxw(oUxw), 
 ordUyw(oUyw), 
 ordUxs(oUxs), 
 ordUys(oUys), 
+ordPwp_set(oPwp_set),
+ordBottom(oBottom),
+ordSurface(oSurface),
 Z(Z), 
 Z_onehalf(Z_onehalf), 
 DELTAT(DELTAT), 
@@ -67,14 +82,18 @@ density_w(density_w),
 density_s(density_s), 
 turbulence_coeff(turbulence_coeff), 
 bed_friction_angle_rad(bed_friction_angle_rad), 
-erosion_coefficient(erosion_coefficient),
+erosion_coefficient(erosion_coefficient), 
 m_coeff(m_coeff), 
-terminal_velocity(terminal_velocity)
+terminal_velocity(terminal_velocity),
+odometric_coeff(odometric_coeff),
+thr_erodible_layer(thr_erodible_layer),
+consolidation_coefficient(consolidation_coefficient),
+number_FD_points(number_FD_points)
 { }
  
 
 std::array<double,2>
-TG2_scheme::max_eigen (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys)
+TG2_scheme::max_eigen (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& dp_mean)
 {
   double h = hw+hs,
 
@@ -85,11 +104,22 @@ TG2_scheme::max_eigen (const double& hw, const double& hs, const double& Uxw, co
          vels_x = hs>epsilon ? Uxs/hs : 0., 
          vels_y = hs>epsilon ? Uys/hs : 0., 
 
-         celerity = std::sqrt(grav*h);
+         n = h>epsilon ? hw/h : 0.,
+
+         celerity = std::sqrt(grav*h),
+         beta_coeff = std::sqrt(.5*n*(1.-r_coeff)),
+         beta_coeff_square = beta_coeff*beta_coeff,
+         celerity_square = celerity*celerity,
+
+         b_coeff = 4.*beta_coeff_square*dp_mean + 2.*celerity_square*density_w*(1.+beta_coeff_square),
+         c_coeff = 16.*dp_mean*dp_mean*beta_coeff_square*beta_coeff_square + 16.*celerity_square*beta_coeff_square*beta_coeff_square*density_w*dp_mean + 4.*celerity_square*celerity_square*density_w*density_w*(1.-beta_coeff_square)*(1.-beta_coeff_square);
 
 
-  const auto lambda_x = h>epsilon ? std::max(std::abs(velw_x), std::abs(vels_x))+celerity : 0.;
-  const auto lambda_y = h>epsilon ? std::max(std::abs(velw_y), std::abs(vels_y))+celerity : 0.;
+
+  const auto c_coeff_1 = .5*std::sqrt((b_coeff+std::sqrt(c_coeff))/density_w);
+
+  const auto lambda_x = h>epsilon ? std::max(std::abs(velw_x), std::abs(vels_x))+c_coeff_1 : 0.;
+  const auto lambda_y = h>epsilon ? std::max(std::abs(velw_y), std::abs(vels_y))+c_coeff_1 : 0.;
 
   //std::cout << lambda_x << " " << lambda_y << std::endl;
 
@@ -108,23 +138,30 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
   
   Dx = xn[1] - xn[0];
   Dy = yn[2] - yn[0];
-  
+
+  dp_mean_vec = {0., 0., 0., 0.};
   for (int ii = 0; ii < 4; ++ii)
   {
     if (! quadrant->is_hanging (ii) )
     {
-      hwdof[ii]  = sol [ordhw  (quadrant->gt (ii) )];
-      hsdof[ii]  = sol [ordhs  (quadrant->gt (ii) )];
+      hwdof [ii] = sol [ordhw  (quadrant->gt (ii) )];
+      hsdof [ii] = sol [ordhs  (quadrant->gt (ii) )];
       Uxwdof[ii] = sol [ordUxw (quadrant->gt (ii) )];
       Uywdof[ii] = sol [ordUyw (quadrant->gt (ii) )]; 
       Uxsdof[ii] = sol [ordUxs (quadrant->gt (ii) )];
       Uysdof[ii] = sol [ordUys (quadrant->gt (ii) )]; 
+
+      for (int kk=ordBottom(quadrant->gt (ii)); kk<=ordSurface(quadrant->gt (ii)); kk++)
+      {
+        dp_mean_vec[ii] += excess_pore_water_pressure[kk];
+      }
+
     }
     else
     {
-      hwdof[ii]  = .5 * (sol [ordhw  (quadrant->gparent (0, ii) )] +
+      hwdof [ii] = .5 * (sol [ordhw  (quadrant->gparent (0, ii) )] +
                          sol [ordhw  (quadrant->gparent (1, ii) )]);
-      hsdof[ii]  = .5 * (sol [ordhs  (quadrant->gparent (0, ii) )] +
+      hsdof [ii] = .5 * (sol [ordhs  (quadrant->gparent (0, ii) )] +
                          sol [ordhs  (quadrant->gparent (1, ii) )]);
       Uxwdof[ii] = .5 * (sol [ordUxw (quadrant->gparent (0, ii) )] +
                          sol [ordUxw (quadrant->gparent (1, ii) )]);
@@ -134,7 +171,15 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
                          sol [ordUxs (quadrant->gparent (1, ii) )]);
       Uysdof[ii] = .5 * (sol [ordUys (quadrant->gparent (0, ii) )] +
                          sol [ordUys (quadrant->gparent (1, ii) )]);
+
+      for (int jj=0; jj<=1; jj++)
+        for (int kk=ordBottom(quadrant->gparent(jj,ii)); kk<=ordSurface(quadrant->gparent(jj,ii)); kk++)
+        {
+          dp_mean_vec[ii] += .5*excess_pore_water_pressure[kk];
+        }
     }
+    dp_mean_vec[ii] /= number_FD_points;
+
     const auto h_c  = hwdof [ii] + hsdof [ii];
     const auto Ux_c = Uxwdof[ii] + Uxsdof[ii];
     const auto Uy_c = Uywdof[ii] + Uysdof[ii];
@@ -145,7 +190,7 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
   
   for (int ii = 0; ii < 4; ++ii){
 
-    const auto lambdas = max_eigen (hwdof[ii], hsdof[ii], Uxwdof[ii], Uywdof[ii], Uxsdof[ii], Uysdof[ii]);
+    const auto lambdas = max_eigen (hwdof[ii], hsdof[ii], Uxwdof[ii], Uywdof[ii], Uxsdof[ii], Uysdof[ii], dp_mean_vec[ii]);
     const auto & vel_rusanov_cell_x = lambdas[0];
     const auto & vel_rusanov_cell_y = lambdas[1];
 
@@ -215,23 +260,25 @@ TG2_scheme::compute_dt_adaptive (tmesh::quadrant_iterator quadrant)
 }
 
 void
-TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
+TG2_scheme::first_step_consolidation (tmesh::quadrant_iterator quadrant)
 {
-  
-  const auto & index_quadrant = quadrant->get_global_quad_idx (); 
-  
+
+  index_quadrant = quadrant->get_global_quad_idx (); 
   for (int ii = 0; ii < 4; ++ii)
   {
     xn[ii] = quadrant->p (0, ii);
     yn[ii] = quadrant->p (1, ii);
   }
-  
+
+
   Dx = xn[1] - xn[0];
   Dy = yn[2] - yn[0];
   area = Dx * Dy;
 
+  double solid_vel_x_average = 0., solid_vel_y_average = 0., liquid_vel_x_average = 0., liquid_vel_y_average = 0.;
 
-  double hw_cell_average = 0., hs_cell_average = 0., Uxw_cell_average = 0., Uyw_cell_average = 0., Uxs_cell_average = 0., Uys_cell_average = 0.;
+  dp_mean_vec = {0., 0., 0., 0.};
+  hw_cell_average = 0., hs_cell_average = 0.;
   for (int ii = 0; ii < 4; ++ii)
   {
     if (! quadrant->is_hanging (ii) )
@@ -244,6 +291,11 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
       Uysdof[ii] = sol [ordUys (quadrant->gt (ii) )]; 
 
       Z_node[ii]  = Z [quadrant->gt (ii)];
+
+      for (int kk=ordBottom(quadrant->gt (ii)); kk<=ordSurface(quadrant->gt (ii)); kk++)
+      {
+        dp_mean_vec[ii] += excess_pore_water_pressure[kk];
+      }
     }
     else
     {
@@ -262,45 +314,59 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 
       Z_node[ii]  = .5 * (Z [quadrant->gparent(0,ii)] +
                           Z [quadrant->gparent(1,ii)]);
+
+      for (int jj=0; jj<=1; jj++)
+        for (int kk=ordBottom(quadrant->gparent(jj,ii)); kk<=ordSurface(quadrant->gparent(jj,ii)); kk++)
+        {
+          dp_mean_vec[ii] += .5*excess_pore_water_pressure[kk];
+        }
     }
+    dp_mean_vec[ii] /= number_FD_points;
 
-    const auto & hwdof_c  = hwdof [ii];
-    const auto & hsdof_c  = hsdof [ii];
-    const auto & Uxwdof_c = Uxwdof[ii];
-    const auto & Uywdof_c = Uywdof[ii];
-    const auto & Uxsdof_c = Uxsdof[ii];
-    const auto & Uysdof_c = Uysdof[ii];
+    const auto & hwdof_c  = hwdof  [ii];
+    const auto & hsdof_c  = hsdof  [ii];
+    const auto & Uxwdof_c = Uxwdof [ii];
+    const auto & Uywdof_c = Uywdof [ii];
+    const auto & Uxsdof_c = Uxsdof [ii];
+    const auto & Uysdof_c = Uysdof [ii];
 
-    hw_cell_average  += hwdof_c;
-    hs_cell_average  += hsdof_c;
-    Uxw_cell_average += Uxwdof_c;
-    Uyw_cell_average += Uywdof_c;
-    Uxs_cell_average += Uxsdof_c;
-    Uys_cell_average += Uysdof_c;
+    solid_vel_x[ii] = hsdof_c>epsilon ? Uxsdof_c/hsdof_c : 0.;
+    solid_vel_y[ii] = hsdof_c>epsilon ? Uysdof_c/hsdof_c : 0.;
+
+    liquid_vel_x[ii] = hwdof_c>epsilon ? Uxwdof_c/hwdof_c : 0.;
+    liquid_vel_y[ii] = hwdof_c>epsilon ? Uywdof_c/hwdof_c : 0.;
+
+    solid_vel_x_average += solid_vel_x[ii];
+    solid_vel_y_average += solid_vel_y[ii];
+
+    liquid_vel_x_average += liquid_vel_x[ii];
+    liquid_vel_y_average += liquid_vel_y[ii];
+
+    hw_cell_average += hwdof_c;
+    hs_cell_average += hsdof_c;
     
-    
-    fluxx_hw_node [ii] = hw_flux_formula_x   (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
-    fluxy_hw_node [ii] = hw_flux_formula_y   (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
-    fluxx_hs_node [ii] = hs_flux_formula_x   (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
-    fluxy_hs_node [ii] = hs_flux_formula_y   (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
-    fluxx_Uxw_node[ii] = Uxw_flux_formula_x  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
-    fluxy_Uxw_node[ii] = Uxw_flux_formula_y  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
-    fluxx_Uyw_node[ii] = Uyw_flux_formula_x  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
-    fluxy_Uyw_node[ii] = Uyw_flux_formula_y  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
-    fluxx_Uxs_node[ii] = Uxs_flux_formula_x  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
-    fluxy_Uxs_node[ii] = Uxs_flux_formula_y  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
-    fluxx_Uys_node[ii] = Uys_flux_formula_x  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
-    fluxy_Uys_node[ii] = Uys_flux_formula_y  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
+    fluxx_hw_node [ii] = hw_flux_formula_x (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
+    fluxy_hw_node [ii] = hw_flux_formula_y (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
+    fluxx_hs_node [ii] = hs_flux_formula_x (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
+    fluxy_hs_node [ii] = hs_flux_formula_y (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
   }
   hw_cell_average  /= 4.;
   hs_cell_average  /= 4.;
-  Uxw_cell_average /= 4.;
-  Uyw_cell_average /= 4.;
-  Uxs_cell_average /= 4.;
-  Uys_cell_average /= 4.;
+
+  solid_vel_x_average /= 4.;
+  solid_vel_y_average /= 4.;
+
+  liquid_vel_x_average /= 4.;
+  liquid_vel_y_average /= 4.;
+
+
+  double div_liquid_vel = .5 * ( (liquid_vel_x[3] - liquid_vel_x[2]) + (liquid_vel_x[1] - liquid_vel_x[0]) )/Dx + .5 * ( (liquid_vel_y[2] - liquid_vel_y[0]) + (liquid_vel_y[3] - liquid_vel_y[1]) )/Dy;
+  double div_solid_vel  = .5 * ( (solid_vel_x [3] - solid_vel_x [2]) + (solid_vel_x [1] - solid_vel_x [0]) )/Dx + .5 * ( (solid_vel_y [2] - solid_vel_y [0]) + (solid_vel_y [3] - solid_vel_y [1]) )/Dy;
+
+  const auto grad_hw_x = .5*((hwdof[1] - hwdof[0]) + (hwdof[3] - hwdof[2]))/Dx;
+  const auto grad_hw_y = .5*((hwdof[2] - hwdof[0]) + (hwdof[3] - hwdof[1]))/Dy;
   
 
-  
   const auto div_Fhw_x = .5*((fluxx_hw_node[1]-fluxx_hw_node[0]) + (fluxx_hw_node[3]-fluxx_hw_node[2]));
   const auto div_Fhw_y = .5*((fluxy_hw_node[2]-fluxy_hw_node[0]) + (fluxy_hw_node[3]-fluxy_hw_node[1]));
   const auto div_Fhw_cell = Dy*div_Fhw_x + Dx*div_Fhw_y;
@@ -308,6 +374,179 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const auto div_Fhs_x = .5*((fluxx_hs_node[1]-fluxx_hs_node[0]) + (fluxx_hs_node[3]-fluxx_hs_node[2]));
   const auto div_Fhs_y = .5*((fluxy_hs_node[2]-fluxy_hs_node[0]) + (fluxy_hs_node[3]-fluxy_hs_node[1]));
   const auto div_Fhs_cell = Dy*div_Fhs_x + Dx*div_Fhs_y;
+
+
+  auto & hw_c = sol_onehalf[ordhw   (index_quadrant)];
+  auto & hs_c = sol_onehalf[ordhs   (index_quadrant)];
+
+  const auto v_hw = hw_cell_average - tau*div_Fhw_cell/area;
+  const auto v_hs = hs_cell_average - tau*div_Fhs_cell/area;
+
+  hw_c  = v_hw>0. ? v_hw : 0.;
+  hs_c  = v_hs>0. ? v_hs : 0.;
+
+  // add source term,
+  const auto Uxw_c = (Uxwdof[0] + Uxwdof[1] + Uxwdof[2] + Uxwdof[3])*.25;
+  const auto Uyw_c = (Uywdof[0] + Uywdof[1] + Uywdof[2] + Uywdof[3])*.25;
+  const auto Uxs_c = (Uxsdof[0] + Uxsdof[1] + Uxsdof[2] + Uxsdof[3])*.25;
+  const auto Uys_c = (Uysdof[0] + Uysdof[1] + Uysdof[2] + Uysdof[3])*.25;
+
+  Newton_mass_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+
+  // now solve the consolidation equation, first step,
+
+  // compute the previous half step position, should be inside the quadrant because 1/2<1/sqrt(2)
+  //std::vector<double> increment_array(number_FD_points);
+  //increment_array.assign(number_FD_points, 0.);
+
+  const double h_tot_c = hw_c + hs_c;
+  const double delta_h_current = h_tot_c/(number_FD_points-1);
+  const double n_s = h_tot_c>epsilon ? hs_c/h_tot_c : 0.;
+  const double n_w = h_tot_c>epsilon ? hw_c/h_tot_c : 0.;
+  const double density_prime = n_s*(density_s - density_w);
+
+
+  const double C_1_star = h_tot_c>epsilon ? odometric_coeff/h_tot_c : 0.;
+  const double C_2_star = hs_c>epsilon ? C_1_star*hw_c/hs_c : 0.;
+
+  for (int kk=ordBottom(index_quadrant); kk<=ordSurface(index_quadrant); kk++) //(int kk=0; kk<number_FD_points; kk++) //(int kk=ordBottom(index_quadrant); kk<=ordSurface(index_quadrant); kk++)
+  {
+    // Vertical ALE-material derivative contribution,
+
+    const double z_current_mesh_node = (ordBottom(index_quadrant)!=0 ? kk%ordBottom(index_quadrant) : kk)*delta_h_current;
+    //const double z_current_mesh_node = kk*delta_h_current;
+    const double constant_ratio = h_tot_c>epsilon ? z_current_mesh_node/h_tot_c : 0.;
+    const double vel_z_current_node = h_tot_c>epsilon ? erosion_contribution*(1. - constant_ratio) : 0.;
+
+    double z_moved = z_current_mesh_node - tau*vel_z_current_node;
+    z_moved = z_moved<0 ? 0. : z_moved; // here we are imposing BC
+
+    //excess_pore_water_pressure_onehalf[kk] = 0.;
+
+    
+    std::array<double,4> pressure = {0,0,0,0};
+    for (int ii = 0; ii < 4; ++ii)
+    {
+
+      if (! quadrant->is_hanging (ii) )
+      {
+        const double h_tot_old = sol [ordhw  (quadrant->gt (ii) )] + sol [ordhs  (quadrant->gt (ii) )];
+
+        const double delta_h_old = h_tot_old/(number_FD_points-1);
+        const double Z_moved = h_tot_c>epsilon ? z_moved*(h_tot_old/h_tot_c) : 0.;
+
+        // 1d bilinear interpolation, to change the space accuracy change this
+        const double i_z = delta_h_old>epsilon ? Z_moved/delta_h_old : 0.;
+
+        const int iz_minus = std::floor(i_z);
+        const int iz_plus  = std::ceil (i_z);
+
+        const double dP = excess_pore_water_pressure[ordBottom(quadrant->gt (ii))+iz_plus ] - 
+                          excess_pore_water_pressure[ordBottom(quadrant->gt (ii))+iz_minus];
+
+        //excess_pore_water_pressure_onehalf[kk] += dP/delta_h_old*(i_z-iz_minus) + excess_pore_water_pressure[ordBottom(quadrant->gt (ii))+iz_minus];
+
+        pressure[ii] = (delta_h_old>epsilon ? dP/delta_h_old*(i_z-iz_minus) : 0.) + excess_pore_water_pressure[ordBottom(quadrant->gt (ii))+iz_minus];
+      }
+      else
+      {
+        for (int jj=0; jj<=1; jj++)
+        {
+          const double h_tot_old = sol [ordhw  (quadrant->gparent (jj, ii) )] + sol [ordhs  (quadrant->gparent (jj, ii) )];
+
+          const double delta_h_old = h_tot_old/(number_FD_points-1);
+          const double Z_moved = h_tot_c>epsilon ? z_moved*(h_tot_old/h_tot_c) : 0.;
+
+          // 1d bilinear interpolation, to change the space accuracy change this
+          const double i_z = delta_h_old>epsilon ? Z_moved/delta_h_old : 0.;
+
+          const int iz_minus = std::floor(i_z);
+          const int iz_plus  = std::ceil (i_z);
+
+          const double dP = excess_pore_water_pressure[ordBottom(quadrant->gparent (jj,ii))+iz_plus ] - 
+                            excess_pore_water_pressure[ordBottom(quadrant->gparent (jj,ii))+iz_minus];
+
+          //excess_pore_water_pressure_onehalf[kk] += dP/delta_h_old*(i_z-iz_minus) + excess_pore_water_pressure[ordBottom(quadrant->gparent (jj,ii))+iz_minus];
+          //excess_pore_water_pressure_onehalf[kk] *= .5; // hanging node
+
+          // the .5 is for the hanging node
+          pressure[ii] += .5*((delta_h_old>epsilon ? dP/delta_h_old*(i_z-iz_minus) : 0.) + excess_pore_water_pressure[ordBottom(quadrant->gparent (jj,ii))+iz_minus]);
+        }
+
+      }
+    }
+
+    // mean over the cell
+    excess_pore_water_pressure_onehalf[kk] = (pressure[0] + pressure[1] + pressure[2] + pressure[3])*.25;
+
+    // add the horizontal transport contribution,
+    std::array<double,2> grad_pres = {.5 * ( (pressure[3] - pressure[2]) + (pressure[1] - pressure[0]) )/Dx, .5 * ( (pressure[2] - pressure[0]) + (pressure[3] - pressure[1]) )/Dy};
+ 
+    excess_pore_water_pressure_onehalf[kk] -= tau* (solid_vel_x_average*grad_pres[0] + solid_vel_y_average*grad_pres[1]);
+
+    // add the source term,
+    const double C_1 = density_prime*grav*(1.-constant_ratio) -  C_1_star;
+    const double C_2 = density_prime*grav*(1.-constant_ratio) +  C_2_star;
+    excess_pore_water_pressure_onehalf[kk] += tau* ( density_prime*grav*vel_z_current_node - C_1*hw_c*div_liquid_vel - C_2*hs_c*div_solid_vel - C_1*((liquid_vel_x - solid_vel_x)*grad_hw_x + (liquid_vel_y - solid_vel_y)*grad_hw_y) );
+    
+  }
+
+}
+
+
+
+
+
+
+void
+TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
+{
+  
+  index_quadrant = quadrant->get_global_quad_idx ();
+
+  double dp_mean_cell = 0.;
+  for (int kk=ordBottom(index_quadrant); kk<=ordSurface(index_quadrant); kk++)
+  {
+    dp_mean_cell += excess_pore_water_pressure_onehalf[kk];
+  }
+  dp_mean_cell /= number_FD_points;
+
+  double Uxw_cell_average = 0., Uyw_cell_average = 0., Uxs_cell_average = 0., Uys_cell_average = 0., dp_mean_average = 0., h_cell_average = 0., nw_cell_average = 0., ns_cell_average = 0.;
+  for (int ii = 0; ii < 4; ++ii)
+  {
+    const auto & hwdof_c   = hwdof  [ii];
+    const auto & hsdof_c   = hsdof  [ii];
+    const auto & Uxwdof_c  = Uxwdof [ii];
+    const auto & Uywdof_c  = Uywdof [ii];
+    const auto & Uxsdof_c  = Uxsdof [ii];
+    const auto & Uysdof_c  = Uysdof [ii];
+    const auto & dp_mean_c = dp_mean_vec[ii];
+
+    Uxw_cell_average += Uxwdof_c;
+    Uyw_cell_average += Uywdof_c;
+    Uxs_cell_average += Uxsdof_c;
+    Uys_cell_average += Uysdof_c;
+    dp_mean_average  += dp_mean_c;
+
+    fluxx_Uxw_node[ii] = Uxw_flux_formula_x  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c, dp_mean_cell);
+    fluxy_Uxw_node[ii] = Uxw_flux_formula_y  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
+    fluxx_Uyw_node[ii] = Uyw_flux_formula_x  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
+    fluxy_Uyw_node[ii] = Uyw_flux_formula_y  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c, dp_mean_cell);
+    fluxx_Uxs_node[ii] = Uxs_flux_formula_x  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c, dp_mean_cell);
+    fluxy_Uxs_node[ii] = Uxs_flux_formula_y  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
+    fluxx_Uys_node[ii] = Uys_flux_formula_x  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c);
+    fluxy_Uys_node[ii] = Uys_flux_formula_y  (hwdof_c, hsdof_c, Uxwdof_c, Uywdof_c, Uxsdof_c, Uysdof_c, dp_mean_cell);
+  }
+  Uxw_cell_average /= 4.;
+  Uyw_cell_average /= 4.;
+  Uxs_cell_average /= 4.;
+  Uys_cell_average /= 4.;
+  dp_mean_average  /= 4.;
+
+  h_cell_average  = hw_cell_average + hs_cell_average;
+  nw_cell_average = h_cell_average>epsilon ? hw_cell_average/h_cell_average : 0.;
+  ns_cell_average = h_cell_average>epsilon ? hs_cell_average/h_cell_average : 0.;
+  
   
   const auto div_FUxw_x = .5*((fluxx_Uxw_node[1]-fluxx_Uxw_node[0]) + (fluxx_Uxw_node[3]-fluxx_Uxw_node[2]));
   const auto div_FUxw_y = .5*((fluxy_Uxw_node[2]-fluxy_Uxw_node[0]) + (fluxy_Uxw_node[3]-fluxy_Uxw_node[1]));
@@ -336,9 +575,6 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const auto grad_hs_y = ((hsdof[2] - hsdof[0]) + (hsdof[3] - hsdof[1]))/Dy/2.;
 
 
-  const double tau =(dt + dt_old)*.5*.5;
-
-
   Z_onehalf[index_quadrant] = (Z_node[0]+Z_node[1]+Z_node[2]+Z_node[3])*.25;
 
   auto & hw_c  = sol_onehalf[ordhw   (index_quadrant)];
@@ -348,22 +584,86 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   auto & Uxs_c = sol_onehalf[ordUxs  (index_quadrant)];
   auto & Uys_c = sol_onehalf[ordUys  (index_quadrant)];
 
-  const auto v_hw   = hw_cell_average  - tau *  div_Fhw_cell /area;
-  const auto v_hs   = hs_cell_average  - tau *  div_Fhs_cell /area;
-  const auto v_Ux_w = Uxw_cell_average - tau * (div_FUxw_cell/area - src_slope_formula (hw_cell_average, slope_x_c) +         grav*hw_cell_average*grad_hs_x);
-  const auto v_Uy_w = Uyw_cell_average - tau * (div_FUyw_cell/area - src_slope_formula (hw_cell_average, slope_y_c) +         grav*hw_cell_average*grad_hs_y);
-  const auto v_Ux_s = Uxs_cell_average - tau * (div_FUxs_cell/area - src_slope_formula (hs_cell_average, slope_x_c) + r_coeff*grav*hs_cell_average*grad_hw_x);
-  const auto v_Uy_s = Uys_cell_average - tau * (div_FUys_cell/area - src_slope_formula (hs_cell_average, slope_y_c) + r_coeff*grav*hs_cell_average*grad_hw_y);
+  auto & bed_excess_pore_water_pressure = excess_pore_water_pressure_onehalf[ordBottom (index_quadrant)];
 
-  hw_c  = v_hw;
-  hs_c  = v_hs;
+
+  const auto v_Ux_w = Uxw_cell_average - tau * (div_FUxw_cell/area - src_slope_formula (hw_cell_average, slope_x_c) +         (grav*hw_cell_average+nw_cell_average*dp_mean_average/density_w)*grad_hs_x - ns_cell_average*dp_mean_average/density_w*grad_hw_x);
+  const auto v_Uy_w = Uyw_cell_average - tau * (div_FUyw_cell/area - src_slope_formula (hw_cell_average, slope_y_c) +         (grav*hw_cell_average+nw_cell_average*dp_mean_average/density_w)*grad_hs_y - ns_cell_average*dp_mean_average/density_w*grad_hw_y);
+  const auto v_Ux_s = Uxs_cell_average - tau * (div_FUxs_cell/area - src_slope_formula (hs_cell_average, slope_x_c) + (r_coeff*grav*hs_cell_average+ns_cell_average*dp_mean_average/density_s)*grad_hw_x - nw_cell_average*dp_mean_average/density_s*grad_hs_x);
+  const auto v_Uy_s = Uys_cell_average - tau * (div_FUys_cell/area - src_slope_formula (hs_cell_average, slope_y_c) + (r_coeff*grav*hs_cell_average+ns_cell_average*dp_mean_average/density_s)*grad_hw_y - nw_cell_average*dp_mean_average/density_s*grad_hs_y);
+
   Uxw_c = v_Ux_w;
   Uyw_c = v_Uy_w;
   Uxs_c = v_Ux_s;
   Uys_c = v_Uy_s;
 
-  hw_c = hw_c>0 ? hw_c : 0.;
-  hs_c = hs_c>0 ? hs_c : 0.;
+  Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure);
+
+}
+
+
+void
+TG2_scheme::Newton_mass_balance(double& hw_c, double& hs_c, const double& Uxw_c, const double& Uyw_c, const double& Uxs_c, const double& Uys_c)
+{
+  // solve non-lin,
+  const auto v_hw = hw_c;
+  const auto v_hs = hs_c;
+
+  const auto U_tot_x = Uxs_c + Uxw_c;
+  const auto U_tot_y = Uys_c + Uyw_c;
+
+  const auto abs_mass_flux = std::sqrt(U_tot_x*U_tot_x + U_tot_y*U_tot_y);
+  erosion_contribution = erosion_coefficient*abs_mass_flux;
+
+  const double tolerance = 1.e-4;
+  const int Nmax = 1e3;
+  int count = -1;
+  double error = tolerance + 1;
+  while (count++<Nmax && error>tolerance)
+  {
+    const auto h_c = hw_c+hs_c;
+    const auto nw_c = h_c>epsilon ? hw_c/h_c : 0.;
+    const auto ns_c = h_c>epsilon ? hs_c/h_c : 0.;
+ 
+
+    // Newton Jacobian matrix, 
+    // diagonalizzazione dei termini extra-diag delle matrici g e f
+    const double big_A = 1.-(h_c>epsilon ? tau*ns_c/h_c*erosion_contribution : 0.);
+    const double big_B =     h_c>epsilon ? tau*nw_c/h_c*erosion_contribution : 0.;
+    const double big_C =     h_c>epsilon ? tau*ns_c/h_c*erosion_contribution : 0.;
+    const double big_D = 1.-(h_c>epsilon ? tau*nw_c/h_c*erosion_contribution : 0.);
+
+    // rhs terms of the Newton matrix,
+    const auto f_hw = v_hw + tau*hw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c) - hw_c;
+    const auto f_hs = v_hs + tau*hs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c) - hs_c;
+
+    const double big_det = big_A*big_D-big_B*big_C;
+
+    const auto delta_hw = (f_hw*big_D-f_hs*big_B)/big_det;
+    const auto delta_hs = (f_hs*big_A-f_hw*big_C)/big_det;
+    
+    error = std::sqrt(delta_hw*delta_hw + delta_hs*delta_hs);
+
+    hw_c += delta_hw;
+    hs_c += delta_hs;
+  }
+
+  if (error>tolerance)
+  {
+    std::cout << "No convergence erosion!! " << error << std::endl;
+  }
+}
+
+
+
+void
+TG2_scheme::Newton_momentum_balance(const double& hw_c, const double& hs_c, double& Uxw_c, double& Uyw_c, double& Uxs_c, double& Uys_c, const double& bed_excess_pore_water_pressure)
+{
+  const auto v_Ux_w = Uxw_c;
+  const auto v_Uy_w = Uyw_c;
+  const auto v_Ux_s = Uxs_c;
+  const auto v_Uy_s = Uys_c;
+
 
   const double h_c = hw_c+hs_c;
 
@@ -373,15 +673,13 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const double density = ns_c*density_s + n_c*density_w;
   const double density_prime = ns_c*(density_s-density_w);
 
-
   // solve non-linearities
   const double tolerance = 1.e-4;
-  const int Nmax = 1.e3;
+  const int Nmax = 1e3;
   int count = -1;
-  double error = tolerance + 1.; 
+  double error = tolerance + 1;
   while (count++<Nmax && error>tolerance)
   {
-
     const auto U_tot_x = Uxs_c + Uxw_c;
     const auto U_tot_y = Uys_c + Uyw_c;
 
@@ -410,8 +708,8 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 
     const double f_Uwx = - Uxw_c + v_Ux_w + tau*Uxw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
     const double f_Uwy = - Uyw_c + v_Uy_w + tau*Uyw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
-    const double f_Usx = - Uxs_c + v_Ux_s + tau*Uxs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
-    const double f_Usy = - Uys_c + v_Uy_s + tau*Uys_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+    const double f_Usx = - Uxs_c + v_Ux_s + tau*Uxs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure);
+    const double f_Usy = - Uys_c + v_Uy_s + tau*Uys_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure);
 
     const double delta_Uwx = (f_Uwx*big_Dx-f_Usx*big_B )/big_detx;
     const double delta_Usx = (f_Usx*big_A -f_Uwx*big_Cx)/big_detx;
@@ -434,13 +732,14 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   {
     std::cout << "No convergence!! " << error << std::endl;
   }
-  
 
 }
 
 
+
+
 void
-TG2_scheme::solve_non_lin(const int& kk)
+TG2_scheme::solve_non_lin_h(const int& kk)
 {
   auto & hw_c  = sol.get_owned_data ()[kk  ];
   auto & hs_c  = sol.get_owned_data ()[kk+1];
@@ -449,108 +748,46 @@ TG2_scheme::solve_non_lin(const int& kk)
   auto & Uxs_c = sol.get_owned_data ()[kk+4];
   auto & Uys_c = sol.get_owned_data ()[kk+5];
 
-  double tau = (dt+dt_old)*.5*.5;
-
   // solve non-linearities like the first step of the TG2 method to get the complete low order solution,
   // terminated this part add the nodal correction to get the hyperbolicity,
-  const auto v_hw   = hw_c  + 2.*tau*incr.get_owned_data ()[kk  ]/mass.get_owned_data ()[kk  ];
-  const auto v_hs   = hs_c  + 2.*tau*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1];
-  const auto v_Ux_w = Uxw_c + 2.*tau*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau*Uxw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
-  const auto v_Uy_w = Uyw_c + 2.*tau*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + tau*Uyw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
-  const auto v_Ux_s = Uxs_c + 2.*tau*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4] + tau*Uxs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
-  const auto v_Uy_s = Uys_c + 2.*tau*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5] + tau*Uys_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+  hw_c += hw_c + dt*incr.get_owned_data ()[kk  ]/mass.get_owned_data ()[kk  ] + tau*hw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+  hs_c += hs_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + tau*hs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
 
-  hw_c  = v_hw;
-  hs_c  = v_hs;
-  Uxw_c = v_Ux_w;
-  Uyw_c = v_Uy_w;
-  Uxs_c = v_Ux_s;
-  Uys_c = v_Uy_s;
+  hw_c = hw_c>0 ? v_hw : 0.;
+  hs_c = hs_c>0 ? v_hs : 0.;
 
-  hw_c = hw_c>0 ? hw_c : 0.;
-  hs_c = hs_c>0 ? hs_c : 0.;
+  Newton_mass_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
 
-  const double h_c = hw_c+hs_c;
+}
 
-  const double n_c  = h_c>epsilon ? hw_c/h_c : 0.;
-  const double ns_c = h_c>epsilon ? hs_c/h_c : 0.;
+void
+TG2_scheme::solve_non_lin_U(const int& kk)
+{
+  auto & hw_c  = sol.get_owned_data ()[kk  ];
+  auto & hs_c  = sol.get_owned_data ()[kk+1];
+  auto & Uxw_c = sol.get_owned_data ()[kk+2];
+  auto & Uyw_c = sol.get_owned_data ()[kk+3];
+  auto & Uxs_c = sol.get_owned_data ()[kk+4];
+  auto & Uys_c = sol.get_owned_data ()[kk+5];
 
-  const double density = ns_c*density_s + n_c*density_w;
-  const double density_prime = ns_c*(density_s-density_w);
+  auto & bed_excess_pore_water_pressure = excess_pore_water_pressure.get_owned_data ()[(kk/6)*number_FD_points];
 
+  Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau*Uxw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+  Uyw_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + tau*Uyw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
+  Uxs_c += dt*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4] + tau*Uxs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure);
+  Uys_c += dt*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5] + tau*Uys_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure);
 
-  // solve non-linearities
-  const double tolerance = 1.e-4;
-  const int Nmax = 1.e3;
-  int count = -1;
-  double error = tolerance + 1.; 
-  while (count++<Nmax && error>tolerance)
-  {
-    const auto U_tot_x = Uxs_c + Uxw_c;
-    const auto U_tot_y = Uys_c + Uyw_c;
-
-    const double Cw_d = (hw_c>epsilon && h_c>epsilon) ? ns_c/terminal_velocity/std::pow(n_c, m_coeff)*(density_s-density_w)*grav : 0.;
-    const double Cs_d = (hw_c>epsilon && h_c>epsilon) ? n_c /terminal_velocity/std::pow(n_c, m_coeff)*(density_s-density_w)*grav : 0.;
-
-    //const double delta_x = std::abs(U_tot_x)>tolerance_sign ? 0. : 1./tolerance_sign;
-    //const double delta_y = std::abs(U_tot_y)>tolerance_sign ? 0. : 1./tolerance_sign;
-
-    const double fric_x = (h_c*h_c)>epsilon ? (density*grav/turbulence_coeff/(h_c*h_c)*2.*std::abs(U_tot_x)) : 0.;
-    const double fric_y = (h_c*h_c)>epsilon ? (density*grav/turbulence_coeff/(h_c*h_c)*2.*std::abs(U_tot_y)) : 0.;
-
-    //if (Cw_d!=0)
-    //std::cout << mu_tilde_vect[1]*dt* Cw_d/density_w << std::endl;
-
-    const double big_A  = 1. + tau* Cw_d/density_w;
-    const double big_B  =    - tau* Cs_d/density_w;
-    const double big_Cx =      tau* (is_bed_friction ? (/*density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_x*/ + fric_x) : 0.) /density_s - tau*Cw_d/density_s;
-    const double big_Cy =      tau* (is_bed_friction ? (/*density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_y*/ + fric_y) : 0.) /density_s - tau*Cw_d/density_s;
-    const double big_Dx = 1. + tau* (is_bed_friction ? (/*density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_x*/ + fric_x) : 0.) /density_s + tau*Cs_d/density_s;
-    const double big_Dy = 1. + tau* (is_bed_friction ? (/*density_prime*grav*h_c*std::tan(bed_friction_angle_rad)*delta_y*/ + fric_y) : 0.) /density_s + tau*Cs_d/density_s;
-
-
-    const double big_detx = big_A*big_Dx-big_B*big_Cx;
-    const double big_dety = big_A*big_Dy-big_B*big_Cy;
-
-    const double f_Uwx = - Uxw_c + v_Ux_w + tau*Uxw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
-    const double f_Uwy = - Uyw_c + v_Uy_w + tau*Uyw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
-    const double f_Usx = - Uxs_c + v_Ux_s + tau*Uxs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
-    const double f_Usy = - Uys_c + v_Uy_s + tau*Uys_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
-
-    const double delta_Uwx = (f_Uwx*big_Dx-f_Usx*big_B )/big_detx;
-    const double delta_Usx = (f_Usx*big_A -f_Uwx*big_Cx)/big_detx;
-
-    const double delta_Uwy = (f_Uwy*big_Dy-f_Usy*big_B )/big_dety;
-    const double delta_Usy = (f_Usy*big_A -f_Uwy*big_Cy)/big_dety;
-
-    error = std::sqrt(delta_Uwx*delta_Uwx + delta_Uwy*delta_Uwy + delta_Usx*delta_Usx + delta_Usy*delta_Usy);
-
-    Uxw_c += delta_Uwx;
-    Uyw_c += delta_Uwy;
-    Uxs_c += delta_Usx;
-    Uys_c += delta_Usy;
-
-    //std::cout << count << " " << error << std::endl;
-
-  }
-
-  if (error>tolerance)
-  {
-    std::cout << "No convergence!! " << error << std::endl;
-  }
-
+  Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
 
 }
 
 
 
 void
-TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadrant)
+TG2_scheme::solve_second_step_cons_equation (tmesh::quadrant_iterator quadrant)
 {
-
   // look at tmesh.h 
-  const auto & index_quadrant = quadrant->get_global_quad_idx (); 
-  const auto & index_quadrant_local = quadrant->get_forest_quad_idx ();
+  index_quadrant = quadrant->get_global_quad_idx (); 
 
   std::array<int,4> bimpp_to_rev_ord = {0, 1, 3, 2};
   
@@ -564,6 +801,406 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   area = Dx * Dy;
 
 
+  // pressure_vec.assign(number_FD_points, std::array<double,4>{{0,0,0,0}});
+
+  for (int ii = 0; ii < 4; ++ii)
+  {
+    if (! quadrant->is_hanging (ii) )
+    {
+      hwdof [ii] = sol  [ordhw  (quadrant->gt (ii) )];
+      hsdof [ii] = sol  [ordhs  (quadrant->gt (ii) )];
+
+      hwdofold [ii] = sold [ordhw  (quadrant->gt (ii) )];
+      hsdofold [ii] = sold [ordhs  (quadrant->gt (ii) )];
+      Uxwdof   [ii] = sold [ordUxw (quadrant->gt (ii) )];
+      Uywdof   [ii] = sold [ordUyw (quadrant->gt (ii) )]; 
+      Uxsdof   [ii] = sold [ordUxs (quadrant->gt (ii) )];
+      Uysdof   [ii] = sold [ordUys (quadrant->gt (ii) )];
+
+      isdof_or_hanging[ii] = 1.;
+
+
+      // for (int kk=ordBottom(quadrant->gt (ii)); kk<=ordSurface(quadrant->gt (ii)); kk++)
+      // {
+      //   pressure_vec[kk][ii] = excess_pore_water_pressure[kk];
+      // }
+      
+    }
+    else
+    {
+      hwdof [ii] = .5 * (sol  [ordhw  (quadrant->gparent (0, ii) )] +
+                         sol  [ordhw  (quadrant->gparent (1, ii) )]);
+      hsdof [ii] = .5 * (sol  [ordhs  (quadrant->gparent (0, ii) )] +
+                         sol  [ordhs  (quadrant->gparent (1, ii) )]);
+
+      hwdofold [ii] = .5 * (sold [ordhw  (quadrant->gparent (0, ii) )] +
+                            sold [ordhw  (quadrant->gparent (1, ii) )]);
+      hsdofold [ii] = .5 * (sold [ordhs  (quadrant->gparent (0, ii) )] +
+                            sold [ordhs  (quadrant->gparent (1, ii) )]);
+      Uxwdof   [ii] = .5 * (sold [ordUxw (quadrant->gparent (0, ii) )] +
+                            sold [ordUxw (quadrant->gparent (1, ii) )]);
+      Uywdof   [ii] = .5 * (sold [ordUyw (quadrant->gparent (0, ii) )] +
+                            sold [ordUyw (quadrant->gparent (1, ii) )]);
+      Uxsdof   [ii] = .5 * (sold [ordUxs (quadrant->gparent (0, ii) )] +
+                            sold [ordUxs (quadrant->gparent (1, ii) )]);
+      Uysdof   [ii] = .5 * (sold [ordUys (quadrant->gparent (0, ii) )] +
+                            sold [ordUys (quadrant->gparent (1, ii) )]);
+
+      isdof_or_hanging[ii] = .5;
+
+      // for (int jj=0; jj<=1; jj++)
+      //   for (int kk=ordBottom(quadrant->gparent(jj,ii)); kk<=ordSurface(quadrant->gparent(jj,ii)); kk++)
+      //   {
+      //     pressure_vec[kk][ii] += .5*excess_pore_water_pressure[kk];
+      //   }
+    }
+
+    hdof   [ii] = hwdof   [ii] + hsdof   [ii];
+    hdofold[ii] = hwdofold[ii] + hsdofold[ii];
+  } 
+
+  const double & hw_cell    = sol_onehalf[ordhw    (index_quadrant)];
+  const double & Uxw_cell   = sol_onehalf[ordUxw   (index_quadrant)];
+  const double & Uyw_cell   = sol_onehalf[ordUyw   (index_quadrant)];
+
+  const double & hs_cell    = sol_onehalf[ordhs    (index_quadrant)];
+  const double & Uxs_cell   = sol_onehalf[ordUxs   (index_quadrant)];
+  const double & Uys_cell   = sol_onehalf[ordUys   (index_quadrant)];
+
+
+  const auto h_cell = hw_cell + hs_cell;
+
+  const double delta_h_cell = h_cell/(number_FD_points-1);
+
+  const auto vxs_cell = hs_cell>epsilon ? Uxs_cell/hs_cell : 0.;
+  const auto vys_cell = hs_cell>epsilon ? Uys_cell/hs_cell : 0.;
+
+  const auto ns_cell = h_cell>epsilon ? hs_cell/h_cell : 0.; 
+  const double density_prime = ns_cell*(density_s-density_w);
+
+  auto C = [& density_prime, &h_cell] (const double& z)
+  {
+    return(density_prime*grav*(1.- (h_cell>epsilon ? z/h_cell : 0.)));
+  }
+
+  auto C_1 = [&h_cell] (const double& z)
+  {
+    return(C(z) - (h_cell>epsilon ? odometric_coeff/h_cell : 0.));
+  }
+
+  auto C_2 = [&h_cell, &hs_cell, &hw_cell] (const double& z)
+  {
+    return(C(z) + ((h_cell>epsilon && hs_cell>epsilon) ? odometric_coeff/h_cell*hw_cell/hs_cell : 0.));
+  }
+
+
+  contr_x.assign(number_FD_points, std::array<double,4>{{0,0,0,0}});
+  contr_y.assign(number_FD_points, std::array<double,4>{{0,0,0,0}});
+
+
+  // PC for the horizontal transport term,
+  bool is_boundary_edge = true;
+  for (int iEdge = 0; iEdge < 4; ++iEdge){
+
+    is_boundary_edge = true;
+
+    const auto i_1 = bimpp_to_rev_ord[iEdge];
+    const auto i_2 = bimpp_to_rev_ord[(iEdge+1)%4];
+
+    const auto edge_length = std::sqrt(std::pow((xn[i_1]-xn[i_2]),2.) + std::pow((yn[i_1]-yn[i_2]),2.));
+    const std::array<double,2> outward_normal_edge = {(-yn[i_1]+yn[i_2])/edge_length, ( xn[i_1]-xn[i_2])/edge_length};  
+
+    for (auto quadrant_nei = quadrant->begin_neighbor_sweep();
+         quadrant_nei != quadrant->end_neighbor_sweep (); ++quadrant_nei)
+    {
+      std::array<double,4> Xn, Yn;
+
+      for (int ii = 0; ii < 4; ++ii) {
+        Xn[ii] = quadrant_nei->p(0, ii);
+        Yn[ii] = quadrant_nei->p(1, ii);
+      }
+
+      const auto & index_quadrant_nei = quadrant_nei->get_global_quad_idx ();
+
+
+      for (int jEdge = 0; jEdge < 4; ++jEdge) { // cycle neigh edges 
+
+        const auto j_1 = bimpp_to_rev_ord[jEdge];
+        const auto j_2 = bimpp_to_rev_ord[(jEdge+1)%4];
+
+        const auto edge_length_nei = std::sqrt(std::pow((Xn[j_1]-Xn[j_2]),2.) + std::pow((Yn[j_1]-Yn[j_2]),2.));
+        const std::array<double,2> outward_normal_edge_nei = {(-Yn[j_1]+Yn[j_2])/edge_length_nei, ( Xn[j_1]-Xn[j_2])/edge_length_nei};  
+        const bool check_orthogonality = std::inner_product(outward_normal_edge_nei.begin(), outward_normal_edge_nei.end(), outward_normal_edge.begin(), 0.) == -1;
+
+
+        if ( (((xn[i_1] == Xn[j_1] && yn[i_1] == Yn[j_1]) ||
+               (xn[i_2] == Xn[j_1] && yn[i_2] == Yn[j_1]))||
+              ((xn[i_1] == Xn[j_2] && yn[i_1] == Yn[j_2]) ||
+               (xn[i_2] == Xn[j_2] && yn[i_2] == Yn[j_2]))) && check_orthogonality && index_quadrant!=index_quadrant_nei )
+        {
+          is_boundary_edge = false;
+
+          // scrivere qui la somma dei contributi per i termini non-cons.!
+          double hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei;
+
+          hw_cell_nei  = sol_onehalf[ordhw    (index_quadrant_nei)];
+          hs_cell_nei  = sol_onehalf[ordhs    (index_quadrant_nei)];
+          Uxw_cell_nei = sol_onehalf[ordUxw   (index_quadrant_nei)];
+          Uyw_cell_nei = sol_onehalf[ordUyw   (index_quadrant_nei)];
+          Uxs_cell_nei = sol_onehalf[ordUxs   (index_quadrant_nei)];
+          Uys_cell_nei = sol_onehalf[ordUys   (index_quadrant_nei)];
+
+          const auto h_cell_nei = hw_cell_nei + hs_cell_nei;
+
+          const auto vxs_cell_nei = hs_cell_nei>epsilon ? Uxs_cell_nei/hs_cell_nei : 0.;
+          const auto vys_cell_nei = hs_cell_nei>epsilon ? Uys_cell_nei/hs_cell_nei : 0.;
+
+          for (int kk=0 kk<number_FD_points; kk++)
+          {
+            const double z = kk*h_cell/(number_FD_points-1);
+
+            const auto dp_cell_i_1     = linear_interpolation(kk, index_quadrant,     h_cell,     hdof[i_1], Uxwdof[i_1]+Uxsdof[i_1], Uywdof[i_1]+Uysdof[i_1]);
+            const auto dp_cell_i_2     = linear_interpolation(kk, index_quadrant,     h_cell,     hdof[i_2], Uxwdof[i_2]+Uxsdof[i_2], Uywdof[i_2]+Uysdof[i_2]);
+
+            const auto dp_cell_nei_i_1 = linear_interpolation(kk, index_quadrant_nei, h_cell_nei, hdof[i_1], Uxwdof[i_1]+Uxsdof[i_1], Uywdof[i_1]+Uysdof[i_1]);
+            const auto dp_cell_nei_i_2 = linear_interpolation(kk, index_quadrant_nei, h_cell_nei, hdof[i_2], Uxwdof[i_2]+Uxsdof[i_2], Uywdof[i_2]+Uysdof[i_2]);
+
+
+            // .5 salta fuori dall'integrazione per trapezi tra 0 e 1 in coordinata \xi (è il valore in LHS da metter qui sotto!) 
+            contr_x[kk][i_1] += .5*signum(outward_normal_edge[0])*(vxs_cell*(dp_cell_nei_i_1 - dp_cell_i_1) - C_2(z)*hs_cell*(vxs_cell_nei - vxs_cell) - C_1(z)*(Uxw_cell_nei - Uxw_cell) + C_1(z)*vxs_cell*(hw_cell_nei-hw_cell) )*isdof_or_hanging[i_1];
+            contr_x[kk][i_2] += .5*signum(outward_normal_edge[0])*(vxs_cell*(dp_cell_nei_i_2 - dp_cell_i_2) - C_2(z)*hs_cell*(vxs_cell_nei - vxs_cell) - C_1(z)*(Uxw_cell_nei - Uxw_cell) + C_1(z)*vxs_cell*(hw_cell_nei-hw_cell) )*isdof_or_hanging[i_2];
+
+            contr_y[kk][i_1] += .5*signum(outward_normal_edge[1])*(vys_cell*(dp_cell_nei_i_1 - dp_cell_i_1) - C_2(z)*hs_cell*(vys_cell_nei - vys_cell) - C_1(z)*(Uyw_cell_nei - Uyw_cell) + C_1(z)*vys_cell*(hw_cell_nei-hw_cell) )*isdof_or_hanging[i_1];
+            contr_y[kk][i_2] += .5*signum(outward_normal_edge[1])*(vys_cell*(dp_cell_nei_i_2 - dp_cell_i_2) - C_2(z)*hs_cell*(vys_cell_nei - vys_cell) - C_1(z)*(Uyw_cell_nei - Uyw_cell) + C_1(z)*vys_cell*(hw_cell_nei-hw_cell) )*isdof_or_hanging[i_2];
+          }
+
+        }
+      }
+
+    }
+
+  }
+
+  const double Ux_cell_tot = Uxw_cell+Uxs_cell;
+  const double Uy_cell_tot = Uyw_cell+Uys_cell;
+  const auto erosion_contribution_cell = erosion_coefficient*std::sqrt(Ux_cell_tot*Ux_cell_tot + Uy_cell_tot*Uy_cell_tot);
+
+
+  for (int ii = 0; ii < 4; ++ii){
+
+    double dp_;
+    int kkk;
+
+    if (! quadrant->is_hanging (ii)){
+      for (int kk=ordBottom(quadrant->gt (ii)) + (Z [quadrant->gt (ii)]<thr_erodible_layer ? 0 : 1); kk<ordSurface(quadrant->gt (ii)); kk++) // excluded the top because it is not a dof for the DBC
+      {
+        kkk = kk%number_FD_points;
+
+        const auto ZZ = linear_interpolation(kkk, h_cell, hdof[ii], Uxwdof[ii]+Uxsdof[ii], Uywdof[ii]+Uysdof[ii]);
+        const auto dp_old = linear_interpolation_second(Z [quadrant->gt (ii)], ZZ, ordBottom(quadrant->gt (ii)), hdofold[ii], h_cell, Uxw_cell+Uxs_cell, Uyw_cell+Uys_cell);
+
+        dp_ = -.5*(Dy*contr_x[kkk][ii] + Dx*contr_y[kkk][ii]) + .25*area*(dp_old[0]/dt + C(kkk*delta_h_cell)*erosion_contribution_cell + dp_old[1]);
+        excess_pore_water_pressure_incr[kk] += dp_;
+      } 
+    } else {
+      for (int jj=0; jj<=1; jj++)
+        for (int kk=ordBottom(quadrant->gparent (jj,ii)) + (Z [quadrant->gparent(jj,ii)]<thr_erodible_layer ? 0 : 1); kk<ordSurface(quadrant->gparent (jj,ii)); kk++) // excluded the top because it is not a dof for the DBC
+        {
+          kkk = kk%number_FD_points;
+
+          const auto ZZ = linear_interpolation(kkk, h_cell, sol [ordhw  (quadrant->gparent (jj, ii) )] + sol [ordhs  (quadrant->gparent (jj, ii) )], sol [ordUxw  (quadrant->gparent (jj, ii) )] + sol [ordUxs  (quadrant->gparent (jj, ii) )], sol [ordUyw  (quadrant->gparent (jj, ii) )] + sol [ordUys  (quadrant->gparent (jj, ii) )]);
+          const auto dp_old = linear_interpolation_second(Z [quadrant->gparent(jj,ii)], ZZ, ordBottom(quadrant->gparent (jj,ii)), sold [ordhw  (quadrant->gparent (jj, ii) )] + sold [ordhs  (quadrant->gparent (jj, ii) )], h_cell, Uxw_cell+Uxs_cell, Uyw_cell+Uys_cell);
+
+          dp_ = -.5*(Dy*contr_x[kkk][ii] + Dx*contr_y[kkk][ii]) + .25*area*(dp_old[0]/dt + C(kkk*delta_h_cell)*erosion_contribution_cell + dp_old[1])*.5; // the .5 is for the hangin node in the dp_old
+          excess_pore_water_pressure_incr[kk] += dp_;
+        }
+      
+    }
+
+  }
+
+}
+
+
+void 
+TG2_scheme::thomas_algorithm(const double& mu_coeff, const int& kk_ini, const int& kk_fin) 
+{
+
+  const double b_coeff = 1.+2.*mu_coeff;
+  const double a_coeff = -mu_coeff;
+  const double c_coeff = -mu_coeff;
+
+  b_coeff_vec.assign(b_coeff_vec.size(), b_coeff);
+  a_coeff_vec.assign(a_coeff_vec.size(), a_coeff);
+  c_coeff_vec.assign(c_coeff_vec.size(), c_coeff);
+
+  const auto kkk_ini = kk_ini%number_FD_points;
+  const auto kkk_fin = kk_fin%number_FD_points;
+
+  for (int i=)
+
+  For i = 2 To N
+        W = A(i) / B(i - 1)
+        B(i) = B(i) - W * C(i - 1)
+        D(i) = D(i) - W * D(i - 1)
+    Next i
+    X(N) = D(N) / B(N)
+    For i = N - 1 To 1 Step -1
+        X(i) = (D(i) - C(i) * X(i + 1)) / B(i)
+    Next i
+
+
+
+
+
+                                                                                                                                                     
+  c_star[kkk_ini] = c_coeff_vec[kkk_ini] / b_coeff_vec[kkk_ini];
+  d_star[kkk_ini] = (dt*excess_pore_water_pressure_incr.get_owned_data() [kk_ini]/mass.get_owned_data() [kk_ini] + kkk_ini*mu_coeff*excess_pore_water_pressure.get_owned_data() [kk_ini]) / b_coeff_vec[kkk_ini];
+
+  // Create the c_star and d_star coefficients in the forward sweep                                                                                                                                                  
+  for (int i=kkk_ini+1; i<=kkk_fin; i++) {
+    double m = 1.0 / (b[i] - a[i] * c_star[i-1]);
+    c_star[i] = c[i] * m;
+    d_star[i] = (d[i] - a[i] * d_star[i-1]) * m;
+  }
+
+  // This is the reverse sweep, used to update the solution vector f                                                                                                                                                 
+  for (int i=kk_fin; i>=kk_ini; i--) 
+  {
+    const auto i_ = i%number_FD_points;
+    excess_pore_water_pressure.get_owned_data() [i] = d_star[i_] - c_star[i_] * d[i+1];
+  }
+}
+
+
+
+std::array<double,2>
+TG2_scheme::linear_interpolation_second(const double& Z_node_c, const std::array<double,2>& ZZ, const int& kkk_ini, const double& hdofold, const double& h_cell, const double& Ux_cell, const double & Uy_cell)
+{
+  // 
+  const auto & Z_mid = ZZ[0];
+  const auto & Z_ini = ZZ[1];
+
+  const double constant_ratio = h_cell>epsilon ? Z_mid/h_cell : 0.;
+  const auto erosion_contribution_c = erosion_coefficient*std::sqrt(Ux_cell*Ux_cell + Uy_cell*Uy_cell);
+  const double vel_z_current_node = h_cell>epsilon ? erosion_contribution_c*(1. - constant_ratio) : 0.;
+
+  double z_moved = Z_ini - dt*vel_z_current_node;
+  z_moved = z_moved<0 ? 0. : z_moved; // here we are imposing BC on the ransport term
+
+
+  const double delta_h_old = hdofold/(number_FD_points-1);
+
+  const double Z_moved = h_cell>epsilon ? z_moved*(hdofold/h_cell) : 0.;
+  const auto P_xi = linear_interpolation(kkk_ini, delta_h_old, Z_moved);
+
+  double Z_plus  = Z_moved+delta_h_old;
+  Z_plus = Z_plus>hdofold ? hdofold : Z_plus; // BC at the top
+  const auto P_xiplus = linear_interpolation(kkk_ini, delta_h_old, Z_plus);
+
+  double Z_minus = Z_moved-delta_h_old;
+  //Z_minus = Z_minus<0 ? 0. : Z_minus; // Dirichlet BC at the bottom
+  //auto P_ximinus = linear_interpolation(kkk_ini, delta_h_old, Z_minus);
+
+  auto P_ximinus = Z_minus<0 ? (Z_node_c<thr_erodible_layer ? P_xiplus : linear_interpolation(kkk_ini, delta_h_old, 0.)) : linear_interpolation(kkk_ini, delta_h_old, Z_minus);
+
+  const double second_der_dp = (delta_h_old>epsilon && dt<=.5*delta_h_old*delta_h_old/consolidation_coefficient) ? consolidation_coefficient*(P_xiplus - 2.*P_xi + P_ximinus)/delta_h_old/delta_h_old : 0.;
+
+  return(std::array<double,2>{{P_xi, second_der_dp}});
+
+}
+
+
+double
+TG2_scheme::linear_interpolation(const int& kkk_ini, const double& delta_h_old, const double& Z_moved)
+{
+  // 1d bilinear interpolation, to change the space accuracy change this
+  const double i_z = delta_h_old>epsilon ? Z_moved/delta_h_old : 0.;
+
+  const int iz_minus = std::floor(i_z);
+  const int iz_plus  = std::ceil (i_z);
+
+  const double dP = excess_pore_water_pressure[kkk_ini+iz_plus ] - 
+                    excess_pore_water_pressure[kkk_ini+iz_minus];
+
+  return((delta_h_old>epsilon ? dP/delta_h_old*(i_z-iz_minus) : 0.) + excess_pore_water_pressure[kkk_ini+iz_minus]);
+}
+
+
+
+std::array<double,2>
+TG2_scheme::linear_interpolation(const int& kk, const double& h_tot_old, const double& hdof_c, const double& Ux_tot_c, const double & Uy_tot_c)
+{
+  // 
+  const double delta_h_node_c = hdof_c/(number_FD_points-1);
+  const double z_current_mesh_node = kk*delta_h_node_c;
+  const double constant_ratio = hdof_c>epsilon ? z_current_mesh_node/hdof_c : 0.;
+  const auto erosion_contribution_c = erosion_coefficient*std::sqrt(Ux_tot_c*Ux_tot_c + Uy_tot_c*Uy_tot_c);
+  const double vel_z_current_node = hdof_c>epsilon ? erosion_contribution_c*(1. - constant_ratio) : 0.;
+
+  double z_moved = z_current_mesh_node - tau*vel_z_current_node;
+  z_moved = z_moved<0 ? 0. : z_moved; // here we are imposing BC
+
+  const double delta_h_old = h_tot_old/(number_FD_points-1);
+  const double Z_moved = hdof_c>epsilon ? z_moved*(h_tot_old/hdof_c) : 0.;
+
+  return(std::array<double,2>{{Z_moved, constant_ratio*h_tot_old}});
+}
+
+
+
+double
+TG2_scheme::linear_interpolation(const int& kk, const int& index_quadrant_c, const double& h_tot_old, const double& hdof_c, const double& Ux_tot_c, const double & Uy_tot_c)
+{
+  // 
+  const double delta_h_node_c = hdof_c/(number_FD_points-1);
+  const double z_current_mesh_node = kk*delta_h_node_c;
+  const double constant_ratio = hdof_c>epsilon ? z_current_mesh_node/hdof_c : 0.;
+  const auto erosion_contribution_c = erosion_coefficient*std::sqrt(Ux_tot_c*Ux_tot_c + Uy_tot_c*Uy_tot_c);
+  const double vel_z_current_node = hdof_c>epsilon ? erosion_contribution_c*(1. - constant_ratio) : 0.;
+
+  double z_moved = z_current_mesh_node - tau*vel_z_current_node;
+  z_moved = z_moved<0 ? 0. : z_moved; // here we are imposing BC
+
+
+  const double delta_h_old = h_tot_old/(number_FD_points-1);
+  const double Z_moved = hdof_c>epsilon ? z_moved*(h_tot_old/hdof_c) : 0.;
+
+  // 1d bilinear interpolation, to change the space accuracy change this
+  const double i_z = delta_h_old>epsilon ? Z_moved/delta_h_old : 0.;
+
+  const int iz_minus = std::floor(i_z);
+  const int iz_plus  = std::ceil (i_z);
+
+  const double dP = excess_pore_water_pressure_onehalf[ordBottom(index_quadrant_c)+iz_plus ] - 
+                    excess_pore_water_pressure_onehalf[ordBottom(index_quadrant_c)+iz_minus];
+
+  return((delta_h_old>epsilon ? dP/delta_h_old*(i_z-iz_minus) : 0.) + excess_pore_water_pressure_onehalf[ordBottom(index_quadrant_c)+iz_minus]);
+}
+
+
+
+
+void
+TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadrant)
+{
+
+  // look at tmesh.h 
+  index_quadrant = quadrant->get_global_quad_idx (); 
+  index_quadrant_local = quadrant->get_forest_quad_idx ();
+
+  std::array<int,4> bimpp_to_rev_ord = {0, 1, 3, 2};
+  
+  for (int ii = 0; ii < 4; ++ii) {
+    xn[ii] = quadrant->p(0, ii);
+    yn[ii] = quadrant->p(1, ii);
+  }
+  
+  Dx = xn[1]-xn[0];
+  Dy = yn[2]-yn[0];
+  area = Dx * Dy;
+
+  dp_mean_vec = {0., 0., 0., 0.};
   for (int ii = 0; ii < 4; ++ii)
   {
     if (! quadrant->is_hanging (ii) )
@@ -578,6 +1215,11 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
       Z_node[ii]  = Z [quadrant->gt (ii)];
       
       isdof_or_hanging[ii] = 1.;
+
+      for (int kk=ordBottom(quadrant->gt (ii)); kk<=ordSurface(quadrant->gt (ii)); kk++)
+      {
+        dp_mean_vec[ii] += excess_pore_water_pressure[kk];
+      }
     }
     else
     {
@@ -598,13 +1240,16 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
                           Z [quadrant->gparent(1,ii)]);
 
       isdof_or_hanging[ii] = .5;
+
+      for (int jj=0; jj<=1; jj++)
+        for (int kk=ordBottom(quadrant->gparent(jj,ii)); kk<=ordSurface(quadrant->gparent(jj,ii)); kk++)
+        {
+          dp_mean_vec[ii] += .5*excess_pore_water_pressure[kk];
+        }
     }
+    dp_mean_vec[ii] /= number_FD_points;
 
     hdof   [ii] = hwdof[ii] + hsdof[ii];
-    //n_node [ii] = hdof [ii]>epsilon ? 1. : 1.;
-    //ns_node[ii] = hdof [ii]>epsilon ? 0. : 0.;
-    //n_node [ii] = hdof [ii]>epsilon ? hwdof[ii]/hdof[ii] : 1.;
-    //ns_node[ii] = hdof [ii]>epsilon ? hsdof[ii]/hdof[ii] : 0.;
   }
 
   // weights coefficients for the flux term
@@ -616,23 +1261,13 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
   double vel_rusanov_cell_x = 0., vel_rusanov_cell_y = 0.;
   for (int ii = 0; ii < 4; ++ii){
-    const auto lambdas = max_eigen (hwdof[ii], hsdof[ii], Uxwdof[ii], Uywdof[ii], Uxsdof[ii], Uysdof[ii]);
+    const auto lambdas = max_eigen (hwdof[ii], hsdof[ii], Uxwdof[ii], Uywdof[ii], Uxsdof[ii], Uysdof[ii], dp_mean_vec[ii]);
     vel_rusanov_cell_x += lambdas[0];
     vel_rusanov_cell_y += lambdas[1];
   }
   vel_rusanov_cell_x /= 4.;
   vel_rusanov_cell_y /= 4.;
 
-  //const std::array<double,4> eta_vec = {hdof[0]+Z_node[0], hdof[1]+Z_node[1], hdof[2]+Z_node[2], hdof[3]+Z_node[3]};
-
-  //grad_cell_Zn    = {.5 * ( (Z_node [3]*n_node [3] - Z_node [2]*n_node [2]) + (Z_node [1]*n_node [1] - Z_node [0]*n_node [0]) ), .5 * ( (Z_node [2]*n_node [2] - Z_node [0]*n_node [0]) + (Z_node [3]*n_node [3] - Z_node [1]*n_node [1]) )};
-  //grad_cell_Zns   = {.5 * ( (Z_node [3]*ns_node[3] - Z_node [2]*ns_node[2]) + (Z_node [1]*ns_node[1] - Z_node [0]*ns_node[0]) ), .5 * ( (Z_node [2]*ns_node[2] - Z_node [0]*ns_node[0]) + (Z_node [3]*ns_node[3] - Z_node [1]*ns_node[1]) )};
-
-  //grad_cell_Zn    = {.5 * ( (Z_node [3]*n_node [3] - Z_node [2]*n_node [2]) + (Z_node [1]*n_node [1] - Z_node [0]*n_node [0]) ), .5 * ( (Z_node [2]*n_node [2] - Z_node [0]*n_node [0]) + (Z_node [3]*n_node [3] - Z_node [1]*n_node [1]) )};
-  //grad_cell_Zns   = {.5 * ( (Z_node [3]*ns_node[3] - Z_node [2]*ns_node[2]) + (Z_node [1]*ns_node[1] - Z_node [0]*ns_node[0]) ), .5 * ( (Z_node [2]*ns_node[2] - Z_node [0]*ns_node[0]) + (Z_node [3]*ns_node[3] - Z_node [1]*ns_node[1]) )};
-
-  //if (grad_cell_Zn[0]!=0 || grad_cell_Zn[1]!=0)
-  //std::cout << grad_cell_Zn[0] << " " << grad_cell_Zn[1] << " " << Z_node [3] << " " << Z_node [2] << std::endl;
 
   grad_cell_Z     = {.5 * ( (Z_node  [3] - Z_node  [2]) + (Z_node  [1] - Z_node  [0]) ), .5 * ( (Z_node  [2] - Z_node  [0]) + (Z_node  [3] - Z_node  [1]) )};
  
@@ -655,8 +1290,16 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
   const double & Z_cell     = Z_onehalf[index_quadrant];
 
-  const auto slope_x_cell = 0;//grad_cell_Z[0];
-  const auto slope_y_cell = 0;//grad_cell_Z[1];
+  double dp_mean_cell = 0.;
+  for (int kk=ordBottom(index_quadrant); kk<=ordSurface(index_quadrant); kk++)
+  {
+    dp_mean_cell += excess_pore_water_pressure_onehalf[kk];
+  }
+  dp_mean_cell /= number_FD_points;
+
+
+  const auto slope_x_cell = 0.;//grad_cell_Z[0];
+  const auto slope_y_cell = 0.;//grad_cell_Z[1];
 
 
   const auto contr_slope_xs = .5*src_slope_formula (hs_cell, slope_x_cell)*Dy;
@@ -710,7 +1353,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
         const bool check_orthogonality = std::inner_product(outward_normal_edge_nei.begin(), outward_normal_edge_nei.end(), outward_normal_edge.begin(), 0.) == -1;
 
 
-        if ( (((xn[i_1] == Xn[j_1] && yn[i_1] == Yn[j_1]) || 
+        if ( (((xn[i_1] == Xn[j_1] && yn[i_1] == Yn[j_1]) ||
                (xn[i_2] == Xn[j_1] && yn[i_2] == Yn[j_1]))||
               ((xn[i_1] == Xn[j_2] && yn[i_1] == Yn[j_2]) ||
                (xn[i_2] == Xn[j_2] && yn[i_2] == Yn[j_2]))) && check_orthogonality && index_quadrant!=index_quadrant_nei )
@@ -728,21 +1371,22 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
           Uxs_cell_nei   = sol_onehalf[ordUxs   (index_quadrant_nei)];
           Uys_cell_nei   = sol_onehalf[ordUys   (index_quadrant_nei)];
 
+
           //std::cout << (Z_cell_nei - Z_cell) << std::endl;
 
-          // .5 salta fuori dall'integrazione per trapezi tra 0 e 1 in coordinata \xi (è il valore in LHS da metter qui sotto!)
-          contr_x_w[i_1] += .5*signum(outward_normal_edge[0])*(grav*hw_cell*(Z_cell_nei - Z_cell) +         grav*hw_cell*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_1];
-          contr_x_w[i_2] += .5*signum(outward_normal_edge[0])*(grav*hw_cell*(Z_cell_nei - Z_cell) +         grav*hw_cell*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_2];
+          // .5 salta fuori dall'integrazione per trapezi tra 0 e 1 in coordinata \xi (è il valore in LHS da metter qui sotto!) 
+          contr_x_w[i_1] += .5*signum(outward_normal_edge[0])*(grav*hw_cell*(Z_cell_nei - Z_cell) +         (grav*hw_cell+n_cell*dp_mean_cell/density_w)*(hs_cell_nei - hs_cell) + n_cell*dp_mean_cell/density_w*(hw_cell_nei - hw_cell))*isdof_or_hanging[i_1];
+          contr_x_w[i_2] += .5*signum(outward_normal_edge[0])*(grav*hw_cell*(Z_cell_nei - Z_cell) +         (grav*hw_cell+n_cell*dp_mean_cell/density_w)*(hs_cell_nei - hs_cell) + n_cell*dp_mean_cell/density_w*(hw_cell_nei - hw_cell))*isdof_or_hanging[i_2];
 
-          contr_y_w[i_1] += .5*signum(outward_normal_edge[1])*(grav*hw_cell*(Z_cell_nei - Z_cell) +         grav*hw_cell*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_1];
-          contr_y_w[i_2] += .5*signum(outward_normal_edge[1])*(grav*hw_cell*(Z_cell_nei - Z_cell) +         grav*hw_cell*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_2];
+          contr_y_w[i_1] += .5*signum(outward_normal_edge[1])*(grav*hw_cell*(Z_cell_nei - Z_cell) +         (grav*hw_cell+n_cell*dp_mean_cell/density_w)*(hs_cell_nei - hs_cell) + n_cell*dp_mean_cell/density_w*(hw_cell_nei - hw_cell))*isdof_or_hanging[i_1];
+          contr_y_w[i_2] += .5*signum(outward_normal_edge[1])*(grav*hw_cell*(Z_cell_nei - Z_cell) +         (grav*hw_cell+n_cell*dp_mean_cell/density_w)*(hs_cell_nei - hs_cell) + n_cell*dp_mean_cell/density_w*(hw_cell_nei - hw_cell))*isdof_or_hanging[i_2];
 
 
-          contr_x_s[i_1] += .5*signum(outward_normal_edge[0])*(grav*hs_cell*(Z_cell_nei - Z_cell) + r_coeff*grav*hs_cell*(hw_cell_nei - hw_cell))*isdof_or_hanging[i_1];
-          contr_x_s[i_2] += .5*signum(outward_normal_edge[0])*(grav*hs_cell*(Z_cell_nei - Z_cell) + r_coeff*grav*hs_cell*(hw_cell_nei - hw_cell))*isdof_or_hanging[i_2];
+          contr_x_s[i_1] += .5*signum(outward_normal_edge[0])*(grav*hs_cell*(Z_cell_nei - Z_cell) + (r_coeff*grav*hs_cell-n_cell*dp_mean_cell/density_s)*(hw_cell_nei - hw_cell) - n_cell*dp_mean_cell/density_s*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_1];
+          contr_x_s[i_2] += .5*signum(outward_normal_edge[0])*(grav*hs_cell*(Z_cell_nei - Z_cell) + (r_coeff*grav*hs_cell-n_cell*dp_mean_cell/density_s)*(hw_cell_nei - hw_cell) - n_cell*dp_mean_cell/density_s*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_2];
 
-          contr_y_s[i_1] += .5*signum(outward_normal_edge[1])*(grav*hs_cell*(Z_cell_nei - Z_cell) + r_coeff*grav*hs_cell*(hw_cell_nei - hw_cell))*isdof_or_hanging[i_1];
-          contr_y_s[i_2] += .5*signum(outward_normal_edge[1])*(grav*hs_cell*(Z_cell_nei - Z_cell) + r_coeff*grav*hs_cell*(hw_cell_nei - hw_cell))*isdof_or_hanging[i_2];
+          contr_y_s[i_1] += .5*signum(outward_normal_edge[1])*(grav*hs_cell*(Z_cell_nei - Z_cell) + (r_coeff*grav*hs_cell-n_cell*dp_mean_cell/density_s)*(hw_cell_nei - hw_cell) - n_cell*dp_mean_cell/density_s*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_1];
+          contr_y_s[i_2] += .5*signum(outward_normal_edge[1])*(grav*hs_cell*(Z_cell_nei - Z_cell) + (r_coeff*grav*hs_cell-n_cell*dp_mean_cell/density_s)*(hw_cell_nei - hw_cell) - n_cell*dp_mean_cell/density_s*(hs_cell_nei - hs_cell))*isdof_or_hanging[i_2];
 
 
           //break; // this just goes outside the jEdge cycle 
@@ -762,24 +1406,27 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
       auto Uxs_cell_nei = Uxs_cell;
       auto Uys_cell_nei = Uys_cell;
 
+      double dp_mean_cell_c = 0.;
+      auto dp_mean_cell_nei_c = dp_mean_cell_c;
+
       Uxw_cell_nei -= (!is_non_reflBC)*2.*(outward_normal_edge[0]*Uxw_cell + outward_normal_edge[1]*Uyw_cell)*outward_normal_edge[0];
       Uyw_cell_nei -= (!is_non_reflBC)*2.*(outward_normal_edge[0]*Uxw_cell + outward_normal_edge[1]*Uyw_cell)*outward_normal_edge[1];
 
       Uxs_cell_nei -= (!is_non_reflBC)*2.*(outward_normal_edge[0]*Uxs_cell + outward_normal_edge[1]*Uys_cell)*outward_normal_edge[0];
       Uys_cell_nei -= (!is_non_reflBC)*2.*(outward_normal_edge[0]*Uxs_cell + outward_normal_edge[1]*Uys_cell)*outward_normal_edge[1];
 
-      const auto speed     = max_eigen(hw_cell,     hs_cell,     Uxw_cell,     Uyw_cell,     Uxs_cell,     Uys_cell    );
-      const auto speed_nei = max_eigen(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei);
+      const auto speed     = max_eigen(hw_cell,     hs_cell,     Uxw_cell,     Uyw_cell,     Uxs_cell,     Uys_cell,     dp_mean_cell_c);
+      const auto speed_nei = max_eigen(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei, dp_mean_cell_nei);
 
       const auto smax = std::max(speed[0]*outward_normal_edge[0]+speed[1]*outward_normal_edge[1], speed_nei[0]*outward_normal_edge[0]+speed_nei[1]*outward_normal_edge[1]); 
 
-      const auto flux_int_hw  = .5*((hw_flux_formula_x (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell)+hw_flux_formula_x (hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei))*outward_normal_edge[0] + (hw_flux_formula_y (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell)+hw_flux_formula_y (hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei))*outward_normal_edge[1]) - .5*smax*(hw_cell_nei -hw_cell );
-      const auto flux_int_Uxw = .5*((Uxw_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell)+Uxw_flux_formula_x(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei))*outward_normal_edge[0] + (Uxw_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell)+Uxw_flux_formula_y(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei))*outward_normal_edge[1]) - .5*smax*(Uxw_cell_nei-Uxw_cell);
-      const auto flux_int_Uyw = .5*((Uyw_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell)+Uyw_flux_formula_x(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei))*outward_normal_edge[0] + (Uyw_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell)+Uyw_flux_formula_y(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei))*outward_normal_edge[1]) - .5*smax*(Uyw_cell_nei-Uyw_cell);
+      const auto flux_int_hw  = .5*((hw_flux_formula_x (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell                )+hw_flux_formula_x (hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei                    ))*outward_normal_edge[0] + (hw_flux_formula_y (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell                )+hw_flux_formula_y (hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei                    ))*outward_normal_edge[1]) - .5*smax*(hw_cell_nei -hw_cell );
+      const auto flux_int_Uxw = .5*((Uxw_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, dp_mean_cell_c)+Uxw_flux_formula_x(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei, dp_mean_cell_nei_c))*outward_normal_edge[0] + (Uxw_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell                )+Uxw_flux_formula_y(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei                    ))*outward_normal_edge[1]) - .5*smax*(Uxw_cell_nei-Uxw_cell);
+      const auto flux_int_Uyw = .5*((Uyw_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell                )+Uyw_flux_formula_x(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei                    ))*outward_normal_edge[0] + (Uyw_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, dp_mean_cell_c)+Uyw_flux_formula_y(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei, dp_mean_cell_nei_c))*outward_normal_edge[1]) - .5*smax*(Uyw_cell_nei-Uyw_cell);
 
-      const auto flux_int_hs  = .5*((hs_flux_formula_x (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell)+hs_flux_formula_x (hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei))*outward_normal_edge[0] + (hs_flux_formula_y (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell)+hs_flux_formula_y (hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei))*outward_normal_edge[1]) - .5*smax*(hs_cell_nei -hs_cell );
-      const auto flux_int_Uxs = .5*((Uxs_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell)+Uxs_flux_formula_x(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei))*outward_normal_edge[0] + (Uxs_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell)+Uxs_flux_formula_y(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei))*outward_normal_edge[1]) - .5*smax*(Uxs_cell_nei-Uxs_cell);
-      const auto flux_int_Uys = .5*((Uys_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell)+Uys_flux_formula_x(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei))*outward_normal_edge[0] + (Uys_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell)+Uys_flux_formula_y(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei))*outward_normal_edge[1]) - .5*smax*(Uys_cell_nei-Uys_cell);
+      const auto flux_int_hs  = .5*((hs_flux_formula_x (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell                )+hs_flux_formula_x (hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei                    ))*outward_normal_edge[0] + (hs_flux_formula_y (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell                )+hs_flux_formula_y (hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei                    ))*outward_normal_edge[1]) - .5*smax*(hs_cell_nei -hs_cell );
+      const auto flux_int_Uxs = .5*((Uxs_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, dp_mean_cell_c)+Uxs_flux_formula_x(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei, dp_mean_cell_nei_c))*outward_normal_edge[0] + (Uxs_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell                )+Uxs_flux_formula_y(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei                    ))*outward_normal_edge[1]) - .5*smax*(Uxs_cell_nei-Uxs_cell);
+      const auto flux_int_Uys = .5*((Uys_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell                )+Uys_flux_formula_x(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei                    ))*outward_normal_edge[0] + (Uys_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, dp_mean_cell_c)+Uys_flux_formula_y(hw_cell_nei, hs_cell_nei, Uxw_cell_nei, Uyw_cell_nei, Uxs_cell_nei, Uys_cell_nei, dp_mean_cell_nei_c))*outward_normal_edge[1]) - .5*smax*(Uys_cell_nei-Uys_cell);
 
 
       auto outward_normal_edge_abs = outward_normal_edge;
@@ -857,21 +1504,12 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
   }
   
-
-  const auto diff_term_hw_x  = h_cell>epsilon ? (grad_cell_Z[0]*n_cell*g_coeff+grad_cell_hw[0])*vel_rusanov_cell_y*.5 : grad_cell_hw[0]*vel_rusanov_cell_y*.5;
-  const auto diff_term_hw_y  = h_cell>epsilon ? (grad_cell_Z[1]*n_cell*g_coeff+grad_cell_hw[1])*vel_rusanov_cell_x*.5 : grad_cell_hw[1]*vel_rusanov_cell_x*.5;
+  const auto diff_term_hw_x  = h_cell>epsilon ? (grad_cell_Z[0]*n_cell *g_coeff+grad_cell_hw[0])*vel_rusanov_cell_y*.5 : grad_cell_hw[0]*vel_rusanov_cell_y*.5;
+  const auto diff_term_hw_y  = h_cell>epsilon ? (grad_cell_Z[1]*n_cell *g_coeff+grad_cell_hw[1])*vel_rusanov_cell_x*.5 : grad_cell_hw[1]*vel_rusanov_cell_x*.5;
 
   const auto diff_term_hs_x  = h_cell>epsilon ? (grad_cell_Z[0]*ns_cell*g_coeff+grad_cell_hs[0])*vel_rusanov_cell_y*.5 : grad_cell_hs[0]*vel_rusanov_cell_y*.5;
   const auto diff_term_hs_y  = h_cell>epsilon ? (grad_cell_Z[1]*ns_cell*g_coeff+grad_cell_hs[1])*vel_rusanov_cell_x*.5 : grad_cell_hs[1]*vel_rusanov_cell_x*.5;
 
-
-/*
-  const auto diff_term_hw_x  = grad_cell_hw  [0]*vel_rusanov_cell_y*.5;
-  const auto diff_term_hw_y  = grad_cell_hw  [1]*vel_rusanov_cell_x*.5;
-
-  const auto diff_term_hs_x  = grad_cell_hs  [0]*vel_rusanov_cell_y*.5;
-  const auto diff_term_hs_y  = grad_cell_hs  [1]*vel_rusanov_cell_x*.5;
-*/
   const auto diff_term_Uxw_x = grad_cell_Uxw [0]*vel_rusanov_cell_y*.5;
   const auto diff_term_Uxw_y = grad_cell_Uxw [1]*vel_rusanov_cell_x*.5;
 
@@ -885,25 +1523,24 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   const auto diff_term_Uys_y = grad_cell_Uys [1]*vel_rusanov_cell_x*.5;
 
 
+  //
+  const auto F_star_hw_x  = hw_flux_formula_x (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell    ) - diff_term_hw_x;
+  const auto F_star_hw_y  = hw_flux_formula_y (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell    ) - diff_term_hw_y;
 
+  const auto F_star_hs_x  = hs_flux_formula_x (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell    ) - diff_term_hs_x;
+  const auto F_star_hs_y  = hs_flux_formula_y (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell    ) - diff_term_hs_y;
 
-  const auto F_star_hw_x  = hw_flux_formula_x (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell) - diff_term_hw_x;
-  const auto F_star_hw_y  = hw_flux_formula_y (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell) - diff_term_hw_y;
+  const auto F_star_Uxw_x = Uxw_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, 0.) - diff_term_Uxw_x;
+  const auto F_star_Uxw_y = Uxw_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell    ) - diff_term_Uxw_y;
 
-  const auto F_star_hs_x  = hs_flux_formula_x (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell) - diff_term_hs_x;
-  const auto F_star_hs_y  = hs_flux_formula_y (hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell) - diff_term_hs_y;
+  const auto F_star_Uyw_x = Uyw_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell    ) - diff_term_Uyw_x;
+  const auto F_star_Uyw_y = Uyw_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, 0.) - diff_term_Uyw_y;
 
-  const auto F_star_Uxw_x = Uxw_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell) - diff_term_Uxw_x;
-  const auto F_star_Uxw_y = Uxw_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell) - diff_term_Uxw_y;
+  const auto F_star_Uxs_x = Uxs_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, 0.) - diff_term_Uxs_x;
+  const auto F_star_Uxs_y = Uxs_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell    ) - diff_term_Uxs_y;
 
-  const auto F_star_Uyw_x = Uyw_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell) - diff_term_Uyw_x;
-  const auto F_star_Uyw_y = Uyw_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell) - diff_term_Uyw_y;
-
-  const auto F_star_Uxs_x = Uxs_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell) - diff_term_Uxs_x;
-  const auto F_star_Uxs_y = Uxs_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell) - diff_term_Uxs_y;
-
-  const auto F_star_Uys_x = Uys_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell) - diff_term_Uys_x;
-  const auto F_star_Uys_y = Uys_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell) - diff_term_Uys_y;
+  const auto F_star_Uys_x = Uys_flux_formula_x(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell    ) - diff_term_Uys_x;
+  const auto F_star_Uys_y = Uys_flux_formula_y(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, 0.) - diff_term_Uys_y;
 
 
 
@@ -911,14 +1548,11 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
     const auto hw_    = der_coeffs_x[ii]*F_star_hw_x +der_coeffs_y[ii]*F_star_hw_y;
     const auto Uxw_   = der_coeffs_x[ii]*F_star_Uxw_x+der_coeffs_y[ii]*F_star_Uxw_y - .5*Dy*contr_x_w[ii]; // + .25*area*src_slope_formula(hw_cell, slope_x_cell);
-    const auto Uyw_   = der_coeffs_x[ii]*F_star_Uyw_x+der_coeffs_y[ii]*F_star_Uyw_y - .5*Dx*contr_y_w[ii]; //; 
+    const auto Uyw_   = der_coeffs_x[ii]*F_star_Uyw_x+der_coeffs_y[ii]*F_star_Uyw_y - .5*Dx*contr_y_w[ii];
 
     const auto hs_    = der_coeffs_x[ii]*F_star_hs_x +der_coeffs_y[ii]*F_star_hs_y;
     const auto Uxs_   = der_coeffs_x[ii]*F_star_Uxs_x+der_coeffs_y[ii]*F_star_Uxs_y - .5*Dy*contr_x_s[ii]; // + .25*area*src_slope_formula(hs_cell, slope_x_cell);
-    const auto Uys_   = der_coeffs_x[ii]*F_star_Uys_x+der_coeffs_y[ii]*F_star_Uys_y - .5*Dx*contr_y_s[ii]; //; 
-
-    //if (contr_x_w[ii]!=0 || .5*Dy*contr_y_w[ii]!=0)
-    //std::cout << contr_x_w[ii] << " " << std::endl;
+    const auto Uys_   = der_coeffs_x[ii]*F_star_Uys_x+der_coeffs_y[ii]*F_star_Uys_y - .5*Dx*contr_y_s[ii];
 
 
     const auto hw_al  = der_coeffs_x[ii]*diff_term_hw_x  + der_coeffs_y[ii]*diff_term_hw_y; 
@@ -951,7 +1585,6 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
       P_minus [ordhw  (quadrant->gt (ii))] += std::min(0., hw_al );
       P_minus [ordUxw (quadrant->gt (ii))] += std::min(0., Uxw_al);
       P_minus [ordUyw (quadrant->gt (ii))] += std::min(0., Uyw_al);
-
 
 
       incr [ordhs  (quadrant->gt (ii))] += hs_;
@@ -1041,19 +1674,90 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
 }
 
+void
+TG2_scheme::terminate_second_step (tmesh::quadrant_iterator quadrant)
+{
+  for (int ii = 0; ii < 4; ++ii) {
+    xn[ii] = quadrant->p(0, ii);
+    yn[ii] = quadrant->p(1, ii);
+  }
+  
+  Dx = xn[1]-xn[0];
+  Dy = yn[2]-yn[0];
+  area = Dx * Dy;
+
+  dp_mean_vec = {0., 0., 0., 0.};
+  for (int ii = 0; ii < 4; ++ii)
+  {
+    if (! quadrant->is_hanging (ii) )
+    {
+      for (int kk=ordBottom(quadrant->gt (ii)); kk<=ordSurface(quadrant->gt (ii)); kk++)
+      {
+        dp_mean_vec[ii] += excess_pore_water_pressure[kk];
+      }
+    }
+    else
+    {
+      for (int jj=0; jj<=1; jj++)
+        for (int kk=ordBottom(quadrant->gparent(jj,ii)); kk<=ordSurface(quadrant->gparent(jj,ii)); kk++)
+        {
+          dp_mean_vec[ii] += .5*excess_pore_water_pressure[kk];
+        }
+    }
+    dp_mean_vec[ii] /= number_FD_points;
+  }
+
+  grad_cell_dp_mean = {.5 * ( (dp_mean_vec[3] - dp_mean_vec[2]) + (dp_mean_vec[1] - dp_mean_vec[0]) )/Dx, .5 * ( (dp_mean_vec[2] - dp_mean_vec[0]) + (dp_mean_vec[3] - dp_mean_vec[1]) )/Dy};
+
+  const double & hw_cell = sol_onehalf[ordhw (index_quadrant)];
+
+  const auto contr_x_w = -.5*hw_cell*grad_cell_dp_mean[0]/density_w;
+  const auto contr_y_w = -.5*hw_cell*grad_cell_dp_mean[1]/density_w;
+  const auto contr_x_s =  .5*hw_cell*grad_cell_dp_mean[0]/density_s;
+  const auto contr_y_s =  .5*hw_cell*grad_cell_dp_mean[1]/density_s;
+
+  for (int ii = 0; ii < 4; ++ii){
+    if (! quadrant->is_hanging (ii)){
+
+      incr [ordUxw (quadrant->gt (ii))] += contr_x_w;
+      incr [ordUyw (quadrant->gt (ii))] += contr_y_w;
+      incr [ordUxs (quadrant->gt (ii))] += contr_x_s;
+      incr [ordUys (quadrant->gt (ii))] += contr_y_s;
+    }
+    else
+    {
+      // w
+      incr [ordUxw (quadrant->gparent(0,ii))] += contr_x_w*.5;
+      incr [ordUxw (quadrant->gparent(1,ii))] += contr_x_w*.5;
+      
+      incr [ordUyw (quadrant->gparent(0,ii))] += contr_y_w*.5;
+      incr [ordUyw (quadrant->gparent(1,ii))] += contr_y_w*.5;
+
+      // s part
+      incr [ordUxs (quadrant->gparent(0,ii))] += contr_x_s*.5;
+      incr [ordUxs (quadrant->gparent(1,ii))] += contr_x_s*.5;
+      
+      incr [ordUys (quadrant->gparent(0,ii))] += contr_y_s*.5;
+      incr [ordUys (quadrant->gparent(1,ii))] += contr_y_s*.5;
+    }
+  }
+
+}
+
+
 
 void
 TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 {
 
-  const auto & index_quadrant = quadrant->get_forest_quad_idx (); 
-
+  index_quadrant = quadrant->get_forest_quad_idx (); 
   for (int ii = 0; ii < 4; ++ii) {
     xn[ii] = quadrant->p(0, ii);
     yn[ii] = quadrant->p(1, ii);
   }
 
-
+  
+  dp_mean_vec = {0., 0., 0., 0.};
   for (int ii = 0; ii < 4; ++ii){ 
 
     double hwdof_c, Uxwdof_c, Uywdof_c, P_plus_hw_c, P_minus_hw_c, P_plus_Uxw_c, P_minus_Uxw_c, P_plus_Uyw_c, P_minus_Uyw_c;
@@ -1089,6 +1793,10 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       P_plus_Uys_c   = P_plus [ordUys   (quadrant->gt (ii))];
       P_minus_Uys_c  = P_minus[ordUys   (quadrant->gt (ii))];
       
+      for (int kk=ordBottom(quadrant->gt (ii)); kk<=ordSurface(quadrant->gt (ii)); kk++)
+      {
+        dp_mean_vec[ii] += excess_pore_water_pressure[kk];
+      }
 
     } else {
       hwdof_c   = .5 * (sol [ordhw  (quadrant->gparent(0,ii))] +
@@ -1140,9 +1848,15 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
                              P_plus [ordUys (quadrant->gparent(1,ii))]);
       P_minus_Uys_c  = .5 * (P_minus [ordUys (quadrant->gparent(0,ii))] +
                              P_minus [ordUys (quadrant->gparent(1,ii))]);
+
+      for (int jj=0; jj<=1; jj++)
+        for (int kk=ordBottom(quadrant->gparent(jj,ii)); kk<=ordSurface(quadrant->gparent(jj,ii)); kk++)
+        {
+          dp_mean_vec[ii] += .5*excess_pore_water_pressure[kk];
+        }
       
     }
-
+    dp_mean_vec[ii] /= number_FD_points;
 
     double hdof_c  = hwdof_c+hsdof_c;
     double ndof_c  = hdof_c>epsilon ? hwdof_c/hdof_c : 0.;
@@ -1151,7 +1865,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     hdof       [ii] = hdof_c;
     hwdof      [ii] = hwdof_c;
     hsdof      [ii] = hsdof_c;
-    etawdof    [ii] = hdof_c>epsilon ? hwdof_c+Z_node[ii]*ndof_c*g_coeff  : hwdof_c;
+    etawdof    [ii] = hdof_c>epsilon ? hwdof_c+Z_node[ii]*ndof_c *g_coeff : hwdof_c;
     etasdof    [ii] = hdof_c>epsilon ? hsdof_c+Z_node[ii]*nsdof_c*g_coeff : hsdof_c;
     Uxwdof     [ii] = Uxwdof_c;
     Uywdof     [ii] = Uywdof_c;
@@ -1259,7 +1973,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
           n_current_cell  = h_current_cell>epsilon ? hw_current_cell/h_current_cell : 0.; 
           ns_current_cell = h_current_cell>epsilon ? hs_current_cell/h_current_cell : 0.;
 
-          hw_current_cell = hw_current_cell + Z_current_cell*n_current_cell*g_coeff;
+          hw_current_cell = hw_current_cell + Z_current_cell*n_current_cell *g_coeff;
           hs_current_cell = hs_current_cell + Z_current_cell*ns_current_cell*g_coeff;
 
           hw_min [ii] = std::min(hw_min [ii], hw_current_cell);
@@ -1304,7 +2018,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     const auto & flux_on_the_node_Uys = incr_anti_diff[ordUys(index_quadrant)][ii];
 
 
-    const auto speed = max_eigen(hwdof[ii], hsdof[ii], Uxwdof[ii], Uywdof[ii], Uxsdof[ii], Uysdof[ii]);
+    const auto speed = max_eigen(hwdof[ii], hsdof[ii], Uxwdof[ii], Uywdof[ii], Uxsdof[ii], Uysdof[ii], dp_mean_vec[ii]);
     const auto vel_rusanov_cell_x = speed[0]; //hpoint>epsilon ? (std::abs(Uxdof[ii]/hpoint)+celerity) : 0.;
     const auto vel_rusanov_cell_y = speed[1]; //hpoint>epsilon ? (std::abs(Uydof[ii]/hpoint)+celerity) : 0.;
 
@@ -1380,14 +2094,14 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 void
 TG2_scheme::flux_limiter(const double& Q_min, const double& Q_max, const double& Q_dof, const double& P_plus_Q, const double& P_minus_Q, const double& flux_on_the_node, const double& vel_square_rusanov_cell, double& phi_cell_Q)
 {
-  const auto Q_plus  = (Q_max-Q_dof)*(dt + dt_old)*.5*vel_square_rusanov_cell;
-  const auto Q_minus = (Q_min-Q_dof)*(dt + dt_old)*.5*vel_square_rusanov_cell;
+  const auto Q_plus  = (Q_max-Q_dof)*dt*vel_square_rusanov_cell;
+  const auto Q_minus = (Q_min-Q_dof)*dt*vel_square_rusanov_cell;
 
-  //const auto R_plus  = P_plus_Q ==0 ? 1 : std::min(1., Q_plus /P_plus_Q );
-  //const auto R_minus = P_minus_Q==0 ? 1 : std::min(1., Q_minus/P_minus_Q);
+  const auto R_plus  = P_plus_Q ==0 ? 1. : std::min(1., Q_plus /P_plus_Q );
+  const auto R_minus = P_minus_Q==0 ? 1. : std::min(1., Q_minus/P_minus_Q);
 
-  const auto R_plus  = (P_plus_Q ==0 || Q_plus ==0) ? 1 : std::min(1., Q_plus /P_plus_Q );
-  const auto R_minus = (P_minus_Q==0 || Q_minus==0) ? 1 : std::min(1., Q_minus/P_minus_Q);
+  //const auto R_plus  = (P_plus_Q ==0 || Q_plus ==0) ? 1 : std::min(1., Q_plus /P_plus_Q );
+  //const auto R_minus = (P_minus_Q==0 || Q_minus==0) ? 1 : std::min(1., Q_minus/P_minus_Q);
 
   phi_cell_Q = std::min(phi_cell_Q, flux_on_the_node>=0 ? R_plus : R_minus);
 
@@ -1512,13 +2226,21 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
 void
 TG2_scheme::stabilization_term (const int& kk)
 {
-  // apply the corrector step now, it's like an interphase drag
+  // apply the corrector step now, it's like adding an extra interphase drag
   const auto & hw_c  = sol.get_owned_data ()[kk  ];
   const auto & hs_c  = sol.get_owned_data ()[kk+1];
   const auto & Uxw_c = sol.get_owned_data ()[kk+2];
   const auto & Uyw_c = sol.get_owned_data ()[kk+3];
   const auto & Uxs_c = sol.get_owned_data ()[kk+4];
   const auto & Uys_c = sol.get_owned_data ()[kk+5];
+
+
+  double dp_mean = 0.;
+  for (int kkk = (kk/6)*number_FD_points; kkk<((kk+6)/6)*number_FD_points; kkk++)
+  {
+    dp_mean += excess_pore_water_pressure.get_owned_data ()[kkk];
+  }
+  dp_mean /=number_FD_points;
 
   const double h_c = hw_c+hs_c;
 
@@ -1532,21 +2254,39 @@ TG2_scheme::stabilization_term (const int& kk)
 
   const double kinematic_speed_wave = std::sqrt(grav*h_c);
   const double beta_coeff  = std::sqrt(.5*n*(1.-r_coeff));
-  const double beta_coeff_ = std::sqrt(.5*  (1.-r_coeff));
+  //const double beta_coeff_ = std::sqrt(.5*  (1.-r_coeff));
 
   const auto density = ns*density_s + n*density_w;
 
   const auto abs_delta_vel_x = std::abs(vel_w_x-vel_s_x);
   const auto abs_delta_vel_y = std::abs(vel_w_y-vel_s_y);
 
-  const auto hyp_diff_x  = abs_delta_vel_x - 2.*kinematic_speed_wave*beta_coeff;
-  const auto hyp_diff_y  = abs_delta_vel_y - 2.*kinematic_speed_wave*beta_coeff;
-  const auto hyp_diff_x_ = abs_delta_vel_x - 2.*kinematic_speed_wave;
-  const auto hyp_diff_y_ = abs_delta_vel_y - 2.*kinematic_speed_wave;
+
+  const double beta_coeff_square = beta_coeff*beta_coeff;
+  const double celerity_square = kinematic_speed_wave*kinematic_speed_wave;
+
+  const double b_coeff = 4.*beta_coeff_square*dp_mean + 2.*celerity_square*density_w*(1.+beta_coeff_square);
+  const double c_coeff = 16.*dp_mean*dp_mean*beta_coeff_square*beta_coeff_square + 16.*celerity_square*beta_coeff_square*beta_coeff_square*density_w*dp_mean + 4.*celerity_square*celerity_square*density_w*density_w*(1.-beta_coeff_square)*(1.-beta_coeff_square);
 
 
-  const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x_<0 && hw_c>epsilon ? n*ns*hyp_diff_x/(dt*(n*r_coeff+ns))*.5/kinematic_speed_wave/beta_coeff : 0., 0.);
-  const double cy_sgn = std::max( h_c>epsilon && hyp_diff_y_<0 && hw_c>epsilon ? n*ns*hyp_diff_y/(dt*(n*r_coeff+ns))*.5/kinematic_speed_wave/beta_coeff : 0., 0.);
+  const auto common_coeff = b_coeff/density_w;
+  const auto second_common_coeff = std::sqrt(common_coeff*common_coeff - 16.*celerity_square*beta_coeff_square*(celerity_square+dp_mean/density_w))
+  const auto x_coeff_1 = std::sqrt(common_coeff + second_common_coeff);
+  const auto x_coeff_2 = std::sqrt(common_coeff - second_common_coeff);
+
+  const auto hyp_diff_x  = abs_delta_vel_x - x_coeff_2;
+  const auto hyp_diff_y  = abs_delta_vel_y - x_coeff_2;
+  const auto hyp_diff_x_ = abs_delta_vel_x - x_coeff_1;
+  const auto hyp_diff_y_ = abs_delta_vel_y - x_coeff_1;
+
+
+
+
+  //const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x_<0 && hw_c>epsilon ? n*ns*hyp_diff_x/(dt*(n*r_coeff+ns))*.5/kinematic_speed_wave/beta_coeff : 0., 0.);
+  //const double cy_sgn = std::max( h_c>epsilon && hyp_diff_y_<0 && hw_c>epsilon ? n*ns*hyp_diff_y/(dt*(n*r_coeff+ns))*.5/kinematic_speed_wave/beta_coeff : 0., 0.);
+
+  const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x_<0 && hw_c>epsilon && hs_c>epsilon ? n*ns*hyp_diff_x/(dt*(n*r_coeff+ns))/x_coeff_2: 0., 0.);
+  const double cy_sgn = std::max( h_c>epsilon && hyp_diff_y_<0 && hw_c>epsilon && hs_c>epsilon ? n*ns*hyp_diff_y/(dt*(n*r_coeff+ns))/x_coeff_2 : 0., 0.);
 
   //const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x>0 && hyp_diff_x_<0 ? 1.e7 : 0., 0.);
   //const double cy_sgn = std::max( h_c>epsilon && hyp_diff_y>0 && hyp_diff_y_<0 ? 1.e7 : 0., 0.);
@@ -1616,104 +2356,14 @@ TG2_scheme::stabilization_term (const int& kk)
 
 
 
-void
-TG2_scheme::prepare_IMEXRKC_coefficients (const int& s)
-{
-  // \omega_0
-  w0 = 1. + epsilon_IMEXRKC/s/s;
-
-  double T, T_old = w0, T_oldold = 1., 
-  T_prime, T_prime_old = 1., T_prime_oldold = 0.,
-  T_second, T_second_old = 0., T_second_oldold = 0.; 
-
-
-  b_vect.resize(s+1);
-  gamma_tilde_vect.resize(s+1);
-  for (int iii=2; iii<=s; iii++)
-  {
-    // first Chebyshev function
-    T = 2.*w0*T_old - T_oldold;
-
-    // first Chebyshev function derivative
-    T_prime = 2.*T_old + 2.*w0*T_prime_old - T_prime_oldold;
-
-    // first Chebyshev function second derivative 
-    T_second = 4.*T_prime_old + 2.*w0*T_second_old - T_second_oldold;
-
-
-    b_vect[iii] = T_second/T_prime/T_prime;
-
-    // -a_{j-1} contribution
-    gamma_tilde_vect[iii] = -(1. - b_vect[iii-1]*T_old);
-
-    // update
-    T_oldold = T_old;
-    T_old = T;
-
-    T_prime_oldold = T_prime_old;
-    T_prime_old = T_prime;
-
-    T_second_oldold = T_second_old;
-    T_second_old = T_second;
-  }
-
-  b_vect[0] = b_vect[2];
-  b_vect[1] = b_vect[2];
-
-
-  // -a_{0} contribution
-  gamma_tilde_vect[1] = -(1. - b_vect[0]*w0);
-
-  // \omega_1
-  w1 = T_prime/T_second;
-
-  mu_tilde_vect.resize(s+1);
-  v_vect.resize(s+1);
-  mu_vect.resize(s+1);
-
-
-  mu_tilde_vect[0] = 0.;
-  mu_tilde_vect[1] = (s == 1) ? 1. : b_vect[1]*w1;
-
-  gamma_tilde_vect[1] = gamma_tilde_vect[1]*mu_tilde_vect[1];
-  for (int iii=2; iii<=s; iii++)
-  {
-    mu_tilde_vect[iii] = 2.*b_vect[iii]*w1/b_vect[iii-1];
-
-    gamma_tilde_vect[iii] = gamma_tilde_vect[iii]*mu_tilde_vect[iii];
-
-    v_vect[iii] = -b_vect[iii]/b_vect[iii-2];
-
-    mu_vect[iii] = 2.*b_vect[iii]*w0/b_vect[iii-1];
-
-    //std::cout << mu_tilde_vect[iii] << " " << w1  << " " << gamma_tilde_vect[iii] << " " << v_vect[iii] << " " << mu_vect[iii] << " " << b_vect[iii] << std::endl;
-  
-  }
-
-
-/*
-  w_fun_0(s);
-
-  T_fun       (s);
-  T_fun_prime (s);
-  T_fun_second(s);
-
-  w_fun_1(s);
-
-  // I want just these to take in memory, 5 arrays of storage!!
-  b_fun(s);
-  mu_fun_tilde(s);
-  gamma_tilde_fun(s);
-  v_fun(s);
-  mu_fun(s);*/
-
-
-
-}
 
 void
 TG2_scheme::set_dt (const double dt_)
 { dt = dt_; }
+
+void
+TG2_scheme::set_tau ()
+{ tau = dt*.5; }
 
 void
 TG2_scheme::set_old_dt (const double dt_)
@@ -1757,10 +2407,10 @@ TG2_scheme::hs_flux_formula_y (const double& hw, const double& hs, const double&
 }
 
 double
-TG2_scheme::Uxw_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys)
+TG2_scheme::Uxw_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& dp_mean)
 { 
   const auto vel_x = hw>epsilon ? Uxw/hw : 0.;
-  return (Uxw*vel_x + grav*hw*hw/2.);
+  return (Uxw*vel_x + grav*hw*hw/2. + hw/density_w*dp_mean);
 }
  
 double
@@ -1772,18 +2422,18 @@ TG2_scheme::Uyw_flux_formula_x (const double& hw, const double& hs, const double
 { return (hw>epsilon ? Uyw*Uxw/hw : 0.); }
 
 double
-TG2_scheme::Uyw_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys)
+TG2_scheme::Uyw_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& dp_mean)
 { 
   const auto vel_y = hw>epsilon ? Uyw/hw : 0.;
-  return (Uyw*vel_y + grav*hw*hw/2.); 
+  return (Uyw*vel_y + grav*hw*hw/2. + hw/density_w*dp_mean); 
 }
 
 
 double
-TG2_scheme::Uxs_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys)
+TG2_scheme::Uxs_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& dp_mean)
 { 
   const auto vel_x = hs>epsilon ? Uxs/hs : 0.;
-  return (Uxs*vel_x + grav*hs*hs/2. + grav*(1-r_coeff)*hs*hw/2.);  
+  return (Uxs*vel_x + grav*hs*hs/2. + grav*(1-r_coeff)*hs*hw/2. - hw/density_s*dp_mean);  
 }
  
 double
@@ -1795,10 +2445,10 @@ TG2_scheme::Uys_flux_formula_x (const double& hw, const double& hs, const double
 { return (hs>epsilon ? Uys*Uxs/hs : 0.); }
 
 double
-TG2_scheme::Uys_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys)
+TG2_scheme::Uys_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& dp_mean)
 { 
   const auto vel_y = hs>epsilon ? Uys/hs : 0.;
-  return (Uys*vel_y + grav*hs*hs/2. + grav*(1-r_coeff)*hs*hw/2.); 
+  return (Uys*vel_y + grav*hs*hs/2. + grav*(1.-r_coeff)*hs*hw/2. - hw/density_s*dp_mean); 
 }
 
 
@@ -1810,7 +2460,7 @@ TG2_scheme::hw_src_formula (const double& hw, const double& hs, const double& Ux
   const auto Ux = Uxw + Uxs;
   const auto Uy = Uyw + Uys;
   const auto nw = h>epsilon ? hw/h : 0.;
-  return (nw*erosion_coefficient*std::sqrt(Ux*Ux+Uy*Uy)); 
+  return (nw*erosion_coefficient*std::sqrt(Ux*Ux + Uy*Uy)); 
 }
 
 double
@@ -1820,7 +2470,7 @@ TG2_scheme::hs_src_formula (const double& hw, const double& hs, const double& Ux
   const auto Ux = Uxw + Uxs; 
   const auto Uy = Uyw + Uys;
   const auto ns = h>epsilon ? hs/h : 0.;
-  return (ns*erosion_coefficient*std::sqrt(Ux*Ux+Uy*Uy)); 
+  return (ns*erosion_coefficient*std::sqrt(Ux*Ux + Uy*Uy)); 
 }
 
 double
@@ -1857,12 +2507,12 @@ TG2_scheme::Uyw_src_formula (const double& hw, const double& hs, const double& U
 }
 
 double
-TG2_scheme::Uxs_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys)
+TG2_scheme::Uxs_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& bed_excess_pore_water_pressure)
 {
   const auto h = hw+hs;
   const auto n  = h>epsilon ? hw/h : 0.;
   const auto ns = h>epsilon ? hs/h : 0.;
-  const double bed_pressure = grav*h*ns*(1.-density_w/density_s); 
+  const double bed_pressure = grav*hs*(1.-r_coeff) - bed_excess_pore_water_pressure/density_s; 
   const auto Ux = Uxw + Uxs; 
   const auto Uy = Uyw + Uys;
   const double vel_x = h>epsilon ? Ux/h : 0.;
@@ -1873,9 +2523,9 @@ TG2_scheme::Uxs_src_formula (const double& hw, const double& hs, const double& U
   const double vel_w_x = hw>epsilon ? Uxw/hw : 0.;
   const double vel_s_x = hs>epsilon ? Uxs/hs : 0.;
 
-  const double density = ns + n*density_w/density_s;
+  const double density = ns + n*r_coeff;
 
-  const double C_d = (hw>epsilon && h>epsilon) ? n*ns/std::pow(n, m_coeff)/terminal_velocity*(1.-density_w/density_s)*grav : 0.;
+  const double C_d = (hw>epsilon && h>epsilon) ? n*ns/std::pow(n, m_coeff)/terminal_velocity*(1.-r_coeff)*grav : 0.;
   const double R_x = C_d*(vel_w_x-vel_s_x);
 
   //std::cout << h << " " << dhdx << " " << dZdx << " " << grav*h*(dZdx+dhdx) << std::endl;
@@ -1893,12 +2543,12 @@ TG2_scheme::Uxs_src_formula (const double& hw, const double& hs, const double& U
 }
 
 double
-TG2_scheme::Uys_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys)
+TG2_scheme::Uys_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& bed_excess_pore_water_pressure)
 {
   const auto h = hw+hs;
   const auto n  = h>epsilon ? hw/h : 0.;
   const auto ns = h>epsilon ? hs/h : 0.;
-  const double bed_pressure = grav*h*ns*(1.-density_w/density_s);
+  const double bed_pressure = grav*hs*(1.-r_coeff) - bed_excess_pore_water_pressure/density_s;
   const auto Ux = Uxw + Uxs;
   const auto Uy = Uyw + Uys;
   const double vel_x = h>epsilon ? Ux/h : 0.;
@@ -1910,9 +2560,9 @@ TG2_scheme::Uys_src_formula (const double& hw, const double& hs, const double& U
   const double vel_w_y = hw>epsilon ? Uyw/hw : 0.;
   const double vel_s_y = hs>epsilon ? Uys/hs : 0.;
 
-  const double density = ns + n*density_w/density_s;
+  const double density = ns + n*r_coeff;
 
-  const double C_d = (hw>epsilon && h>epsilon) ? n*ns/std::pow(n, m_coeff)/terminal_velocity*(1.-density_w/density_s)*grav : 0.;
+  const double C_d = (hw>epsilon && h>epsilon) ? n*ns/std::pow(n, m_coeff)/terminal_velocity*(1.-r_coeff)*grav : 0.;
 
   const double R_y = C_d*(vel_w_y-vel_s_y);
 
@@ -1964,4 +2614,6 @@ TG2_scheme::src_slope_formula (const double& h, const double& S)
 double
 TG2_scheme::signum (const double& x)
 { return ((x > 0) ? 1.0 : (x < 0) ? -1.0 : 0.0); }
+
+
 

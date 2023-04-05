@@ -30,12 +30,18 @@ public:
              Q1& P_minus,
              Q0& sol_onehalf,
              Q1& mass,
+             Q1& excess_pore_water_pressure,
+             Q0& excess_pore_water_pressure_onehalf,
+             Q1& excess_pore_water_pressure_incr,
              const ordering& ohw,
              const ordering& ohs,
              const ordering& oUxw,
              const ordering& oUyw,
              const ordering& oUxs,
              const ordering& oUys,
+             const std::vector<ordering>& oPwp_set,
+             const ordering& oBottom,
+             const ordering& oSurface,
              Q1& Z,
              Q0& Z_onehalf,
              const double& DELTAT,
@@ -49,7 +55,11 @@ public:
              const double& bed_friction_angle_rad,
              const double& erosion_coefficient,
              const double& m_coeff,
-             const double& terminal_velocity);
+             const double& terminal_velocity,
+             const double& odometric_coeff,
+             const double& consolidation_coefficient,
+             const double& thr_erodible_layer,
+             const int& number_FD_points);
   
   TG2_scheme() = delete;
   
@@ -57,7 +67,7 @@ public:
   
 
   std::array<double,2>
-  max_eigen (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  max_eigen (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& dp_mean);
   
   void
   compute_dt (tmesh::quadrant_iterator quadrant);
@@ -66,16 +76,34 @@ public:
   compute_dt_adaptive (tmesh::quadrant_iterator quadrant);
 
   void
-  solve_non_lin(const int& kk);
+  solve_non_lin_h(const int& kk);
+
+  void
+  solve_non_lin_U(const int& kk);
+
+  void
+  Newton_mass_balance(double& hw_c, double& hs_c, const double& Uxw_c, const double& Uyw_c, const double& Uxs_c, const double& Uys_c);
+
+  void
+  Newton_momentum_balance(const double& hw_c, const double& hs_c, double& Uxw_c, double& Uyw_c, double& Uxs_c, double& Uys_c, const double& bed_excess_pore_water_pressure);
   
   void
   first_step (tmesh::quadrant_iterator quadrant);
+
+  void
+  first_step_consolidation (tmesh::quadrant_iterator quadrant);
 
   void
   compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadrant);
   
   void
   second_step (tmesh::quadrant_iterator quadrant);
+
+  void
+  terminate_second_step (tmesh::quadrant_iterator quadrant);
+
+  void
+  solve_second_step_cons_equation (tmesh::quadrant_iterator quadrant);
   
   void
   flux_limiter(const double& Q_min, const double& Q_max, const double& Q_dof, const double& P_plus_Q, const double& P_minus_Q, const double& flux_on_the_node, const double& mass_node, double& phi_cell_Q);
@@ -119,6 +147,9 @@ public:
   set_dt (const double dt_);
 
   void
+  set_tau ();
+
+  void
   set_old_dt (const double dt_);
   
   void
@@ -135,12 +166,24 @@ public:
 
   void
   stabilization_term(const int& kk);
+
+  double
+  linear_interpolation(const int& kk, const int& index_quadrant_c, const double& h_tot_old, const double& hdof_c, const double& Ux_tot_c, const double & Uy_tot_c);
+
+  std::array<double,2>
+  linear_interpolation(const int& kk, const double& h_tot_old, const double& hdof_c, const double& Ux_tot_c, const double & Uy_tot_c);
+
+  double
+  linear_interpolation(const int& kkk_ini, const double& delta_h_old, const double& Z_moved);
+
+  std::array<double,2>
+  linear_interpolation_second(const double& Z_node_c, const std::array<double,2>& ZZ, const int& kkk_ini, const double& hdofold, const double& h_cell, const double& Ux_cell, const double & Uy_cell);
   
   double
   get_dt ();
   
   
-  double dt, dt_old;
+  double dt, dt_old, tau;
   
   double Dx, Dy, area;
   
@@ -164,6 +207,9 @@ public:
   // local dofs for state vector components
   std::array<double, 4> etawdof = {0, 0, 0, 0};
   std::array<double, 4> etasdof = {0, 0, 0, 0};
+  std::array<double, 4> hdofold = {0, 0, 0, 0};
+  std::array<double, 4> hwdofold = {0, 0, 0, 0};
+  std::array<double, 4> hsdofold = {0, 0, 0, 0};
   std::array<double, 4> hdof    = {0, 0, 0, 0};
   std::array<double, 4> hwdof   = {0, 0, 0, 0};
   std::array<double, 4> hsdof   = {0, 0, 0, 0};
@@ -174,6 +220,10 @@ public:
   std::array<double, 4> Z_node  = {0, 0, 0, 0};
   std::array<double, 4> n_node  = {0, 0, 0, 0};
   std::array<double, 4> ns_node = {0, 0, 0, 0};
+  std::array<double, 4> solid_vel_x = {0, 0, 0, 0};
+  std::array<double, 4> solid_vel_y = {0, 0, 0, 0};
+  std::array<double, 4> liquid_vel_x = {0, 0, 0, 0};
+  std::array<double, 4> liquid_vel_y = {0, 0, 0, 0};
   std::array<double, 4> P_plus_hw_dof   = {0, 0, 0, 0};
   std::array<double, 4> P_minus_hw_dof  = {0, 0, 0, 0};
   std::array<double, 4> P_plus_hs_dof   = {0, 0, 0, 0};
@@ -194,6 +244,7 @@ public:
   std::array<double, 4> fluxx_Uxs_node   = {0, 0, 0, 0}, fluxy_Uxs_node   = {0, 0, 0, 0};
   std::array<double, 4> fluxx_Uys_node   = {0, 0, 0, 0}, fluxy_Uys_node   = {0, 0, 0, 0};
   
+
   
   
   // flux functions
@@ -210,7 +261,7 @@ public:
   hs_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uxw_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uxw_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& dp_mean);
   
   double
   Uxw_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
@@ -219,10 +270,10 @@ public:
   Uyw_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uyw_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uyw_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& dp_mean);
 
   double
-  Uxs_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uxs_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& dp_mean);
   
   double
   Uxs_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
@@ -231,7 +282,7 @@ public:
   Uys_flux_formula_x (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uys_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uys_flux_formula_y (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& dp_mean);
   
 
 
@@ -252,10 +303,10 @@ public:
   hs_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
-  Uxs_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uxs_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& bed_excess_pore_water_pressure);
   
   double
-  Uys_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
+  Uys_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& bed_excess_pore_water_pressure);
 
   double
   Uxw_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
@@ -291,11 +342,14 @@ public:
   Q1& Z;
   Q0& Z_onehalf;
   Q1& mass;
+  Q1& excess_pore_water_pressure;
+  Q0& excess_pore_water_pressure_onehalf;
+  Q1& excess_pore_water_pressure_incr;
   
 private:
 
   std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y, der_coeffs_x_s, der_coeffs_y_s, D_U;
-  std::array<double, 2> grad_cell_Zn, grad_cell_Zns, grad_cell_eta, grad_cell_Z, grad_cell_hw, grad_cell_hs, grad_cell_Uxw, grad_cell_Uyw, grad_cell_Uxs, grad_cell_Uys, grad_cell_ux, grad_cell_uy, grad_cell_spec;
+  std::array<double, 2> grad_cell_dp, grad_cell_Z, grad_cell_hw, grad_cell_hs, grad_cell_Uxw, grad_cell_Uyw, grad_cell_Uxs, grad_cell_Uys, grad_cell_dp_mean;
   
   const ordering& ordhw;
   const ordering& ordhs;
@@ -303,6 +357,9 @@ private:
   const ordering& ordUyw;
   const ordering& ordUxs;
   const ordering& ordUys;
+  const std::vector<ordering>& ordPwp_set;
+  const ordering& ordBottom;
+  const ordering& ordSurface;
   const double& DELTAT;
   const double& epsilon;
   const bool& is_non_reflBC;
@@ -315,8 +372,27 @@ private:
   const double& bed_friction_angle_rad;
   const double& m_coeff;
   const double& terminal_velocity;
+  const double& odometric_coeff;
+  const double& consolidation_coefficient;
+  const double& thr_erodible_layer;
+  const int& number_FD_points;
 
   double w0, w1;
+
+  int index_quadrant, index_quadrant_local;
+
+  double hw_cell_average = 0., hs_cell_average = 0., erosion_contribution = 0.;
+
+  std::array<double,4> dp_mean_vec = {0., 0., 0., 0.};
+
+  std::vector<std::array<double,4>> contr_x(number_FD_points);
+  std::vector<std::array<double,4>> contr_y(number_FD_points);
+
+  std::vector<double> a_coeff_vec(number_FD_points); 
+  std::vector<double> b_coeff_vec(number_FD_points-1); 
+  std::vector<double> c_coeff_vec(number_FD_points-1);
+  std::vector<double> c_star     (number_FD_points);
+  std::vector<double> d_star     (number_FD_points);
 
   // 5 arrays of storage as in Verwer's paper IMEX-RKCs,
   std::vector<double> b_vect, mu_tilde_vect, gamma_tilde_vect, v_vect, mu_vect;
