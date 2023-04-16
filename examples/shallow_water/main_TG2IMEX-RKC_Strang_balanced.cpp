@@ -333,7 +333,7 @@ main (int argc, char **argv)
                  res                                      = input_data["raster resolution"];
                  Nx                                       = input_data["number raster columns"];
                  Ny                                       = input_data["number raster rows"];
-                 NUM_REFINEMENTS                          = input_data["initial level of reniment"];
+                 NUM_REFINEMENTS                          = input_data["initial level of refinement"];
   const double & REDCDT                                   = input_data["CFL condition"];
   const double & T                                        = input_data["final time in seconds"];
   const double & SPACE_ADAPTDT                            = input_data["space adaptation procedure interval in seconds"];
@@ -1461,7 +1461,7 @@ main (int argc, char **argv)
       interpolate_vector (tmsh, sol_dyn, sol, ordh);
       interpolate_vector (tmsh, sol_dyn, sol, ordUx);
       interpolate_vector (tmsh, sol_dyn, sol, ordUy);
-      //sol.assemble (replace_op);
+      sol.assemble (replace_op);
       
       Q1 sold (ln_nodes * 3);
       bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordh,  false);
@@ -1470,7 +1470,7 @@ main (int argc, char **argv)
       interpolate_vector (tmsh, sold_dyn, sold, ordh);
       interpolate_vector (tmsh, sold_dyn, sold, ordUx);
       interpolate_vector (tmsh, sold_dyn, sold, ordUy);
-      //sold.assemble (replace_op);
+      sold.assemble (replace_op);
       
       
       Q1 soldd (ln_nodes * 3);
@@ -1480,7 +1480,7 @@ main (int argc, char **argv)
       interpolate_vector (tmsh, soldd_dyn, soldd, ordh );
       interpolate_vector (tmsh, soldd_dyn, soldd, ordUy);
       interpolate_vector (tmsh, soldd_dyn, soldd, ordUx);
-      //soldd.assemble (replace_op);
+      soldd.assemble (replace_op);
       
       
       Q1 incr (ln_nodes * 3);
