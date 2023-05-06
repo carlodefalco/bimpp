@@ -339,11 +339,11 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
         Xn[ii] = quadrant_nei->p(0, ii);
         Yn[ii] = quadrant_nei->p(1, ii);
 
-        if (! quadrant->is_hanging (ii)){
-          Z_node_nei[ii]  = Z [quadrant->gt (ii)];
+        if (! quadrant_nei->is_hanging (ii)){
+          Z_node_nei[ii]  = Z [quadrant_nei->gt (ii)];
         } else {
-          Z_node_nei[ii]  = .5 * (Z [quadrant->gparent(0,ii)] +
-            Z [quadrant->gparent(1,ii)]);
+          Z_node_nei[ii]  = .5 * (Z [quadrant_nei->gparent(0,ii)] +
+                                  Z [quadrant_nei->gparent(1,ii)]);
         }
   
       }
@@ -679,7 +679,6 @@ TG2_scheme::loop_step (const int& kk, const bool& isInitial) //
 void
 TG2_scheme::compute_stress_slope (tmesh::quadrant_iterator quadrant, const bool& isInitial)
 {
-  const auto & index_quadrant = quadrant->get_forest_quad_idx (); 
   const std::array<double,4> zeros_array = {0, 0, 0, 0};
   std::array<std::array<double,4>, 4 > delta_incr_mat = {zeros_array, zeros_array, zeros_array, zeros_array};
 
@@ -880,13 +879,12 @@ TG2_scheme::compute_stress_slope (tmesh::quadrant_iterator quadrant, const bool&
     const double h_  = 0.;
     const double Ux_ = area*.25*(der_phi_x[ii]*D_U[ii]*sigma_stress[0] + der_phi_y[ii]*D_U[ii]*sigma_stress[2]);
     const double Uy_ = area*.25*(der_phi_x[ii]*D_U[ii]*sigma_stress[2] + der_phi_y[ii]*D_U[ii]*sigma_stress[1]); 
-    
 
-    /*
+/*    
     const double h_  = 0.;
     const double Ux_ = der_coeffs_x[ii]*(1./3.)*sigma_stress[0]*contribution_exact + der_coeffs_y[ii]*(1./3.)*sigma_stress[2]*contribution_exact;
     const double Uy_ = der_coeffs_x[ii]*(1./3.)*sigma_stress[2]*contribution_exact + der_coeffs_y[ii]*(1./3.)*sigma_stress[1]*contribution_exact;
-    */
+*/    
 
     double h_s = 0., Ux_s = 0., Uy_s = 0.;
     for (int jj = 0; jj < 4; ++jj)
@@ -902,13 +900,13 @@ TG2_scheme::compute_stress_slope (tmesh::quadrant_iterator quadrant, const bool&
       const auto & sUy3_incr = sUx4_incr;//(sigma_stress_incr_Uy[jj][2]-sigma_stress[2])/tol_incr;
       const auto   sUy4_incr = (sigma_stress_incr_Uy[jj][1]-sigma_stress[1])/tol_incr;
 
-      /*
+/*    
       Ux_s += std::abs( der_coeffs_x[ii]*(1./3.)*sUx1_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*sUx2_incr*contribution_exact );
       Ux_s += std::abs( der_coeffs_x[ii]*(1./3.)*sUx3_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*sUx4_incr*contribution_exact );
 
       Uy_s += std::abs( der_coeffs_x[ii]*(1./3.)*sUy1_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*sUy2_incr*contribution_exact );
       Uy_s += std::abs( der_coeffs_x[ii]*(1./3.)*sUy3_incr*contribution_exact + der_coeffs_y[ii]*(1./3.)*sUy4_incr*contribution_exact );
-      */
+*/      
 
 
       Ux_s += std::abs( area*.25*(der_phi_x[ii]*D_U[ii]*sUx1_incr + der_phi_y[ii]*D_U[ii]*sUx2_incr) );
@@ -1237,6 +1235,11 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
 
   double error; 
 
+  auto & h_c  = sol.get_owned_data ()[kk  ];
+  auto & Ux_c = sol.get_owned_data ()[kk+1];
+  auto & Uy_c = sol.get_owned_data ()[kk+2];
+
+  //std::cout << mu_tilde_vect[1] << std::endl;
 
   if (j == 1)
   {
@@ -1247,14 +1250,21 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
   {
     v_x = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+1] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+1] + 
     v_vect[j]*soldd_rkc.get_owned_data ()[kk+1] + mu_tilde_vect[j]*dt*stress_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + 
-    gamma_tilde_vect[j]*dt*stress_initial_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] +  
-    (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk+1] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+1];
+    gamma_tilde_vect[j]*dt*stress_initial_step.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] 
+    + (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk+1] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+1];
 
     v_y = (1. - mu_vect[j] - v_vect[j])*sol_ini_rkc.get_owned_data ()[kk+2] + mu_vect[j]*sold_rkc.get_owned_data ()[kk+2] + 
     v_vect[j]*soldd_rkc.get_owned_data ()[kk+2] + mu_tilde_vect[j]*dt*stress_step.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + 
-    gamma_tilde_vect[j]*dt*stress_initial_step.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] +
-    (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk+2] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+2];
+    gamma_tilde_vect[j]*dt*stress_initial_step.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]
+    + (gamma_tilde_vect[j]*mu_tilde_vect[1]*mu_vect[j]/mu_tilde_vect[j] - (1. - mu_vect[j] - v_vect[j])*mu_tilde_vect[1])*dt*incr_initial_source.get_owned_data ()[kk+2] - v_vect[j]*mu_tilde_vect[1]*dt*incr_source.get_owned_data ()[kk+2];
   }
+
+  Ux_c = v_x;
+  Uy_c = v_y;
+
+  //std::cout << stress_step.get_owned_data ()[kk+2] << " " << stress_initial_step.get_owned_data ()[kk+2] << std::endl;
+
+  //std::cout << gamma_tilde_vect[j] << " " << mu_vect[j] << " " << j << std::endl;
 
 
   // solve non-linearities
@@ -1262,17 +1272,15 @@ TG2_scheme::rkc(const int& j, const int& s, const int& kk)
   error = tolerance + 1;
   while (count++<Nmax && error>tolerance)
   {
-    const auto & h_c  = sol.get_owned_data ()[kk  ];
-    const auto & Ux_c = sol.get_owned_data ()[kk+1];
-    const auto & Uy_c = sol.get_owned_data ()[kk+2];
-
     const auto delta_Ux = (- Ux_c + v_x + mu_tilde_vect[1]*dt*Ux_src_formula(h_c, Ux_c, Uy_c))/Ux_jac_source(h_c, Ux_c, Uy_c);
     const auto delta_Uy = (- Uy_c + v_y + mu_tilde_vect[1]*dt*Uy_src_formula(h_c, Ux_c, Uy_c))/Uy_jac_source(h_c, Ux_c, Uy_c);
 
+    //std::cout << delta_Ux << " " << delta_Uy << " " << count << std::endl;
+
     error = std::sqrt(delta_Ux*delta_Ux + delta_Uy*delta_Uy);
 
-    sol.get_owned_data ()[kk+1] += delta_Ux;
-    sol.get_owned_data ()[kk+2] += delta_Uy;
+    Ux_c += delta_Ux;
+    Uy_c += delta_Uy;
   }
   if (j == s) Newton_it.get_owned_data ()[int(kk/3)] = double(count);
 
