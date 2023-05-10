@@ -19,15 +19,13 @@ public:
   TG2_scheme(Q1& sol,
              Q1& sold,
              Q1& soldd,
-             Q1& sold_rkc,
-             Q1& soldd_rkc,
-             Q1& sol_ini_rkc,
              Q1& incr,
-             Q1& incr_initial_source,
-             Q1& incr_source,
              std::vector<std::array<double,4>>& incr_anti_diff,
+             std::vector<std::array<double,4>>& incr_anti_diff_pressure,
              Q1& P_plus,
              Q1& P_minus,
+             Q1& P_plus_pressure,
+             Q1& P_minus_pressure,
              Q0& sol_onehalf,
              Q1& mass,
              Q1& excess_pore_water_pressure,
@@ -39,7 +37,6 @@ public:
              const ordering& oUyw,
              const ordering& oUxs,
              const ordering& oUys,
-             const std::vector<ordering>& oPwp_set,
              const ordering& oBottom,
              const ordering& oSurface,
              Q1& Z,
@@ -48,6 +45,7 @@ public:
              const double& h_min,
              const bool& is_non_reflBC,
              const bool& is_bed_friction,
+             const bool& is_pore_water_pressure,
              const double& grav,
              const double& density_w,
              const double& density_s,
@@ -100,6 +98,9 @@ public:
   second_step (tmesh::quadrant_iterator quadrant);
 
   void
+  second_step_pressure (tmesh::quadrant_iterator quadrant, const int& kkk);
+
+  void
   terminate_second_step (tmesh::quadrant_iterator quadrant);
 
   void
@@ -107,41 +108,6 @@ public:
   
   void
   flux_limiter(const double& Q_min, const double& Q_max, const double& Q_dof, const double& P_plus_Q, const double& P_minus_Q, const double& flux_on_the_node, const double& mass_node, double& phi_cell_Q);
-
-  void
-  rkc(const int& j, const int& s, const int& kk);
-
-  /*
-  void
-  mu_fun(const int& s);
-
-  void
-  v_fun(const int& s);
-
-  void
-  gamma_tilde_fun(const int& s);
-
-  void
-  T_fun_second(const int& s);
-  
-  void
-  T_fun_prime(const int& s);
-
-  void
-  T_fun(const int& s);
-
-  void
-  w_fun_0(const int& s);
-
-  void
-  w_fun_1(const int& s);
-
-  void
-  b_fun(const int& s);
-
-  void
-  mu_fun_tilde (const int& s);
-  */
 
   void
   set_dt (const double dt_);
@@ -176,8 +142,8 @@ public:
   double
   linear_interpolation(const int& kkk_ini, const double& delta_h_old, const double& Z_moved);
 
-  std::array<double,2>
-  linear_interpolation_second(const double& Z_node_c, const std::array<double,2>& ZZ, const int& kkk_ini, const double& hdofold, const double& h_cell, const double& Ux_cell, const double & Uy_cell);
+  double
+  linear_interpolation_second(const double& Z_node_c, const double& delta_h_old, const double& Pxi, const double& Z_2, const int& kkk_ini, const double& hdofold_c);
   
   double
   get_dt ();
@@ -210,6 +176,7 @@ public:
   std::array<double, 4> hdofold = {0, 0, 0, 0};
   std::array<double, 4> hwdofold = {0, 0, 0, 0};
   std::array<double, 4> hsdofold = {0, 0, 0, 0};
+  std::array<double, 4> dp_kk_dof    = {0, 0, 0, 0};
   std::array<double, 4> hdof    = {0, 0, 0, 0};
   std::array<double, 4> hwdof   = {0, 0, 0, 0};
   std::array<double, 4> hsdof   = {0, 0, 0, 0};
@@ -217,6 +184,12 @@ public:
   std::array<double, 4> Uywdof  = {0, 0, 0, 0};
   std::array<double, 4> Uxsdof  = {0, 0, 0, 0};
   std::array<double, 4> Uysdof  = {0, 0, 0, 0};
+  std::array<double, 4> hwdof_nei   = {0, 0, 0, 0};
+  std::array<double, 4> hsdof_nei   = {0, 0, 0, 0};
+  std::array<double, 4> Uxwdof_nei  = {0, 0, 0, 0};
+  std::array<double, 4> Uywdof_nei  = {0, 0, 0, 0};
+  std::array<double, 4> Uxsdof_nei  = {0, 0, 0, 0};
+  std::array<double, 4> Uysdof_nei  = {0, 0, 0, 0};
   std::array<double, 4> Z_node  = {0, 0, 0, 0};
   std::array<double, 4> n_node  = {0, 0, 0, 0};
   std::array<double, 4> ns_node = {0, 0, 0, 0};
@@ -236,6 +209,8 @@ public:
   std::array<double, 4> P_minus_Uxs_dof = {0, 0, 0, 0};
   std::array<double, 4> P_plus_Uys_dof  = {0, 0, 0, 0};
   std::array<double, 4> P_minus_Uys_dof = {0, 0, 0, 0};
+  std::array<double, 4> P_plus_pressure_dp_kk_dof  = {0, 0, 0, 0};
+  std::array<double, 4> P_minus_pressure_dp_kk_dof = {0, 0, 0, 0};
   
   std::array<double, 4> fluxx_hw_node    = {0, 0, 0, 0}, fluxy_hw_node    = {0, 0, 0, 0};
   std::array<double, 4> fluxx_hs_node    = {0, 0, 0, 0}, fluxy_hs_node    = {0, 0, 0, 0};
@@ -314,30 +289,32 @@ public:
   double
   Uyw_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
 
-
   void
-  prepare_IMEXRKC_coefficients (const int& s);
+  thomas_algorithm(const double& mu_coeff, const int& kk_, const int& kk_ini, const int& kk_fin, const int& kk_ini_bottom);
 
   double
   signum (const double& x);
+
+  void
+  resize_vectors();
   
   double time, timed, timedd;
   double nu_htot = 0.;
   double Fr = 0.;
   double g_coeff = 0.;
+
+  double cfl_dp = .9;
   
   Q1& sol;
   Q1& sold;
   Q1& soldd;
-  Q1& sold_rkc;
-  Q1& soldd_rkc;
-  Q1& sol_ini_rkc;
   Q1& incr;
-  Q1& incr_initial_source;
-  Q1& incr_source;
   std::vector<std::array<double,4>>& incr_anti_diff;
+  std::vector<std::array<double,4>>& incr_anti_diff_pressure;
   Q1& P_plus;
   Q1& P_minus;
+  Q1& P_plus_pressure;
+  Q1& P_minus_pressure;
   Q0& sol_onehalf;
   Q1& Z;
   Q0& Z_onehalf;
@@ -349,7 +326,7 @@ public:
 private:
 
   std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y, der_coeffs_x_s, der_coeffs_y_s, D_U;
-  std::array<double, 2> grad_cell_dp, grad_cell_Z, grad_cell_hw, grad_cell_hs, grad_cell_Uxw, grad_cell_Uyw, grad_cell_Uxs, grad_cell_Uys, grad_cell_dp_mean;
+  std::array<double, 2> grad_cell_vsx, grad_cell_vsy, grad_cell_dp, grad_cell_Z, grad_cell_hw, grad_cell_hs, grad_cell_Uxw, grad_cell_Uyw, grad_cell_Uxs, grad_cell_Uys, grad_cell_dp_mean;
   
   const ordering& ordhw;
   const ordering& ordhs;
@@ -357,7 +334,6 @@ private:
   const ordering& ordUyw;
   const ordering& ordUxs;
   const ordering& ordUys;
-  const std::vector<ordering>& ordPwp_set;
   const ordering& ordBottom;
   const ordering& ordSurface;
   const double& DELTAT;
@@ -369,6 +345,7 @@ private:
   const double& density_s;
   const double& turbulence_coeff;
   const bool& is_bed_friction;
+  const bool& is_pore_water_pressure;
   const double& bed_friction_angle_rad;
   const double& m_coeff;
   const double& terminal_velocity;
@@ -377,7 +354,6 @@ private:
   const double& thr_erodible_layer;
   const int& number_FD_points;
 
-  double w0, w1;
 
   int index_quadrant, index_quadrant_local;
 
@@ -385,28 +361,29 @@ private:
 
   std::array<double,4> dp_mean_vec = {0., 0., 0., 0.};
 
-  std::vector<std::array<double,4>> contr_x(number_FD_points);
-  std::vector<std::array<double,4>> contr_y(number_FD_points);
+  std::vector<std::array<double,4>> contr_x;
+  std::vector<std::array<double,4>> contr_y;
 
-  std::vector<double> a_coeff_vec(number_FD_points); 
-  std::vector<double> b_coeff_vec(number_FD_points-1); 
-  std::vector<double> c_coeff_vec(number_FD_points-1);
-  std::vector<double> c_star     (number_FD_points);
-  std::vector<double> d_star     (number_FD_points);
+  std::vector<double> alfa_vec;
+  std::vector<double> beta_vec;
+  std::vector<double>    y_vec;
 
   // 5 arrays of storage as in Verwer's paper IMEX-RKCs,
-  std::vector<double> b_vect, mu_tilde_vect, gamma_tilde_vect, v_vect, mu_vect;
+  //std::vector<double> b_vect, mu_tilde_vect, gamma_tilde_vect, v_vect, mu_vect;
 
   const double r_coeff = density_w/density_s;
 
-  const double tol_incr = 1e-8;
-
-  const double epsilon_IMEXRKC = 2./13.;
-
   const double tolerance_sign = 1.e0; 
 
-  const double regularization_parameter = 1e3; // has dimension of seconds, in this case the limit of the Bingham viscosity for small I_{2,D} exists finites
-  
+  const double tolerance = 1.e-4; 
+  const int Nmax = 1e3;
+  int count;
+  double error;
+
+  double dp_old = 0;
+  std::array<double,2> grad_dp_old = {0,0};
+  std::array<double,4> pressure = {0,0,0,0};
+
 };
 
 
