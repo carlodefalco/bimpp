@@ -16,7 +16,7 @@ check_PROGRAMS = sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 bim3_sta
                  bim3_stationary_test2 bim3_stationary_test2_osc bim3_stationary_test3 \
                  bim3_stationary_test3_osc bim3_stationary_test4 bim3_timedependent_test \
                  bim3_timedependent_test2 bim3_timedependent_test2_osc bim3_timedependent_test3 \
-                 bim3_timedependent_test3_osc 
+                 bim3_timedependent_test3_osc distributed_sparse_test.mpi
 
 if HAVE_LIS
   check_PROGRAMS += lis_stationary_test lis_timedependent_test linear_solver_test \
@@ -39,6 +39,12 @@ endif
 # schur_test_SOURCES = schur_test.cpp
 # CLEANFILES += 
 # schur_test_LDADD = $(BIMLIB) $(BIMMUMPSLIB) $(BIMLISLIB)
+
+distributed_sparse_test_mpi_SOURCES =  distributed_sparse_test.cpp
+distributed_sparse_test_mpi_CPPFLAGS =  $(AM_CPPFLAGS)
+distributed_sparse_test_mpi_LDFLAGS =  $(AM_LDFLAGS)  
+distributed_sparse_test_mpi_LDADD = $(BIMLIB) $(BIMIOLIB) $(BIMLINALGLIB)
+CLEANFILES += 
 
 sparse_test_SOURCES = sparse_test.cpp
 CLEANFILES += first_solve.txt second_solve.txt
@@ -324,7 +330,7 @@ TESTS += sparse_test bim3_test bim3_test2 bim3_test3 bim3_test4 \
 	 bim3_stationary_test bim3_stationary_test2 bim3_stationary_test2_osc \
          bim3_stationary_test3 bim3_stationary_test3_osc bim3_stationary_test4 \
          bim3_timedependent_test bim3_timedependent_test2 bim3_timedependent_test2_osc \
-         bim3_timedependent_test3 bim3_timedependent_test3_osc 
+         bim3_timedependent_test3 bim3_timedependent_test3_osc distributed_sparse_test.mpi
 
 if HAVE_LIS
 TESTS += linear_solver_test linear_solver_test_repeated \

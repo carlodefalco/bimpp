@@ -266,6 +266,28 @@ operator<< (std::ostream &stream,
 }
 
 distributed_vector
+operator * (distributed_sparse_matrix& M, const distributed_vector& x)
+{
+  distributed_vector y (x.get_range_start (), x.get_range_end ());
+  distributed_vector X (x.get_range_start (), x.get_range_end ());
+  X.get_owned_data () = x.get_owned_data ();
+  for (auto ir = M.range_start (); ir < M.range_end (); ++ir) {
+    for (auto jc = M[ir].begin (); jc != M[ir].end (); ++jc) {
+      X(M.col_idx (jc)) += 0.;
+    }
+  }
+  
+  X.assemble (replace_op);
+  for (auto ir = M.range_start (); ir < M.range_end (); ++ir) {
+    for (auto jc = M[ir].begin (); jc != M[ir].end (); ++jc) {
+      y(M.col_idx (jc)) += M.col_val (jc) * X[M.col_idx (jc)];
+    }
+  }
+  return y;
+}
+
+
+distributed_vector
 operator * (sparse_matrix& M, const distributed_vector& x)
 {
   distributed_vector y (x.get_range_start (), x.get_range_end ());
