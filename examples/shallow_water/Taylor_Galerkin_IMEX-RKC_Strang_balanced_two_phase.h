@@ -55,7 +55,7 @@ public:
              const double& m_coeff,
              const double& terminal_velocity,
              const double& odometric_coeff,
-             const double& consolidation_coefficient,
+                   double& consolidation_coefficient,
              const double& thr_erodible_layer,
              const int& number_FD_points);
   
@@ -80,10 +80,10 @@ public:
   solve_non_lin_U(const int& kk);
 
   void
-  Newton_mass_balance(double& hw_c, double& hs_c, const double& Uxw_c, const double& Uyw_c, const double& Uxs_c, const double& Uys_c);
+  Newton_mass_balance(double& hw_c, double& hs_c, const double& Uxw_c, const double& Uyw_c, const double& Uxs_c, const double& Uys_c, const double& tau_);
 
   void
-  Newton_momentum_balance(const double& hw_c, const double& hs_c, double& Uxw_c, double& Uyw_c, double& Uxs_c, double& Uys_c, const double& bed_excess_pore_water_pressure);
+  Newton_momentum_balance(const double& hw_c, const double& hs_c, double& Uxw_c, double& Uyw_c, double& Uxs_c, double& Uys_c, const double& bed_excess_pore_water_pressure, const double& tau_);
   
   void
   first_step (tmesh::quadrant_iterator quadrant);
@@ -133,6 +133,32 @@ public:
   void
   stabilization_term(const int& kk);
 
+  template <class T>
+  void
+  numerical_integration_pressure(const int& kk, double& dp_mean, T& vv, const double& is_dof_or_hanging)
+  {
+    for (int kkk=kk; kkk<kk+number_FD_points-1; kkk+=2) 
+    {
+      //std::cout << vv.get_owned_data ()[kkk] << " " << vv.get_owned_data ()[kkk+1] << " " << vv.get_owned_data ()[kkk+2] << std::endl;
+      dp_mean += (1./3.)*(vv.get_owned_data ()[kkk] + 4.*vv.get_owned_data ()[kkk+1] + vv.get_owned_data ()[kkk+2]);
+    }
+    dp_mean /= double(number_FD_points-1);
+    dp_mean *= is_dof_or_hanging;
+  }
+
+  template <class T>
+  void
+  numerical_integration_pressure_2(const int& kk, double& dp_mean, T& vv, const double& is_dof_or_hanging)
+  {
+    for (int kkk=kk; kkk<kk+number_FD_points-1; kkk+=2) 
+    {
+      dp_mean += (1./3.)*(vv[kkk] + 4.*vv[kkk+1] + vv[kkk+2]);
+    }
+    dp_mean /= double(number_FD_points-1);
+    dp_mean *= is_dof_or_hanging;
+  }
+
+
   double
   linear_interpolation(const int& kk, const int& index_quadrant_c, const double& h_tot_old, const double& hdof_c, const double& Ux_tot_c, const double & Uy_tot_c);
 
@@ -149,7 +175,7 @@ public:
   get_dt ();
   
   
-  double dt, dt_old, tau;
+  double dt, dt_old, tau; // tau_c, tau_cc, tau_ccc;
   
   double Dx, Dy, area;
   
@@ -284,6 +310,12 @@ public:
   Uys_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& bed_excess_pore_water_pressure);
 
   double
+  Uxs_src_formula_2 (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& bed_excess_pore_water_pressure);
+  
+  double
+  Uys_src_formula_2 (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys, const double& bed_excess_pore_water_pressure);
+
+  double
   Uxw_src_formula (const double& hw, const double& hs, const double& Uxw, const double& Uyw, const double& Uxs, const double& Uys);
   
   double
@@ -304,6 +336,9 @@ public:
   double g_coeff = 0.;
 
   double cfl_dp = .9;
+  double nthr = 0.01;
+
+  double sf = 1.2;
   
   Q1& sol;
   Q1& sold;
@@ -350,7 +385,7 @@ private:
   const double& m_coeff;
   const double& terminal_velocity;
   const double& odometric_coeff;
-  const double& consolidation_coefficient;
+  double& consolidation_coefficient;
   const double& thr_erodible_layer;
   const int& number_FD_points;
 
