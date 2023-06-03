@@ -54,7 +54,7 @@ public:
              const double& erosion_coefficient,
              const double& m_coeff,
              const double& terminal_velocity,
-             const double& odometric_coeff,
+                   double& odometric_coeff,
                    double& consolidation_coefficient,
              const double& thr_erodible_layer,
              const int& number_FD_points);
@@ -202,10 +202,12 @@ public:
   std::array<double, 4> hdofold = {0, 0, 0, 0};
   std::array<double, 4> hwdofold = {0, 0, 0, 0};
   std::array<double, 4> hsdofold = {0, 0, 0, 0};
+  std::array<double, 4> nwdofold = {0, 0, 0, 0};
   std::array<double, 4> dp_kk_dof    = {0, 0, 0, 0};
   std::array<double, 4> hdof    = {0, 0, 0, 0};
   std::array<double, 4> hwdof   = {0, 0, 0, 0};
   std::array<double, 4> hsdof   = {0, 0, 0, 0};
+  std::array<double, 4> nwdof   = {0, 0, 0, 0};
   std::array<double, 4> Uxwdof  = {0, 0, 0, 0};
   std::array<double, 4> Uywdof  = {0, 0, 0, 0};
   std::array<double, 4> Uxsdof  = {0, 0, 0, 0};
@@ -329,6 +331,9 @@ public:
 
   void
   resize_vectors();
+
+  void
+  set_r_coeff();
   
   double time, timed, timedd;
   double nu_htot = 0.;
@@ -339,7 +344,9 @@ public:
   double nthr = 0.01;
 
   double sf = 1.2;
-  
+
+  double r_coeff = 0.;
+
   Q1& sol;
   Q1& sold;
   Q1& soldd;
@@ -384,7 +391,7 @@ private:
   const double& bed_friction_angle_rad;
   const double& m_coeff;
   const double& terminal_velocity;
-  const double& odometric_coeff;
+  double& odometric_coeff;
   double& consolidation_coefficient;
   const double& thr_erodible_layer;
   const int& number_FD_points;
@@ -392,7 +399,7 @@ private:
 
   int index_quadrant, index_quadrant_local;
 
-  double hw_cell_average = 0., hs_cell_average = 0., erosion_contribution = 0.;
+  double nw_cell_average = 0., ns_cell_average = 0., h_cell_average = 0., hw_cell_average = 0., hs_cell_average = 0., erosion_contribution = 0.;
 
   std::array<double,4> dp_mean_vec = {0., 0., 0., 0.};
 
@@ -406,11 +413,9 @@ private:
   // 5 arrays of storage as in Verwer's paper IMEX-RKCs,
   //std::vector<double> b_vect, mu_tilde_vect, gamma_tilde_vect, v_vect, mu_vect;
 
-  const double r_coeff = density_w/density_s;
+  const double tolerance_sign = 10.; 
 
-  const double tolerance_sign = 1.e0; 
-
-  const double tolerance = 1.e-4; 
+  const double tolerance = 1.e-8; 
   const int Nmax = 1e3;
   int count;
   double error;

@@ -102,10 +102,13 @@ using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;    
 
 double dem_fun (const double& xx, const double& yy)
 { 
-  return(0);
+  //double aa = (xx>5 && xx<50 ? -xx+100 : xx<=5 ? 95. : 50.);
+  //aa += (xx>60 && xx<100 && yy>80 && yy<120 ? 30 : 0.);
+  //return( aa ); 
+  //return(0);
   //return(5.*std::exp(-2./5*(xx-5.)*(xx-5.)));
   //return(xx>4 && xx<8 ? 4. : 0.);
-  return(-xx+L);
+  //return(-xx+L);
   return(raster_value(xx,yy,dem));
 }
 
@@ -122,12 +125,12 @@ double h0_fun (const double& xx, const double& yy)
 { 
   //return(xx>4.5 && xx<5.5 ? 1. : .5);
   //return(1.);
-  return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
-  return(xx<10. ? 10. : 0.);
+  //return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
+  //return(xx<10. ? 1.e-8 : 0.);
   //return(yy>L/2. ? 10. : 0.);
   //return (xx<=L/2. ? 100. : 50.);
-  return(10.-dem_fun(xx,yy));
-  return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
+  //return(10.-dem_fun(xx,yy));
+  //return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
   //return(std::sqrt( (xx-L/2.)*(xx-L/2.) + (yy-H/2.)*(yy-H/2.) )<=L/10 ? 10 : 0. );
   return(raster_value(xx,yy,h_initial_cond));
 }
@@ -321,7 +324,7 @@ main (int argc, char **argv)
                  bed_friction_angle_rad                  *= M_PI/180;
   const double & erosion_coefficient                      = input_data["erosion coefficient"];
   const double & terminal_velocity                        = input_data["terminal velocity"];
-  const double & odometric_coeff                          = input_data["odometric coefficient"];
+        double   odometric_coeff                          = input_data["odometric coefficient"];
         double   consolidation_coefficient                = input_data["consolidation coefficient"];
   const double & m_coeff                                  = input_data["m coefficient"];
   const double & Young_modulus                            = input_data["Young modulus"];
@@ -858,7 +861,7 @@ main (int argc, char **argv)
                  thr_erodible_layer,
                  number_FD_points);
 
-
+  stp.set_r_coeff();
   stp.resize_vectors();
 
 
@@ -1175,6 +1178,8 @@ main (int argc, char **argv)
       const int kk_ = kk_single*6; 
 
       const double hdofold = sold_dyn.get_owned_data ()[kk_] + sold_dyn.get_owned_data ()[kk_+1];
+      const double hdof_c  = sol_dyn .get_owned_data ()[kk_] + sol_dyn .get_owned_data ()[kk_+1];
+
       const double delta_h_old = hdofold/(number_FD_points-1);
 
       //consolidation_coefficient = hdofold>h_min ? odometric_coeff/((sold_dyn.get_owned_data ()[kk_]>h_min && hdofold>h_min && sold_dyn.get_owned_data ()[kk_+1]>h_min) ? sold_dyn.get_owned_data ()[kk_+1]/hdofold/std::pow(sold_dyn.get_owned_data ()[kk_]/hdofold, m_coeff)/terminal_velocity*(density_s-density_w)*grav : 0.) : 1.e-10;
@@ -1187,14 +1192,13 @@ main (int argc, char **argv)
         excess_pore_water_pressure_dyn.get_owned_data ()[kk] = Z_dyn.get_owned_data ()[kk_single]<thr_erodible_layer ? stp.dt*excess_pore_water_pressure_incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk_] : excess_pore_water_pressure_dyn.get_owned_data ()[kk];
         for (int kkk=kk+1; kkk<kk+number_FD_points-1; kkk++) // eliminate the boundaries 
         { 
-          excess_pore_water_pressure_dyn.get_owned_data ()[kkk] = stp.dt*excess_pore_water_pressure_incr_dyn.get_owned_data ()[kkk]/mass_dyn.get_owned_data ()[kk_];
+          excess_pore_water_pressure_dyn.get_owned_data ()[kkk] = hdof_c>h_min ? stp.dt*excess_pore_water_pressure_incr_dyn.get_owned_data ()[kkk]/mass_dyn.get_owned_data ()[kk_] : 0.;
         }
       } 
       else // implicit case   
       {
         //std::cout << "implicit" << std::endl;
         //return 0;
-        const double hdof_c = sol_dyn.get_owned_data ()[kk_] + sol_dyn.get_owned_data ()[kk_+1];
         const double delta_h = hdof_c/(number_FD_points-1);
 
         //consolidation_coefficient = hdof_c>h_min ? odometric_coeff/((sol_dyn.get_owned_data ()[kk_]>h_min && hdof_c>h_min && sol_dyn.get_owned_data ()[kk_+1]>h_min) ? sol_dyn.get_owned_data ()[kk_+1]/hdof_c/std::pow(sol_dyn.get_owned_data ()[kk_]/hdof_c, m_coeff)/terminal_velocity*(density_s-density_w)*grav : 0.) : 1.e-10;
@@ -1239,18 +1243,24 @@ main (int argc, char **argv)
 
     for (auto kk = 0; kk < excess_pore_water_pressure_incr_dyn.get_owned_data ().size (); kk+=number_FD_points)
     {
+      const int kk_single = kk/number_FD_points;
+
       double dp_mean = 0.;
       stp.numerical_integration_pressure(kk, dp_mean, excess_pore_water_pressure_dyn, 1.);
 
       const int kk_ = kk/number_FD_points;
-      const double h_current_node = sol_dyn.get_owned_data ()[kk_*6] + sol_dyn.get_owned_data ()[kk_*6+1];
-      const double gamma_coeff = std::min(dp_mean + density_w*grav*h_current_node, 0.);
+      const double hw_current_node = sol_dyn.get_owned_data ()[kk_*6];
+      const double hs_current_node = sol_dyn.get_owned_data ()[kk_*6+1];
+
+      const double h_current_node = hw_current_node + hs_current_node;
+      const double gamma_coeff = std::min(dp_mean + density_w*grav*h_current_node, 0.)*stp.sf + std::max(dp_mean - (hw_current_node>h_min ? density_w*grav*h_current_node*(1.+stp.r_coeff)*.5*hs_current_node/hw_current_node : 0.), 0.)*(2. - stp.sf);
 
       for (int kkk=kk; kkk<kk+number_FD_points; kkk++) 
       { 
         const double zeta_greek_current = (kkk%number_FD_points)/double(number_FD_elements);
-        const double func_distr = 6.*zeta_greek_current*(1. - zeta_greek_current);
-        excess_pore_water_pressure_dyn.get_owned_data ()[kkk] -= gamma_coeff*func_distr*stp.sf;
+        const double func_distr  = 6.*zeta_greek_current*(1. - zeta_greek_current);
+        const double func_distr_ = 3./2.*zeta_greek_current*(1. - zeta_greek_current*zeta_greek_current);
+        excess_pore_water_pressure_dyn.get_owned_data ()[kkk] -= gamma_coeff*(Z_dyn.get_owned_data ()[kk_single]<thr_erodible_layer ? func_distr_ : func_distr);
       }
 
       //dp_mean = 0;
