@@ -343,7 +343,7 @@ public:
   double cfl_dp = .9;
   double nthr = 0.01;
 
-  double sf = 1.2;
+  double sf = 1.1;
 
   double r_coeff = 0.;
 

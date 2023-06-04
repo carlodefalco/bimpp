@@ -1189,7 +1189,7 @@ main (int argc, char **argv)
         //std::cout << "explicit" << std::endl;
         // In case, Neumann BC 
         //std::cout << excess_pore_water_pressure_incr_dyn.get_owned_data ()[kk] << std::endl;
-        excess_pore_water_pressure_dyn.get_owned_data ()[kk] = Z_dyn.get_owned_data ()[kk_single]<thr_erodible_layer ? stp.dt*excess_pore_water_pressure_incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk_] : excess_pore_water_pressure_dyn.get_owned_data ()[kk];
+        excess_pore_water_pressure_dyn.get_owned_data ()[kk] = hdof_c>h_min ? Z_dyn.get_owned_data ()[kk_single]<thr_erodible_layer ? stp.dt*excess_pore_water_pressure_incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk_] : excess_pore_water_pressure_dyn.get_owned_data ()[kk] : 0.;
         for (int kkk=kk+1; kkk<kk+number_FD_points-1; kkk++) // eliminate the boundaries 
         { 
           excess_pore_water_pressure_dyn.get_owned_data ()[kkk] = hdof_c>h_min ? stp.dt*excess_pore_water_pressure_incr_dyn.get_owned_data ()[kkk]/mass_dyn.get_owned_data ()[kk_] : 0.;
@@ -1253,13 +1253,14 @@ main (int argc, char **argv)
       const double hs_current_node = sol_dyn.get_owned_data ()[kk_*6+1];
 
       const double h_current_node = hw_current_node + hs_current_node;
-      const double gamma_coeff = std::min(dp_mean + density_w*grav*h_current_node, 0.)*stp.sf + std::max(dp_mean - (hw_current_node>h_min ? density_w*grav*h_current_node*(1.+stp.r_coeff)*.5*hs_current_node/hw_current_node : 0.), 0.)*(2. - stp.sf);
+      const double gamma_coeff = std::min(dp_mean + density_w*grav*h_current_node, 0.)*stp.sf + std::max(dp_mean - (hw_current_node>h_min ? density_w*grav*h_current_node*(1.+stp.r_coeff)*.5*hs_current_node/hw_current_node : 0.), 0.);//*(2. - stp.sf);
 
       for (int kkk=kk; kkk<kk+number_FD_points; kkk++) 
       { 
         const double zeta_greek_current = (kkk%number_FD_points)/double(number_FD_elements);
         const double func_distr  = 6.*zeta_greek_current*(1. - zeta_greek_current);
-        const double func_distr_ = 3./2.*zeta_greek_current*(1. - zeta_greek_current*zeta_greek_current);
+        const double func_distr_ = 3./2.*(1. - zeta_greek_current*zeta_greek_current);
+        //excess_pore_water_pressure_dyn.get_owned_data ()[kkk] = func_distr_; 
         excess_pore_water_pressure_dyn.get_owned_data ()[kkk] -= gamma_coeff*(Z_dyn.get_owned_data ()[kk_single]<thr_erodible_layer ? func_distr_ : func_distr);
       }
 
@@ -1267,7 +1268,7 @@ main (int argc, char **argv)
       //stp.numerical_integration_pressure(kk, dp_mean, excess_pore_water_pressure_dyn, 1.);
       //if (gamma_coeff<0 && std::min(dp_mean + density_w*grav*h_current_node, 0.)<0)
       //{
-      //  std::cout << gamma_coeff << " " << std::min(dp_mean + density_w*grav*h_current_node, 0.) << std::endl;
+      //  std::cout << gamma_coeff << " " << std::min(dp_mean + density_w*grav*h_current_node, 0.) << " " << dp_mean << std::endl;
       //}
 
     }
