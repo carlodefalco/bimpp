@@ -137,25 +137,41 @@ public:
   void
   numerical_integration_pressure(const int& kk, double& dp_mean, T& vv, const double& is_dof_or_hanging)
   {
+    for (int kkk=kk; kkk<kk+number_FD_points-1; kkk++) 
+    {
+      dp_mean += .5*(vv.get_owned_data ()[kkk] + vv.get_owned_data ()[kkk+1]);
+    }
+    dp_mean /= double(number_FD_points-1);
+    dp_mean *= is_dof_or_hanging;
+
+    /*
     for (int kkk=kk; kkk<kk+number_FD_points-1; kkk+=2) 
     {
       //std::cout << vv.get_owned_data ()[kkk] << " " << vv.get_owned_data ()[kkk+1] << " " << vv.get_owned_data ()[kkk+2] << std::endl;
       dp_mean += (1./3.)*(vv.get_owned_data ()[kkk] + 4.*vv.get_owned_data ()[kkk+1] + vv.get_owned_data ()[kkk+2]);
     }
     dp_mean /= double(number_FD_points-1);
-    dp_mean *= is_dof_or_hanging;
+    dp_mean *= is_dof_or_hanging;*/
   }
 
   template <class T>
   void
   numerical_integration_pressure_2(const int& kk, double& dp_mean, T& vv, const double& is_dof_or_hanging)
   {
+    for (int kkk=kk; kkk<kk+number_FD_points-1; kkk++) 
+    {
+      dp_mean += .5*(vv[kkk] + vv[kkk+1]);
+    }
+    dp_mean /= double(number_FD_points-1);
+    dp_mean *= is_dof_or_hanging;
+
+    /*
     for (int kkk=kk; kkk<kk+number_FD_points-1; kkk+=2) 
     {
       dp_mean += (1./3.)*(vv[kkk] + 4.*vv[kkk+1] + vv[kkk+2]);
     }
     dp_mean /= double(number_FD_points-1);
-    dp_mean *= is_dof_or_hanging;
+    dp_mean *= is_dof_or_hanging;*/
   }
 
 
@@ -202,12 +218,10 @@ public:
   std::array<double, 4> hdofold = {0, 0, 0, 0};
   std::array<double, 4> hwdofold = {0, 0, 0, 0};
   std::array<double, 4> hsdofold = {0, 0, 0, 0};
-  std::array<double, 4> nwdofold = {0, 0, 0, 0};
   std::array<double, 4> dp_kk_dof    = {0, 0, 0, 0};
   std::array<double, 4> hdof    = {0, 0, 0, 0};
   std::array<double, 4> hwdof   = {0, 0, 0, 0};
   std::array<double, 4> hsdof   = {0, 0, 0, 0};
-  std::array<double, 4> nwdof   = {0, 0, 0, 0};
   std::array<double, 4> Uxwdof  = {0, 0, 0, 0};
   std::array<double, 4> Uywdof  = {0, 0, 0, 0};
   std::array<double, 4> Uxsdof  = {0, 0, 0, 0};
@@ -343,9 +357,12 @@ public:
   double cfl_dp = .9;
   double nthr = 0.01;
 
-  double sf = 1.1;
+  double sf = 1.2;
 
   double r_coeff = 0.;
+
+  double error;
+  const double tolerance = 1.e-8; 
 
   Q1& sol;
   Q1& sold;
@@ -399,7 +416,7 @@ private:
 
   int index_quadrant, index_quadrant_local;
 
-  double nw_cell_average = 0., ns_cell_average = 0., h_cell_average = 0., hw_cell_average = 0., hs_cell_average = 0., erosion_contribution = 0.;
+  double hw_cell_average = 0., hs_cell_average = 0., erosion_contribution = 0.;
 
   std::array<double,4> dp_mean_vec = {0., 0., 0., 0.};
 
@@ -413,12 +430,10 @@ private:
   // 5 arrays of storage as in Verwer's paper IMEX-RKCs,
   //std::vector<double> b_vect, mu_tilde_vect, gamma_tilde_vect, v_vect, mu_vect;
 
-  const double tolerance_sign = 10.; 
+  const double tolerance_sign = 1.e-2; 
 
-  const double tolerance = 1.e-8; 
   const int Nmax = 1e3;
   int count;
-  double error;
 
   double dp_old = 0;
   std::array<double,2> grad_dp_old = {0,0};

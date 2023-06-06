@@ -313,6 +313,7 @@ main (int argc, char **argv)
   const bool   & is_bed_friction                          = input_data["do you want the bed friction?"];
   const bool   & is_pore_water_pressure                   = input_data["do you want the pore water pressure?"];
   const bool   & is_max_time_step_from_CFL                = input_data["do you want the maximum time step given by CFL condition for the transport term?"];
+  const double & h_min_p                                  = input_data["minimum material height threshold for the pressure equation"];               
                  h_min                                    = input_data["minimum material height threshold"];
   const double & grav                                     = input_data["gravitational field"];
                  density                                  = input_data["material density"];
@@ -952,6 +953,8 @@ main (int argc, char **argv)
 
   int counter_savings = 0, tot_number_savings = std::round(T/SAVEDT);
 
+  int restart_loop = 0;
+  double max_dt_post = max_dt;
 
   TIC();
   while (counter_savings != tot_number_savings)
@@ -1053,7 +1056,22 @@ main (int argc, char **argv)
     {
       stp.first_step_consolidation(quadrant);
       stp.first_step(quadrant);
+
+      //restart_loop = stp.error>stp.tolerance ? 1 : restart_loop;
     }
+    //MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&restart_loop), 1, MPI_INT, MPI_SUM, tmsh.comm);
+/*
+    if (restart_loop>0)
+    {
+      max_dt_post = max_dt*.5;
+      restart_loop = 0;
+      continue;
+    }
+    else
+    {
+      max_dt_post = DELTAT*REDCDT;
+    }*/
+
     bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhw,  false);
     bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordhs,  false);
     bim2a_solution_with_ghosts_center (tmsh, sol_onehalf_dyn, replace_op, ordUxw, false);
@@ -1189,7 +1207,7 @@ main (int argc, char **argv)
         //std::cout << "explicit" << std::endl;
         // In case, Neumann BC 
         //std::cout << excess_pore_water_pressure_incr_dyn.get_owned_data ()[kk] << std::endl;
-        excess_pore_water_pressure_dyn.get_owned_data ()[kk] = hdof_c>h_min ? Z_dyn.get_owned_data ()[kk_single]<thr_erodible_layer ? stp.dt*excess_pore_water_pressure_incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk_] : excess_pore_water_pressure_dyn.get_owned_data ()[kk] : 0.;
+        excess_pore_water_pressure_dyn.get_owned_data ()[kk] = Z_dyn.get_owned_data ()[kk_single]<thr_erodible_layer ? stp.dt*excess_pore_water_pressure_incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk_] : excess_pore_water_pressure_dyn.get_owned_data ()[kk];
         for (int kkk=kk+1; kkk<kk+number_FD_points-1; kkk++) // eliminate the boundaries 
         { 
           excess_pore_water_pressure_dyn.get_owned_data ()[kkk] = hdof_c>h_min ? stp.dt*excess_pore_water_pressure_incr_dyn.get_owned_data ()[kkk]/mass_dyn.get_owned_data ()[kk_] : 0.;
@@ -1243,8 +1261,6 @@ main (int argc, char **argv)
 
     for (auto kk = 0; kk < excess_pore_water_pressure_incr_dyn.get_owned_data ().size (); kk+=number_FD_points)
     {
-      const int kk_single = kk/number_FD_points;
-
       double dp_mean = 0.;
       stp.numerical_integration_pressure(kk, dp_mean, excess_pore_water_pressure_dyn, 1.);
 
@@ -1257,18 +1273,19 @@ main (int argc, char **argv)
 
       for (int kkk=kk; kkk<kk+number_FD_points; kkk++) 
       { 
-        const double zeta_greek_current = (kkk%number_FD_points)/double(number_FD_elements);
-        const double func_distr  = 6.*zeta_greek_current*(1. - zeta_greek_current);
-        const double func_distr_ = 3./2.*(1. - zeta_greek_current*zeta_greek_current);
-        //excess_pore_water_pressure_dyn.get_owned_data ()[kkk] = func_distr_; 
-        excess_pore_water_pressure_dyn.get_owned_data ()[kkk] -= gamma_coeff*(Z_dyn.get_owned_data ()[kk_single]<thr_erodible_layer ? func_distr_ : func_distr);
+        //const double zeta_greek_current = (kkk%number_FD_points)/double(number_FD_elements);
+        //const double func_distr = 6.*zeta_greek_current*(1. - zeta_greek_current);
+        //excess_pore_water_pressure_dyn.get_owned_data ()[kkk] -= gamma_coeff*func_distr;
+        auto & dp_p_c = excess_pore_water_pressure_dyn.get_owned_data ()[kkk];
+        dp_p_c -= std::min(dp_p_c + density_w*grav*h_current_node, 0.)*stp.sf + std::max(dp_p_c - (hw_current_node>h_min ? density_w*grav*h_current_node*(1.+stp.r_coeff)*.5*hs_current_node/hw_current_node : 0.), 0.);
+        dp_p_c = h_current_node>h_min_p ? dp_p_c : 0.;
       }
 
       //dp_mean = 0;
       //stp.numerical_integration_pressure(kk, dp_mean, excess_pore_water_pressure_dyn, 1.);
       //if (gamma_coeff<0 && std::min(dp_mean + density_w*grav*h_current_node, 0.)<0)
       //{
-      //  std::cout << gamma_coeff << " " << std::min(dp_mean + density_w*grav*h_current_node, 0.) << " " << dp_mean << std::endl;
+      //  std::cout << gamma_coeff << " " << std::min(dp_mean + density_w*grav*h_current_node, 0.) << std::endl;
       //}
 
     }
