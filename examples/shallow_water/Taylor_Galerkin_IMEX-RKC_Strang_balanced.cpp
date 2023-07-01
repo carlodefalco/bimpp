@@ -85,6 +85,9 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
     const auto& hpoint = hdof[ii];
     const auto celerity = std::sqrt(grav*hpoint);
     
+    //const auto vel_rusanov_cell_x = hpoint>epsilon ? std::max(std::abs(Uxdof[ii]/hpoint)+celerity, is_stress_tensor ? 8*fluid_viscosity/Dx : 0.) : 0.;
+    //const auto vel_rusanov_cell_y = hpoint>epsilon ? std::max(std::abs(Uydof[ii]/hpoint)+celerity, is_stress_tensor ? 8*fluid_viscosity/Dy : 0.) : 0.;
+
     const auto vel_rusanov_cell_x = hpoint>epsilon ? std::abs(Uxdof[ii]/hpoint)+celerity : 0.;
     const auto vel_rusanov_cell_y = hpoint>epsilon ? std::abs(Uydof[ii]/hpoint)+celerity : 0.;
     
@@ -1114,13 +1117,13 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
           double eta_current_cell, Z_current_cell, h_current_cell, Ux_current_cell, Uy_current_cell;
 
           if (! quadrant_nei->is_hanging (jj)){
-            Z_current_cell  = Z [quadrant->gt (ii)];
+            Z_current_cell  = Z [quadrant_nei->gt (jj)];
             h_current_cell  = sol [ordh  (quadrant_nei->gt (jj))];
             Ux_current_cell = sol [ordUx (quadrant_nei->gt (jj))];
             Uy_current_cell = sol [ordUy (quadrant_nei->gt (jj))];
           } else {
-            Z_current_cell  = .5 * (Z [quadrant->gparent(0,ii)] +
-                                    Z [quadrant->gparent(1,ii)]);
+            Z_current_cell  = .5 * (Z [quadrant_nei->gparent(0,jj)] +
+                                    Z [quadrant_nei->gparent(1,jj)]);
             h_current_cell  = .5 * (sol [ordh  (quadrant_nei->gparent(0,jj))] +
                                     sol [ordh  (quadrant_nei->gparent(1,jj))]);
             Ux_current_cell = .5 * (sol [ordUx (quadrant_nei->gparent(0,jj))] +
@@ -1150,7 +1153,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   }
 
 
-
+/*
   
   // compute flux correction
   double phi_cell_h = 1., phi_cell_Ux = 1., phi_cell_Uy = 1.;
@@ -1201,7 +1204,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
     }
 
-  }
+  }*/
 
 
 }
