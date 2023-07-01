@@ -1153,7 +1153,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   }
 
 
-/*
+
   
   // compute flux correction
   double phi_cell_h = 1., phi_cell_Ux = 1., phi_cell_Uy = 1.;
@@ -1204,7 +1204,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
     }
 
-  }*/
+  }
 
 
 }
