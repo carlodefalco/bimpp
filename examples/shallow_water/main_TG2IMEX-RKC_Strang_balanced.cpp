@@ -22,7 +22,7 @@
 
 using json = nlohmann::json;
 
-// mpirun -np 1 main_TG2IMEXRKC glisX_input.json
+// mpirun -np 4 main_TG2IMEXRKC glisX_input_tg2.json >out_TG2RKC.txt
 // mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
 // mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
 
@@ -123,7 +123,9 @@ raster_value(const double& x,
 
 double dem_fun (const double& xx, const double& yy)
 { 
-  return(-xx+L);
+  //return(0);
+  //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  //return(-xx+L);
   return(raster_value(xx,yy,dem));
 }
 
@@ -135,17 +137,19 @@ using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;    
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  //return(1.);
+  //return(1.); 
   //return(xx/L*1500);
-  return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
-  return (xx<=L/2. ? 10. : 0.);
-  //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  //return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
+  //return (xx<=L/2. && xx>=L/4. ? 3. : 0.);
+  //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+1.*std::exp(-0.5*( std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+.1*std::exp(-1.*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
-  return( std::abs(xx-L/2.)<=1.5 && std::abs(yy-H/2.)<=1.5 ? 10 : 0. );
-  //return( xx<=L/2. && yy<=H/2. ? 2. : 0. ); 
-  //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. );
+  //return( std::abs(xx-L/2.)<=.5 && std::abs(yy-H/2.)<=.5 ? 2 : 1. );
+  //return( xx<=L/2. && yy<=H/2. ? 3. : 0. );  
+  //return (xx<=L/4. && yy<=H/4. ? 2. : 1.); 
+  //return(std::abs(xx-L/2.)<=0.5 && std::abs(yy-L/2.)<=0.5 ? 2 : 1. );  
+  return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2. : 1. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=L/4. ? 2 : 0. ); 
   //return(xx<=L/2. ? 2 : 1. );
 
@@ -194,7 +198,11 @@ double Ux0_fun (double xx, double yy)
   //return( xx<=L/2. ? 2. : 1. ); // shock-shock solution
   return 0.; 
 }
-double Uy0_fun (double xx, double yy) { return 0.; }
+double Uy0_fun (double xx, double yy) 
+{ 
+  //return( yy<=H/2. ? 2. : 1. ); // shock-shock solution
+  return 0.; 
+}
 
 
 // Assemble vector from mesh.
@@ -704,9 +712,6 @@ main (int argc, char **argv)
       }
     }
 
-
-
-
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordh,  false);
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUx, false);
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUy);
@@ -968,6 +973,7 @@ main (int argc, char **argv)
     }
     
 
+
     // 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -977,6 +983,8 @@ main (int argc, char **argv)
     incr_dyn.assemble ();
     P_plus_dyn.assemble ();
     P_minus_dyn.assemble ();
+
+
 
 
     stp.set_times(time, time_old, time_oldd);
@@ -1048,7 +1056,6 @@ main (int argc, char **argv)
     //TOC("Apply increment");
 
 
-
     // Verwer IMEX-RKC
     sol_ini_rkc_dyn = sol_dyn; // copy
     soldd_rkc_dyn   = sol_dyn; // copy
@@ -1098,15 +1105,13 @@ main (int argc, char **argv)
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&spec_radius), 1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
 
 
-
     double s = 1. + std::round(std::sqrt(1 + stp.dt*spec_radius/.653));//5;//std::round(std::max(std::sqrt(stp.dt*spec_radius/.653), 2.));
+
 
     if(rank==0)
     {
       RKC_steps.push_back(s);
     }
-
-
 
 
     if (rank==0) std::cout << "number of steps and spectral radius, " << s << " " << spec_radius << std::endl;
@@ -1180,6 +1185,8 @@ main (int argc, char **argv)
         
     }
     Newton_it_dyn.assemble (replace_op);
+
+    //return 0;
 
     
 

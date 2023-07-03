@@ -22,6 +22,7 @@
 
 using json = nlohmann::json;
 
+// mpirun -np 4 main glisX_input_tg2.json >out_TG2.txt
 // mpirun -np 1 main $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_vladi.octbin.gz 
 
 static constexpr char VARNAME_1[255] = "dem";
@@ -112,10 +113,15 @@ double h0_fun (const double& xx, const double& yy)
   //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return( std::abs(xx-L/2.)<=150 && std::abs(yy-H/2.)<=150 ? 70 : 0. );
-  //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2 : 1. ); 
+  //return(1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ));
+  //return (xx<=L/2. && xx>=L/4. ? 3. : 0.);
+  //return (xx<=L/4. && yy<=H/4. ? 2. : 1.); 
+  //return(std::abs(yy-L/2.)<=L/4. ? 2 : 1. );
+  //return(std::abs(xx-L/2.)<=0.5 && std::abs(yy-L/2.)<=0.5 ? 2 : 1. );  
+  return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=.5 ? 2. : 1. ); 
   //return(std::abs(yy-L/2.)<=L/4. ? 2 : 1. );
   //return(std::abs(xx-L/2.)<=L/4. ? 2 : 1. );
-  //return(std::abs(xx-L/2.)<=L/4. && std::abs(yy-L/2.)<=L/4. ? 2 : 1. );  
+  return(std::abs(xx-L/2.)<=0.5 && std::abs(yy-L/2.)<=0.5 ? 2 : 1. );  
   return(xx<=L/2. ? 2 : 1. );  
 
 
@@ -585,8 +591,8 @@ main (int argc, char **argv)
     double xx_c=quadrant->centroid(0);
     double yy_c=quadrant->centroid(1); 
 
-    slope_x[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
-    slope_y[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
+    slope_x[quadrant->get_forest_quad_idx ()] = dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]]; //.1*std::exp(-0.5*( std::pow(xx_c-L/2.,2.) )/std::pow(0.2*L/2.,2.) )*(-100/L/L*(xx_c-L/2.));//dem_slope_x[global_coord_2_raster(xx_c,yy_c)[0]];
+    slope_y[quadrant->get_forest_quad_idx ()] = dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]]; //0;//dem_slope_y[global_coord_2_raster(xx_c,yy_c)[0]];
     
 
     for (int ii = 0; ii < 4; ++ii)
@@ -599,7 +605,7 @@ main (int argc, char **argv)
         sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
         sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
         
-        Z[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; 
+        Z[quadrant->gt (ii)] = dem[global_coord_2_raster(xx,yy)[0]]; //1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ); //dem[global_coord_2_raster(xx,yy)[0]]; 
         
       }
       

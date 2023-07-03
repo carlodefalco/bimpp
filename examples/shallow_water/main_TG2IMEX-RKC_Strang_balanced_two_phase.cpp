@@ -23,7 +23,7 @@
 
 using json = nlohmann::json;
 
-// mpirun -np 1 main_TG2IMEXRKC2PHASE glisX_input.json
+// mpirun -np 4 main_TG2IMEXRKC2PHASE glisX_input.json >out_two-phase.txt
 // mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz >out
 // mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
 
@@ -1269,7 +1269,7 @@ main (int argc, char **argv)
       const double hs_current_node = sol_dyn.get_owned_data ()[kk_*6+1];
 
       const double h_current_node = hw_current_node + hs_current_node;
-      const double gamma_coeff = std::min(dp_mean + density_w*grav*h_current_node, 0.)*stp.sf + std::max(dp_mean - (hw_current_node>h_min ? density_w*grav*h_current_node*(1.+stp.r_coeff)*.5*hs_current_node/hw_current_node : 0.), 0.);//*(2. - stp.sf);
+      //const double gamma_coeff = std::min(dp_mean + density_w*grav*h_current_node, 0.)*stp.sf + std::max(dp_mean - (hw_current_node>h_min ? density_w*grav*h_current_node*(1.+stp.r_coeff)*.5*hs_current_node/hw_current_node : 0.), 0.);//*(2. - stp.sf);
 
       for (int kkk=kk; kkk<kk+number_FD_points; kkk++) 
       { 

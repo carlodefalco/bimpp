@@ -72,8 +72,8 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
     const auto& hpoint = hdof[ii];
     const auto celerity = std::sqrt(grav*hpoint);
     
-    const auto vel_rusanov_cell_x = hpoint>epsilon ? std::max(std::abs(Uxdof[ii]/hpoint)+celerity, is_stress_tensor*is_max_time_step_from_CFL_with_diffusion ? 2*fluid_viscosity/Dx : 0.) : 0.;
-    const auto vel_rusanov_cell_y = hpoint>epsilon ? std::max(std::abs(Uydof[ii]/hpoint)+celerity, is_stress_tensor*is_max_time_step_from_CFL_with_diffusion ? 2*fluid_viscosity/Dy : 0.) : 0.;
+    const auto vel_rusanov_cell_x = hpoint>epsilon ? std::max(std::abs(Uxdof[ii]/hpoint)+celerity, is_stress_tensor*is_max_time_step_from_CFL_with_diffusion ? 8*fluid_viscosity/Dx : 0.) : 0.;
+    const auto vel_rusanov_cell_y = hpoint>epsilon ? std::max(std::abs(Uydof[ii]/hpoint)+celerity, is_stress_tensor*is_max_time_step_from_CFL_with_diffusion ? 8*fluid_viscosity/Dy : 0.) : 0.;
     
     const auto dtoptx = hpoint>epsilon ? Dx/vel_rusanov_cell_x : DELTAT;
     const auto dtopty = hpoint>epsilon ? Dy/vel_rusanov_cell_y : DELTAT;
