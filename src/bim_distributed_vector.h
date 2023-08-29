@@ -175,6 +175,10 @@ public:
   get_owned_data ()
   { return owned_data; };
 
+  std::vector<double> const &
+  get_owned_data () const
+  { return owned_data; };
+  
   int
   local_size () const
   { return owned_data.size (); }
@@ -182,6 +186,9 @@ public:
 };
 
 /// Compute matrix-vector product.
+distributed_vector
+operator* (distributed_sparse_matrix& M, const distributed_vector& x);
+
 distributed_vector
 operator* (sparse_matrix& M, const distributed_vector& x);
 
