@@ -648,7 +648,7 @@ octbin_export_tmpl (tmesh_3d *THIS, const char* basename, const T& f,
 
   // Define filename.
   char filename[255] = "";
-  sprintf (filename, "%s_%4.4d.octbin.gz", basename, THIS->rank);
+  sprintf (filename, "%s_%4.4d.octbin", basename, THIS->rank);
 
   // Save to filename.
   int flag_open = octave_io_open (filename, m, &m);

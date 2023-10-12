@@ -280,7 +280,7 @@ operator * (distributed_sparse_matrix& M, const distributed_vector& x)
   X.assemble (replace_op);
   for (auto ir = M.range_start (); ir < M.range_end (); ++ir) {
     for (auto jc = M[ir].begin (); jc != M[ir].end (); ++jc) {
-      y(M.col_idx (jc)) += M.col_val (jc) * X[M.col_idx (jc)];
+      y(ir) += M.col_val (jc) * X[M.col_idx (jc)];
     }
   }
   return y;

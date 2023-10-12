@@ -320,11 +320,12 @@ bim3a_solution_with_ghosts (tmesh_3d& mesh,
     }
 }
 
-std::vector<double>
+template <class T>
+void
 bim3a_boundary_mass (tmesh_3d & mesh,
                      const int & tree_idx,
                      const int & boundary_idx,
-                     std::vector<double> & M,
+                     T & M,
                      const func3_quad & fun,
                      const ordering & ord)
 {
@@ -360,8 +361,6 @@ bim3a_boundary_mass (tmesh_3d & mesh,
             }
         }
     }
-
-  return M;
 }
 
 template <class T>
@@ -2561,6 +2560,25 @@ bim3a_rhs (tmesh_3d&,
            const ordering&);
 
 /* ---- */
+
+template
+void
+bim3a_boundary_mass (tmesh_3d & mesh,
+                     const int & tree_idx,
+                     const int & boundary_idx,
+                     std::vector<double> & M,
+                     const func3_quad & fun,
+                     const ordering & ord);
+
+template
+void
+bim3a_boundary_mass (tmesh_3d & mesh,
+                     const int & tree_idx,
+                     const int & boundary_idx,
+                     distributed_vector & M,
+                     const func3_quad & fun,
+                     const ordering & ord);
+
 template
 void
 bim3a_dirichlet_bc (tmesh_3d&, const dirichlet_bcs3&,
