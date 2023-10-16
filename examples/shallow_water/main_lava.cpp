@@ -382,8 +382,9 @@ main (int argc, char **argv)
   const double & E_coeff                                  = input_data["E coefficient"];
   const double & b_coeff                                  = input_data["b coefficient"];
   const double & T_ref                                    = input_data["T_ref"];
-  const double & T_ref                                    = input_data["T_env"];
-  const double & T_ref                                    = input_data["T_c"];
+  const double & T_env                                    = input_data["T_env"];
+  const double & T_c                                      = input_data["T_c"];
+  const double & nu_ref                                   = input_data["nu reference"];
 
 
 
@@ -825,7 +826,7 @@ main (int argc, char **argv)
 		             Newton_it_dyn, 
                  DELTAT, h_min, is_non_reflBC, is_bed_friction, is_stress_tensor, grav,
                  density, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress, delta_vent, Q_vent, T_vent,
-                 W_coeff, C_coeff_sin_h, K_coeff_sin_h, E_coeff, b_coeff, T_ref, T_env, T_c);
+                 W_coeff, C_coeff_sin_h, K_coeff_sin_h, E_coeff, b_coeff, T_ref, T_env, T_c, nu_ref);
   
   
   // Save initial conditions

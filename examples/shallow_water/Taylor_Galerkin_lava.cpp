@@ -48,11 +48,12 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& b_coeff,
                        const double& T_ref,
                        const double& T_env,
-                       const double& T_c)
+                       const double& T_c,
+                       const double& nu_ref)
 : sol(sol), sold(sold), soldd(soldd), sold_rkc(sold_rkc), soldd_rkc(soldd_rkc), sol_ini_rkc(sol_ini_rkc), incr(incr), incr_initial_source(incr_initial_source), incr_source(incr_source), incr_anti_diff(incr_anti_diff), stress_initial_step(stress_initial_step), stress_step(stress_step), P_plus(P_plus), P_minus(P_minus), spec_radius_nodal(spec_radius_nodal), sol_onehalf(sol_onehalf), mass(mass), 
   ordh(oh), ordUx(oUx), ordUy(oUy), ordTh(oTh), Z(Z), Z_onehalf(Z_onehalf), Newton_it(Newton_it), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), grav(grav),
   density(density), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress),
-  delta_vent(delta_vent), Q_vent(Q_vent), T_vent(T_vent), W_coeff(W_coeff), C_coeff_sin_h(C_coeff_sin_h), K_coeff_sin_h(K_coeff_sin_h), E_coeff(E_coeff), b_coeff(b_coeff), T_ref(T_ref), T_env(T_env), T_c(T_c)
+  delta_vent(delta_vent), Q_vent(Q_vent), T_vent(T_vent), W_coeff(W_coeff), C_coeff_sin_h(C_coeff_sin_h), K_coeff_sin_h(K_coeff_sin_h), E_coeff(E_coeff), b_coeff(b_coeff), T_ref(T_ref), T_env(T_env), T_c(T_c), nu_ref(nu_ref)
 { }
  
  

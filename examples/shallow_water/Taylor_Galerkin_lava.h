@@ -62,7 +62,8 @@ public:
              const double& b_coeff,
              const double& T_ref,
              const double& T_env,
-             const double& T_c);
+             const double& T_c,
+             const double& nu_ref);
   
   TG2_scheme() = delete;
   
@@ -228,6 +229,9 @@ public:
   double
   compute_Uy_src (const double& h);
 
+  double
+  compute_Th_src ();
+
   void
   Newton_energy_balance(const double& h, const double& Ux, const double& Uy, double& Th);
 
@@ -273,6 +277,9 @@ public:
 
   double
   Th_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th);
+
+  double
+  Th_src_formula_prime (const double& h, const double& Ux, const double& Uy, const double& Th);
 
   void
   prepare_IMEXRKC_coefficients (const int& s);
@@ -341,6 +348,7 @@ private:
   const double& T_ref;
   const double& T_env;
   const double& T_c;
+  const double& nu_ref;
 
   double w0, w1;
 
@@ -348,6 +356,9 @@ private:
   std::vector<double> b_vect, mu_tilde_vect, gamma_tilde_vect, v_vect, mu_vect;
 
   const double tol_incr = 1e-8;
+
+  const int Nmax = 1e3;
+  int count;
 
   const double epsilon_IMEXRKC = 2./13.;
 
