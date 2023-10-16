@@ -399,7 +399,7 @@ main (int argc, char **argv)
     const double delta_Y = y - y_v;
     const auto r_square = delta_X*delta_X + delta_Y*delta_Y;
     return(1./(2*M_PI*sigma_vent)*std::exp(-r_square/(2.*sigma_vent)));
-  }
+  };
 
   L = res*(Nx-1);
   H = res*(Ny-1);
