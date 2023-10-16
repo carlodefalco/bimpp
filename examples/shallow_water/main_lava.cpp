@@ -18,11 +18,11 @@
 #include <fstream>
 
 #include "json.hpp"
-#include "Taylor_Galerkin_IMEX-RKC_Strang_balanced.h"
+#include "Taylor_Galerkin_lava.h"
 
 using json = nlohmann::json;
 
-// mpirun -np 4 main_TG2IMEXRKC glisX_input_tg2RKC_Bindo.json >out_TG2RKC.txt
+// mpirun -np 4 main_lava glisX_input_tg2RKC_Bindo.json >out_TG2RKC.txt
 // mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
 // mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
 
@@ -204,6 +204,10 @@ double Uy0_fun (double xx, double yy)
   return 0.; 
 }
 
+double Th0_fun (double xx, double yy)
+{
+  return 0;
+}
 
 // Assemble vector from mesh.
 // FIXME  the following two functions are copied over from
@@ -391,9 +395,10 @@ main (int argc, char **argv)
 
 
   // Management of solutions ordering
-  ordering ordh  = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 0> (gt); };
-  ordering ordUx = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 1> (gt); };
-  ordering ordUy = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<3, 2> (gt); };
+  ordering ordh  = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<4, 0> (gt); };
+  ordering ordUx = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<4, 1> (gt); };
+  ordering ordUy = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<4, 2> (gt); };
+  ordering ordTh = [] (tmesh::idx_t gt) -> size_t { return dof_ordering<4, 3> (gt); };
 
   
   
@@ -433,25 +438,26 @@ main (int argc, char **argv)
   
 
   /// Allocate initial data container
-  Q1 sol  (ln_nodes * 3);
-  Q1 incr (ln_nodes * 3);
+  Q1 sol  (ln_nodes * 4);
+  Q1 incr (ln_nodes * 4);
   sol.get_owned_data  ().assign (sol.get_owned_data  ().size (), 0.0);
   incr.get_owned_data ().assign (incr.get_owned_data ().size (), 0.0);
 
   
-  Q1 mass (ln_nodes * 3);
+  Q1 mass (ln_nodes * 4);
   bim2a_mass_vector (tmsh, mass, ordh);
   bim2a_mass_vector (tmsh, mass, ordUx);
   bim2a_mass_vector (tmsh, mass, ordUy);
+  bim2a_mass_vector (tmsh, mass, ordTh);
   mass.assemble ();
   
-  Q0 sol_onehalf (ln_elements * 3);
+  Q0 sol_onehalf (ln_elements * 4);
   sol_onehalf.get_owned_data  ().assign (sol_onehalf.get_owned_data  ().size (), 0.0);
 
   Q0 Z_onehalf (ln_elements);
   Z_onehalf.get_owned_data  ().assign (Z_onehalf.get_owned_data  ().size (), 0.0);
 
-  std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 3);
+  std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 4);
   
   Q1 Z (ln_nodes);
   Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
@@ -514,6 +520,7 @@ main (int argc, char **argv)
         sol [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy);
         sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
         sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
+        sol [ordTh    (quadrant->gt (ii))] = Th0_fun (xx, yy);
         
         Z           [quadrant->gt (ii)] = dem_fun(xx,yy); 
 	      Newton_it   [quadrant->gt (ii)] = 0.;
@@ -528,6 +535,8 @@ main (int argc, char **argv)
         sol [ordUx  (quadrant->gparent(1,ii))] += 0.;
         sol [ordUy  (quadrant->gparent(0,ii))] += 0.;
         sol [ordUy  (quadrant->gparent(1,ii))] += 0.;
+        sol [ordTh  (quadrant->gparent(0,ii))] += 0.;
+        sol [ordTh  (quadrant->gparent(1,ii))] += 0.;
         
         Z   [quadrant->gparent(0,ii)] += 0.;
         Z   [quadrant->gparent(1,ii)] += 0.;
@@ -542,7 +551,8 @@ main (int argc, char **argv)
   // bim2a_solution_with_ghosts in quad_operators.cpp
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy);
+  bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy, false);
+  bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordTh);
   
   bim2a_solution_with_ghosts (tmsh, Z, replace_op);
 
@@ -550,7 +560,8 @@ main (int argc, char **argv)
 
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
-  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
+  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy, false);
+  bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordTh);
 
   
 
@@ -649,27 +660,28 @@ main (int argc, char **argv)
     // Interpolo sol sulla nuova mesh
     TIC();
   
-    Q1 incr_ (ln_nodes * 3);
+    Q1 incr_ (ln_nodes * 4);
     incr_.get_owned_data ().assign (incr_.get_owned_data ().size(), 0.0);
     incr_.assemble ();
   
-    Q1 mass_ (ln_nodes * 3);
+    Q1 mass_ (ln_nodes * 4);
     bim2a_mass_vector (tmsh, mass_, ordh );
     bim2a_mass_vector (tmsh, mass_, ordUx);
     bim2a_mass_vector (tmsh, mass_, ordUy);
+    bim2a_mass_vector (tmsh, mass_, ordTh);
     mass_.assemble ();
   
-    Q0 sol_onehalf_ (ln_elements * 3);
+    Q0 sol_onehalf_ (ln_elements * 4);
     sol_onehalf_.get_owned_data ().assign (sol_onehalf_.get_owned_data ().size(), 0.0);
 
     Q0 Z_onehalf_ (ln_elements);
     Z_onehalf_.get_owned_data ().assign (Z_onehalf_.get_owned_data ().size(), 0.0);
 
 
-    std::vector<std::array<double,4>> incr_anti_diff_ (ln_elements * 3);
+    std::vector<std::array<double,4>> incr_anti_diff_ (ln_elements * 4);
 
 
-    Q1 sol_ (ln_nodes * 3);
+    Q1 sol_ (ln_nodes * 4);
     Q1 Z_ (ln_nodes);
     // Q1 mask_fin_ (ln_nodes);
     Q1 Newton_it_ (ln_nodes);
@@ -689,6 +701,7 @@ main (int argc, char **argv)
           sol_ [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy);
           sol_ [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
           sol_ [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
+          sol_ [ordTh    (quadrant->gt (ii))] = Th0_fun (xx, yy);
 
           Z_[quadrant->gt (ii)] = dem_fun(xx,yy);
 
@@ -703,6 +716,8 @@ main (int argc, char **argv)
           sol_ [ordUx  (quadrant->gparent(1,ii))] += 0.;
           sol_ [ordUy  (quadrant->gparent(0,ii))] += 0.;
           sol_ [ordUy  (quadrant->gparent(1,ii))] += 0.;
+          sol_ [ordTh  (quadrant->gparent(0,ii))] += 0.;
+          sol_ [ordTh  (quadrant->gparent(1,ii))] += 0.;
 
           Z_[quadrant->gparent(0,ii)] += 0.;
           Z_[quadrant->gparent(1,ii)] += 0.;
@@ -715,7 +730,8 @@ main (int argc, char **argv)
 
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordh,  false);
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUy);
+    bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordUy, false);
+    bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordTh);
     
     bim2a_solution_with_ghosts (tmsh, Z_, replace_op);
 
@@ -723,7 +739,8 @@ main (int argc, char **argv)
     
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordh,  false);
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUy);
+    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUy, false);
+    bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordTh);
 
 
     sol                 = sol_;
@@ -778,7 +795,7 @@ main (int argc, char **argv)
                  spec_radius_nodal_dyn,
                  sol_onehalf_dyn, 
                  mass_dyn,
-                 ordh, ordUx, ordUy, 
+                 ordh, ordUx, ordUy, ordTh,
                  Z_dyn,
                  Z_onehalf_dyn,
 		             Newton_it_dyn, 
@@ -837,7 +854,6 @@ main (int argc, char **argv)
   double max_dt = REDCDT * stp.dt;
   MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&max_dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
   stp.set_dt(max_dt);
-  stp.set_old_dt(0.);
   time_old  -= stp.dt;
   time_oldd -= 2*stp.dt;
   stp.set_times(time, time_old, time_oldd);
@@ -935,11 +951,7 @@ main (int argc, char **argv)
     }
 
     // check save with given frequency
-    //std::cout << (savecount) << " " << stp.dt << " " << (savecount+stp.dt)/SAVEDT << " " << (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) << std::endl;
-    // stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1))-SAVEDT : stp.dt);
-    //stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) : stp.dt);
     stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? SAVEDT-savecount : stp.dt);
-    //stp.set_dt((time+stp.dt)>T ? T-(time+stp.dt) : stp.dt);
 
 
 
@@ -996,7 +1008,7 @@ main (int argc, char **argv)
     // low order solution
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
     {
-      sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
+      sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
     }
     sol_dyn.assemble(replace_op); 
 
@@ -1016,7 +1028,8 @@ main (int argc, char **argv)
     //sol_dyn.assemble (replace_op);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordh,  false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUy);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUy, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordTh);
 
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
@@ -1038,7 +1051,7 @@ main (int argc, char **argv)
     //TIC();
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
     {
-      sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
+      sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
     }
 
     
@@ -1056,237 +1069,6 @@ main (int argc, char **argv)
     sol_dyn.assemble (replace_op);
     //TOC("Apply increment");
 
-
-    // Verwer IMEX-RKC
-    sol_ini_rkc_dyn = sol_dyn; // copy
-    soldd_rkc_dyn   = sol_dyn; // copy
-    sold_rkc_dyn    = sol_dyn; // copy
-
-
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-      quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.compute_stress_slope(quadrant, true);
-    }
-    stress_initial_step_dyn.assemble();
-
-
-    // for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
-    // {
-    //   std::cout << stress_initial_step_dyn.get_owned_data ()[kk] << " " << stress_initial_step_dyn.get_owned_data ()[kk+1] << " " << stress_initial_step_dyn.get_owned_data ()[kk+2] << std::endl;
-    //   //std::cout << sol_dyn.get_owned_data ()[kk] << " " << sol_dyn.get_owned_data ()[kk+1] << " " << sol_dyn.get_owned_data ()[kk+2] << std::endl;//" " << sol_dyn.get_owned_data ()[kk+1] << std::endl;
-    // }
-    // exit(1);
-
-
-
-
-    for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
-    {
-      stp.loop_step(kk, true);
-    }
-    incr_initial_source_dyn.assemble (replace_op);
-
-
-
-    // compute the spec_radius_nodal
-    for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
-    {
-      spec_radius_nodal_dyn.get_owned_data ()[kk] /= mass_dyn.get_owned_data ()[kk]; 
-    }
-    spec_radius_nodal_dyn.assemble(replace_op);
-
-
- 
-    double spec_radius = 0.;
-    for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
-    {
-      spec_radius = std::max(spec_radius, spec_radius_nodal_dyn.get_owned_data ()[kk]);
-    }
-    MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&spec_radius), 1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
-
-
-    double s = 1. + std::round(std::sqrt(1 + stp.dt*spec_radius/.653));//5;//std::round(std::max(std::sqrt(stp.dt*spec_radius/.653), 2.));
-
-
-    if(rank==0)
-    {
-      RKC_steps.push_back(s);
-    }
-
-
-    if (rank==0) std::cout << "number of steps and spectral radius, " << s << " " << spec_radius << std::endl;
-
-    // compute here the coefficients!, it is to prepare the following loop
-    stp.prepare_IMEXRKC_coefficients(s);
-
-    
-
-    //double s = 1 + std::round(std::sqrt(1 + stp.dt*spec_radius/.653)); // # of stages minimum is 2!!! otherwise errors inside for the recursion!
-    for (int jj = 1; jj <= s; jj++)
-    {
-
-      if (rank==0) std::cout << "current IMEX-RKC step, " << jj << std::endl;
-
-      for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
-      {
-        stp.rkc(jj, s, kk);
-      }
-      sol_dyn.assemble(replace_op);
-      
-
-
-      soldd_rkc_dyn = sold_rkc_dyn; // copy
-      sold_rkc_dyn  = sol_dyn;      // copy
-
-
-      stress_step_dyn.get_owned_data ().assign (stress_step_dyn.get_owned_data ().size (), 0.0);
-      stress_step_dyn.assemble (replace_op);
-
-
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-      {
-        stp.compute_stress_slope(quadrant, false);
-      }
-      stress_step_dyn.assemble();
-
-      
-      // // Possible internal update of the spectral radius //
-      // spec_radius_nodal_dyn.get_owned_data ().assign (spec_radius_nodal_dyn.get_owned_data ().size (), 0.0);
-      // spec_radius_nodal_dyn.assemble (replace_op);
-      // for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
-      // {
-      //   spec_radius_nodal_dyn.get_owned_data ()[kk] /= mass_dyn.get_owned_data ()[kk]; 
-      // }
-      // spec_radius_nodal_dyn.assemble(replace_op); 
-
-      // spec_radius = 0.;
-      // for (auto kk = 0; kk < spec_radius_nodal_dyn.get_owned_data ().size (); ++kk)
-      // {
-      //   spec_radius = std::max(spec_radius, spec_radius_nodal_dyn.get_owned_data ()[kk]);
-      // }
-      // MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&spec_radius), 1, MPI_DOUBLE, MPI_MAX, tmsh.comm);
-
-      // int number_remaining_stages = std::round(std::max(std::sqrt(stp.dt*(1. - c_fun(j,s))*spec_radius/.653), 2.)); 
-
-      // if (number_remaining_stages!=(s-jj))
-      // {
-      //   // o calcolare nuove condizioni iniziali 
-      //   // o interpolare con polinomio di Hermite le soluzioni che già abbiamo ma fare comunque update di s!!
-      // }
-      // //----------------------------//
-      
-
-      for (int kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=3)
-      {
-        stp.loop_step(kk, false);
-      }
-      incr_source_dyn.assemble (replace_op);
-        
-    }
-    Newton_it_dyn.assemble (replace_op);
-
-    //return 0;
-
-    
-
-    stp.set_old_dt(stp.dt);
-    stp.set_old_dt(0.);
-
-    // first, Strang half step!
-
-    incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
-    incr_dyn.assemble (replace_op);
-
-    P_plus_dyn.get_owned_data ().assign (P_plus_dyn.get_owned_data ().size (), 0.0);
-    P_plus_dyn.assemble (replace_op);
-
-    P_minus_dyn.get_owned_data ().assign (P_minus_dyn.get_owned_data ().size (), 0.0);
-    P_minus_dyn.assemble (replace_op);
-
-    // first step!
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-     quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.first_step(quadrant);
-    }
-
-
-
-    // 
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-     quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.compute_nodal_anti_diffusive_fluxes(quadrant);
-    }
-    incr_dyn.assemble ();
-    P_plus_dyn.assemble ();
-    P_minus_dyn.assemble ();
-
-
-    // low order solution
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
-    {
-      sol_dyn.get_owned_data ()[kk  ] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk  ]/mass_dyn.get_owned_data ()[kk  ];
-    }
-    //sol_dyn.assemble(replace_op);
-    
-
-
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-      quadrant != tmsh.end_quadrant_sweep ();
-      ++quadrant)
-    {
-      for (int ii = 0; ii < 4; ++ii)
-      {
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordh    (quadrant->gt (ii))]<0)
-        {
-          sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
-        }
-      }
-    }
-    //sol_dyn.assemble (replace_op);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUy);
-
-
-    incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
-    incr_dyn.assemble (replace_op);
-
-
-    // second order correction
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-     quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.second_step(quadrant);
-    }
-    incr_dyn.assemble ();
-    //TOC("Compute step");
-
-
-    //TIC();
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
-    {
-      sol_dyn.get_owned_data ()[kk] += (stp.dt + stp.dt_old)*.5*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
-    }
-
-
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-     quadrant != tmsh.end_quadrant_sweep ();
-     ++quadrant)
-    {
-      for (int ii = 0; ii < 4; ++ii)
-      {
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordh (quadrant->gt (ii))] < 0)
-        {
-          sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
-        }
-      }
-    }
-    sol_dyn.assemble (replace_op);
-    //TOC("Apply increment");
 
 
     // Save solution
@@ -1313,6 +1095,11 @@ main (int argc, char **argv)
       strcpy(arr, str.c_str());
       sprintf(filename, arr,  count);
       tmsh.octbin_export (filename, sol_dyn, ordUy);
+
+      str = std::string(SAVE_DIR) + "/results/swe_Th_%4.4d";
+      strcpy(arr, str.c_str());
+      sprintf(filename, arr,  count);
+      tmsh.octbin_export (filename, sol_dyn, ordTh);
       
       str = std::string(SAVE_DIR) + "/results/swe_Z_%4.4d";
       strcpy(arr, str.c_str());
@@ -1462,49 +1249,56 @@ main (int argc, char **argv)
       
       // Interpolo sol sulla nuova mesh
       //TIC();
-      Q1 sol (ln_nodes * 3);
+      Q1 sol (ln_nodes * 4);
       bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh,  false);
       bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUx, false);
-      bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy);
+      bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordUy, false);
+      bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordTh);
       interpolate_vector (tmsh, sol_dyn, sol, ordh);
       interpolate_vector (tmsh, sol_dyn, sol, ordUx);
       interpolate_vector (tmsh, sol_dyn, sol, ordUy);
+      interpolate_vector (tmsh, sol_dyn, sol, ordTh);
       sol.assemble (replace_op);
       
-      Q1 sold (ln_nodes * 3);
+      Q1 sold (ln_nodes * 4);
       bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordh,  false);
       bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordUx, false);
-      bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordUy);
+      bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordUy, false);
+      bim2a_solution_with_ghosts (tmsh, sold, replace_op, ordTh);
       interpolate_vector (tmsh, sold_dyn, sold, ordh);
       interpolate_vector (tmsh, sold_dyn, sold, ordUx);
       interpolate_vector (tmsh, sold_dyn, sold, ordUy);
+      interpolate_vector (tmsh, sold_dyn, sold, ordTh);
       sold.assemble (replace_op);
       
       
-      Q1 soldd (ln_nodes * 3);
+      Q1 soldd (ln_nodes * 4);
       bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordh,  false);
       bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUx, false);
-      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUy);
+      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUy, false);
+      bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordTh);
       interpolate_vector (tmsh, soldd_dyn, soldd, ordh );
       interpolate_vector (tmsh, soldd_dyn, soldd, ordUy);
       interpolate_vector (tmsh, soldd_dyn, soldd, ordUx);
+      interpolate_vector (tmsh, soldd_dyn, soldd, ordTh);
       soldd.assemble (replace_op);
       
       
-      Q1 incr (ln_nodes * 3);
+      Q1 incr (ln_nodes * 4);
       incr.get_owned_data ().assign (incr.get_owned_data ().size(), 0.0);
       incr.assemble ();
 
-      std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 3);
+      std::vector<std::array<double,4>> incr_anti_diff (ln_elements * 4);
 
       
-      Q1 mass (ln_nodes * 3);
+      Q1 mass (ln_nodes * 4);
       bim2a_mass_vector (tmsh, mass, ordh );
       bim2a_mass_vector (tmsh, mass, ordUx);
       bim2a_mass_vector (tmsh, mass, ordUy);
+      bim2a_mass_vector (tmsh, mass, ordTh);
       mass.assemble ();
       
-      Q0 sol_onehalf (ln_elements * 3);
+      Q0 sol_onehalf (ln_elements * 4);
       sol_onehalf.get_owned_data ().assign (sol_onehalf.get_owned_data ().size(), 0.0);
 
 
@@ -1547,7 +1341,8 @@ main (int argc, char **argv)
       
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
-      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy);
+      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy, false);
+      bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordTh);
       
        
       sol_dyn                 = sol;

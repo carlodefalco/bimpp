@@ -334,6 +334,7 @@ main (int argc, char **argv)
                  number_FD_points                         = input_data["number of points in the FD mesh"];
   const double & thickness_basal_layer                    = input_data["thickness basal layer"];
   const double & thr_erodible_layer                       = input_data["threshold of the orography height in meters under which we have no erodible layer"];
+  const double & tolerance_space_adapt                    = input_data["tolerance space adaptation"];
 
   const std::string & SAVE_DIR    = input_data["home saving directory, i.e., where we can find the directory results"];
   const std::string & DEM_DIR     = input_data["dem file, complete path"]; 

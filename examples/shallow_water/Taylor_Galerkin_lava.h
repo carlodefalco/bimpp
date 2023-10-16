@@ -36,6 +36,7 @@ public:
              const ordering& oh,
              const ordering& oUx, 
              const ordering& oUy, 
+             const ordering& oTh,
              const Q1& Z,
              Q0& Z_onehalf,
 	           Q1& Newton_it,
@@ -124,9 +125,6 @@ public:
 
   void
   set_dt (const double dt_);
-
-  void
-  set_old_dt (const double dt_);
   
   void
   set_times(const double& time, const double& time_old, const double& time_oldd);
@@ -135,7 +133,7 @@ public:
   get_dt ();
   
   
-  double dt, dt_old;
+  double dt;
   
   double Dx, Dy, area;
   
@@ -160,6 +158,7 @@ public:
   std::array<double, 4> hdof    = {0, 0, 0, 0};
   std::array<double, 4> Uxdof   = {0, 0, 0, 0};
   std::array<double, 4> Uydof   = {0, 0, 0, 0};
+  std::array<double, 4> Thdof   = {0, 0, 0, 0};
   std::array<double, 4> Z_node  = {0, 0, 0, 0};
   std::array<double, 4> Z_node_nei  = {0, 0, 0, 0};
   std::array<double, 4> P_plus_h_dof   = {0, 0, 0, 0};
@@ -176,6 +175,7 @@ public:
   std::array<double, 4> fluxx_h_node    = {0, 0, 0, 0}, fluxy_h_node    = {0, 0, 0, 0};
   std::array<double, 4> fluxx_Ux_node   = {0, 0, 0, 0}, fluxy_Ux_node   = {0, 0, 0, 0};
   std::array<double, 4> fluxx_Uy_node   = {0, 0, 0, 0}, fluxy_Uy_node   = {0, 0, 0, 0};
+  std::array<double, 4> fluxx_Th_node   = {0, 0, 0, 0}, fluxy_Th_node   = {0, 0, 0, 0};
   
   
   std::array<double, 3> sigma_stress = {0., 0., 0.};
@@ -199,6 +199,12 @@ public:
   
   double
   Uy_flux_formula_y (const double& h, const double& Ux, const double& Uy);
+
+  double
+  Th_flux_formula_x (const double& h, const double& Ux, const double& Uy, const double& Th);
+  
+  double
+  Th_flux_formula_y (const double& h, const double& Ux, const double& Uy, const double& Th);
 
 
   // stress functions
@@ -272,11 +278,12 @@ public:
 private:
 
   std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y, der_coeffs_x_s, der_coeffs_y_s, D_U;
-  std::array<double, 2> grad_cell_Z, grad_cell_eta, grad_cell_h, grad_cell_Ux, grad_cell_Uy, grad_cell_ux, grad_cell_uy, grad_cell_spec;
+  std::array<double, 2> grad_cell_Th, grad_cell_Z, grad_cell_eta, grad_cell_h, grad_cell_Ux, grad_cell_Uy, grad_cell_ux, grad_cell_uy, grad_cell_spec;
   
   const ordering& ordh;
   const ordering& ordUx;
   const ordering& ordUy;
+  const ordering& ordTh;
   const double& DELTAT;
   const double& epsilon;
   const bool& is_non_reflBC;

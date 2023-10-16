@@ -185,7 +185,7 @@ public:
   linear_interpolation(const int& kkk_ini, const double& delta_h_old, const double& Z_moved);
 
   double
-  linear_interpolation_second(const double& Z_node_c, const double& delta_h_old, const double& Pxi, const double& Z_2, const int& kkk_ini, const double& hdofold_c);
+  linear_interpolation_second(const double& Z_node_c, const double& delta_h_old, const double& Pxi, const double& Z_2, const int& kkk_ini, const double& hdofold_c, const double& vxs_cell, const double& vys_cell);
   
   double
   get_dt ();

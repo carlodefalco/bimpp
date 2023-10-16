@@ -688,8 +688,8 @@ TG2_scheme::Newton_momentum_balance(const double& hw_c, const double& hs_c, doub
     const auto U_tot_x = Uxs_c + Uxw_c;
     const auto U_tot_y = Uys_c + Uyw_c;
 
-    const double delta_x = std::abs(U_tot_x)>tolerance_sign ? 0. : 1./tolerance_sign;
-    const double delta_y = std::abs(U_tot_y)>tolerance_sign ? 0. : 1./tolerance_sign;
+    const double delta_x = 1./(1.+U_tot_x*U_tot_x*(M_PI*.5)*(M_PI*.5)); //std::abs(U_tot_x)>tolerance_sign ? 0. : 1./tolerance_sign;
+    const double delta_y = 1./(1.+U_tot_y*U_tot_y*(M_PI*.5)*(M_PI*.5)); //std::abs(U_tot_y)>tolerance_sign ? 0. : 1./tolerance_sign;
 
     const double fric_x = (h_c*h_c)>epsilon ? (density*grav/turbulence_coeff/(h_c*h_c)*2.*std::abs(U_tot_x)) : 0.;
     const double fric_y = (h_c*h_c)>epsilon ? (density*grav/turbulence_coeff/(h_c*h_c)*2.*std::abs(U_tot_y)) : 0.;
@@ -1173,7 +1173,7 @@ TG2_scheme::solve_second_step_cons_equation (tmesh::quadrant_iterator quadrant)
           
         }
 
-        dp_old = linear_interpolation_second(Z [quadrant->gt (ii)], delta_h_c, Pxi, Z_2, ordBottom(quadrant->gt (ii)), hdofold[ii]);
+        dp_old = linear_interpolation_second(Z [quadrant->gt (ii)], delta_h_c, Pxi, Z_2, ordBottom(quadrant->gt (ii)), hdofold[ii], vxs_cell, vys_cell);
 
         grad_dp_old = {.5 * ( (pressure[3]-pressure[2]) + (pressure[1]-pressure[0]) ), .5 * ( (pressure[2]-pressure[0]) + (pressure[3]-pressure[1]) )};
 
@@ -1238,7 +1238,7 @@ TG2_scheme::solve_second_step_cons_equation (tmesh::quadrant_iterator quadrant)
             }
           }
 
-          dp_old = linear_interpolation_second(Z [quadrant->gparent(jj,ii)], delta_h_c, Pxi, Z_2, ordBottom(quadrant->gparent (jj,ii)), sold [ordhw  (quadrant->gparent (jj, ii) )] + sold [ordhs  (quadrant->gparent (jj, ii) )]);
+          dp_old = linear_interpolation_second(Z [quadrant->gparent(jj,ii)], delta_h_c, Pxi, Z_2, ordBottom(quadrant->gparent (jj,ii)), sold [ordhw  (quadrant->gparent (jj, ii) )] + sold [ordhs  (quadrant->gparent (jj, ii) )], vxs_cell, vys_cell);
 
           grad_dp_old = {.5 * ( (pressure[3]-pressure[2]) + (pressure[1]-pressure[0]) ), .5 * ( (pressure[2]-pressure[0]) + (pressure[3]-pressure[1]) )};
 
@@ -1269,7 +1269,7 @@ TG2_scheme::solve_second_step_cons_equation (tmesh::quadrant_iterator quadrant)
 
 
 double
-TG2_scheme::linear_interpolation_second(const double& Z_node_c, const double& delta_h_old, const double& P_xi, const double& Z_moved, const int& kkk_ini, const double& hdofold_c)
+TG2_scheme::linear_interpolation_second(const double& Z_node_c, const double& delta_h_old, const double& P_xi, const double& Z_moved, const int& kkk_ini, const double& hdofold_c, const double& vxs_cell, const double& vys_cell)
 {
 
   double Z_plus  = Z_moved+delta_h_old;
@@ -1282,7 +1282,9 @@ TG2_scheme::linear_interpolation_second(const double& Z_node_c, const double& de
 
   auto P_ximinus = Z_minus<0 ? (Z_node_c<thr_erodible_layer ? P_xiplus : linear_interpolation(kkk_ini, delta_h_old, 0.)) : linear_interpolation(kkk_ini, delta_h_old, Z_minus);
 
-  const double second_der_dp = (delta_h_old>epsilon && dt<=.5*delta_h_old*delta_h_old/consolidation_coefficient*cfl_dp) ? consolidation_coefficient*(P_xiplus - 2.*P_xi + P_ximinus)/delta_h_old/delta_h_old : 0.;
+  const double cfl_number_mu = dt/std::max(Dx,Dy)*std::sqrt(vxs_cell*vxs_cell + vys_cell*vys_cell);
+
+  const double second_der_dp = (delta_h_old>epsilon && dt<=.5*delta_h_old*delta_h_old/consolidation_coefficient*(1.- cfl_number_mu*cfl_number_mu )) ? consolidation_coefficient*(P_xiplus - 2.*P_xi + P_ximinus)/delta_h_old/delta_h_old : 0.;
 
   return(second_der_dp);
 }
@@ -2903,7 +2905,7 @@ TG2_scheme::Uxs_src_formula (const double& hw, const double& hs, const double& U
   const auto n  = h>epsilon ? hw/h : 0.;
   const auto ns = h>epsilon ? hs/h : 0.;
   const double bed_pressure = grav*hs*(1.-r_coeff) - bed_excess_pore_water_pressure/density_s; 
-  const auto Ux = Uxw + Uxs; 
+  const auto Ux = Uxw + Uxs;
   const auto Uy = Uyw + Uys;
   const double vel_x = h>epsilon ? Ux/h : 0.;
   const double vel_y = h>epsilon ? Uy/h : 0.;
@@ -2920,7 +2922,7 @@ TG2_scheme::Uxs_src_formula (const double& hw, const double& hs, const double& U
 
   //std::cout << h << " " << dhdx << " " << dZdx << " " << grav*h*(dZdx+dhdx) << std::endl;
 
-  const double vel_x_sign = std::abs(Ux)>tolerance_sign ? Ux/std::abs(Ux) : Ux/tolerance_sign;
+  const double vel_x_sign = 2./M_PI*std::atan(M_PI*.5*Ux); //std::abs(Ux)>tolerance_sign ? Ux/std::abs(Ux) : Ux/tolerance_sign;
   //const double vel_x_sign = abs_vel>tolerance_sign ? vel_x/abs_vel : 0.;
   //const double vel_x_sign = abs_vel>tolerance_sign ? vel_x/abs_vel : vel_x/tolerance_sign;
 
@@ -2956,7 +2958,7 @@ TG2_scheme::Uys_src_formula (const double& hw, const double& hs, const double& U
 
   const double R_y = C_d*(vel_w_y-vel_s_y);
 
-  const double vel_y_sign = std::abs(Uy)>tolerance_sign ? Uy/std::abs(Uy) : Uy/tolerance_sign;
+  const double vel_y_sign = 2./M_PI*std::atan(M_PI*.5*Uy); //std::abs(Uy)>tolerance_sign ? Uy/std::abs(Uy) : Uy/tolerance_sign;
   //const double vel_y_sign = abs_vel>tolerance_sign ? vel_y/abs_vel : vel_y/tolerance_sign;
   //const double vel_y_sign = (vel_y > ) ? 1.0 : (vel_y < 0) ? -1.0 : 0.0;
 
@@ -2981,7 +2983,7 @@ TG2_scheme::Uxs_src_formula_2 (const double& hw, const double& hs, const double&
 
   const double density = ns + n*r_coeff;
 
-  const double vel_x_sign = std::abs(Ux)>tolerance_sign ? Ux/std::abs(Ux) : Ux/tolerance_sign;
+  const double vel_x_sign = 2./M_PI*std::atan(M_PI*.5*Ux); //std::abs(Ux)>tolerance_sign ? Ux/std::abs(Ux) : Ux/tolerance_sign;
 
   const double bed_fric_contr_one = h*h>epsilon && is_bed_friction && hs>epsilon ? density*Ux*grav*std::abs(Ux)/turbulence_coeff/h/h : 0.; //is_bed_friction ? vel_x*grav*abs_vel/turbulence_coeff : 0.;
   const double bed_fric_contr_two = is_bed_friction && hs>epsilon ? vel_x_sign*bed_pressure*std::tan(bed_friction_angle_rad) : 0.;
@@ -3002,7 +3004,7 @@ TG2_scheme::Uys_src_formula_2 (const double& hw, const double& hs, const double&
   const double density = ns + n*r_coeff;
 
 
-  const double vel_y_sign = std::abs(Uy)>tolerance_sign ? Uy/std::abs(Uy) : Uy/tolerance_sign;
+  const double vel_y_sign = 2./M_PI*std::atan(M_PI*.5*Uy); //std::abs(Uy)>tolerance_sign ? Uy/std::abs(Uy) : Uy/tolerance_sign;
 
   const double bed_fric_contr_one = (h*h)>epsilon && is_bed_friction && hs>epsilon ? density*Uy*grav*std::abs(Uy)/turbulence_coeff/h/h : 0.; 
   const double bed_fric_contr_two = is_bed_friction && hs>epsilon ? vel_y_sign*bed_pressure*std::tan(bed_friction_angle_rad) : 0.;
