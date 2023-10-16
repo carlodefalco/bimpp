@@ -39,7 +39,7 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& fluid_viscosity,
                        const double& yield_shear_stress)
 : sol(sol), sold(sold), soldd(soldd), sold_rkc(sold_rkc), soldd_rkc(soldd_rkc), sol_ini_rkc(sol_ini_rkc), incr(incr), incr_initial_source(incr_initial_source), incr_source(incr_source), incr_anti_diff(incr_anti_diff), stress_initial_step(stress_initial_step), stress_step(stress_step), P_plus(P_plus), P_minus(P_minus), spec_radius_nodal(spec_radius_nodal), sol_onehalf(sol_onehalf), mass(mass), 
-  ordh(oh), ordUx(oUx), ordUy(oUy), ordUy(oTh), Z(Z), Z_onehalf(Z_onehalf), Newton_it(Newton_it), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), grav(grav),
+  ordh(oh), ordUx(oUx), ordUy(oUy), ordTh(oTh), Z(Z), Z_onehalf(Z_onehalf), Newton_it(Newton_it), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), grav(grav),
   density(density), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress)
 { }
  
@@ -224,7 +224,7 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 
   const auto div_FTh_x = .5*((fluxx_Th_node[1]-fluxx_Th_node[0]) + (fluxx_Th_node[3]-fluxx_Th_node[2]));
   const auto div_FTh_y = .5*((fluxy_Th_node[2]-fluxy_Th_node[0]) + (fluxy_Th_node[3]-fluxy_Th_node[1]));
-  const auto div_FUy_cell = Dy*div_FTh_x + Dx*div_FTh_y;
+  const auto div_FTh_cell = Dy*div_FTh_x + Dx*div_FTh_y;
 
   const auto h_current = h_cell_average  - dt*.5*  div_Fh_cell /area;
 
@@ -426,10 +426,10 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
       const auto smax = std::max(speed, speed_nei); 
 
-      const auto flux_int_h  = .5*((h_flux_formula_x (h_cell, Ux_cell, Uy_cell)+h_flux_formula_x (h_cell_nei, Ux_cell_nei, Uy_cell_nei))*outward_normal_edge[0] + (h_flux_formula_y (h_cell, Ux_cell, Uy_cell)+h_flux_formula_y (h_cell_nei, Ux_cell_nei, Uy_cell_nei))*outward_normal_edge[1]) - .5*smax*(h_cell_nei -h_cell );
-      const auto flux_int_Ux = .5*((Ux_flux_formula_x(h_cell, Ux_cell, Uy_cell)+Ux_flux_formula_x(h_cell_nei, Ux_cell_nei, Uy_cell_nei))*outward_normal_edge[0] + (Ux_flux_formula_y(h_cell, Ux_cell, Uy_cell)+Ux_flux_formula_y(h_cell_nei, Ux_cell_nei, Uy_cell_nei))*outward_normal_edge[1]) - .5*smax*(Ux_cell_nei-Ux_cell);
-      const auto flux_int_Uy = .5*((Uy_flux_formula_x(h_cell, Ux_cell, Uy_cell)+Uy_flux_formula_x(h_cell_nei, Ux_cell_nei, Uy_cell_nei))*outward_normal_edge[0] + (Uy_flux_formula_y(h_cell, Ux_cell, Uy_cell)+Uy_flux_formula_y(h_cell_nei, Ux_cell_nei, Uy_cell_nei))*outward_normal_edge[1]) - .5*smax*(Uy_cell_nei-Uy_cell);
-      const auto flux_int_Th = .5*((Th_flux_formula_x(h_cell, Ux_cell, Uy_cell)+Th_flux_formula_x(h_cell_nei, Ux_cell_nei, Uy_cell_nei))*outward_normal_edge[0] + (Th_flux_formula_y(h_cell, Ux_cell, Uy_cell)+Th_flux_formula_y(h_cell_nei, Ux_cell_nei, Uy_cell_nei))*outward_normal_edge[1]) - .5*smax*(Th_cell_nei-Th_cell);
+      const auto flux_int_h  = .5*((h_flux_formula_x (h_cell, Ux_cell, Uy_cell)         +h_flux_formula_x (h_cell_nei, Ux_cell_nei, Uy_cell_nei))*outward_normal_edge[0]              + (h_flux_formula_y (h_cell, Ux_cell, Uy_cell)         +h_flux_formula_y (h_cell_nei, Ux_cell_nei, Uy_cell_nei             ))*outward_normal_edge[1]) - .5*smax*(h_cell_nei -h_cell );
+      const auto flux_int_Ux = .5*((Ux_flux_formula_x(h_cell, Ux_cell, Uy_cell)         +Ux_flux_formula_x(h_cell_nei, Ux_cell_nei, Uy_cell_nei))*outward_normal_edge[0]              + (Ux_flux_formula_y(h_cell, Ux_cell, Uy_cell)         +Ux_flux_formula_y(h_cell_nei, Ux_cell_nei, Uy_cell_nei             ))*outward_normal_edge[1]) - .5*smax*(Ux_cell_nei-Ux_cell);
+      const auto flux_int_Uy = .5*((Uy_flux_formula_x(h_cell, Ux_cell, Uy_cell)         +Uy_flux_formula_x(h_cell_nei, Ux_cell_nei, Uy_cell_nei))*outward_normal_edge[0]              + (Uy_flux_formula_y(h_cell, Ux_cell, Uy_cell)         +Uy_flux_formula_y(h_cell_nei, Ux_cell_nei, Uy_cell_nei             ))*outward_normal_edge[1]) - .5*smax*(Uy_cell_nei-Uy_cell);
+      const auto flux_int_Th = .5*((Th_flux_formula_x(h_cell, Ux_cell, Uy_cell, Th_cell)+Th_flux_formula_x(h_cell_nei, Ux_cell_nei, Uy_cell_nei, Th_cell_nei))*outward_normal_edge[0] + (Th_flux_formula_y(h_cell, Ux_cell, Uy_cell, Th_cell)+Th_flux_formula_y(h_cell_nei, Ux_cell_nei, Uy_cell_nei, Th_cell_nei))*outward_normal_edge[1]) - .5*smax*(Th_cell_nei-Th_cell);
 
       //std::cout << flux_int_Ux << " " << Ux_flux_formula_x(h_cell_nei, Ux_cell_nei, Uy_cell_nei) << " " << Ux_flux_formula_x(h_cell, Ux_cell, Uy_cell) << std::endl;
 
@@ -623,7 +623,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   
   for (int ii = 0; ii < 4; ++ii){
 
-    double hdof_c, Uxdof_c, Uydof_c, Thdof_c, P_plus_h_c, P_minus_h_c, P_plus_Ux_c, P_minus_Ux_c, P_plus_Uy_c, P_minus_Uy_c;
+    double hdof_c, Uxdof_c, Uydof_c, Thdof_c, P_plus_h_c, P_minus_h_c, P_plus_Ux_c, P_minus_Ux_c, P_plus_Uy_c, P_minus_Uy_c, P_plus_Th_c, P_minus_Th_c;
 
     if (! quadrant->is_hanging (ii)){
       hdof_c      = sol [ordh    (quadrant->gt (ii))];
@@ -788,7 +788,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
   
   // compute flux correction
-  double phi_cell_h = 1., phi_cell_Ux = 1., phi_cell_Uy = 1.;
+  double phi_cell_h = 1., phi_cell_Ux = 1., phi_cell_Uy = 1., phi_cell_Th = 1.;
   for (int ii = 0; ii < 4; ++ii){
 
     const auto & flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii];

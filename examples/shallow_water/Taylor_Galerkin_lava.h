@@ -167,6 +167,8 @@ public:
   std::array<double, 4> P_minus_Ux_dof = {0, 0, 0, 0};
   std::array<double, 4> P_plus_Uy_dof  = {0, 0, 0, 0};
   std::array<double, 4> P_minus_Uy_dof = {0, 0, 0, 0};
+  std::array<double, 4> P_plus_Th_dof  = {0, 0, 0, 0};
+  std::array<double, 4> P_minus_Th_dof = {0, 0, 0, 0};
   
   // std::array<double, 4> source_h_node  = {0, 0, 0, 0};
   // std::array<double, 4> source_Ux_node = {0, 0, 0, 0};
