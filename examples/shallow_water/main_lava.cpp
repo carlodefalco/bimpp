@@ -371,10 +371,34 @@ main (int argc, char **argv)
   const double & fluid_viscosity                          = input_data["fluid dynamic viscosity"];
   const double & yield_shear_stress                       = input_data["yield shear stress"];
   const double & tolerance_space_adapt                    = input_data["tolerance space adaptation"];
+  const double & sigma_vent                               = input_data["area discrete vent"];
+  const double & x_v                                      = input_data["x vent location"];
+  const double & y_v                                      = input_data["y vent location"];
+  const double & Q_vent                                   = input_data["lava vent discharge"];
+  const double & T_vent                                   = input_data["lava vent effusion temperature"];
+  const double & W_coeff                                  = input_data["W coefficient"];
+  const double & C_coeff_sin_h                            = input_data["C coefficient without h"];
+  const double & K_coeff_sin_h                            = input_data["K coefficient without h"];
+  const double & E_coeff                                  = input_data["E coefficient"];
+  const double & b_coeff                                  = input_data["b coefficient"];
+  const double & T_ref                                    = input_data["T_ref"];
+  const double & T_ref                                    = input_data["T_env"];
+  const double & T_ref                                    = input_data["T_c"];
+
+
 
   const std::string & SAVE_DIR    = input_data["home saving directory, i.e., where we can find the directory results"];
   const std::string & DEM_DIR     = input_data["dem file, complete path"]; 
   const std::string & MASK_DIR    = input_data["mask file, complete path"];
+
+
+  auto delta_vent = [& sigma_vent, & x_v, & y_v] (const double& x, const double& y)
+  {
+    const double delta_X = x - x_v;
+    const double delta_Y = y - y_v;
+    const auto r_square = delta_X*delta_X + delta_Y*delta_Y;
+    return(1./(2*M_PI*sigma_vent)*std::exp(-r_square/(2.*sigma_vent)));
+  }
 
   L = res*(Nx-1);
   H = res*(Ny-1);
@@ -800,7 +824,8 @@ main (int argc, char **argv)
                  Z_onehalf_dyn,
 		             Newton_it_dyn, 
                  DELTAT, h_min, is_non_reflBC, is_bed_friction, is_stress_tensor, grav,
-                 density, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress);
+                 density, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress, delta_vent, Q_vent, T_vent,
+                 W_coeff, C_coeff_sin_h, K_coeff_sin_h, E_coeff, b_coeff, T_ref, T_env, T_c);
   
   
   // Save initial conditions

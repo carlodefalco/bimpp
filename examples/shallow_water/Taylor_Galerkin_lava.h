@@ -51,7 +51,18 @@ public:
              const double& surface_pressure,
              const double& bed_friction_angle_rad,
              const double& fluid_viscosity,
-             const double& yield_shear_stress);
+             const double& yield_shear_stress,
+             const std::function<double(double, double)>& delta_vent,
+             const double& Q_vent,
+             const double& T_vent,
+             const double& W_coeff,
+             const double& C_coeff_sin_h,
+             const double& K_coeff_sin_h,
+             const double& E_coeff,
+             const double& b_coeff,
+             const double& T_ref,
+             const double& T_env,
+             const double& T_c);
   
   TG2_scheme() = delete;
   
@@ -208,6 +219,18 @@ public:
   double
   Th_flux_formula_y (const double& h, const double& Ux, const double& Uy, const double& Th);
 
+  double
+  compute_h_src ();
+
+  double
+  compute_Ux_src (const double& h);
+
+  double
+  compute_Uy_src (const double& h);
+
+  void
+  Newton_energy_balance(const double& h, const double& Ux, const double& Uy, double& Th);
+
 
   // stress functions
   double
@@ -237,13 +260,19 @@ public:
   
   // source terms
   double
-  h_src_formula (const double& h, const double& Ux, const double& Uy);
+  h_src_formula (const double& x, const double& y);
   
   double
-  Ux_src_formula (const double& h, const double& Ux, const double& Uy);
+  Ux_src_formula (const double& h, const double& Ux, const double& Th);
   
   double
-  Uy_src_formula (const double& h, const double& Ux, const double& Uy);
+  Uy_src_formula (const double& h, const double& Uy, const double& Th);
+
+  double
+  Th_src_formula (const double& x, const double& y);
+
+  double
+  Th_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th);
 
   void
   prepare_IMEXRKC_coefficients (const int& s);
@@ -255,6 +284,9 @@ public:
   double nu_htot = 0.;
   double Fr = 0.;
   double g_coeff = 0.;
+
+  double error;
+  const double tolerance = 1.e-8; 
   
   Q1& sol;
   Q1& sold;
@@ -298,6 +330,17 @@ private:
   const double& bed_friction_angle_rad;
   const double& fluid_viscosity;
   const double& yield_shear_stress;
+  const std::function<double(double, double)>& delta_vent;
+  const double& Q_vent;
+  const double& T_vent;
+  const double& W_coeff;
+  const double& C_coeff_sin_h;
+  const double& K_coeff_sin_h;
+  const double& E_coeff;
+  const double& b_coeff;
+  const double& T_ref;
+  const double& T_env;
+  const double& T_c;
 
   double w0, w1;
 

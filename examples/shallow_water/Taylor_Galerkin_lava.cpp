@@ -37,10 +37,22 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& surface_pressure, 
                        const double& bed_friction_angle_rad,
                        const double& fluid_viscosity,
-                       const double& yield_shear_stress)
+                       const double& yield_shear_stress,
+                       const std::function<double(double, double)>& delta_vent,
+                       const double& Q_vent,
+                       const double& T_vent,
+                       const double& W_coeff,
+                       const double& C_coeff_sin_h,
+                       const double& K_coeff_sin_h,
+                       const double& E_coeff,
+                       const double& b_coeff,
+                       const double& T_ref,
+                       const double& T_env,
+                       const double& T_c)
 : sol(sol), sold(sold), soldd(soldd), sold_rkc(sold_rkc), soldd_rkc(soldd_rkc), sol_ini_rkc(sol_ini_rkc), incr(incr), incr_initial_source(incr_initial_source), incr_source(incr_source), incr_anti_diff(incr_anti_diff), stress_initial_step(stress_initial_step), stress_step(stress_step), P_plus(P_plus), P_minus(P_minus), spec_radius_nodal(spec_radius_nodal), sol_onehalf(sol_onehalf), mass(mass), 
   ordh(oh), ordUx(oUx), ordUy(oUy), ordTh(oTh), Z(Z), Z_onehalf(Z_onehalf), Newton_it(Newton_it), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), grav(grav),
-  density(density), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress)
+  density(density), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress),
+  delta_vent(delta_vent), Q_vent(Q_vent), T_vent(T_vent), W_coeff(W_coeff), C_coeff_sin_h(C_coeff_sin_h), K_coeff_sin_h(K_coeff_sin_h), E_coeff(E_coeff), b_coeff(b_coeff), T_ref(T_ref), T_env(T_env), T_c(T_c)
 { }
  
  
@@ -193,6 +205,8 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
     Uy_cell_average += Uydof_c;
     Th_cell_average += Thdof_c;
 
+    Thdof[ii] = Thdof_c;
+
     
     fluxx_h_node[ii]  = h_flux_formula_x   (hdof_c, Uxdof_c, Uydof_c);
     fluxy_h_node[ii]  = h_flux_formula_y   (hdof_c, Uxdof_c, Uydof_c);
@@ -234,12 +248,86 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 
 
   Z_onehalf[index_quadrant_global] = (Z_node[0]+Z_node[1]+Z_node[2]+Z_node[3])*.25;
-  
-  sol_onehalf[ordh    (index_quadrant_global)] = h_current;
-  sol_onehalf[ordUx   (index_quadrant_global)] = Ux_cell_average - dt*.5 * (div_FUx_cell/area - src_slope_formula (h_cell_average, slope_x_c));
-  sol_onehalf[ordUy   (index_quadrant_global)] = Uy_cell_average - dt*.5 * (div_FUy_cell/area - src_slope_formula (h_cell_average, slope_y_c));
-  sol_onehalf[ordTh   (index_quadrant_global)] = Th_cell_average - dt*.5 * (div_FTh_cell/area);
 
+  
+  sol_onehalf[ordh    (index_quadrant_global)] = h_current + dt*.5 * compute_h_src();
+
+  const auto & h_onehalf_updated = sol_onehalf[ordh(index_quadrant_global)];
+
+  sol_onehalf[ordUx   (index_quadrant_global)] = (Ux_cell_average - dt*.5 * (div_FUx_cell/area - src_slope_formula (h_cell_average, slope_x_c)))/(1.-dt*.5*compute_Ux_src (h_onehalf_updated));
+  sol_onehalf[ordUy   (index_quadrant_global)] = (Uy_cell_average - dt*.5 * (div_FUy_cell/area - src_slope_formula (h_cell_average, slope_y_c)))/(1.-dt*.5*compute_Uy_src (h_onehalf_updated));
+  sol_onehalf[ordTh   (index_quadrant_global)] =  Th_cell_average - dt*.5 * (div_FTh_cell/area - compute_Th_src());
+
+  // Solve non-linearities in the energy equation
+  const auto & Ux_onehalf_updated = sol_onehalf[ordUx(index_quadrant_global)];
+  const auto & Uy_onehalf_updated = sol_onehalf[ordUy(index_quadrant_global)];
+        auto & Th_onehalf_updated = sol_onehalf[ordTh(index_quadrant_global)];
+
+  Newton_energy_balance(h_onehalf_updated, Ux_onehalf_updated, Uy_onehalf_updated, Th_onehalf_updated);
+
+}
+
+
+
+void
+TG2_scheme::Newton_energy_balance(const double& h, const double& Ux, const double& Uy, double& Th)
+{
+
+  const double v_rhs = Th;
+
+  // solve non-linearities
+  count = -1;
+  error = tolerance + 1;
+  while (count++<Nmax && error>tolerance)
+  {
+    const double f_Th_prime = dt*.5*Th_src_formula_prime(h, Ux, Uy, Th) - 1.;
+    const double f_Th = v_rhs + dt*.5*Th_src_formula(h, Ux, Uy, Th) - Th;
+    const double delta_Th = -f_Th/f_Th_prime;
+
+    error = std::abs(delta_Th);
+    Th += delta_Th; 
+  }
+
+  if (error>tolerance)
+  {
+    std::cout << "No convergence momentum!! " << error << std::endl;
+  }
+
+}
+
+
+double
+TG2_scheme::compute_h_src ()
+{ 
+  // Gauss-Legendre 2 point rule
+  const double shift_x = 1./std::sqrt(3)*Dx*.5;  
+  const double shift_y = 1./std::sqrt(3)*Dy*.5;  
+
+  return(.25*(h_src_formula (xn[0]+shift_x, yn[0]+shift_y) + h_src_formula (xn[3]-shift_x, yn[3]-shift_y) + h_src_formula (xn[1]-shift_x, yn[1]+shift_y) + h_src_formula (xn[2]+shift_x, yn[2]-shift_y)));
+}
+
+double
+TG2_scheme::compute_Ux_src (const double& h_onehalf_updated)
+{  
+  // trapezoidal rule
+  return(.25*(Ux_src_formula(h_onehalf_updated, 1., Thdof[0]) + Ux_src_formula(h_onehalf_updated, 1., Thdof[1]) + Ux_src_formula(h_onehalf_updated, 1., Thdof[2]) + Ux_src_formula(h_onehalf_updated, 1., Thdof[3])));
+}
+
+double
+TG2_scheme::compute_Uy_src (const double& h_onehalf_updated)
+{  
+  // trapezoidal rule
+  return(.25*(Uy_src_formula(h_onehalf_updated, 1., Thdof[0]) + Uy_src_formula(h_onehalf_updated, 1., Thdof[1]) + Uy_src_formula(h_onehalf_updated, 1., Thdof[2]) + Uy_src_formula(h_onehalf_updated, 1., Thdof[3])));
+}
+
+double
+TG2_scheme::compute_Th_src ()
+{ 
+  // Gauss-Legendre 2 point rule
+  const double shift_x = 1./std::sqrt(3)*Dx*.5;  
+  const double shift_y = 1./std::sqrt(3)*Dy*.5;  
+
+  return(.25*(Th_src_formula (xn[0]+shift_x, yn[0]+shift_y) + Th_src_formula (xn[3]-shift_x, yn[3]-shift_y) + Th_src_formula (xn[1]-shift_x, yn[1]+shift_y) + Th_src_formula (xn[2]+shift_x, yn[2]-shift_y)));
 }
 
 
@@ -928,53 +1016,68 @@ TG2_scheme::Th_flux_formula_y (const double& h, const double& Ux, const double& 
 
 // source terms
 double
-TG2_scheme::h_src_formula (const double& h, const double& Ux, const double& Uy)
+TG2_scheme::h_src_formula (const double& x, const double& y)
 { 
-  return (0.); 
+  return (Q_vent*delta_vent(x,y)); 
 }
 
 double
-TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy)
+TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Th)
 {
-  const double bed_pressure = grav*h + surface_pressure/density; 
-  const double vel_x = h>epsilon ? Ux/h : 0.;
-  const double vel_y = h>epsilon ? Uy/h : 0.;
-  const double abs_vel = std::abs( vel_x );
+  const double T = h>epsilon ? Th/h : 0.;
+  const double gamma_fric_over_h = (h*h)>epsilon ? 3.*nu_ref/(h*h)*std::exp(-b_coeff*(T-T_ref)) : 0.; 
 
-  //std::cout << h << " " << dhdx << " " << dZdx << " " << grav*h*(dZdx+dhdx) << std::endl;
-
-  const double vel_x_sign = 2./M_PI*std::atan(M_PI*.5*Ux); //std::abs(Ux)>tolerance_sign ? Ux/std::abs(Ux) : Ux/tolerance_sign;
-  //const double vel_x_sign = abs_vel>tolerance_sign ? vel_x/abs_vel : 0.;
-  //const double vel_x_sign = abs_vel>tolerance_sign ? vel_x/abs_vel : vel_x/tolerance_sign;
-
-  //const double bed_fric_contr = is_bed_friction ? vel_x_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
-
-  const double bed_fric_contr_one = (h*h>epsilon && is_bed_friction) ? Ux*grav*std::abs(Ux)/turbulence_coeff/h/h : 0.; //is_bed_friction ? vel_x*grav*abs_vel/turbulence_coeff : 0.;
-  const double bed_fric_contr_two = is_bed_friction ? vel_x_sign*bed_pressure*std::tan(bed_friction_angle_rad) : 0.;
-
-  return ( - bed_fric_contr_one - bed_fric_contr_two);
+  return ( - gamma_fric_over_h*Ux);
 }
 
 double
-TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy)
+TG2_scheme::Uy_src_formula (const double& h, const double& Uy, const double& Th)
 {
-  const double bed_pressure = grav*h + surface_pressure/density;
+  const double T = h>epsilon ? Th/h : 0.;
+  const double gamma_fric_over_h = (h*h)>epsilon ? 3.*nu_ref/(h*h)*std::exp(-b_coeff*(T-T_ref)) : 0.; 
+
+  return ( - gamma_fric_over_h*Uy);
+}
+
+
+double
+TG2_scheme::Th_src_formula (const double& x, const double& y)
+{
+  return (T_vent*Q_vent*delta_vent(x,y)); 
+}
+
+
+double
+TG2_scheme::Th_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th)
+{
+  // qui mettere tutti i termini, W,C,K,E
+  const double T = h>epsilon ? Th/h : 0.;
   const double vel_x = h>epsilon ? Ux/h : 0.;
   const double vel_y = h>epsilon ? Uy/h : 0.;
-  const double abs_vel = std::abs( vel_y );
+  const double vel_square = vel_x*vel_x + vel_y*vel_y;
 
-  const double vel_y_sign = 2./M_PI*std::atan(M_PI*.5*Uy); //std::abs(Uy)>tolerance_sign ? Uy/std::abs(Uy) : Uy/tolerance_sign;
-  //const double vel_y_sign = abs_vel>tolerance_sign ? vel_y/abs_vel : vel_y/tolerance_sign;
-  //const double vel_y_sign = (vel_y > ) ? 1.0 : (vel_y < 0) ? -1.0 : 0.0;
+  const auto C_coeff = h>epsilon ? C_coeff_sin_h/h : 0.;
+  const auto K_coeff = h>epsilon ? K_coeff_sin_h/h : 0.;
 
-  //const double bed_fric_contr = is_bed_friction ? vel_y_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
+  return ( -W_coeff*(T - T_env) - C_coeff*(T - T_c) + K_coeff*std::exp(-b_coeff*(T-T_ref))*vel_square - E_coeff*(T*T*T*T - T_env*T_env*T_env*T_env) );
+}
 
-  const double bed_fric_contr_one = (h*h>epsilon && is_bed_friction) ? Uy*grav*std::abs(Uy)/turbulence_coeff/h/h : 0.; //is_bed_friction ? vel_y*grav*abs_vel/turbulence_coeff : 0.;
-  const double bed_fric_contr_two = is_bed_friction ? vel_y_sign*bed_pressure*std::tan(bed_friction_angle_rad) : 0.;
+double
+TG2_scheme::Th_src_formula_prime (const double& h, const double& Ux, const double& Uy, const double& Th)
+{
+  const double T = h>epsilon ? Th/h : 0.;
+  const double vel_x = h>epsilon ? Ux/h : 0.;
+  const double vel_y = h>epsilon ? Uy/h : 0.;
+  const double vel_square = vel_x*vel_x + vel_y*vel_y;
 
-  //std::cout << dZdy << std::endl; 
+  const auto C_coeff = h>epsilon ? C_coeff_sin_h/h : 0.;
+  const auto K_coeff = h>epsilon ? K_coeff_sin_h/h : 0.;
 
-  return ( - bed_fric_contr_one - bed_fric_contr_two);
+  auto contr_1 = h>epsilon ? (-W_coeff-C_coeff)/h : 0.;
+  contr_1 += h>epsilon ? -4.*E_coeff*T*T*T/h : 0.;
+  contr_1 += h>epsilon ? -K_coeff*std::exp(-b_coeff*(T-T_ref))*b_coeff/h*vel_square : 0.;
+
+  return (contr_1); 
 }
 
 
