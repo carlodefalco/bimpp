@@ -771,6 +771,7 @@ bim2a_solution_with_ghosts (tmesh& mesh,
 }
 
 
+
 void
 bim2a_solution_with_ghosts_center (tmesh& mesh,
                                    distributed_vector& v,
@@ -778,7 +779,7 @@ bim2a_solution_with_ghosts_center (tmesh& mesh,
                                    const ordering& ord,
                                    bool ra)
 {
-  int node = 0;
+  
   for (auto q = mesh.begin_quadrant_sweep ();
        q != mesh.end_quadrant_sweep ();
        ++q)
@@ -1474,6 +1475,67 @@ bim2c_recovered_gradient_loc (tmesh::quadrant_iterator quadrant,
   return std::make_tuple (du_x_star, du_y_star,
                           assigned_x, assigned_y);
 }
+
+
+
+gradient<std::vector<double>>
+bim2c_quadtree_pde_recovered_gradient_new (tmesh & mesh,
+                                       const std::vector<double> & u,
+                                       active_fun is_active)
+{
+  std::vector<double> du_x_star (mesh.num_global_nodes (), 0);
+  std::vector<double> du_y_star (mesh.num_global_nodes (), 0);
+
+  std::vector<bool> assigned_x (mesh.num_global_nodes (), 0);
+  std::vector<bool> assigned_y (mesh.num_global_nodes (), 0);
+
+  std::tuple<double, double, bool, bool> du_star_loc;
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      // Loop over non-hanging vertices of current quadrant.
+      for (int node = 0; node < 4; ++node)
+        {
+          if (quadrant->is_hanging (node) ||
+              (assigned_x[quadrant->gt (node)] &&
+               assigned_y[quadrant->gt (node)]))
+            continue;
+
+          // Skip inactive quadrants.
+          if (! is_active(quadrant))
+            continue;
+
+          du_star_loc =
+            bim2c_recovered_gradient_loc (quadrant, node,
+                                          u, is_active);
+
+          du_x_star [quadrant->gt (node)] = std::get<0> (du_star_loc);
+          du_y_star [quadrant->gt (node)] = std::get<1> (du_star_loc);
+
+          assigned_x[quadrant->gt (node)] = std::get<2> (du_star_loc);
+          assigned_y[quadrant->gt (node)] = std::get<3> (du_star_loc);
+        }
+    }
+
+  // Send data to all processes so that non-assigned values
+  // on current rank get assigned by other ranks.
+  MPI_Op op;
+  MPI_Op_create ((MPI_User_function *) replace, 1, &op);
+
+  MPI_Allreduce (MPI_IN_PLACE, du_x_star.data (),
+                 du_x_star.size (), MPI_DOUBLE,
+                 op, MPI_COMM_WORLD);
+
+  MPI_Allreduce (MPI_IN_PLACE, du_y_star.data (),
+                 du_y_star.size (), MPI_DOUBLE,
+                 op, MPI_COMM_WORLD);
+
+  return std::make_pair (du_x_star, du_y_star);
+}
+
+
 
 // Specialization.
 template <>

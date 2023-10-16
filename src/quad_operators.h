@@ -192,6 +192,13 @@ bim2c_quadtree_pde_recovered_gradient (tmesh & mesh,
                                        [] (tmesh::quadrant_iterator)
                                          {return true;});
 
+gradient<std::vector<double>>
+bim2c_quadtree_pde_recovered_gradient_new (tmesh & mesh,
+                                       const std::vector<double> & u,
+                                       active_fun is_active =
+                                       [] (tmesh::quadrant_iterator)
+                                         {return true;});
+
 template <class T>
 q2_vec
 bim2c_quadtree_pde_recovered_solution (tmesh & mesh,

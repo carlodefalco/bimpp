@@ -806,6 +806,7 @@ tmesh::set_metrics_marker_flux_lim
  double mesh_size_dry, double mesh_size_wet, double mesh_size_interface,
  double tol, int max_depth, int n_refine, int n_coarsen)
 {
+
   this->metrics_max_depth = max_depth;
 
   tmesh::data_t * data;
@@ -822,7 +823,7 @@ tmesh::set_metrics_marker_flux_lim
 
       const auto current_mesh_size = std::min(x_plus-x_minus, y_plus-y_minus);
 
-            auto number_wet = static_cast<int> (std::round(std::log2(current_mesh_size/mesh_size_wet)));
+      const auto number_wet = static_cast<int> (std::round(std::log2(current_mesh_size/mesh_size_wet)));
       const auto number_dry = static_cast<int> (std::round(std::log2(current_mesh_size/mesh_size_dry)));
       const auto number_int = static_cast<int> (std::round(std::log2(current_mesh_size/mesh_size_interface)));
 
@@ -832,18 +833,18 @@ tmesh::set_metrics_marker_flux_lim
       hxhat_hx = static_cast<int> (std::round (std::log2 (estimator (quadrant) * std::sqrt (this->num_global_quadrants ()) / tol)));
 
       if (hxhat_hx >= 0)
-        hxhat_hx = std::max (0, hxhat_hx - n_refine);
-      else
-        hxhat_hx = std::min (0, hxhat_hx + n_coarsen);
+        hxhat_hx = std::min(number_wet, hxhat_hx); //std::max (0, hxhat_hx - n_refine);
+      //else
+      //  hxhat_hx = std::min (0, hxhat_hx + n_coarsen);
       
       data = static_cast<tmesh::data_t *> (quadrant->the_quadrant->p.user_data);
       
 
-      hxhat_hx = std::min (std::max (-max_depth, hxhat_hx), max_depth);
-      number_wet = std::min(number_wet, hxhat_hx);
-
-      data->refine_count = number_wet;
-      data->refine_count = estimator_flux_dry (quadrant)==1 ? number_dry : data->refine_count; 
+      //hxhat_hx = std::min (hxhat_hx, number_wet);
+      //number_wet = std::min(number_wet, hxhat_hx);
+ 
+      data->refine_count = std::min (std::max (-max_depth, hxhat_hx), max_depth);
+      data->refine_count = estimator_flux_dry (quadrant)==1 ? number_dry : data->refine_count;
       data->refine_count = estimator_flux     (quadrant)==1 ? number_int : data->refine_count;
 
 
