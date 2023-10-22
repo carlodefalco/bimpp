@@ -291,7 +291,7 @@ TG2_scheme::Newton_energy_balance(const double& h, const double& Ux, const doubl
 
   if (error>tolerance)
   {
-    std::cout << "No convergence momentum!! " << error << std::endl;
+    std::cout << "No convergence energy!! " << error << std::endl;
   }
 
 }
@@ -331,6 +331,29 @@ TG2_scheme::compute_Th_src ()
   return(.25*(Th_src_formula (xn[0]+shift_x, yn[0]+shift_y) + Th_src_formula (xn[3]-shift_x, yn[3]-shift_y) + Th_src_formula (xn[1]-shift_x, yn[1]+shift_y) + Th_src_formula (xn[2]+shift_x, yn[2]-shift_y)));
 }
 
+
+void
+TG2_scheme::solve_non_lin(const int& kk)
+{
+  auto & h_c  = sol.get_owned_data ()[kk  ];
+  auto & Ux_c = sol.get_owned_data ()[kk+1];
+  auto & Uy_c = sol.get_owned_data ()[kk+2];
+  auto & Th_c = sol.get_owned_data ()[kk+3];
+
+  const auto h_cc  = h_c;
+  const auto Ux_cc = Ux_c;
+  const auto Uy_cc = Uy_c;
+  const auto Th_cc = Th_c;
+
+  // solve non-linearities like the first step of the TG2 method to get the complete low order solution,
+  h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk] + dt*compute_h_src ();
+  h_c *= (h_c>0);
+
+  Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*compute_h_src ();
+
+  Newton_energy_balance(h_c, Ux_c, Uy_c, Th_c);
+
+}
 
 void
 TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadrant)
