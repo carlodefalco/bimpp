@@ -221,7 +221,13 @@ public:
   Th_flux_formula_y (const double& h, const double& Ux, const double& Uy, const double& Th);
 
   double
+  phi_func(const int& ii, const double& x, const double& y);
+
+  double
   compute_h_src ();
+
+  double
+  compute_h_src (const int& ii);
 
   double
   compute_Ux_src (const double& h);

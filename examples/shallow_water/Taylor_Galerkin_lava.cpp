@@ -296,6 +296,23 @@ TG2_scheme::Newton_energy_balance(const double& h, const double& Ux, const doubl
 
 }
 
+double
+TG2_scheme::phi_func(const int& ii, const double& x, const double& y)
+{
+  // x*(ii%2) + (Dx-x)*(1.-(ii%2)) = x*(ii%2) + (Dx-x) - (Dx-x)*(ii%2) = 2.*x*(ii%2) - x + Dx
+
+  return((x*(ii%2) + (Dx-x)*(1.-(ii%2)))*(y*(ii/2) + (Dy-y)*(1.-(ii/2)))/area);
+}
+
+double
+TG2_scheme::compute_h_src (const int& ii)
+{ 
+  // Gauss-Legendre 2 point rule
+  const double shift_x = 1./std::sqrt(3)*Dx*.5;  
+  const double shift_y = 1./std::sqrt(3)*Dy*.5;  
+
+  return(.25*area*(h_src_formula (xn[0]+shift_x, yn[0]+shift_y)*phi_func(ii, xn[0]+shift_x, yn[0]+shift_y) + h_src_formula (xn[3]-shift_x, yn[3]-shift_y)*phi_func(ii, xn[3]-shift_x, yn[3]-shift_y) + h_src_formula (xn[1]-shift_x, yn[1]+shift_y)*phi_func(ii, xn[1]-shift_x, yn[1]+shift_y) + h_src_formula (xn[2]+shift_x, yn[2]-shift_y)*phi_func(ii, xn[2]+shift_x, yn[2]-shift_y)));
+}
 
 double
 TG2_scheme::compute_h_src ()
@@ -331,6 +348,16 @@ TG2_scheme::compute_Th_src ()
   return(.25*(Th_src_formula (xn[0]+shift_x, yn[0]+shift_y) + Th_src_formula (xn[3]-shift_x, yn[3]-shift_y) + Th_src_formula (xn[1]-shift_x, yn[1]+shift_y) + Th_src_formula (xn[2]+shift_x, yn[2]-shift_y)));
 }
 
+double
+TG2_scheme::compute_Th_src (const int& ii)
+{ 
+  // Gauss-Legendre 2 point rule
+  const double shift_x = 1./std::sqrt(3)*Dx*.5;  
+  const double shift_y = 1./std::sqrt(3)*Dy*.5;  
+
+  return(.25*area*(Th_src_formula (xn[0]+shift_x, yn[0]+shift_y)*phi_func(ii, xn[0]+shift_x, yn[0]+shift_y) + Th_src_formula (xn[3]-shift_x, yn[3]-shift_y)*phi_func(ii, xn[3]-shift_x, yn[3]-shift_y) + Th_src_formula (xn[1]-shift_x, yn[1]+shift_y)*phi_func(ii, xn[1]-shift_x, yn[1]+shift_y) + Th_src_formula (xn[2]+shift_x, yn[2]-shift_y)*phi_func(ii, xn[2]+shift_x, yn[2]-shift_y)));
+}
+
 
 void
 TG2_scheme::solve_non_lin(const int& kk)
@@ -340,16 +367,15 @@ TG2_scheme::solve_non_lin(const int& kk)
   auto & Uy_c = sol.get_owned_data ()[kk+2];
   auto & Th_c = sol.get_owned_data ()[kk+3];
 
-  const auto h_cc  = h_c;
-  const auto Ux_cc = Ux_c;
-  const auto Uy_cc = Uy_c;
-  const auto Th_cc = Th_c;
 
   // solve non-linearities like the first step of the TG2 method to get the complete low order solution,
-  h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk] + dt*compute_h_src ();
+  h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
   h_c *= (h_c>0);
 
-  Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*compute_h_src ();
+  Ux_c += (dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c, Ux_c, Th_c) )/(1.-dt*.5*Ux_src_formula(h_c, 1., Th_c));
+  Uy_c += (dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c, Uy_c, Th_c) )/(1.-dt*.5*Uy_src_formula(h_c, 1., Th_c));
+
+  Th_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + dt*.5*Th_src_formula (h_c, Ux_c, Uy_c, Th_c);
 
   Newton_energy_balance(h_c, Ux_c, Uy_c, Th_c);
 
@@ -579,7 +605,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
         incr[ordh   (quadrant->gt (i_2))] += -edge_length*flux_int_h *.5;
         incr[ordUx  (quadrant->gt (i_2))] += -edge_length*flux_int_Ux*.5 + contr_slope_x*outward_normal_edge_abs[0];
         incr[ordUy  (quadrant->gt (i_2))] += -edge_length*flux_int_Uy*.5 + contr_slope_y*outward_normal_edge_abs[1];
-        incr[ordUy  (quadrant->gt (i_2))] += -edge_length*flux_int_Th*.5;
+        incr[ordTh  (quadrant->gt (i_2))] += -edge_length*flux_int_Th*.5;
       }
       else
       {
@@ -732,6 +758,10 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     yn[ii] = quadrant->p(1, ii);
   }
 
+  Dx = xn[1]-xn[0];
+  Dy = yn[2]-yn[0];
+  area = Dx*Dy;
+
   
   for (int ii = 0; ii < 4; ++ii){
 
@@ -756,6 +786,8 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
       P_plus_Th_c   = P_plus [ordTh   (quadrant->gt (ii))];
       P_minus_Th_c  = P_minus[ordTh   (quadrant->gt (ii))];
+
+      isdof_or_hanging[ii] = 1.;
       
 
     } else {
@@ -790,6 +822,8 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
                             P_plus [ordTh (quadrant->gparent(1,ii))]);
       P_minus_Th_c  = .5 * (P_minus [ordTh (quadrant->gparent(0,ii))] +
                             P_minus [ordTh (quadrant->gparent(1,ii))]);
+
+      isdof_or_hanging[ii] = .5;
       
     }
 
@@ -859,7 +893,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
             h_current_cell  = sol [ordh  (quadrant_nei->gt (jj))];
             Ux_current_cell = sol [ordUx (quadrant_nei->gt (jj))];
             Uy_current_cell = sol [ordUy (quadrant_nei->gt (jj))];
-            Th_current_cell = sol [ordUy (quadrant_nei->gt (jj))];
+            Th_current_cell = sol [ordTh (quadrant_nei->gt (jj))];
           } else {
             Z_current_cell  = .5 * (Z [quadrant_nei->gparent(0,jj)] +
                                     Z [quadrant_nei->gparent(1,jj)]);
@@ -927,10 +961,10 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
   for (int ii = 0; ii < 4; ++ii){
 
-    const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h;
+    const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h + isdof_or_hanging[ii]*compute_h_src(ii);
     const auto flux_on_the_node_Ux = incr_anti_diff[ordUx(index_quadrant)][ii]*phi_cell_Ux;
     const auto flux_on_the_node_Uy = incr_anti_diff[ordUy(index_quadrant)][ii]*phi_cell_Uy;
-    const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th;
+    const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + isdof_or_hanging[ii]*compute_Th_src(ii);
 
     if (! quadrant->is_hanging (ii)){
 
