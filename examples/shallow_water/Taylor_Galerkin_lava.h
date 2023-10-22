@@ -238,6 +238,9 @@ public:
   double
   compute_Th_src ();
 
+  double
+  compute_Th_src (const int& ii);
+
   void
   Newton_energy_balance(const double& h, const double& Ux, const double& Uy, double& Th);
 
