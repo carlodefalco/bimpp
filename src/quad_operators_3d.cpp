@@ -78,6 +78,72 @@ bim3a_structure (tmesh_3d &tmsh,
   A.set_properties ();
 }
 
+/* The standard p8est ordering is assumed for the nodes (1 based !!!)
+ *
+ * 6                     7
+ *  +---------------------+
+ *  |\                    |\
+ *  | \                   | \
+ *  |  \                  |  \
+ *  |   \                 |   \
+ *  |   4+---------------------+5
+ *  |    |                |    |
+ *  +----|----------------+    |
+ *  2\   |               3 \   |
+ *    \  |                  \  |
+ *     \ |                   \ |
+ *      \|                    \|
+ *       +---------------------+
+ *       0                     1
+ */
+
+void
+bim3a_laplacian_loc
+(tmesh_3d::quadrant_iterator& quadrant,
+ const double & alpha,
+ std::array<std::array<double,8>,8>& locmat)
+{
+  double
+    hx = quadrant->p(0, 7) - quadrant->p(0, 0),
+    hy = quadrant->p(1, 7) - quadrant->p(1, 0),
+    hz = quadrant->p(2, 7) - quadrant->p(2, 0);
+  double
+    hxhyby4hz = alpha * 0.25 * hx * hy / hz,
+    hxhzby4hy = alpha * 0.25 * hx * hz / hy,
+    hyhzby4hx = alpha * 0.25 * hy * hz / hx;
+
+  double diag = hxhyby4hz + hxhzby4hy + hyhzby4hx;
+
+  locmat[0] = {  diag    , -hyhzby4hx, -hxhzby4hy,      0    , -hxhyby4hz,      0    ,      0    ,      0    };
+  locmat[1] = {-hyhzby4hx,   diag    ,      0    , -hxhzby4hy,      0    , -hxhyby4hz,      0    ,      0    };
+  locmat[2] = {-hxhzby4hy,      0    ,   diag    , -hyhzby4hx,      0    ,      0    , -hxhyby4hz,      0    };
+  locmat[3] = {    0   	 , -hxhzby4hy, -hyhzby4hx,   diag    ,      0    ,      0    ,      0    , -hxhyby4hz};
+  locmat[4] = {-hxhyby4hz,      0    ,      0    ,      0    ,   diag    , -hyhzby4hx, -hxhzby4hy,      0    };
+  locmat[5] = {    0	 , -hxhyby4hz,      0    ,      0    , -hyhzby4hx,   diag    ,      0    , -hxhzby4hy};
+  locmat[6] = {    0	 ,      0    , -hxhyby4hz,      0    , -hxhzby4hy,      0    ,   diag    , -hyhzby4hx};
+  locmat[7] = {    0   	 ,      0    ,      0    , -hxhyby4hz,      0    , -hxhzby4hy, -hyhzby4hx,   diag    };
+
+}
+
+void
+bim3a_laplacian (tmesh_3d& mesh,
+                 const std::vector<double>& alpha,
+                 sparse_matrix& A,
+                 const ordering& ordr,
+                 const ordering& ordc)
+{
+  for (auto row : Aloc)
+    row.fill (0.0);
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      bim3a_laplacian_loc (quadrant, alpha[quadrant->get_forest_quad_idx ()], Aloc);
+      assemble (quadrant, Aloc, A, ordr, ordc);
+    }
+}
+
 template <class T>
 void
 bim3a_advection_diffusion (tmesh_3d& mesh,

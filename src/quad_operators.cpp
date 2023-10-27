@@ -266,8 +266,6 @@ bim2a_laplacian (tmesh& mesh,
   for (auto row : Aloc)
     row.fill (0.0);
 
-  double alpha_loc = 0;
-
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)

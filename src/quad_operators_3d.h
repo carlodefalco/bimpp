@@ -45,20 +45,21 @@ bim3a_structure (tmesh_3d &tmsh,
                  const ordering& ordr = default_ord,
                  const ordering& ordc = default_ord);
 
+void
+bim3a_laplacian (tmesh & mesh,
+                 const std::vector<double>& alpha,
+                 sparse_matrix& A,
+                 const ordering& ordr = default_ord,
+                 const ordering& ordc = default_ord);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+template <class T>
+void
+bim3a_laplacian_eafe (tmesh& mesh,
+                      const std::vector<double>& D,
+                      const T& alpha,
+                      sparse_matrix& A,
+                      const ordering& ordr,
+                      const ordering& ordc);
 
 template <class T>
 void
