@@ -22,9 +22,7 @@
 
 using json = nlohmann::json;
 
-// mpirun -np 4 main_lava glisX_input_tg2RKC_Bindo.json >out_TG2RKC.txt
-// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
-// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
+// mpirun -np 4 main_lava glisX_input-lava.json >out_lava.txt
 
 static constexpr char VARNAME_1[255] = "dem"; 
 static constexpr char VARNAME_2[255] = "mask_in";  
@@ -124,7 +122,7 @@ raster_value(const double& x,
 double dem_fun (const double& xx, const double& yy)
 { 
   //return(0);
-  //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  //return ( 5.*std::exp(-0.4*std::pow(xx-5.,2.)));
   //return(-xx+L);
   return(raster_value(xx,yy,dem));
 }
@@ -165,7 +163,9 @@ double h0_fun (const double& xx, const double& yy)
   //return(10. - dem[global_coord_2_raster(xx,yy)[0]]);
   //return(10. - (5.+xx/L));
   //return(1.);
-  //return(10. - dem_fun(xx,yy));
+  return(raster_value(xx,yy,basin_mask));
+
+  return(10. - dem_fun(xx,yy));
 
   return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38. : 0.);
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
@@ -206,7 +206,7 @@ double Uy0_fun (double xx, double yy)
 
 double Th0_fun (double xx, double yy)
 {
-  return 0;
+  return 0.;
 }
 
 // Assemble vector from mesh.
@@ -358,18 +358,10 @@ main (int argc, char **argv)
   const bool   & is_initial_refinement                    = input_data["do you want to refine the mesh initially?"];
   const bool   & is_space_adaptivity                      = input_data["do you want the space adaptation with interface tracking?"];
   const bool   & is_non_reflBC                            = input_data["do you want non reflecting BC?"];
-  const bool   & is_bed_friction                          = input_data["do you want the bed friction?"];
-  const bool   & is_stress_tensor                         = input_data["do you want the stress tensor?"];
   const bool   & is_max_time_step_from_CFL                = input_data["do you want the maximum time step given by CFL condition for the transport term?"];
                  h_min                                    = input_data["minimum material height threshold"];
   const double & grav                                     = input_data["gravitational field"];
   const double & density                                  = input_data["material density"];
-  const double & turbulence_coeff                         = input_data["turbulence coefficient"];
-  const double & surface_pressure                         = input_data["surface atmospheric pressure"];
-        double   bed_friction_angle_rad                   = input_data["bed friction angle in degrees"];
-                 bed_friction_angle_rad                   *= M_PI/180;
-  const double & fluid_viscosity                          = input_data["fluid dynamic viscosity"];
-  const double & yield_shear_stress                       = input_data["yield shear stress"];
   const double & tolerance_space_adapt                    = input_data["tolerance space adaptation"];
   const double & sigma_vent                               = input_data["area discrete vent"];
   const double & x_v                                      = input_data["x vent location"];
@@ -390,15 +382,6 @@ main (int argc, char **argv)
   const std::string & SAVE_DIR    = input_data["home saving directory, i.e., where we can find the directory results"];
   const std::string & DEM_DIR     = input_data["dem file, complete path"]; 
   const std::string & MASK_DIR    = input_data["mask file, complete path"];
-
-
-  auto delta_vent = [& sigma_vent, & x_v, & y_v] (const double& x, const double& y)
-  {
-    const double delta_X = x - x_v;
-    const double delta_Y = y - y_v;
-    const auto r_square = delta_X*delta_X + delta_Y*delta_Y;
-    return(1./(2*M_PI*sigma_vent)*std::exp(-r_square/(2.*sigma_vent)));
-  };
 
   L = res*(Nx-1);
   H = res*(Ny-1);
@@ -486,10 +469,6 @@ main (int argc, char **argv)
   Q1 Z (ln_nodes);
   Z.get_owned_data ().assign (Z.get_owned_data ().size (), 0.0);
 
-
-  Q1 Newton_it (ln_nodes);
-  Newton_it.get_owned_data ().assign (Newton_it.get_owned_data ().size (), 0.0);
-
   // Q1 mask_fin (ln_nodes);
   // mask_fin.get_owned_data ().assign (mask_fin.get_owned_data ().size (), 0.0);
 
@@ -501,7 +480,6 @@ main (int argc, char **argv)
   str = std::string(DEM_DIR); 
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
-
 
   octave_io_mode m_in = gz_read_mode, m_out = gz_read_mode;
   octave_value v;
@@ -522,7 +500,6 @@ main (int argc, char **argv)
   basin_mask.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask.begin ());
   TOC("Load data matrix");
-
 
 
   // Initialize 
@@ -547,7 +524,6 @@ main (int argc, char **argv)
         sol [ordTh    (quadrant->gt (ii))] = Th0_fun (xx, yy);
         
         Z           [quadrant->gt (ii)] = dem_fun(xx,yy); 
-	      Newton_it   [quadrant->gt (ii)] = 0.;
       }
       
       else
@@ -564,9 +540,6 @@ main (int argc, char **argv)
         
         Z   [quadrant->gparent(0,ii)] += 0.;
         Z   [quadrant->gparent(1,ii)] += 0.;
-
-	      Newton_it   [quadrant->gparent(0,ii)] += 0.;
-        Newton_it   [quadrant->gparent(1,ii)] += 0.;
       }
     }
   }
@@ -580,14 +553,11 @@ main (int argc, char **argv)
   
   bim2a_solution_with_ghosts (tmsh, Z, replace_op);
 
-  bim2a_solution_with_ghosts (tmsh, Newton_it, replace_op);
-
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUx, false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy, false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordTh);
 
-  
 
   if (is_initial_refinement)
   {
@@ -707,8 +677,6 @@ main (int argc, char **argv)
 
     Q1 sol_ (ln_nodes * 4);
     Q1 Z_ (ln_nodes);
-    // Q1 mask_fin_ (ln_nodes);
-    Q1 Newton_it_ (ln_nodes);
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep ();
          ++quadrant)
@@ -728,8 +696,6 @@ main (int argc, char **argv)
           sol_ [ordTh    (quadrant->gt (ii))] = Th0_fun (xx, yy);
 
           Z_[quadrant->gt (ii)] = dem_fun(xx,yy);
-
-	        Newton_it_[quadrant->gt (ii)] = 0.;
         }
         
         else
@@ -745,9 +711,6 @@ main (int argc, char **argv)
 
           Z_[quadrant->gparent(0,ii)] += 0.;
           Z_[quadrant->gparent(1,ii)] += 0.;
-	  
-	        Newton_it_[quadrant->gparent(0,ii)] += 0.;
-          Newton_it_[quadrant->gparent(1,ii)] += 0.;
         }
       }
     }
@@ -758,8 +721,6 @@ main (int argc, char **argv)
     bim2a_solution_with_ghosts (tmsh, sol_, replace_op, ordTh);
     
     bim2a_solution_with_ghosts (tmsh, Z_, replace_op);
-
-    bim2a_solution_with_ghosts (tmsh, Newton_it_, replace_op);
     
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordh,  false);
     bim2a_solution_with_ghosts (tmsh, incr_, replace_op, ordUx, false);
@@ -774,7 +735,6 @@ main (int argc, char **argv)
     sol_onehalf         = sol_onehalf_;
     Z                   = Z_;
     Z_onehalf           = Z_onehalf_;
-    Newton_it 		      = Newton_it_;
   
     TOC ("compute initial condition");
   }
@@ -782,49 +742,32 @@ main (int argc, char **argv)
   Q1 sol_dyn                 = sol;
   Q1 sold_dyn                = sol;
   Q1 soldd_dyn               = sol;
-  Q1 sold_rkc_dyn            = sol;
-  Q1 soldd_rkc_dyn           = sol;
-  Q1 sol_ini_rkc_dyn         = sol;
   Q1 incr_dyn                = incr;
-  Q1 incr_initial_source_dyn = incr;
-  Q1 incr_source_dyn         = incr;
-  Q1 stress_initial_step_dyn = incr;
-  Q1 stress_step_dyn         = incr;
   Q1 P_plus_dyn              = incr;
   Q1 P_minus_dyn             = incr;  
-  Q1 spec_radius_nodal_dyn   = incr;
   Q1 mass_dyn                = mass;
   Q1 Z_dyn                   = Z;
-  Q1 Newton_it_dyn 	         = Newton_it;
   Q0 sol_onehalf_dyn         = sol_onehalf;
   Q0 Z_onehalf_dyn           = Z_onehalf;
 
   std::vector<std::array<double,4>> incr_anti_diff_dyn = incr_anti_diff;
 
+
   
   TG2_scheme stp(sol_dyn, 
                  sold_dyn, 
                  soldd_dyn, 
-                 sold_rkc_dyn,
-                 soldd_rkc_dyn,
-                 sol_ini_rkc_dyn,
                  incr_dyn,
-                 incr_initial_source_dyn,
-                 incr_source_dyn, 
                  incr_anti_diff_dyn,
-                 stress_initial_step_dyn,
-                 stress_step_dyn,
                  P_plus_dyn, 
                  P_minus_dyn, 
-                 spec_radius_nodal_dyn,
                  sol_onehalf_dyn, 
                  mass_dyn,
                  ordh, ordUx, ordUy, ordTh,
                  Z_dyn,
                  Z_onehalf_dyn,
-		             Newton_it_dyn, 
-                 DELTAT, h_min, is_non_reflBC, is_bed_friction, is_stress_tensor, grav,
-                 density, turbulence_coeff, surface_pressure, bed_friction_angle_rad, fluid_viscosity, yield_shear_stress, delta_vent, Q_vent, T_vent,
+                 DELTAT, h_min, is_non_reflBC, grav,
+                 density, sigma_vent, x_v, y_v, Q_vent, T_vent,
                  W_coeff, C_coeff_sin_h, K_coeff_sin_h, E_coeff, b_coeff, T_ref, T_env, T_c, nu_ref);
   
   
@@ -844,16 +787,16 @@ main (int argc, char **argv)
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
   tmsh.octbin_export (filename, sol_dyn, ordUy);
+
+  str = std::string(SAVE_DIR) + "/results/swe_Th_%4.4d";
+  strcpy(arr, str.c_str());
+  sprintf(filename, arr, 0);
+  tmsh.octbin_export (filename, sol_dyn, ordTh);
   
   str = std::string(SAVE_DIR) + "/results/swe_Z_%4.4d";
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0); 
   tmsh.octbin_export (filename, Z_dyn);
-
-  str = std::string(SAVE_DIR) + "/results/swe_Newton_it_%4.4d";
-  strcpy(arr, str.c_str());
-  sprintf(filename, arr, 0);
-  tmsh.octbin_export (filename, Newton_it_dyn);
   
 
 
@@ -898,6 +841,7 @@ main (int argc, char **argv)
   }
 
   int counter_savings = 0, tot_number_savings = std::round(T/SAVEDT);
+
   
   TIC();
   while (counter_savings != tot_number_savings)
@@ -914,12 +858,6 @@ main (int argc, char **argv)
 
     P_minus_dyn.get_owned_data ().assign (P_minus_dyn.get_owned_data ().size (), 0.0);
     P_minus_dyn.assemble (replace_op);
-
-    stress_initial_step_dyn.get_owned_data ().assign (stress_initial_step_dyn.get_owned_data ().size (), 0.0);
-    stress_initial_step_dyn.assemble (replace_op);
-
-    spec_radius_nodal_dyn.get_owned_data ().assign (spec_radius_nodal_dyn.get_owned_data ().size (), 0.0);
-    spec_radius_nodal_dyn.assemble (replace_op);
     //TOC("Reset");
     //TIC();
     
@@ -947,6 +885,7 @@ main (int argc, char **argv)
     {
       std::cout << "MAXIMUM TIME STEP = " << stp.dt << std::endl;
     }   
+
 
     // time adaptivity
     if (is_time_adaptivity)
@@ -979,7 +918,6 @@ main (int argc, char **argv)
     stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? SAVEDT-savecount : stp.dt);
 
 
-
     time_oldd = time_old;
     time_old = time;
     time += stp.dt; 
@@ -1002,7 +940,6 @@ main (int argc, char **argv)
     //std::cout << (time<T) << " " << time << " " << T << " " << time-T << std::endl;
     
     
-    
     // first step!
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -1010,7 +947,6 @@ main (int argc, char **argv)
       stp.first_step(quadrant);
     }
     
-
 
     // 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -1124,11 +1060,6 @@ main (int argc, char **argv)
       strcpy(arr, str.c_str());
       sprintf(filename, arr,  count);
       tmsh.octbin_export (filename, Z_dyn);
-
-      str = std::string(SAVE_DIR) + "/results/swe_Newton_it_%4.4d";
-      strcpy(arr, str.c_str());
-      sprintf(filename, arr,  count);
-      tmsh.octbin_export (filename, Newton_it_dyn);
       savecount = 0.0;
       //TOC("Exporting solution");
 
@@ -1326,13 +1257,12 @@ main (int argc, char **argv)
 
 
       Q1 Z (ln_nodes);
-      Q1 Newton_it (ln_nodes);
       for (auto quadrant = tmsh.begin_quadrant_sweep ();
            quadrant != tmsh.end_quadrant_sweep ();
            ++quadrant)
       {
         double xx_c=quadrant->centroid(0);
-        double yy_c=quadrant->centroid(1); 
+        double yy_c=quadrant->centroid(1);
         
         for (int ii = 0; ii < 4; ++ii)
         {
@@ -1340,22 +1270,15 @@ main (int argc, char **argv)
             double xx=quadrant->p(0,ii);
             double yy=quadrant->p(1,ii);
             Z           [quadrant->gt (ii)] = dem_fun(xx,yy); 
-	          Newton_it   [quadrant->gt (ii)] = 0.;
           }
            
           else
           {
             Z[quadrant->gparent(0,ii)] += 0.;
             Z[quadrant->gparent(1,ii)] += 0.;
-
-	          Newton_it[quadrant->gparent(0,ii)] += 0.;
-            Newton_it[quadrant->gparent(1,ii)] += 0.;
           }
         }
-      }
-      
-      bim2a_solution_with_ghosts (tmsh, Newton_it, replace_op);
-      
+      }      
       bim2a_solution_with_ghosts (tmsh, Z, replace_op);
       
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
@@ -1367,23 +1290,14 @@ main (int argc, char **argv)
       sol_dyn                 = sol;
       sold_dyn                = sold;
       soldd_dyn               = soldd;
-      sold_rkc_dyn            = soldd;
-      soldd_rkc_dyn           = soldd;
-      sol_ini_rkc_dyn         = soldd;
       incr_dyn                = incr;
-      incr_source_dyn         = incr;
-      incr_initial_source_dyn = incr;
       incr_anti_diff_dyn      = incr_anti_diff;
-      stress_initial_step_dyn = incr;
-      stress_step_dyn         = incr;
       P_plus_dyn              = incr;
       P_minus_dyn             = incr;
-      spec_radius_nodal_dyn   = incr;
       mass_dyn                = mass;
       sol_onehalf_dyn         = sol_onehalf;
       Z_onehalf_dyn           = Z_onehalf;
       Z_dyn                   = Z;
-      Newton_it_dyn 	        = Newton_it;	
 
 
       space_adapt_count = 0.0;

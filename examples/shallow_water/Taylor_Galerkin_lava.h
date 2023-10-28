@@ -19,18 +19,10 @@ public:
   TG2_scheme(Q1& sol,
              Q1& sold,
              Q1& soldd,
-             Q1& sold_rkc,
-             Q1& soldd_rkc,
-             Q1& sol_ini_rkc,
              Q1& incr,
-             Q1& incr_initial_source,
-             Q1& incr_source,
              std::vector<std::array<double,4>>& incr_anti_diff,
-             Q1& stress_initial_step,
-             Q1& stress_step,
              Q1& P_plus,
              Q1& P_minus,
-             Q1& spec_radius_nodal,
              Q0& sol_onehalf,
              Q1& mass,
              const ordering& oh,
@@ -39,20 +31,14 @@ public:
              const ordering& oTh,
              const Q1& Z,
              Q0& Z_onehalf,
-	           Q1& Newton_it,
              const double& DELTAT,
              const double& h_min,
              const bool& is_non_reflBC,
-             const bool& is_bed_friction,
-             const bool& is_stress_tensor,
              const double& grav,
              const double& density,
-             const double& turbulence_coeff,
-             const double& surface_pressure,
-             const double& bed_friction_angle_rad,
-             const double& fluid_viscosity,
-             const double& yield_shear_stress,
-             const std::function<double(double, double)>& delta_vent,
+             const double& sigma_vent,
+             const double& x_v,
+             const double& y_v,
              const double& Q_vent,
              const double& T_vent,
              const double& W_coeff,
@@ -224,7 +210,7 @@ public:
   phi_func(const int& ii, const double& x, const double& y);
 
   double
-  compute_h_src ();
+  compute_h_src (void);
 
   double
   compute_h_src (const int& ii);
@@ -236,13 +222,16 @@ public:
   compute_Uy_src (const double& h);
 
   double
-  compute_Th_src ();
+  compute_Th_src (void);
 
   double
   compute_Th_src (const int& ii);
 
   void
   Newton_energy_balance(const double& h, const double& Ux, const double& Uy, double& Th);
+
+  double
+  delta_vent(const double& x, const double& y);
 
 
   // stress functions
@@ -310,22 +299,13 @@ public:
   Q1& sol;
   Q1& sold;
   Q1& soldd;
-  Q1& sold_rkc;
-  Q1& soldd_rkc;
-  Q1& sol_ini_rkc;
   Q1& incr;
-  Q1& incr_initial_source;
-  Q1& incr_source;
   std::vector<std::array<double,4>>& incr_anti_diff;
   Q1& P_plus;
   Q1& P_minus;
-  Q1& spec_radius_nodal;
   Q0& sol_onehalf;
   const Q1& Z;
   Q0& Z_onehalf;
-  Q1& Newton_it;
-  Q1& stress_initial_step; 
-  Q1& stress_step;
   Q1& mass;
   
 private:
@@ -340,16 +320,11 @@ private:
   const double& DELTAT;
   const double& epsilon;
   const bool& is_non_reflBC;
-  const bool& is_bed_friction;
-  const bool& is_stress_tensor; 
   const double& grav;
   const double& density;
-  const double& turbulence_coeff;
-  const double& surface_pressure;
-  const double& bed_friction_angle_rad;
-  const double& fluid_viscosity;
-  const double& yield_shear_stress;
-  const std::function<double(double, double)>& delta_vent;
+  const double& sigma_vent;
+  const double& x_v;
+  const double& y_v;
   const double& Q_vent;
   const double& T_vent;
   const double& W_coeff;

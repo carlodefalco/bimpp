@@ -5,18 +5,10 @@
 TG2_scheme::TG2_scheme(Q1& sol,
                        Q1& sold,
                        Q1& soldd, 
-                       Q1& sold_rkc,
-                       Q1& soldd_rkc, 
-                       Q1& sol_ini_rkc,
                        Q1& incr,
-                       Q1& incr_initial_source,
-                       Q1& incr_source,
                        std::vector<std::array<double,4>>& incr_anti_diff,
-                       Q1& stress_initial_step,
-                       Q1& stress_step,
                        Q1& P_plus,
                        Q1& P_minus,
-                       Q1& spec_radius_nodal,
                        Q0& sol_onehalf,
                        Q1& mass,
                        const ordering& oh,
@@ -25,20 +17,14 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const ordering& oTh,
                        const Q1& Z,
                        Q0& Z_onehalf,
-		                   Q1& Newton_it,
                        const double& DELTAT,
                        const double& h_min,
                        const bool& is_non_reflBC,
-                       const bool& is_bed_friction,
-                       const bool& is_stress_tensor,
                        const double& grav,
                        const double& density,
-                       const double& turbulence_coeff,
-                       const double& surface_pressure, 
-                       const double& bed_friction_angle_rad,
-                       const double& fluid_viscosity,
-                       const double& yield_shear_stress,
-                       const std::function<double(double, double)>& delta_vent,
+                       const double& sigma_vent,
+                       const double& x_v,
+                       const double& y_v,
                        const double& Q_vent,
                        const double& T_vent,
                        const double& W_coeff,
@@ -50,10 +36,10 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& T_env,
                        const double& T_c,
                        const double& nu_ref)
-: sol(sol), sold(sold), soldd(soldd), sold_rkc(sold_rkc), soldd_rkc(soldd_rkc), sol_ini_rkc(sol_ini_rkc), incr(incr), incr_initial_source(incr_initial_source), incr_source(incr_source), incr_anti_diff(incr_anti_diff), stress_initial_step(stress_initial_step), stress_step(stress_step), P_plus(P_plus), P_minus(P_minus), spec_radius_nodal(spec_radius_nodal), sol_onehalf(sol_onehalf), mass(mass), 
-  ordh(oh), ordUx(oUx), ordUy(oUy), ordTh(oTh), Z(Z), Z_onehalf(Z_onehalf), Newton_it(Newton_it), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), is_bed_friction(is_bed_friction), is_stress_tensor(is_stress_tensor), grav(grav),
-  density(density), turbulence_coeff(turbulence_coeff), surface_pressure(surface_pressure), bed_friction_angle_rad(bed_friction_angle_rad), fluid_viscosity(fluid_viscosity), yield_shear_stress(yield_shear_stress),
-  delta_vent(delta_vent), Q_vent(Q_vent), T_vent(T_vent), W_coeff(W_coeff), C_coeff_sin_h(C_coeff_sin_h), K_coeff_sin_h(K_coeff_sin_h), E_coeff(E_coeff), b_coeff(b_coeff), T_ref(T_ref), T_env(T_env), T_c(T_c), nu_ref(nu_ref)
+: sol(sol), sold(sold), soldd(soldd), incr(incr), incr_anti_diff(incr_anti_diff), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass), 
+  ordh(oh), ordUx(oUx), ordUy(oUy), ordTh(oTh), Z(Z), Z_onehalf(Z_onehalf), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), grav(grav),
+  density(density), sigma_vent(sigma_vent), x_v(x_v), y_v(y_v),
+  Q_vent(Q_vent), T_vent(T_vent), W_coeff(W_coeff), C_coeff_sin_h(C_coeff_sin_h), K_coeff_sin_h(K_coeff_sin_h), E_coeff(E_coeff), b_coeff(b_coeff), T_ref(T_ref), T_env(T_env), T_c(T_c), nu_ref(nu_ref)
 { }
  
  
@@ -250,7 +236,10 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 
   Z_onehalf[index_quadrant_global] = (Z_node[0]+Z_node[1]+Z_node[2]+Z_node[3])*.25;
 
-  
+
+  //std::cout << delta_vent(1,1) << " " << get_dt() << " " << compute_Ux_src (sol_onehalf[ordh(index_quadrant_global)]) << std::endl;
+  //exit(1);
+
   sol_onehalf[ordh    (index_quadrant_global)] = h_current + dt*.5 * compute_h_src();
 
   const auto & h_onehalf_updated = sol_onehalf[ordh(index_quadrant_global)];
@@ -264,7 +253,11 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const auto & Uy_onehalf_updated = sol_onehalf[ordUy(index_quadrant_global)];
         auto & Th_onehalf_updated = sol_onehalf[ordTh(index_quadrant_global)];
 
+
+
   Newton_energy_balance(h_onehalf_updated, Ux_onehalf_updated, Uy_onehalf_updated, Th_onehalf_updated);
+
+  //sol_onehalf[ordUy(index_quadrant_global)] = 0;
 
 }
 
@@ -315,7 +308,7 @@ TG2_scheme::compute_h_src (const int& ii)
 }
 
 double
-TG2_scheme::compute_h_src ()
+TG2_scheme::compute_h_src ( )
 { 
   // Gauss-Legendre 2 point rule
   const double shift_x = 1./std::sqrt(3)*Dx*.5;  
@@ -339,7 +332,7 @@ TG2_scheme::compute_Uy_src (const double& h_onehalf_updated)
 }
 
 double
-TG2_scheme::compute_Th_src ()
+TG2_scheme::compute_Th_src ( )
 { 
   // Gauss-Legendre 2 point rule
   const double shift_x = 1./std::sqrt(3)*Dx*.5;  
@@ -367,15 +360,22 @@ TG2_scheme::solve_non_lin(const int& kk)
   auto & Uy_c = sol.get_owned_data ()[kk+2];
   auto & Th_c = sol.get_owned_data ()[kk+3];
 
+  const auto & h_c_old  = sold.get_owned_data ()[kk  ];
+  const auto & Ux_c_old = sold.get_owned_data ()[kk+1];
+  const auto & Uy_c_old = sold.get_owned_data ()[kk+2];
+  const auto & Th_c_old = sold.get_owned_data ()[kk+3];
+
 
   // solve non-linearities like the first step of the TG2 method to get the complete low order solution,
   h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
   h_c *= (h_c>0);
 
-  Ux_c += (dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c, Ux_c, Th_c) )/(1.-dt*.5*Ux_src_formula(h_c, 1., Th_c));
-  Uy_c += (dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c, Uy_c, Th_c) )/(1.-dt*.5*Uy_src_formula(h_c, 1., Th_c));
+  Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, Th_c_old) )/(1.-dt*.5*Ux_src_formula(h_c, 1., Th_c_old));
+  Uy_c = (Uy_c + dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, Uy_c_old, Th_c_old) )/(1.-dt*.5*Uy_src_formula(h_c, 1., Th_c_old));
 
-  Th_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + dt*.5*Th_src_formula (h_c, Ux_c, Uy_c, Th_c);
+  Th_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + dt*.5*Th_src_formula (h_c_old, Ux_c_old, Uy_c_old, Th_c_old);
+
+  //Uy_c = 0.;
 
   Newton_energy_balance(h_c, Ux_c, Uy_c, Th_c);
 
@@ -1083,18 +1083,20 @@ double
 TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Th)
 {
   const double T = h>epsilon ? Th/h : 0.;
-  const double gamma_fric_over_h = (h*h)>epsilon ? 3.*nu_ref/(h*h)*std::exp(-b_coeff*(T-T_ref)) : 0.; 
+  const double ux = h>epsilon ? Ux/h : 0.;
+  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*std::exp(-b_coeff*(T-T_ref)) : 0.; 
 
-  return ( - gamma_fric_over_h*Ux);
+  return ( - gamma_fric_over_h*ux);
 }
 
 double
 TG2_scheme::Uy_src_formula (const double& h, const double& Uy, const double& Th)
 {
   const double T = h>epsilon ? Th/h : 0.;
-  const double gamma_fric_over_h = (h*h)>epsilon ? 3.*nu_ref/(h*h)*std::exp(-b_coeff*(T-T_ref)) : 0.; 
+  const double uy = h>epsilon ? Uy/h : 0.;
+  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*std::exp(-b_coeff*(T-T_ref)) : 0.; 
 
-  return ( - gamma_fric_over_h*Uy);
+  return ( - gamma_fric_over_h*uy);
 }
 
 
@@ -1138,6 +1140,15 @@ TG2_scheme::Th_src_formula_prime (const double& h, const double& Ux, const doubl
   return (contr_1); 
 }
 
+
+double
+TG2_scheme::delta_vent(const double& x, const double& y)
+{
+  const double delta_X = x - x_v;
+  const double delta_Y = y - y_v;
+  const auto r_square = delta_X*delta_X + delta_Y*delta_Y;
+  return(1./(2*M_PI*sigma_vent)*std::exp(-r_square/(2.*sigma_vent)));
+}
 
 
 
