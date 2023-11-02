@@ -191,7 +191,7 @@ public:
   get_dt ();
   
   
-  double dt, dt_old, tau; // tau_c, tau_cc, tau_ccc;
+  double dt, dt_old, tau, tau_c, tau_cc, tau_ccc;
   
   double Dx, Dy, area;
   

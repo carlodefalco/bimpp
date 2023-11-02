@@ -367,7 +367,7 @@ TG2_scheme::solve_non_lin(const int& kk)
 
 
   // solve non-linearities like the first step of the TG2 method to get the complete low order solution,
-  h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
+  //h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
   h_c *= (h_c>0);
 
   Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, Th_c_old) )/(1.-dt*.5*Ux_src_formula(h_c, 1., Th_c_old));
@@ -956,7 +956,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     flux_limiter(Th_min[ii], Th_max[ii], Thdof [ii], P_plus_Th_dof[ii], P_minus_Th_dof [ii], flux_on_the_node_Th, vel_square_rusanov_cell, phi_cell_Th);
   }
 
-  //phi_cell_h = 0., phi_cell_Ux = 0., phi_cell_Uy = 0.;
+  //phi_cell_h = 0., phi_cell_Ux = 0., phi_cell_Uy = 0., phi_cell_Th = 0.; 
 
 
   for (int ii = 0; ii < 4; ++ii){

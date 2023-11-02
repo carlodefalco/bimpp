@@ -23,9 +23,7 @@
 
 using json = nlohmann::json;
 
-// mpirun -np 4 main_TG2IMEXRKC2PHASE glisX_input.json >out_two-phase.txt
-// mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz >out
-// mpirun -np 1 main_TG2IMEXRKC2PHASE $PWD inputs/dem_ideal.octbin.gz inputs/mask_in_ideal.octbin.gz
+// mpirun -np 4 main_TG2IMEXRKC2PHASE glisX_input_two-phase_wet-wet.json >out_two-phase.txt
 
 // sqrt((Uxw+Uxs)/((hw+hs)*((hw+hs)>1e-2))*(Uxw+Uxs)/((hw+hs)*((hw+hs)>1e-2)) + (Uyw+Uys)/((hw+hs)*((hw+hs)>1e-2))*(Uyw+Uys)/((hw+hs)*((hw+hs)>1e-2)))
 // (Uxw+Uxs)/((hw+hs)*((hw+hs)>1e-2))
@@ -115,7 +113,7 @@ double dem_fun (const double& xx, const double& yy)
 double poro_0_fun (const double& xx, const double& yy)
 {
   //return(xx>.5 && xx<1.5 ? .4 : .5);
-  //return(xx<L/2. ? .3 : .6);
+  //return(xx<L/2. ? .3 : .6); 
   //std::cout << (density_s - density)/(density_s - density_w) << std::endl;
   return((density_s - density)/(density_s - density_w));
 } 
@@ -123,9 +121,11 @@ double poro_0_fun (const double& xx, const double& yy)
 
 double h0_fun (const double& xx, const double& yy) 
 { 
+  return(xx<10. ? 10. : 0.);
   //return(xx>4.5 && xx<5.5 ? 1. : .5);
   //return(1.);
-  //return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
+  return(std::sqrt( (xx-L/2.)*(xx-L/2.) + (yy-H/2.)*(yy-H/2.) )<=L/10 ? 10 : 0. );
+  return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
   //return(xx<10. ? 1.e-8 : 0.);
   //return(yy>L/2. ? 10. : 0.);
   //return (xx<=L/2. ? 100. : 50.);

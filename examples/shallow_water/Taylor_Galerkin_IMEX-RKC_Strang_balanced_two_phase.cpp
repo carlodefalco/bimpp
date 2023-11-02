@@ -568,16 +568,16 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   Uxs_c = Uxs_cell_average - tau * (hs_cell_average>epsilon ? div_FUxs_cell/area - src_slope_formula (hs_cell_average, slope_x_c) + (r_coeff*grav*hs_cell_average+ns_cell_average*dp_mean_average/density_s)*grad_hw_x - nw_cell_average*dp_mean_average/density_s*grad_hs_x : 0.);
   Uys_c = Uys_cell_average - tau * (hs_cell_average>epsilon ? div_FUys_cell/area - src_slope_formula (hs_cell_average, slope_y_c) + (r_coeff*grav*hs_cell_average+ns_cell_average*dp_mean_average/density_s)*grad_hw_y - nw_cell_average*dp_mean_average/density_s*grad_hs_y : 0.);
 
-/*
+  
   Uxw_c += tau_cc*Uxw_src_formula(hw_cell_average, hs_cell_average, Uxw_cell_average, Uyw_cell_average, Uxs_cell_average, Uys_cell_average);
   Uyw_c += tau_cc*Uyw_src_formula(hw_cell_average, hs_cell_average, Uxw_cell_average, Uyw_cell_average, Uxs_cell_average, Uys_cell_average);
   Uxs_c += tau_cc*Uxs_src_formula(hw_cell_average, hs_cell_average, Uxw_cell_average, Uyw_cell_average, Uxs_cell_average, Uys_cell_average, bed_excess_pore_water_pressure);
   Uys_c += tau_cc*Uys_src_formula(hw_cell_average, hs_cell_average, Uxw_cell_average, Uyw_cell_average, Uxs_cell_average, Uys_cell_average, bed_excess_pore_water_pressure);
 
   Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau_c);
-  */
+  
 
-  Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau);
+  //Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau);
 
 }
 
@@ -767,6 +767,8 @@ TG2_scheme::solve_non_lin_U(const int& kk)
   auto & Uys_c = sol.get_owned_data ()[kk+5];
 
 
+  //const auto & hw_cc  = sold.get_owned_data ()[kk  ];
+  //const auto & hs_cc  = sold.get_owned_data ()[kk+1];
   const auto & Uxw_cc = sold.get_owned_data ()[kk+2];
   const auto & Uyw_cc = sold.get_owned_data ()[kk+3];
   const auto & Uxs_cc = sold.get_owned_data ()[kk+4];
@@ -774,23 +776,23 @@ TG2_scheme::solve_non_lin_U(const int& kk)
 
   auto & bed_excess_pore_water_pressure = excess_pore_water_pressure.get_owned_data ()[(kk/6)*number_FD_points];
 
-/*
-  Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau_c*Uxw_src_formula(hw_cc, hs_cc, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
-  Uyw_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + tau_c*Uyw_src_formula(hw_cc, hs_cc, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
-  Uxs_c += dt*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4] + tau_c*Uxs_src_formula(hw_cc, hs_cc, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
-  Uys_c += dt*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5] + tau_c*Uys_src_formula(hw_cc, hs_cc, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
+
+  Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau_c*Uxw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
+  Uyw_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + tau_c*Uyw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
+  Uxs_c += dt*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4] + tau_c*Uxs_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
+  Uys_c += dt*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5] + tau_c*Uys_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
 
   Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau_c);
-*/
 
 
+/*
   Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau*Uxw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
   Uyw_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + tau*Uyw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
   Uxs_c += dt*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4] + tau*Uxs_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
   Uys_c += dt*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5] + tau*Uys_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
 
   Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau);
-
+*/
 
 /*
   Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2];// + tau*Uxw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
@@ -2671,7 +2673,7 @@ TG2_scheme::stabilization_term (const int& kk)
   //const auto common_coeff = b_coeff/density_w;
   //const auto second_common_coeff = std::sqrt(common_coeff*common_coeff - 16.*celerity_square*beta_coeff_square*(celerity_square+dp_mean/density_w));
   const auto common_coeff = std::sqrt(c_coeff);
-  //const auto c_1 = .5*std::sqrt(b_coeff + common_coeff)/std::sqrt(density_w);
+  const auto c_1 = .5*std::sqrt(b_coeff + common_coeff)/std::sqrt(density_w);
   const auto c_2 = .5*std::sqrt(b_coeff - common_coeff)/std::sqrt(density_w);
 
   //if (c_coeff<0 || b_coeff<common_coeff)
@@ -2680,7 +2682,7 @@ TG2_scheme::stabilization_term (const int& kk)
   //  exit(1);
   //}
 
-  //const auto x_coeff_1 = 2.*c_1;
+  const auto x_coeff_1 = 2.*c_1;
   const auto x_coeff_2 = 2.*c_2;
 
   const auto hyp_diff_x  = abs_delta_vel_x - x_coeff_2;
@@ -2698,11 +2700,26 @@ TG2_scheme::stabilization_term (const int& kk)
   //const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x_<0 && hw_c>epsilon ? n*ns*hyp_diff_x/(dt*(n*r_coeff+ns))*.5/kinematic_speed_wave/beta_coeff : 0., 0.);
   //const double cy_sgn = std::max( h_c>epsilon && hyp_diff_y_<0 && hw_c>epsilon ? n*ns*hyp_diff_y/(dt*(n*r_coeff+ns))*.5/kinematic_speed_wave/beta_coeff : 0., 0.);
 
+
+
+
   const double cx_sgn = std::max( (h_c>epsilon && hw_c>epsilon && hs_c>epsilon) ? n*ns*hyp_diff_x/(dt*(n*r_coeff+ns))/x_coeff_2 : 0., 0.);
   const double cy_sgn = std::max( (h_c>epsilon && hw_c>epsilon && hs_c>epsilon) ? n*ns*hyp_diff_y/(dt*(n*r_coeff+ns))/x_coeff_2 : 0., 0.);
 
+  //const double cx_sgn_2 = std::min( (h_c>epsilon && hw_c>epsilon && hs_c>epsilon && hyp_diff_x>0) ? n*ns*hyp_diff_x_/(dt*(n*r_coeff+ns))/x_coeff_1 : 0., 0.);
+  //const double cy_sgn_2 = std::min( (h_c>epsilon && hw_c>epsilon && hs_c>epsilon && hyp_diff_y>0) ? n*ns*hyp_diff_y_/(dt*(n*r_coeff+ns))/x_coeff_1 : 0., 0.);
+
+  //cx_sgn = std::min(std::abs(cx_sgn), std::abs(cx_sgn_2));
+  //cy_sgn = std::min(std::abs(cy_sgn), std::abs(cy_sgn_2));
+
+
   //const double cx_sgn = (h_c>epsilon && hw_c>epsilon && hs_c>epsilon) ? 1e3 : 0.;
   //const double cy_sgn = (h_c>epsilon && hw_c>epsilon && hs_c>epsilon) ? 1e3 : 0.;
+
+  //if (cx_sgn!=0)
+  //{
+  //  std::cout << cx_sgn << std::endl;
+  //}
 
 
   //const double cx_sgn = std::max( h_c>epsilon && hyp_diff_x>0 && hyp_diff_x_<0 ? 1.e7 : 0., 0.);
@@ -2747,9 +2764,9 @@ void
 TG2_scheme::set_tau ()
 { 
   tau = dt*.5; 
-  //tau_c = dt*(1. - std::sqrt(2.)*.5);
-  //tau_cc = tau*(std::sqrt(2.)-1.);
-  //tau_ccc = (std::sqrt(2.)-1.);
+  tau_c = dt*(1. - std::sqrt(2.)*.5);
+  tau_cc = tau*(std::sqrt(2.)-1.);
+  tau_ccc = (std::sqrt(2.)-1.);
 }
 
 void
