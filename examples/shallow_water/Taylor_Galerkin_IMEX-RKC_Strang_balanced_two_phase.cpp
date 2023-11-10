@@ -356,8 +356,7 @@ TG2_scheme::first_step_consolidation (tmesh::quadrant_iterator quadrant)
   const auto div_liquid_y = .5*((liquid_vel_y[2]-liquid_vel_y[0]) + (liquid_vel_y[3]-liquid_vel_y[1]));
   const auto div_liquid_vel = Dy*div_liquid_x + Dx*div_liquid_y;
 
-  //double div_liquid_vel = .5 * ( (liquid_vel_x[3] - liquid_vel_x[2]) + (liquid_vel_x[1] - liquid_vel_x[0]) )/Dx + .5 * ( (liquid_vel_y[2] - liquid_vel_y[0]) + (liquid_vel_y[3] - liquid_vel_y[1]) )/Dy;
-  //double div_solid_vel  = .5 * ( (solid_vel_x [3] - solid_vel_x [2]) + (solid_vel_x [1] - solid_vel_x [0]) )/Dx + .5 * ( (solid_vel_y [2] - solid_vel_y [0]) + (solid_vel_y [3] - solid_vel_y [1]) )/Dy;
+
 
   const auto grad_hw_x = .5*((hwdof[1] - hwdof[0]) + (hwdof[3] - hwdof[2]))/Dx;
   const auto grad_hw_y = .5*((hwdof[2] - hwdof[0]) + (hwdof[3] - hwdof[1]))/Dy;
@@ -568,16 +567,16 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   Uxs_c = Uxs_cell_average - tau * (hs_cell_average>epsilon ? div_FUxs_cell/area - src_slope_formula (hs_cell_average, slope_x_c) + (r_coeff*grav*hs_cell_average+ns_cell_average*dp_mean_average/density_s)*grad_hw_x - nw_cell_average*dp_mean_average/density_s*grad_hs_x : 0.);
   Uys_c = Uys_cell_average - tau * (hs_cell_average>epsilon ? div_FUys_cell/area - src_slope_formula (hs_cell_average, slope_y_c) + (r_coeff*grav*hs_cell_average+ns_cell_average*dp_mean_average/density_s)*grad_hw_y - nw_cell_average*dp_mean_average/density_s*grad_hs_y : 0.);
 
-  
+  /*
   Uxw_c += tau_cc*Uxw_src_formula(hw_cell_average, hs_cell_average, Uxw_cell_average, Uyw_cell_average, Uxs_cell_average, Uys_cell_average);
   Uyw_c += tau_cc*Uyw_src_formula(hw_cell_average, hs_cell_average, Uxw_cell_average, Uyw_cell_average, Uxs_cell_average, Uys_cell_average);
   Uxs_c += tau_cc*Uxs_src_formula(hw_cell_average, hs_cell_average, Uxw_cell_average, Uyw_cell_average, Uxs_cell_average, Uys_cell_average, bed_excess_pore_water_pressure);
   Uys_c += tau_cc*Uys_src_formula(hw_cell_average, hs_cell_average, Uxw_cell_average, Uyw_cell_average, Uxs_cell_average, Uys_cell_average, bed_excess_pore_water_pressure);
 
   Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau_c);
-  
+  */
 
-  //Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau);
+  Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau);
 
 }
 
@@ -640,6 +639,58 @@ TG2_scheme::Newton_momentum_balance(const double& hw_c, const double& hs_c, doub
 {
 
   const double h_c = hw_c+hs_c;
+  
+  const double n_c  = h_c>epsilon ? hw_c/h_c : 0.;
+  const double ns_c = h_c>epsilon ? hs_c/h_c : 0.;
+  
+  const double common_coeff = hw_c>epsilon ? tau_/terminal_velocity*(density_s - density_w)*grav/std::pow(n_c, m_coeff) : 0.;
+
+  const double a_coeff = common_coeff*ns_c;
+  const double b_coeff = common_coeff*n_c;
+
+
+  const auto v_Ux_w = Uxw_c;
+  const auto v_Uy_w = Uyw_c;
+  const auto v_Ux_s = Uxs_c;
+  const auto v_Uy_s = Uys_c;
+
+  const double density_prime = ns_c*(density_s - density_w);
+
+  const double delta_coeff = (density_prime*grav*h_c - bed_excess_pore_water_pressure)*std::tan(bed_friction_angle_rad);
+  const double gamma_coeff = (h_c*h_c)>epsilon ? density*grav/turbulence_coeff/h_c/h_c : 0.;
+
+  
+  // solve non-linearities
+  count = -1;
+  error = tolerance + 1;
+  while (count++<Nmax && error>tolerance)
+  { 
+    const auto U_tot_x = Uxs_c + Uxw_c;
+    const auto U_tot_y = Uys_c + Uyw_c;
+
+    const double delta_x = 1./(1.+U_tot_x*U_tot_x*(M_PI*.5)*(M_PI*.5)); //std::abs(U_tot_x)>tolerance_sign ? 0. : 1./tolerance_sign;
+    const double delta_y = 1./(1.+U_tot_y*U_tot_y*(M_PI*.5)*(M_PI*.5)); //std::abs(U_tot_y)>tolerance_sign ? 0. : 1./tolerance_sign;
+
+
+    const auto numerator_x = tau_/(1.+a_coeff)*v_Ux_w*(-delta_coeff*delta_x - 2.*gamma_coeff*std::abs(U_tot_x)) - a_coeff/(1.+a_coeff)*v_Ux_w - v_Ux_s - tau_*Uxs_src_formula_2(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure);
+    const auto denominator_x = 1.+b_coeff - (b_coef*a_coeff)/(1.+a_coeff) + tau_*(1.+b_coeff/(1..+a_coeff))*(-delta_coeff*delta_x-2.*gamma_coeff*std::abs(U_tot_x);
+    
+    const auto numerator_y = tau_/(1.+a_coeff)*v_Uy_w*(-delta_coeff*delta_y - 2.*gamma_coeff*std::abs(U_tot_y)) - a_coeff/(1.+a_coeff)*v_Uy_w - v_Uy_s - tau_*Uys_src_formula_2(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure);
+    const auto denominator_y = 1.+b_coeff - (b_coef*a_coeff)/(1.+a_coeff) + tau_*(1.+b_coeff/(1..+a_coeff))*(-delta_coeff*delta_y-2.*gamma_coeff*std::abs(U_tot_y);
+
+    
+    const double delta_Usx = numerator_x/denominator_x;
+    const double delta_Usy = numerator_y/denominator_y;   
+ 
+    Uxs_c += delta_Usx; 
+    Uys_c += delta_Usy;
+
+
+  }
+
+
+/*
+  const double h_c = hw_c+hs_c;
 
   const double n_c  = h_c>epsilon ? hw_c/h_c : 0.;
   const double ns_c = h_c>epsilon ? hs_c/h_c : 0.;
@@ -669,6 +720,8 @@ TG2_scheme::Newton_momentum_balance(const double& hw_c, const double& hs_c, doub
 
   double big_dety = big_Ay*big_Dy-big_By*big_Cy;
 
+  double big_dety = big_Ay*big_Dy-big_By*big_Cy;
+
   Uxw_c = (rhs_1x*big_Dx-rhs_2x*big_Bx)/big_detx;
   Uyw_c = (rhs_1y*big_Dy-rhs_2y*big_By)/big_dety;
   Uxs_c = (rhs_2x*big_Ax-rhs_1x*big_Cx)/big_detx;
@@ -694,8 +747,6 @@ TG2_scheme::Newton_momentum_balance(const double& hw_c, const double& hs_c, doub
     const double fric_x = (h_c*h_c)>epsilon ? (density*grav/turbulence_coeff/(h_c*h_c)*2.*std::abs(U_tot_x)) : 0.;
     const double fric_y = (h_c*h_c)>epsilon ? (density*grav/turbulence_coeff/(h_c*h_c)*2.*std::abs(U_tot_y)) : 0.;
 
-    //if (Cw_d!=0)
-    //std::cout << mu_tilde_vect[1]*dt* Cw_d/density_w << std::endl;
 
     big_Dx = 1. + tau_* (is_bed_friction && hs_c>epsilon ? ((density_prime*grav*h_c-bed_excess_pore_water_pressure)*std::tan(bed_friction_angle_rad)*delta_x + fric_x) : 0.) /density_s;
     big_Dy = 1. + tau_* (is_bed_friction && hs_c>epsilon ? ((density_prime*grav*h_c-bed_excess_pore_water_pressure)*std::tan(bed_friction_angle_rad)*delta_y + fric_y) : 0.) /density_s;
@@ -709,15 +760,8 @@ TG2_scheme::Newton_momentum_balance(const double& hw_c, const double& hs_c, doub
 
     error = std::sqrt(delta_Usx*delta_Usx + delta_Usy*delta_Usy);
 
-    //std::cout << Uxw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c) << " " << Uyw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c) << " " << Uxs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure) << " " << Uys_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure) << std::endl;
-
     Uxs_c += delta_Usx; 
     Uys_c += delta_Usy;
-
-    //if (count!=0)
-    //{
-    //  std::cout << count << " " << error << std::endl;
-    //}
 
   }
 
@@ -725,7 +769,7 @@ TG2_scheme::Newton_momentum_balance(const double& hw_c, const double& hs_c, doub
   {
     std::cout << "No convergence momentum!! " << error << std::endl;
   }
-
+*/
 }
 
 
@@ -767,32 +811,40 @@ TG2_scheme::solve_non_lin_U(const int& kk)
   auto & Uys_c = sol.get_owned_data ()[kk+5];
 
 
+  /*
   //const auto & hw_cc  = sold.get_owned_data ()[kk  ];
   //const auto & hs_cc  = sold.get_owned_data ()[kk+1];
-  const auto & Uxw_cc = sold.get_owned_data ()[kk+2];
-  const auto & Uyw_cc = sold.get_owned_data ()[kk+3];
-  const auto & Uxs_cc = sold.get_owned_data ()[kk+4];
-  const auto & Uys_cc = sold.get_owned_data ()[kk+5];
-
+  const auto Uxw_cc = Uxw_c; //sold.get_owned_data ()[kk+2];
+  const auto Uyw_cc = Uyw_c; //sold.get_owned_data ()[kk+3];
+  const auto Uxs_cc = Uxs_c; //sold.get_owned_data ()[kk+4];
+  const auto Uys_cc = Uys_c; //sold.get_owned_data ()[kk+5];
+*/
+ 
+  const auto Uxw_cc = sold.get_owned_data ()[kk+2];
+  const auto Uyw_cc = sold.get_owned_data ()[kk+3];
+  const auto Uxs_cc = sold.get_owned_data ()[kk+4];
+  const auto Uys_cc = sold.get_owned_data ()[kk+5];
+ 
+ 
   auto & bed_excess_pore_water_pressure = excess_pore_water_pressure.get_owned_data ()[(kk/6)*number_FD_points];
 
-
+/*
   Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau_c*Uxw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
   Uyw_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + tau_c*Uyw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
   Uxs_c += dt*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4] + tau_c*Uxs_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
   Uys_c += dt*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5] + tau_c*Uys_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
 
   Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau_c);
+*/
 
 
-/*
   Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau*Uxw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
   Uyw_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + tau*Uyw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
   Uxs_c += dt*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4] + tau*Uxs_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
   Uys_c += dt*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5] + tau*Uys_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
 
   Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau);
-*/
+
 
 /*
   Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2];// + tau*Uxw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
@@ -2975,8 +3027,6 @@ TG2_scheme::Uys_src_formula (const double& hw, const double& hs, const double& U
   //const double vel_y_sign = (vel_y > ) ? 1.0 : (vel_y < 0) ? -1.0 : 0.0;
 
   //const double bed_fric_contr = is_bed_friction ? vel_y_sign*(grav*abs_vel*abs_vel/turbulence_coeff + bed_pressure*std::tan(bed_friction_angle_rad)) : 0.;
-
-  const double bed_fric_contr_one = (h*h)>epsilon && is_bed_friction && hs>epsilon ? density*Uy*grav*std::abs(Uy)/turbulence_coeff/h/h : 0.; //is_bed_friction ? vel_y*grav*abs_vel/turbulence_coeff : 0.;
   const double bed_fric_contr_two = is_bed_friction && hs>epsilon ? vel_y_sign*bed_pressure*std::tan(bed_friction_angle_rad) : 0.;
 
 
