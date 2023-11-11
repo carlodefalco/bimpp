@@ -868,12 +868,12 @@ TG2_scheme::solve_non_lin_h(const int& kk)
 void
 TG2_scheme::solve_non_lin_U(const int& kk)
 {
-  auto & hw_c  = sol.get_owned_data ()[kk  ];
-  auto & hs_c  = sol.get_owned_data ()[kk+1];
-  auto & Uxw_c = sol.get_owned_data ()[kk+2];
-  auto & Uyw_c = sol.get_owned_data ()[kk+3];
-  auto & Uxs_c = sol.get_owned_data ()[kk+4];
-  auto & Uys_c = sol.get_owned_data ()[kk+5];
+  const auto & hw_c  = sol.get_owned_data ()[kk  ];
+  const auto & hs_c  = sol.get_owned_data ()[kk+1];
+        auto & Uxw_c = sol.get_owned_data ()[kk+2];
+        auto & Uyw_c = sol.get_owned_data ()[kk+3];
+        auto & Uxs_c = sol.get_owned_data ()[kk+4];
+        auto & Uys_c = sol.get_owned_data ()[kk+5];
 
 
   /*
