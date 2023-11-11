@@ -654,11 +654,13 @@ TG2_scheme::Newton_momentum_balance(const double& hw_c, const double& hs_c, doub
   const auto v_Ux_s = Uxs_c;
   const auto v_Uy_s = Uys_c;
 
+  /*
   const double density_prime = ns_c*(density_s - density_w);
+  const double density = ns_c*density_s + n_c*density_w;
 
   const double delta_coeff = (density_prime*grav*h_c - bed_excess_pore_water_pressure)*std::tan(bed_friction_angle_rad);
   const double gamma_coeff = (h_c*h_c)>epsilon ? density*grav/turbulence_coeff/h_c/h_c : 0.;
-
+*/
 
   const auto A_11 = 1. + a_coeff/density_w;
   const auto A_22 = 1. + b_coeff/density_s;
@@ -697,10 +699,10 @@ TG2_scheme::Newton_momentum_balance(const double& hw_c, const double& hs_c, doub
 
     error = std::sqrt(delta_Uwx*delta_Uwx + delta_Uwy*delta_Uwy + delta_Usx*delta_Usx + delta_Usy*delta_Usy);
  
-    Uxw_new_c = Uxw_c;
-    Uyw_new_c = Uyw_c;
-    Uxs_new_c = Uxs_c;
-    Uys_new_c = Uys_c;
+    Uxw_c = Uxw_new_c;
+    Uyw_c = Uyw_new_c;
+    Uxs_c = Uxs_new_c;
+    Uys_c = Uys_new_c;
   }
 
   if (error>tolerance)
