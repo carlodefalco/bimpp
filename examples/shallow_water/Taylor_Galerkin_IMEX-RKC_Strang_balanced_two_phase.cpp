@@ -894,8 +894,8 @@ TG2_scheme::solve_non_lin_U(const int& kk)
   const auto & bed_excess_pore_water_pressure = excess_pore_water_pressure.get_owned_data ()[(kk/6)*number_FD_points];
 
 
-  Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau*Uxw_src_formula_2(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
-  Uyw_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + tau*Uyw_src_formula_2(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
+  Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2];// + tau*Uxw_src_formula_2(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
+  Uyw_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3];// + tau*Uyw_src_formula_2(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
   Uxs_c += dt*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4] + tau*Uxs_src_formula_2(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
   Uys_c += dt*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5] + tau*Uys_src_formula_2(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
 
