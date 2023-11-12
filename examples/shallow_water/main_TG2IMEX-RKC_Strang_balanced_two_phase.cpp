@@ -121,7 +121,7 @@ double poro_0_fun (const double& xx, const double& yy)
 
 double h0_fun (const double& xx, const double& yy) 
 { 
-  return(xx<10. ? 10. : 0.);
+  //return(xx<10. ? 10. : 0.);
   //return(xx>4.5 && xx<5.5 ? 1. : .5);
   //return(1.);
   return(std::sqrt( (xx-L/2.)*(xx-L/2.) + (yy-H/2.)*(yy-H/2.) )<=L/10 ? 10 : 0. );
