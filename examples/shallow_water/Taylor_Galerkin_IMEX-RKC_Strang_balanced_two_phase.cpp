@@ -576,7 +576,7 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau_c);
   */
 
-  Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau);
+  Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau, tau);
 
 }
 
@@ -635,7 +635,7 @@ TG2_scheme::Newton_mass_balance(double& hw_c, double& hs_c, const double& Uxw_c,
 
 
 void
-TG2_scheme::Newton_momentum_balance(const double& hw_c, const double& hs_c, double& Uxw_c, double& Uyw_c, double& Uxs_c, double& Uys_c, const double& bed_excess_pore_water_pressure, const double& tau_)
+TG2_scheme::Newton_momentum_balance(const double& hw_c, const double& hs_c, double& Uxw_c, double& Uyw_c, double& Uxs_c, double& Uys_c, const double& bed_excess_pore_water_pressure, const double& tau_, const double& dt_)
 {
 
   const double h_c = hw_c+hs_c;
@@ -643,7 +643,7 @@ TG2_scheme::Newton_momentum_balance(const double& hw_c, const double& hs_c, doub
   const double n_c  = h_c>epsilon ? hw_c/h_c : 0.;
   const double ns_c = h_c>epsilon ? hs_c/h_c : 0.;
   
-  const double common_coeff = hw_c>epsilon ? tau_/terminal_velocity*(density_s - density_w)*grav/std::pow(n_c, m_coeff) : 0.;
+  const double common_coeff = hw_c>epsilon ? dt_/terminal_velocity*(density_s - density_w)*grav/std::pow(n_c, m_coeff) : 0.;
 
   const double a_coeff = common_coeff*ns_c;
   const double b_coeff = common_coeff*n_c;
@@ -894,12 +894,12 @@ TG2_scheme::solve_non_lin_U(const int& kk)
   const auto & bed_excess_pore_water_pressure = excess_pore_water_pressure.get_owned_data ()[(kk/6)*number_FD_points];
 
 
-  Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau*Uxw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
-  Uyw_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + tau*Uyw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
-  Uxs_c += dt*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4] + tau*Uxs_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
-  Uys_c += dt*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5] + tau*Uys_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
+  Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau*Uxw_src_formula_2(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
+  Uyw_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + tau*Uyw_src_formula_2(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
+  Uxs_c += dt*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4] + tau*Uxs_src_formula_2(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
+  Uys_c += dt*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5] + tau*Uys_src_formula_2(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
 
-  Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau);
+  Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau, dt);
 
 /*
   Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau_c*Uxw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
