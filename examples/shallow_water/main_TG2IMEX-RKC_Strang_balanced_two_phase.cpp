@@ -802,6 +802,7 @@ main (int argc, char **argv)
   Q1 sold_dyn                = sol;
   Q1 soldd_dyn               = sol;
   Q1 incr_dyn                = incr;
+  Q1 incr_l_stable_dyn       = incr;
   Q1 P_plus_dyn              = incr;
   Q1 P_minus_dyn             = incr;
   Q1 mass_dyn                = mass;
@@ -824,6 +825,7 @@ main (int argc, char **argv)
                  sold_dyn, 
                  soldd_dyn, 
                  incr_dyn,
+                 incr_l_stable_dyn,
                  incr_anti_diff_dyn,
                  incr_anti_diff_pressure_dyn,
                  P_plus_dyn, 
@@ -978,6 +980,9 @@ main (int argc, char **argv)
 
     excess_pore_water_pressure_incr_dyn.get_owned_data ().assign (excess_pore_water_pressure_incr_dyn.get_owned_data ().size (), 0.0);
     excess_pore_water_pressure_incr_dyn.assemble (replace_op);
+
+    incr_l_stable_dyn.get_owned_data ().assign (incr_l_stable_dyn.get_owned_data ().size (), 0.0);
+    incr_l_stable_dyn.assemble (replace_op);
 
 
     // compute time step, 

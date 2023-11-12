@@ -6,6 +6,7 @@ TG2_scheme::TG2_scheme(Q1& sol,
              Q1& sold,
              Q1& soldd,
              Q1& incr,
+             Q1& incr_l_stable,
              std::vector<std::array<double,4>>& incr_anti_diff,
              std::vector<std::array<double,4>>& incr_anti_diff_pressure,
              Q1& P_plus,
@@ -48,6 +49,7 @@ TG2_scheme::TG2_scheme(Q1& sol,
 sold(sold), 
 soldd(soldd), 
 incr(incr), 
+incr_l_stable(incr_l_stable),
 incr_anti_diff(incr_anti_diff), 
 incr_anti_diff_pressure(incr_anti_diff_pressure),
 P_plus(P_plus), 
@@ -567,16 +569,16 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   Uxs_c = Uxs_cell_average - tau * (hs_cell_average>epsilon ? div_FUxs_cell/area - src_slope_formula (hs_cell_average, slope_x_c) + (r_coeff*grav*hs_cell_average+ns_cell_average*dp_mean_average/density_s)*grad_hw_x - nw_cell_average*dp_mean_average/density_s*grad_hs_x : 0.);
   Uys_c = Uys_cell_average - tau * (hs_cell_average>epsilon ? div_FUys_cell/area - src_slope_formula (hs_cell_average, slope_y_c) + (r_coeff*grav*hs_cell_average+ns_cell_average*dp_mean_average/density_s)*grad_hw_y - nw_cell_average*dp_mean_average/density_s*grad_hs_y : 0.);
 
-  /*
+  
   Uxw_c += tau_cc*Uxw_src_formula(hw_cell_average, hs_cell_average, Uxw_cell_average, Uyw_cell_average, Uxs_cell_average, Uys_cell_average);
   Uyw_c += tau_cc*Uyw_src_formula(hw_cell_average, hs_cell_average, Uxw_cell_average, Uyw_cell_average, Uxs_cell_average, Uys_cell_average);
   Uxs_c += tau_cc*Uxs_src_formula(hw_cell_average, hs_cell_average, Uxw_cell_average, Uyw_cell_average, Uxs_cell_average, Uys_cell_average, bed_excess_pore_water_pressure);
   Uys_c += tau_cc*Uys_src_formula(hw_cell_average, hs_cell_average, Uxw_cell_average, Uyw_cell_average, Uxs_cell_average, Uys_cell_average, bed_excess_pore_water_pressure);
 
   Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau_c);
-  */
+  
 
-  Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau);
+  //Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau);
 
 }
 
@@ -891,7 +893,7 @@ TG2_scheme::solve_non_lin_U(const int& kk)
   const auto Uys_cc = sold.get_owned_data ()[kk+5];
  
  
-  auto & bed_excess_pore_water_pressure = excess_pore_water_pressure.get_owned_data ()[(kk/6)*number_FD_points];
+  const auto & bed_excess_pore_water_pressure = excess_pore_water_pressure.get_owned_data ()[(kk/6)*number_FD_points];
 
 /*
   Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau_c*Uxw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
@@ -903,22 +905,19 @@ TG2_scheme::solve_non_lin_U(const int& kk)
 */
 
 
-  Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau*Uxw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
-  Uyw_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + tau*Uyw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
-  Uxs_c += dt*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4] + tau*Uxs_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
-  Uys_c += dt*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5] + tau*Uys_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
+  Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + tau_c*Uxw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
+  Uyw_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + tau_c*Uyw_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc);
+  Uxs_c += dt*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4] + tau_c*Uxs_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
+  Uys_c += dt*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5] + tau_c*Uys_src_formula(hw_c, hs_c, Uxw_cc, Uyw_cc, Uxs_cc, Uys_cc, bed_excess_pore_water_pressure);
 
-  Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau);
+  Uxw_c += dt*incr_l_stable.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2];
+  Uyw_c += dt*incr_l_stable.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3];
+  Uxs_c += dt*incr_l_stable.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4];
+  Uys_c += dt*incr_l_stable.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5];
+
+  Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, tau_c);
 
 
-/*
-  Uxw_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2];// + tau*Uxw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
-  Uyw_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3];// + tau*Uyw_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c);
-  Uxs_c += dt*incr.get_owned_data ()[kk+4]/mass.get_owned_data ()[kk+4];// + tau*Uxs_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure);
-  Uys_c += dt*incr.get_owned_data ()[kk+5]/mass.get_owned_data ()[kk+5];// + tau*Uys_src_formula(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure);
-
-  Newton_momentum_balance(hw_c, hs_c, Uxw_c, Uyw_c, Uxs_c, Uys_c, bed_excess_pore_water_pressure, dt);
-  */
 
 }
 
@@ -2685,10 +2684,15 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
     const auto flux_on_the_node_hw  = incr_anti_diff[ordhw (index_quadrant_local)][ii]*phi_cell_hw;
     const auto flux_on_the_node_hs  = incr_anti_diff[ordhs (index_quadrant_local)][ii]*phi_cell_hs;
-    const auto flux_on_the_node_Uxw = incr_anti_diff[ordUxw(index_quadrant_local)][ii]*phi_cell_Uxw;// + .25*area*isdof_or_hanging[ii]*tau_ccc*Uxw_src_formula(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell);
-    const auto flux_on_the_node_Uyw = incr_anti_diff[ordUyw(index_quadrant_local)][ii]*phi_cell_Uyw;// + .25*area*isdof_or_hanging[ii]*tau_ccc*Uyw_src_formula(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell);
-    const auto flux_on_the_node_Uxs = incr_anti_diff[ordUxs(index_quadrant_local)][ii]*phi_cell_Uxs;// + .25*area*isdof_or_hanging[ii]*tau_ccc*Uxs_src_formula(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, bed_excess_pore_water_pressure);
-    const auto flux_on_the_node_Uys = incr_anti_diff[ordUys(index_quadrant_local)][ii]*phi_cell_Uys;// + .25*area*isdof_or_hanging[ii]*tau_ccc*Uys_src_formula(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, bed_excess_pore_water_pressure);
+    const auto flux_on_the_node_Uxw = incr_anti_diff[ordUxw(index_quadrant_local)][ii]*phi_cell_Uxw;
+    const auto flux_on_the_node_Uyw = incr_anti_diff[ordUyw(index_quadrant_local)][ii]*phi_cell_Uyw;
+    const auto flux_on_the_node_Uxs = incr_anti_diff[ordUxs(index_quadrant_local)][ii]*phi_cell_Uxs;
+    const auto flux_on_the_node_Uys = incr_anti_diff[ordUys(index_quadrant_local)][ii]*phi_cell_Uys;
+
+    const auto incr_l_stable_Uxw = .25*area*isdof_or_hanging[ii]*tau_ccc*Uxw_src_formula(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell);
+    const auto incr_l_stable_Uys = .25*area*isdof_or_hanging[ii]*tau_ccc*Uyw_src_formula(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell);
+    const auto incr_l_stable_Uxs = .25*area*isdof_or_hanging[ii]*tau_ccc*Uxs_src_formula(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, bed_excess_pore_water_pressure);
+    const auto incr_l_stable_Uys = .25*area*isdof_or_hanging[ii]*tau_ccc*Uys_src_formula(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, bed_excess_pore_water_pressure);
 
     if (! quadrant->is_hanging (ii)){
 
@@ -2698,6 +2702,12 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       incr [ordUyw (quadrant->gt (ii))] += flux_on_the_node_Uyw;
       incr [ordUxs (quadrant->gt (ii))] += flux_on_the_node_Uxs;
       incr [ordUys (quadrant->gt (ii))] += flux_on_the_node_Uys;
+
+
+      incr_l_stable [ordUxw (quadrant->gt (ii))] += incr_l_stable_Uxw;
+      incr_l_stable [ordUyw (quadrant->gt (ii))] += incr_l_stable_Uys;
+      incr_l_stable [ordUxs (quadrant->gt (ii))] += incr_l_stable_Uxs;
+      incr_l_stable [ordUys (quadrant->gt (ii))] += incr_l_stable_Uys;
 
     } else {
 
@@ -2718,6 +2728,20 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       
       incr [ordUys (quadrant->gparent(0,ii))] += flux_on_the_node_Uys;
       incr [ordUys (quadrant->gparent(1,ii))] += flux_on_the_node_Uys;
+
+
+
+      incr_l_stable [ordUxw (quadrant->gparent(0,ii))] += incr_l_stable_Uxw;
+      incr_l_stable [ordUxw (quadrant->gparent(1,ii))] += incr_l_stable_Uxw;
+      
+      incr_l_stable [ordUyw (quadrant->gparent(0,ii))] += incr_l_stable_Uyw;
+      incr_l_stable [ordUyw (quadrant->gparent(1,ii))] += incr_l_stable_Uyw;
+
+      incr_l_stable [ordUxs (quadrant->gparent(0,ii))] += incr_l_stable_Uxs;
+      incr_l_stable [ordUxs (quadrant->gparent(1,ii))] += incr_l_stable_Uxs;
+      
+      incr_l_stable [ordUys (quadrant->gparent(0,ii))] += incr_l_stable_Uys;
+      incr_l_stable [ordUys (quadrant->gparent(1,ii))] += incr_l_stable_Uys;
 
     }
 
