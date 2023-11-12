@@ -20,7 +20,6 @@ public:
              Q1& sold,
              Q1& soldd,
              Q1& incr,
-             Q1& incr_l_stable,
              std::vector<std::array<double,4>>& incr_anti_diff,
              std::vector<std::array<double,4>>& incr_anti_diff_pressure,
              Q1& P_plus,
@@ -369,7 +368,6 @@ public:
   Q1& sold;
   Q1& soldd;
   Q1& incr;
-  Q1& incr_l_stable;
   std::vector<std::array<double,4>>& incr_anti_diff;
   std::vector<std::array<double,4>>& incr_anti_diff_pressure;
   Q1& P_plus;
