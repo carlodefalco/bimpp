@@ -2690,7 +2690,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     const auto flux_on_the_node_Uys = incr_anti_diff[ordUys(index_quadrant_local)][ii]*phi_cell_Uys;
 
     const auto incr_l_stable_Uxw = .25*area*isdof_or_hanging[ii]*tau_ccc*Uxw_src_formula(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell);
-    const auto incr_l_stable_Uys = .25*area*isdof_or_hanging[ii]*tau_ccc*Uyw_src_formula(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell);
+    const auto incr_l_stable_Uyw = .25*area*isdof_or_hanging[ii]*tau_ccc*Uyw_src_formula(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell);
     const auto incr_l_stable_Uxs = .25*area*isdof_or_hanging[ii]*tau_ccc*Uxs_src_formula(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, bed_excess_pore_water_pressure);
     const auto incr_l_stable_Uys = .25*area*isdof_or_hanging[ii]*tau_ccc*Uys_src_formula(hw_cell, hs_cell, Uxw_cell, Uyw_cell, Uxs_cell, Uys_cell, bed_excess_pore_water_pressure);
 
@@ -2705,7 +2705,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
 
       incr_l_stable [ordUxw (quadrant->gt (ii))] += incr_l_stable_Uxw;
-      incr_l_stable [ordUyw (quadrant->gt (ii))] += incr_l_stable_Uys;
+      incr_l_stable [ordUyw (quadrant->gt (ii))] += incr_l_stable_Uyw;
       incr_l_stable [ordUxs (quadrant->gt (ii))] += incr_l_stable_Uxs;
       incr_l_stable [ordUys (quadrant->gt (ii))] += incr_l_stable_Uys;
 
