@@ -29,8 +29,9 @@ distributed_vector::ghost_csr ()
 
   ghosts.prc_ptr.assign (this->mpisize + 1, 0);
   ghosts.rank_nnz.assign (this->mpisize, 0);
-    
+  
   ghosts.row_ind.reserve (non_local_data.size ());
+  ghosts.a.clear();
   ghosts.a.reserve (non_local_data.size ());
 
     
