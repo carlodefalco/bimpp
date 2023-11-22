@@ -1019,8 +1019,6 @@ main (int argc, char **argv)
     {
       stp.solve_non_lin(kk);
     }
-
-    
     sol_dyn.assemble (replace_op);
     //TOC("Apply increment");
 
