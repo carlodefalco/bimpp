@@ -137,7 +137,7 @@ double h0_fun (const double& xx, const double& yy)
 {
   //return(1.); 
   //return(xx/L*1500);
-  //return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
+  return(std::abs(xx-L/2.)<=6.6 ? 1. : 0.  );
   //return (xx<=L/2. && xx>=L/4. ? 3. : 0.);
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+1.*std::exp(-0.5*( std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
