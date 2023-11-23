@@ -225,10 +225,10 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   sol_onehalf[ordUy   (index_quadrant_global)] = Uy_cell_average - dt*.5 * (div_FUy_cell/area - src_slope_formula (h_cell_average, slope_y_c));
   sol_onehalf[ordTh   (index_quadrant_global)] = Th_cell_average - dt*.5 *  div_FTh_cell/area;
   
-  sol_onehalf[ordUx   (index_quadrant_global)] /= 
-  sol_onehalf[ordUy   (index_quadrant_global)] /= 
-  //if (sol_onehalf[ordTh(index_quadrant_global)])
-  //std::cout << sol_onehalf[ordTh(index_quadrant_global)] << std::endl;
+  // add source term for the momentum
+  sol_onehalf[ordUx   (index_quadrant_global)] /= 1. - dt*.5*Ux_src_formula(h_onehalf_updated, 1., 0., Th_cell_average);
+  sol_onehalf[ordUy   (index_quadrant_global)] /= 1. - dt*.5*Uy_src_formula(h_onehalf_updated, 0., 1., Th_cell_average);
+  
 } 
 
 
