@@ -28,28 +28,15 @@ public:
              const ordering& oh,
              const ordering& oUx, 
              const ordering& oUy, 
-             const ordering& oTh,
+             const ordering& oTh, 
              const Q1& Z,
              Q0& Z_onehalf,
              const double& DELTAT,
              const double& h_min,
              const bool& is_non_reflBC,
              const double& grav,
-             const double& density,
-             const double& sigma_vent,
-             const double& x_v,
-             const double& y_v,
-             const double& Q_vent,
-             const double& T_vent,
-             const double& W_coeff,
-             const double& C_coeff_sin_h,
-             const double& K_coeff_sin_h,
-             const double& E_coeff,
-             const double& b_coeff,
-             const double& T_ref,
-             const double& T_env,
-             const double& T_c,
-             const double& nu_ref);
+             const double& nu_ref,
+             const double& density);
   
   TG2_scheme() = delete;
   
@@ -123,6 +110,9 @@ public:
 
   void
   set_dt (const double dt_);
+
+  void
+  set_old_dt (const double dt_);
   
   void
   set_times(const double& time, const double& time_old, const double& time_oldd);
@@ -131,7 +121,7 @@ public:
   get_dt ();
   
   
-  double dt;
+  double dt, dt_old;
   
   double Dx, Dy, area;
   
@@ -200,87 +190,21 @@ public:
   double
   Uy_flux_formula_y (const double& h, const double& Ux, const double& Uy);
 
-  double
-  Th_flux_formula_x (const double& h, const double& Ux, const double& Uy, const double& Th);
-  
-  double
-  Th_flux_formula_y (const double& h, const double& Ux, const double& Uy, const double& Th);
-
-  double
-  phi_func(const int& ii, const double& x, const double& y);
-
-  double
-  compute_h_src (void);
-
-  double
-  compute_h_src (const int& ii);
-
-  double
-  compute_Ux_src (const double& h);
-
-  double
-  compute_Uy_src (const double& h);
-
-  double
-  compute_Th_src (void);
-
-  double
-  compute_Th_src (const int& ii);
-
-  void
-  Newton_energy_balance(const double& h, const double& Ux, const double& Uy, double& Th);
-
-  double
-  delta_vent(const double& x, const double& y);
-
-
-  // stress functions
-  double
-  U_stress_formula (const double& h, const double& Ux, const double& Uy);
-  
-
-
-  std::array<double,3>
-  compute_cell_stress (const double& Uxdof_0, const double& Uxdof_1, 
-  const double& Uxdof_2, const double& Uxdof_3, 
-  const double& Uydof_0, const double& Uydof_1, 
-  const double& Uydof_2, const double& Uydof_3);
-
-  std::array<double,6>
-  compute_cell_def_grad (const double& Uxdof_0, const double& Uxdof_1, 
-  const double& Uxdof_2, const double& Uxdof_3, 
-  const double& Uydof_0, const double& Uydof_1, 
-  const double& Uydof_2, const double& Uydof_3);
 
   // slope source terms
   double 
   src_slope_formula (const double& h, const double& S);
 
-  double 
-  src_slope_formula (const double& h, const double& S_x, const double& S_y, const int& kk);
-
-  void
-  solve_non_lin(const int& kk);
-
   
   // source terms
   double
-  h_src_formula (const double& x, const double& y);
+  h_src_formula (const double& h, const double& Ux, const double& Uy);
   
   double
-  Ux_src_formula (const double& h, const double& Ux, const double& Th);
+  Ux_src_formula (const double& h, const double& Ux, const double& Uy);
   
   double
-  Uy_src_formula (const double& h, const double& Uy, const double& Th);
-
-  double
-  Th_src_formula (const double& x, const double& y);
-
-  double
-  Th_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th);
-
-  double
-  Th_src_formula_prime (const double& h, const double& Ux, const double& Uy, const double& Th);
+  Uy_src_formula (const double& h, const double& Ux, const double& Uy);
 
   void
   prepare_IMEXRKC_coefficients (const int& s);
@@ -292,9 +216,6 @@ public:
   double nu_htot = 0.;
   double Fr = 0.;
   double g_coeff = 0.;
-
-  double error;
-  const double tolerance = 1.e-8; 
   
   Q1& sol;
   Q1& sold;
@@ -311,7 +232,7 @@ public:
 private:
 
   std::array<double, 4> vel_rusanov_x, vel_rusanov_y, isdof_or_hanging, der_coeffs_x, der_coeffs_y, der_coeffs_x_s, der_coeffs_y_s, D_U;
-  std::array<double, 2> grad_cell_Th, grad_cell_Z, grad_cell_eta, grad_cell_h, grad_cell_Ux, grad_cell_Uy, grad_cell_ux, grad_cell_uy, grad_cell_spec;
+  std::array<double, 2> grad_cell_Z, grad_cell_eta, grad_cell_h, grad_cell_Ux, grad_cell_Uy, grad_cell_Th, grad_cell_ux, grad_cell_uy, grad_cell_spec;
   
   const ordering& ordh;
   const ordering& ordUx;
@@ -321,21 +242,8 @@ private:
   const double& epsilon;
   const bool& is_non_reflBC;
   const double& grav;
-  const double& density;
-  const double& sigma_vent;
-  const double& x_v;
-  const double& y_v;
-  const double& Q_vent;
-  const double& T_vent;
-  const double& W_coeff;
-  const double& C_coeff_sin_h;
-  const double& K_coeff_sin_h;
-  const double& E_coeff;
-  const double& b_coeff;
-  const double& T_ref;
-  const double& T_env;
-  const double& T_c;
   const double& nu_ref;
+  const double& density;
 
   double w0, w1;
 
@@ -343,9 +251,6 @@ private:
   std::vector<double> b_vect, mu_tilde_vect, gamma_tilde_vect, v_vect, mu_vect;
 
   const double tol_incr = 1e-8;
-
-  const int Nmax = 1e3;
-  int count;
 
   const double epsilon_IMEXRKC = 2./13.;
 

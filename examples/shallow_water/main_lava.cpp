@@ -18,11 +18,13 @@
 #include <fstream>
 
 #include "json.hpp"
-#include "Taylor_Galerkin_lava.h"
+#include "Taylor_Galerkin_IMEX-RKC_Strang_balanced.h"
 
 using json = nlohmann::json;
 
-// mpirun -np 4 main_lava glisX_input-lava.json >out_lava.txt
+// mpirun -np 4 main_TG2IMEXRKC glisX_input_tg2RKC_Bindo.json >out_TG2RKC.txt
+// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
+// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
 
 static constexpr char VARNAME_1[255] = "dem"; 
 static constexpr char VARNAME_2[255] = "mask_in";  
@@ -122,7 +124,7 @@ raster_value(const double& x,
 double dem_fun (const double& xx, const double& yy)
 { 
   //return(0);
-  //return ( 5.*std::exp(-0.4*std::pow(xx-5.,2.)));
+  //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return(-xx+L);
   return(raster_value(xx,yy,dem));
 }
@@ -137,7 +139,7 @@ double h0_fun (const double& xx, const double& yy)
 {
   //return(1.); 
   //return(xx/L*1500);
-  return(std::abs(xx-L/2.)<=6.6 ? 1. : 0.  );
+  return(std::abs(xx-L/2.)<=L/10. && std::abs(yy-H/2.)<=H/10. ? 10. : 0.  );
   //return (xx<=L/2. && xx>=L/4. ? 3. : 0.);
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+1.*std::exp(-0.5*( std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
@@ -163,9 +165,7 @@ double h0_fun (const double& xx, const double& yy)
   //return(10. - dem[global_coord_2_raster(xx,yy)[0]]);
   //return(10. - (5.+xx/L));
   //return(1.);
-  return(raster_value(xx,yy,basin_mask));
-
-  return(10. - dem_fun(xx,yy));
+  //return(10. - dem_fun(xx,yy));
 
   return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38. : 0.);
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
@@ -208,6 +208,7 @@ double Th0_fun (double xx, double yy)
 {
   return 0.;
 }
+
 
 // Assemble vector from mesh.
 // FIXME  the following two functions are copied over from
@@ -378,7 +379,6 @@ main (int argc, char **argv)
   const double & T_c                                      = input_data["T_c"];
   const double & nu_ref                                   = input_data["nu reference"];
 
-
   const std::string & SAVE_DIR    = input_data["home saving directory, i.e., where we can find the directory results"];
   const std::string & DEM_DIR     = input_data["dem file, complete path"]; 
   const std::string & MASK_DIR    = input_data["mask file, complete path"];
@@ -481,6 +481,7 @@ main (int argc, char **argv)
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
 
+
   octave_io_mode m_in = gz_read_mode, m_out = gz_read_mode;
   octave_value v;
 
@@ -500,6 +501,7 @@ main (int argc, char **argv)
   basin_mask.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask.begin ());
   TOC("Load data matrix");
+
 
 
   // Initialize 
@@ -558,6 +560,7 @@ main (int argc, char **argv)
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy, false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordTh);
 
+  
 
   if (is_initial_refinement)
   {
@@ -752,7 +755,6 @@ main (int argc, char **argv)
 
   std::vector<std::array<double,4>> incr_anti_diff_dyn = incr_anti_diff;
 
-
   
   TG2_scheme stp(sol_dyn, 
                  sold_dyn, 
@@ -766,9 +768,8 @@ main (int argc, char **argv)
                  ordh, ordUx, ordUy, ordTh,
                  Z_dyn,
                  Z_onehalf_dyn,
-                 DELTAT, h_min, is_non_reflBC, grav,
-                 density, sigma_vent, x_v, y_v, Q_vent, T_vent,
-                 W_coeff, C_coeff_sin_h, K_coeff_sin_h, E_coeff, b_coeff, T_ref, T_env, T_c, nu_ref);
+                 DELTAT, h_min, is_non_reflBC, grav, nu_ref,
+                 density);
   
   
   // Save initial conditions
@@ -797,7 +798,7 @@ main (int argc, char **argv)
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0); 
   tmsh.octbin_export (filename, Z_dyn);
-  
+
 
 
   std::vector<double> full_time_vector;
@@ -822,6 +823,7 @@ main (int argc, char **argv)
   double max_dt = REDCDT * stp.dt;
   MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&max_dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
   stp.set_dt(max_dt);
+  stp.set_old_dt(0.);
   time_old  -= stp.dt;
   time_oldd -= 2*stp.dt;
   stp.set_times(time, time_old, time_oldd);
@@ -841,12 +843,10 @@ main (int argc, char **argv)
   }
 
   int counter_savings = 0, tot_number_savings = std::round(T/SAVEDT);
-
   
   TIC();
   while (counter_savings != tot_number_savings)
   {
-    
     
     // Reset increment, and limiter terms
     //TIC();
@@ -858,6 +858,7 @@ main (int argc, char **argv)
 
     P_minus_dyn.get_owned_data ().assign (P_minus_dyn.get_owned_data ().size (), 0.0);
     P_minus_dyn.assemble (replace_op);
+
     //TOC("Reset");
     //TIC();
     
@@ -885,7 +886,6 @@ main (int argc, char **argv)
     {
       std::cout << "MAXIMUM TIME STEP = " << stp.dt << std::endl;
     }   
-
 
     // time adaptivity
     if (is_time_adaptivity)
@@ -915,7 +915,12 @@ main (int argc, char **argv)
     }
 
     // check save with given frequency
+    //std::cout << (savecount) << " " << stp.dt << " " << (savecount+stp.dt)/SAVEDT << " " << (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) << std::endl;
+    // stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1))-SAVEDT : stp.dt);
+    //stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) : stp.dt);
     stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? SAVEDT-savecount : stp.dt);
+    //stp.set_dt((time+stp.dt)>T ? T-(time+stp.dt) : stp.dt);
+
 
 
     time_oldd = time_old;
@@ -940,13 +945,14 @@ main (int argc, char **argv)
     //std::cout << (time<T) << " " << time << " " << T << " " << time-T << std::endl;
     
     
+    
     // first step!
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
     {
       stp.first_step(quadrant);
     }
-    
+
 
     // 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -957,7 +963,6 @@ main (int argc, char **argv)
     incr_dyn.assemble ();
     P_plus_dyn.assemble ();
     P_minus_dyn.assemble ();
-
 
 
 
@@ -1005,23 +1010,28 @@ main (int argc, char **argv)
     }
     incr_dyn.assemble ();
     //TOC("Compute step");
-
-    
     
 
     //TIC();
-    //for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
-    //{
-    //  sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
-    //}
-
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=4)
+    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
     {
-      stp.solve_non_lin(kk);
+      sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
+    }
+
+    
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
+    {
+      for (int ii = 0; ii < 4; ++ii)
+      {
+        if (! quadrant->is_hanging (ii) && sol_dyn [ordh (quadrant->gt (ii))] < 0){
+          sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
+        }
+      }
     }
     sol_dyn.assemble (replace_op);
     //TOC("Apply increment");
-
 
 
     // Save solution
@@ -1226,8 +1236,8 @@ main (int argc, char **argv)
       bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordUy, false);
       bim2a_solution_with_ghosts (tmsh, soldd, replace_op, ordTh);
       interpolate_vector (tmsh, soldd_dyn, soldd, ordh );
-      interpolate_vector (tmsh, soldd_dyn, soldd, ordUy);
       interpolate_vector (tmsh, soldd_dyn, soldd, ordUx);
+      interpolate_vector (tmsh, soldd_dyn, soldd, ordUy);
       interpolate_vector (tmsh, soldd_dyn, soldd, ordTh);
       soldd.assemble (replace_op);
       
@@ -1260,7 +1270,7 @@ main (int argc, char **argv)
            ++quadrant)
       {
         double xx_c=quadrant->centroid(0);
-        double yy_c=quadrant->centroid(1);
+        double yy_c=quadrant->centroid(1); 
         
         for (int ii = 0; ii < 4; ++ii)
         {
@@ -1276,7 +1286,7 @@ main (int argc, char **argv)
             Z[quadrant->gparent(1,ii)] += 0.;
           }
         }
-      }      
+      }
       bim2a_solution_with_ghosts (tmsh, Z, replace_op);
       
       bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordh,  false);
