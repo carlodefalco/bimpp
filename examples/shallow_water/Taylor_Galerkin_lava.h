@@ -34,8 +34,10 @@ public:
              const double& DELTAT,
              const double& h_min,
              const bool& is_non_reflBC,
+             const bool& is_isothermal,
              const double& grav,
              const double& nu_ref,
+             const double& T_ref,
              const double& density);
   
   TG2_scheme() = delete;
@@ -207,10 +209,10 @@ public:
   h_src_formula (const double& h, const double& Ux, const double& Uy);
   
   double
-  Ux_src_formula (const double& h, const double& Ux, const double& Uy);
+  Ux_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th);
   
   double
-  Uy_src_formula (const double& h, const double& Ux, const double& Uy);
+  Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th);
 
   void
   prepare_IMEXRKC_coefficients (const int& s);
@@ -247,8 +249,10 @@ private:
   const double& DELTAT;
   const double& epsilon;
   const bool& is_non_reflBC;
+  const bool& is_isothermal;
   const double& grav;
   const double& nu_ref;
+  const double& T_ref;
   const double& density;
 
   double w0, w1;

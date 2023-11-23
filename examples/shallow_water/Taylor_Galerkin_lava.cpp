@@ -20,12 +20,14 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& DELTAT,
                        const double& h_min,
                        const bool& is_non_reflBC,
+                       const bool& is_isothermal,
                        const double& grav,
                        const double& nu_ref,
+                       const double& T_ref,
                        const double& density)
 : sol(sol), sold(sold), soldd(soldd), incr(incr), incr_anti_diff(incr_anti_diff), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass), 
-  ordh(oh), ordUx(oUx), ordUy(oUy), ordTh(oTh), Z(Z), Z_onehalf(Z_onehalf), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), grav(grav), nu_ref(nu_ref),
-  density(density)
+  ordh(oh), ordUx(oUx), ordUy(oUy), ordTh(oTh), Z(Z), Z_onehalf(Z_onehalf), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), grav(grav), nu_ref(nu_ref), T_ref(T_ref),
+  density(density), is_isothermal(is_isothermal)
 { }
  
  
@@ -222,6 +224,8 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   sol_onehalf[ordUy   (index_quadrant_global)] = Uy_cell_average - dt*.5 * (div_FUy_cell/area - src_slope_formula (h_cell_average, slope_y_c));
   sol_onehalf[ordTh   (index_quadrant_global)] = Th_cell_average - dt*.5 *  div_FTh_cell/area;
   
+  sol_onehalf[ordUx   (index_quadrant_global)] /= 
+  sol_onehalf[ordUy   (index_quadrant_global)] /= 
   //if (sol_onehalf[ordTh(index_quadrant_global)])
   //std::cout << sol_onehalf[ordTh(index_quadrant_global)] << std::endl;
 } 
@@ -992,11 +996,11 @@ TG2_scheme::Uy_flux_formula_y (const double& h, const double& Ux, const double& 
 
 double
 TG2_scheme::Th_flux_formula_x (const double& h, const double& Ux, const double& Uy, const double& Th)
-{ return (h>epsilon ? Th*Ux/h*0. : 0.); }
+{ return (h>epsilon && !is_isothermal ? Th*Ux/h : 0.); }
 
 double
 TG2_scheme::Th_flux_formula_y (const double& h, const double& Ux, const double& Uy, const double& Th)
-{ return (h>epsilon ? Th*Uy/h*0. : 0.); }
+{ return (h>epsilon && !is_isothermal ? Th*Uy/h : 0.); }
 
 
 
@@ -1008,17 +1012,24 @@ TG2_scheme::h_src_formula (const double& h, const double& Ux, const double& Uy)
 }
 
 double
-TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy)
+TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th)
 {
-  return ( 0.);
+  const double T = h>epsilon ? Th/h : 0.;
+  const double ux = h>epsilon ? Ux/h : 0.;
+  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*std::exp(-b_coeff*(T-T_ref)) : 0.; 
+
+  return ( - gamma_fric_over_h*ux);
 }
 
 double
-TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy)
+TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th)
 {
-  return ( 0.);
-}
+  const double T = h>epsilon ? Th/h : 0.;
+  const double uy = h>epsilon ? Uy/h : 0.;
+  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*std::exp(-b_coeff*(T-T_ref)) : 0.; 
 
+  return ( - gamma_fric_over_h*uy);
+}
 
 
 
