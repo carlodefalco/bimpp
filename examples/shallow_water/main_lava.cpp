@@ -769,7 +769,7 @@ main (int argc, char **argv)
                  ordh, ordUx, ordUy, ordTh,
                  Z_dyn,
                  Z_onehalf_dyn,
-                 DELTAT, h_min, is_non_reflBC, is_isothermal, grav, nu_ref,
+                 DELTAT, h_min, is_non_reflBC, is_isothermal, grav, nu_ref, T_ref,
                  density);
 
 
