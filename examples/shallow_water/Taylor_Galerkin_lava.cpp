@@ -990,11 +990,11 @@ TG2_scheme::Uy_flux_formula_y (const double& h, const double& Ux, const double& 
 
 double
 TG2_scheme::Th_flux_formula_x (const double& h, const double& Ux, const double& Uy, const double& Th)
-{ return (h>epsilon ? Th*Ux/h : 0.); }
+{ return (h>epsilon ? Th*Ux/h*0. : 0.); }
 
 double
 TG2_scheme::Th_flux_formula_y (const double& h, const double& Ux, const double& Uy, const double& Th)
-{ return (h>epsilon ? Th*Uy/h : 0.); }
+{ return (h>epsilon ? Th*Uy/h*0. : 0.); }
 
 
 
