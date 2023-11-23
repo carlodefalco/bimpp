@@ -190,6 +190,12 @@ public:
   double
   Uy_flux_formula_y (const double& h, const double& Ux, const double& Uy);
 
+  double
+  Th_flux_formula_x (const double& h, const double& Ux, const double& Uy, const double& Th);
+  
+  double
+  Th_flux_formula_y (const double& h, const double& Ux, const double& Uy, const double& Th);
+
 
   // slope source terms
   double 
