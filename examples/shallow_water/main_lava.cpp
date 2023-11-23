@@ -1016,22 +1016,10 @@ main (int argc, char **argv)
     
 
     //TIC();
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
+    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=4)
     {
-      sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
-    }
-
-    
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep ();
-         ++quadrant)
-    {
-      for (int ii = 0; ii < 4; ++ii)
-      {
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordh (quadrant->gt (ii))] < 0){
-          sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
-        }
-      }
+      solve_non_lin(kk);
+      //sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
     }
     sol_dyn.assemble (replace_op);
     //TOC("Apply increment");

@@ -204,6 +204,9 @@ public:
   double 
   src_slope_formula (const double& h, const double& S);
 
+  void
+  solve_non_lin(const int& kk);
+
   
   // source terms
   double

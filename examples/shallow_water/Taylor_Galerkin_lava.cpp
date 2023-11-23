@@ -227,7 +227,7 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   
   // add source term for the momentum
   const auto & h_onehalf_updated = sol_onehalf[ordh    (index_quadrant_global)];
-  
+
   sol_onehalf[ordUx   (index_quadrant_global)] /= 1. - dt*.5*Ux_src_formula(h_onehalf_updated, 1., 0., Th_cell_average);
   sol_onehalf[ordUy   (index_quadrant_global)] /= 1. - dt*.5*Uy_src_formula(h_onehalf_updated, 0., 1., Th_cell_average);
   
@@ -927,9 +927,6 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
 }
 
-
-
-
 void
 TG2_scheme::flux_limiter(const double& Q_min, const double& Q_max, const double& Q_dof, const double& P_plus_Q, const double& P_minus_Q, const double& flux_on_the_node, const double& vel_square_rusanov_cell, double& phi_cell_Q)
 {
@@ -940,8 +937,41 @@ TG2_scheme::flux_limiter(const double& Q_min, const double& Q_max, const double&
   const auto R_minus = P_minus_Q==0 ? 1. : std::min(1., Q_minus/P_minus_Q);
 
   phi_cell_Q = std::min(phi_cell_Q, flux_on_the_node>=0 ? R_plus : R_minus);
+}
+
+
+void
+TG2_scheme::solve_non_lin(const int& kk)
+{
+  auto & h_c  = sol.get_owned_data ()[kk  ];
+  auto & Ux_c = sol.get_owned_data ()[kk+1];
+  auto & Uy_c = sol.get_owned_data ()[kk+2];
+  auto & Th_c = sol.get_owned_data ()[kk+3];
+
+  const auto & h_c_old  = sold.get_owned_data ()[kk  ];
+  const auto & Ux_c_old = sold.get_owned_data ()[kk+1];
+  const auto & Uy_c_old = sold.get_owned_data ()[kk+2];
+  const auto & Th_c_old = sold.get_owned_data ()[kk+3];
+
+
+  // solve non-linearities like the first step of the TG2 method to get the complete low order solution,
+  //h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
+  h_c *= (h_c>0.);
+
+  Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old) )/(1.-dt*.5*Ux_src_formula(h_c, 1., 0., Th_c_old));
+  Uy_c = (Uy_c + dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old) )/(1.-dt*.5*Uy_src_formula(h_c, 0., 1., Th_c_old));
+
+  Th_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3];// + dt*.5*Th_src_formula (h_c_old, Ux_c_old, Uy_c_old, Th_c_old);
+
+  //Uy_c = 0.;
+
+  //Newton_energy_balance(h_c, Ux_c, Uy_c, Th_c);
 
 }
+
+
+
+
 
 void
 TG2_scheme::set_dt (const double dt_)
