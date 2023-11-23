@@ -955,11 +955,14 @@ TG2_scheme::solve_non_lin(const int& kk)
 
 
   // solve non-linearities like the first step of the TG2 method to get the complete low order solution,
-  //h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
+  h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
   h_c *= (h_c>0.);
 
-  Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old) )/(1.-dt*.5*Ux_src_formula(h_c, 1., 0., Th_c_old));
-  Uy_c = (Uy_c + dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old) )/(1.-dt*.5*Uy_src_formula(h_c, 0., 1., Th_c_old));
+  Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1];
+  Uy_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2];
+
+  //Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old) )/(1.-dt*.5*Ux_src_formula(h_c, 1., 0., Th_c_old));
+  //Uy_c = (Uy_c + dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old) )/(1.-dt*.5*Uy_src_formula(h_c, 0., 1., Th_c_old));
 
   Th_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3];// + dt*.5*Th_src_formula (h_c_old, Ux_c_old, Uy_c_old, Th_c_old);
 
