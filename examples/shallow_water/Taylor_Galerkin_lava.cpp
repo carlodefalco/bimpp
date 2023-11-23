@@ -28,7 +28,7 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& density)
 : sol(sol), sold(sold), soldd(soldd), incr(incr), incr_anti_diff(incr_anti_diff), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass), 
   ordh(oh), ordUx(oUx), ordUy(oUy), ordTh(oTh), Z(Z), Z_onehalf(Z_onehalf), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), grav(grav), nu_ref(nu_ref), T_ref(T_ref),
-  density(density), is_isothermal(is_isothermal)
+  density(density), is_isothermal(is_isothermal), b_exp_coeff(b_exp_coeff)
 { }
  
  
