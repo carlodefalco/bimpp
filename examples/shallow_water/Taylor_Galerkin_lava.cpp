@@ -692,7 +692,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   
   for (int ii = 0; ii < 4; ++ii){
 
-    double hdof_c, Uxdof_c, Uydof_c, Thdof_c, P_plus_h_c, P_minus_h_c, P_plus_Ux_c, P_minus_Ux_c, P_plus_Uy_c, P_minus_Uy_c;
+    double hdof_c, Uxdof_c, Uydof_c, Thdof_c, P_plus_h_c, P_minus_h_c, P_plus_Ux_c, P_minus_Ux_c, P_plus_Uy_c, P_minus_Uy_c, P_plus_Th_c, P_minus_Th_c;
 
     if (! quadrant->is_hanging (ii)){
       hdof_c      = sol [ordh    (quadrant->gt (ii))];
@@ -790,7 +790,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   std::array<double,4> h_min  = {h_min_cell, h_min_cell, h_min_cell, h_min_cell }, h_max  = {h_max_cell, h_max_cell, h_max_cell, h_max_cell },
                        Ux_min = {Ux_min_cell,Ux_min_cell,Ux_min_cell,Ux_min_cell}, Ux_max = {Ux_max_cell,Ux_max_cell,Ux_max_cell,Ux_max_cell},
                        Uy_min = {Uy_min_cell,Uy_min_cell,Uy_min_cell,Uy_min_cell}, Uy_max = {Uy_max_cell,Uy_max_cell,Uy_max_cell,Uy_max_cell},
-                       Uy_min = {Th_min_cell,Th_min_cell,Th_min_cell,Th_min_cell}, Uy_max = {Th_max_cell,Th_max_cell,Th_max_cell,Th_max_cell};
+                       Th_min = {Th_min_cell,Th_min_cell,Th_min_cell,Th_min_cell}, Th_max = {Th_max_cell,Th_max_cell,Th_max_cell,Th_max_cell};
 
 
   for (int ii = 0; ii < 4; ++ii){
