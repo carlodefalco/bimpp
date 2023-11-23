@@ -38,6 +38,7 @@ public:
              const double& grav,
              const double& nu_ref,
              const double& T_ref,
+             const double& b_exp_coeff,
              const double& density);
   
   TG2_scheme() = delete;
@@ -253,6 +254,7 @@ private:
   const double& grav;
   const double& nu_ref;
   const double& T_ref;
+  const double& b_exp_coeff;
   const double& density;
 
   double w0, w1;

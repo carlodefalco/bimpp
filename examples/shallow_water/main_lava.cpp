@@ -374,7 +374,7 @@ main (int argc, char **argv)
   const double & C_coeff_sin_h                            = input_data["C coefficient without h"];
   const double & K_coeff_sin_h                            = input_data["K coefficient without h"];
   const double & E_coeff                                  = input_data["E coefficient"];
-  const double & b_coeff                                  = input_data["b coefficient"];
+  const double & b_exp_coeff                              = input_data["b coefficient"];
   const double & T_ref                                    = input_data["T_ref"];
   const double & T_env                                    = input_data["T_env"];
   const double & T_c                                      = input_data["T_c"];
@@ -769,7 +769,7 @@ main (int argc, char **argv)
                  ordh, ordUx, ordUy, ordTh,
                  Z_dyn,
                  Z_onehalf_dyn,
-                 DELTAT, h_min, is_non_reflBC, is_isothermal, grav, nu_ref, T_ref,
+                 DELTAT, h_min, is_non_reflBC, is_isothermal, grav, nu_ref, T_ref, b_exp_coeff,
                  density);
 
 

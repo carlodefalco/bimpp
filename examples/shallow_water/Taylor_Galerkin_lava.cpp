@@ -24,6 +24,7 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& grav,
                        const double& nu_ref,
                        const double& T_ref,
+                       const double& b_exp_coeff,
                        const double& density)
 : sol(sol), sold(sold), soldd(soldd), incr(incr), incr_anti_diff(incr_anti_diff), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass), 
   ordh(oh), ordUx(oUx), ordUy(oUy), ordTh(oTh), Z(Z), Z_onehalf(Z_onehalf), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), grav(grav), nu_ref(nu_ref), T_ref(T_ref),
@@ -1016,7 +1017,7 @@ TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy,
 {
   const double T = h>epsilon ? Th/h : 0.;
   const double ux = h>epsilon ? Ux/h : 0.;
-  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*std::exp(-b_coeff*(T-T_ref)) : 0.; 
+  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*std::exp(-b_exp_coeff*(T-T_ref)) : 0.; 
 
   return ( - gamma_fric_over_h*ux);
 }
@@ -1026,7 +1027,7 @@ TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy,
 {
   const double T = h>epsilon ? Th/h : 0.;
   const double uy = h>epsilon ? Uy/h : 0.;
-  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*std::exp(-b_coeff*(T-T_ref)) : 0.; 
+  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*std::exp(-b_exp_coeff*(T-T_ref)) : 0.; 
 
   return ( - gamma_fric_over_h*uy);
 }
