@@ -1018,7 +1018,7 @@ main (int argc, char **argv)
     //TIC();
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=4)
     {
-      solve_non_lin(kk);
+      stp.solve_non_lin(kk);
       //sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
     }
     sol_dyn.assemble (replace_op);
