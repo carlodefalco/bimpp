@@ -370,8 +370,8 @@ TG2_scheme::solve_non_lin(const int& kk)
   //h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
   h_c *= (h_c>0.);
 
-  Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, Th_c_old) )/(1.-dt*.5*Ux_src_formula(h_c, 1., Th_c_old));
-  Uy_c = (Uy_c + dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, Uy_c_old, Th_c_old) )/(1.-dt*.5*Uy_src_formula(h_c, 1., Th_c_old));
+  Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, Th_c_old)*0 )/(1.-dt*Ux_src_formula(h_c, 1., Th_c_old));
+  Uy_c = (Uy_c + dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, Uy_c_old, Th_c_old)*0 )/(1.-dt*Uy_src_formula(h_c, 1., Th_c_old));
 
   Th_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3];// + dt*.5*Th_src_formula (h_c_old, Ux_c_old, Uy_c_old, Th_c_old);
 
