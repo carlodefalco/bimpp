@@ -18,7 +18,7 @@
 #include <fstream>
 
 #include "json.hpp"
-#include "Taylor_Galerkin_IMEX-RKC_Strang_balanced.h"
+#include "Taylor_Galerkin_lava.h"
 
 using json = nlohmann::json;
 
@@ -770,6 +770,8 @@ main (int argc, char **argv)
                  Z_onehalf_dyn,
                  DELTAT, h_min, is_non_reflBC, grav, nu_ref,
                  density);
+
+
   
   
   // Save initial conditions

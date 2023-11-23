@@ -1,4 +1,4 @@
-#include "Taylor_Galerkin_IMEX-RKC_Strang_balanced.h"
+#include "Taylor_Galerkin_lava.h"
 #include <algorithm>
 #include <cassert>
 
