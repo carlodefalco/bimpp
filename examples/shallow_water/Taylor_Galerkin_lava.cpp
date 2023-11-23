@@ -221,8 +221,10 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   sol_onehalf[ordUx   (index_quadrant_global)] = Ux_cell_average - dt*.5 * (div_FUx_cell/area - src_slope_formula (h_cell_average, slope_x_c));
   sol_onehalf[ordUy   (index_quadrant_global)] = Uy_cell_average - dt*.5 * (div_FUy_cell/area - src_slope_formula (h_cell_average, slope_y_c));
   sol_onehalf[ordTh   (index_quadrant_global)] = Th_cell_average - dt*.5 *  div_FTh_cell/area;
-
-}
+  
+  //if (sol_onehalf[ordTh(index_quadrant_global)])
+  //std::cout << sol_onehalf[ordTh(index_quadrant_global)] << std::endl;
+} 
 
 
 void
@@ -888,7 +890,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h;
     const auto flux_on_the_node_Ux = incr_anti_diff[ordUx(index_quadrant)][ii]*phi_cell_Ux;
     const auto flux_on_the_node_Uy = incr_anti_diff[ordUy(index_quadrant)][ii]*phi_cell_Uy;
-    const auto flux_on_the_node_Th = incr_anti_diff[ordUy(index_quadrant)][ii]*phi_cell_Th;
+    const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th;
 
     if (! quadrant->is_hanging (ii)){
 
