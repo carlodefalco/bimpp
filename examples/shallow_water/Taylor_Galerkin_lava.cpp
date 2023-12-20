@@ -25,10 +25,15 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& nu_ref,
                        const double& T_ref,
                        const double& b_exp_coeff,
-                       const double& density)
+                       const double& density, 
+                       const double& x_v, 
+                       const double& y_v, 
+                       const double& Q_vent, 
+                       const double& T_vent,
+                       const double& sigma_vent)
 : sol(sol), sold(sold), soldd(soldd), incr(incr), incr_anti_diff(incr_anti_diff), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass), 
   ordh(oh), ordUx(oUx), ordUy(oUy), ordTh(oTh), Z(Z), Z_onehalf(Z_onehalf), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), grav(grav), nu_ref(nu_ref), T_ref(T_ref),
-  density(density), is_isothermal(is_isothermal), b_exp_coeff(b_exp_coeff)
+  density(density), is_isothermal(is_isothermal), b_exp_coeff(b_exp_coeff), x_v(x_v), y_v(y_v), Q_vent(Q_vent), T_vent(T_vent), sigma_vent(sigma_vent)
 { }
  
  
@@ -142,6 +147,8 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   Dy = yn[2] - yn[0];
   area = Dx * Dy;
 
+  const auto & x_c = quadrant->centroid (0);
+  const auto & y_c = quadrant->centroid (1);
 
   
   double h_cell_average = 0., Ux_cell_average = 0., Uy_cell_average = 0., Th_cell_average = 0.;// source_Ux_cell_average = 0., source_Uy_cell_average = 0.;
@@ -231,6 +238,19 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   sol_onehalf[ordUx   (index_quadrant_global)] /= 1. - dt*.5*Ux_src_formula(h_onehalf_updated, 1., 0., Th_cell_average);
   sol_onehalf[ordUy   (index_quadrant_global)] /= 1. - dt*.5*Uy_src_formula(h_onehalf_updated, 0., 1., Th_cell_average);
   
+
+  // add the vent contribution,
+  const double delta_x_vc = x_c - x_v;
+  const double delta_y_vc = y_c - y_v;
+
+  const double extr_x_a = (-Dx/2.+delta_x_vc)/std::sqrt(2.*sigma_vent);
+  const double extr_x_b = (+Dx/2.+delta_x_vc)/std::sqrt(2.*sigma_vent);
+
+  const double extr_y_a = (-Dy/2.+delta_y_vc)/std::sqrt(2.*sigma_vent);
+  const double extr_y_b = (+Dy/2.+delta_y_vc)/std::sqrt(2.*sigma_vent);
+
+  sol_onehalf[ordh    (index_quadrant_global)] += dt*.5* Q_vent*       ( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
+  sol_onehalf[ordTh   (index_quadrant_global)] += dt*.5* Q_vent*T_vent*( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
 } 
 
 
@@ -697,6 +717,12 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     xn[ii] = quadrant->p(0, ii);
     yn[ii] = quadrant->p(1, ii);
   }
+  Dx = xn[1]-xn[0];
+  Dy = yn[2]-yn[0];
+  area = Dx * Dy;
+
+  const auto & x_c = quadrant->centroid (0);
+  const auto & y_c = quadrant->centroid (1);
 
   
   for (int ii = 0; ii < 4; ++ii){
@@ -722,7 +748,8 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
       P_plus_Th_c   = P_plus [ordTh   (quadrant->gt (ii))];
       P_minus_Th_c  = P_minus[ordTh   (quadrant->gt (ii))];
-      
+
+      isdof_or_hanging[ii] = 1.;
 
     } else {
       hdof_c   = .5 * (sol [ordh  (quadrant->gparent(0,ii))] +
@@ -756,6 +783,8 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
                             P_plus [ordTh (quadrant->gparent(1,ii))]);
       P_minus_Th_c  = .5 * (P_minus [ordTh (quadrant->gparent(0,ii))] +
                             P_minus [ordTh (quadrant->gparent(1,ii))]);
+
+      isdof_or_hanging[ii] = .5;
       
     }
 
@@ -892,12 +921,36 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   //phi_cell_h = 0., phi_cell_Ux = 0., phi_cell_Uy = 0.;
 
 
+
+  // add the vent contribution,
+  const double delta_x_vc = x_c - x_v;
+  const double delta_y_vc = y_c - y_v;
+
+  const double extr_x_a = (-Dx/2.+delta_x_vc)/std::sqrt(2.*sigma_vent);
+  const double extr_x_b = (+Dx/2.+delta_x_vc)/std::sqrt(2.*sigma_vent);
+
+  const double extr_y_a = (-Dy/2.+delta_y_vc)/std::sqrt(2.*sigma_vent);
+  const double extr_y_b = (+Dy/2.+delta_y_vc)/std::sqrt(2.*sigma_vent);
+
+  //sol_onehalf[ordh    (index_quadrant_global)] += dt*.5* Q_vent*       ( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
+  //sol_onehalf[ordTh   (index_quadrant_global)] += dt*.5* Q_vent*T_vent*( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
+
+  const double common_contr_x = -sigma_vent*(std::exp(-extr_x_b*extr_x_b) - std::exp(-extr_x_a*extr_x_a)) + std::sqrt(M_PI)/2.*(Dx/2. - delta_x_vc)*(std::erf(extr_x_b) - std::erf(extr_x_a))*std::sqrt(2.*sigma_vent);
+  const double common_contr_y = -sigma_vent*(std::exp(-extr_y_b*extr_y_b) - std::exp(-extr_y_a*extr_y_a)) + std::sqrt(M_PI)/2.*(Dy/2. - delta_y_vc)*(std::erf(extr_y_b) - std::erf(extr_y_a))*std::sqrt(2.*sigma_vent);
+
+  std::array<double, 2> contrx = {Dx*std::sqrt(M_PI)/2.*(std::erf(extr_x_b) - std::erf(extr_x_a))*std::sqrt(2.*sigma_vent) - common_contr_x, common_contr_x};
+  std::array<double, 2> contry = {Dy*std::sqrt(M_PI)/2.*(std::erf(extr_y_b) - std::erf(extr_y_a))*std::sqrt(2.*sigma_vent) - common_contr_y, common_contr_y};
+    
+
   for (int ii = 0; ii < 4; ++ii){
 
-    const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h;
+    const int ii_1 = ii%2;
+    const int ii_2 = ii/2;
+
+    const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  +        Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
     const auto flux_on_the_node_Ux = incr_anti_diff[ordUx(index_quadrant)][ii]*phi_cell_Ux;
     const auto flux_on_the_node_Uy = incr_anti_diff[ordUy(index_quadrant)][ii]*phi_cell_Uy;
-    const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th;
+    const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
 
     if (! quadrant->is_hanging (ii)){
 
@@ -957,9 +1010,6 @@ TG2_scheme::solve_non_lin(const int& kk)
   // solve non-linearities like the first step of the TG2 method to get the complete low order solution,
   h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
   h_c *= (h_c>0.);
-
-  //Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1];
-  //Uy_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]; 
 
   Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old) )/(1.-dt*.5*Ux_src_formula(h_c, 1., 0., Th_c_old));
   Uy_c = (Uy_c + dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old) )/(1.-dt*.5*Uy_src_formula(h_c, 0., 1., Th_c_old));
@@ -1066,7 +1116,6 @@ TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy,
 
   return ( - gamma_fric_over_h*uy);
 }
-
 
 
 double 

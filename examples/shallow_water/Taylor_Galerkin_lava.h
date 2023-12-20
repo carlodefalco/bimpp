@@ -39,7 +39,12 @@ public:
              const double& nu_ref,
              const double& T_ref,
              const double& b_exp_coeff,
-             const double& density);
+             const double& density,
+             const double& x_v,
+             const double& y_v,
+             const double& Q_vent, 
+             const double& T_vent,
+             const double& sigma_vent);
   
   TG2_scheme() = delete;
   
@@ -259,6 +264,11 @@ private:
   const double& T_ref;
   const double& b_exp_coeff;
   const double& density;
+  const double& x_v;
+  const double& y_v;
+  const double& Q_vent;
+  const double& T_vent;
+  const double& sigma_vent;
 
   double w0, w1;
 
