@@ -137,9 +137,9 @@ using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;    
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  //return(1.); 
+  return(0.);
   //return(xx/L*1500);
-  return(std::abs(xx-L/2.)<=10. && std::abs(yy-H/2.)<=10. ? 1. : 0.  );
+  //return(std::abs(xx-L/2.)<=10. && std::abs(yy-H/2.)<=10. ? 1. : 0.  );
   //return (xx<=L/2. && xx>=L/4. ? 3. : 0.);
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+1.*std::exp(-0.5*( std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
@@ -370,14 +370,14 @@ main (int argc, char **argv)
   const double & y_v                                      = input_data["y vent location"];
   const double & Q_vent                                   = input_data["lava vent discharge"];
   const double & T_vent                                   = input_data["lava vent effusion temperature"];
-  const double & W_coeff                                  = input_data["W coefficient"];
-  const double & C_coeff_sin_h                            = input_data["C coefficient without h"];
-  const double & K_coeff_sin_h                            = input_data["K coefficient without h"];
-  const double & E_coeff                                  = input_data["E coefficient"];
+  //const double & W_coeff                                  = input_data["W coefficient"];
+  //const double & C_coeff_sin_h                            = input_data["C coefficient without h"];
+  //const double & K_coeff_sin_h                            = input_data["K coefficient without h"];
+  //const double & E_coeff                                  = input_data["E coefficient"];
   const double & b_exp_coeff                              = input_data["b coefficient"];
   const double & T_ref                                    = input_data["T_ref"];
-  const double & T_env                                    = input_data["T_env"];
-  const double & T_c                                      = input_data["T_c"];
+  //const double & T_env                                    = input_data["T_env"];
+  //const double & T_c                                      = input_data["T_c"];
   const double & nu_ref                                   = input_data["nu reference"];
 
   const std::string & SAVE_DIR    = input_data["home saving directory, i.e., where we can find the directory results"];
@@ -766,11 +766,26 @@ main (int argc, char **argv)
                  P_minus_dyn, 
                  sol_onehalf_dyn, 
                  mass_dyn,
-                 ordh, ordUx, ordUy, ordTh,
+                 ordh, 
+                 ordUx, 
+                 ordUy, 
+                 ordTh,
                  Z_dyn,
                  Z_onehalf_dyn,
-                 DELTAT, h_min, is_non_reflBC, is_isothermal, grav, nu_ref, T_ref, b_exp_coeff,
-                 density);
+                 DELTAT, 
+                 h_min, 
+                 is_non_reflBC, 
+                 is_isothermal, 
+                 grav, 
+                 nu_ref, 
+                 T_ref, 
+                 b_exp_coeff,
+                 density, 
+                 x_v, 
+                 y_v, 
+                 Q_vent, 
+                 T_vent, 
+                 sigma_vent);
 
 
   
@@ -1019,7 +1034,6 @@ main (int argc, char **argv)
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=4)
     {
       stp.solve_non_lin(kk);
-      //sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk] / mass_dyn.get_owned_data ()[kk];
     }
     sol_dyn.assemble (replace_op);
     //TOC("Apply increment");
