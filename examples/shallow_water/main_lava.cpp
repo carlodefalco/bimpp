@@ -126,6 +126,7 @@ double dem_fun (const double& xx, const double& yy)
   //return(0);
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return(-xx+L);
+  double z = 0.;
   if (xx<50)
   {
     z = -xx + 100.;
