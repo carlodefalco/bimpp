@@ -947,7 +947,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     const int ii_1 = ii%2;
     const int ii_2 = ii/2;
 
-    const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  +        0.*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
+    const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  +        Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
     const auto flux_on_the_node_Ux = incr_anti_diff[ordUx(index_quadrant)][ii]*phi_cell_Ux;
     const auto flux_on_the_node_Uy = incr_anti_diff[ordUy(index_quadrant)][ii]*phi_cell_Uy;
     const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
