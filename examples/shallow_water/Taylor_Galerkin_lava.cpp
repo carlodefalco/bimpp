@@ -249,8 +249,8 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const double extr_y_a = (-Dy/2.+delta_y_vc)/std::sqrt(2.*sigma_vent);
   const double extr_y_b = (+Dy/2.+delta_y_vc)/std::sqrt(2.*sigma_vent);
 
-  sol_onehalf[ordh    (index_quadrant_global)] += dt*.5* Q_vent*       ( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
-  sol_onehalf[ordTh   (index_quadrant_global)] += dt*.5* Q_vent*T_vent*( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
+  sol_onehalf[ordh    (index_quadrant_global)] += dt*.5* Q_vent/area*       ( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
+  sol_onehalf[ordTh   (index_quadrant_global)] += dt*.5* Q_vent/area*T_vent*( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
 } 
 
 
