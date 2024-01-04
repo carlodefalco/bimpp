@@ -915,7 +915,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     flux_limiter(h_min [ii], h_max [ii], etadof[ii], P_plus_h_dof [ii], P_minus_h_dof  [ii], flux_on_the_node_h,  vel_square_rusanov_cell, phi_cell_h );
     flux_limiter(Ux_min[ii], Ux_max[ii], Uxdof [ii], P_plus_Ux_dof[ii], P_minus_Ux_dof [ii], flux_on_the_node_Ux, vel_square_rusanov_cell, phi_cell_Ux);
     flux_limiter(Uy_min[ii], Uy_max[ii], Uydof [ii], P_plus_Uy_dof[ii], P_minus_Uy_dof [ii], flux_on_the_node_Uy, vel_square_rusanov_cell, phi_cell_Uy);
-    flux_limiter(Th_min[ii], Th_max[ii], Uydof [ii], P_plus_Th_dof[ii], P_minus_Th_dof [ii], flux_on_the_node_Th, vel_square_rusanov_cell, phi_cell_Th);
+    flux_limiter(Th_min[ii], Th_max[ii], Thdof [ii], P_plus_Th_dof[ii], P_minus_Th_dof [ii], flux_on_the_node_Th, vel_square_rusanov_cell, phi_cell_Th);
   }
 
   //phi_cell_h = 0., phi_cell_Ux = 0., phi_cell_Uy = 0.;
@@ -950,7 +950,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  + Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii]; //incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  +        Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
     const auto flux_on_the_node_Ux = incr_anti_diff[ordUx(index_quadrant)][ii]*phi_cell_Ux;
     const auto flux_on_the_node_Uy = incr_anti_diff[ordUy(index_quadrant)][ii]*phi_cell_Uy;
-    const auto flux_on_the_node_Th = incr_anti_diff[ordh(index_quadrant)][ii]*phi_cell_h + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii]; //incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
+    const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii]; //incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
 
     if (! quadrant->is_hanging (ii)){
 
