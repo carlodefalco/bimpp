@@ -1048,45 +1048,45 @@ double
 TG2_scheme::h_flux_formula_x (const double& h, const double& Ux, const double& Uy)
 { 
   // A flux-limiting wetting–drying method for finite-element shallow-water models, with application to the Scheldt Estuary
-  return (h>epsilon ? Ux : 0.)*0.; 
+  return (h>epsilon ? Ux : 0.); 
 }
 
 double
 TG2_scheme::h_flux_formula_y (const double& h, const double& Ux, const double& Uy)
 { 
   // A flux-limiting wetting–drying method for finite-element shallow-water models, with application to the Scheldt Estuary
-  return (h>epsilon ? Uy : 0.)*0.; 
+  return (h>epsilon ? Uy : 0.); 
 }
 
 double
 TG2_scheme::Ux_flux_formula_x (const double& h, const double& Ux, const double& Uy)
 { 
   const auto vel_x = h>epsilon ? Ux/h : 0.;
-  return (Ux*vel_x + grav*h*h/2.)*0.; 
+  return (Ux*vel_x + grav*h*h/2.); 
 }
  
 double
 TG2_scheme::Ux_flux_formula_y (const double& h, const double& Ux, const double& Uy)
-{ return (h>epsilon ? Uy*Ux/h : 0.)*0.; }
+{ return (h>epsilon ? Uy*Ux/h : 0.); }
 
 double
 TG2_scheme::Uy_flux_formula_x (const double& h, const double& Ux, const double& Uy)
-{ return (h>epsilon ? Uy*Ux/h : 0.)*0.; }
+{ return (h>epsilon ? Uy*Ux/h : 0.); }
 
 double
 TG2_scheme::Uy_flux_formula_y (const double& h, const double& Ux, const double& Uy)
 { 
   const auto vel_y = h>epsilon ? Uy/h : 0.;
-  return (Uy*vel_y + grav*h*h/2.)*0.; 
+  return (Uy*vel_y + grav*h*h/2.); 
 }
 
 double
 TG2_scheme::Th_flux_formula_x (const double& h, const double& Ux, const double& Uy, const double& Th)
-{ return (h>epsilon && !is_isothermal ? Th*Ux/h*0. : 0.); }
+{ return (h>epsilon && !is_isothermal ? Th*Ux/h : 0.); }
 
 double
 TG2_scheme::Th_flux_formula_y (const double& h, const double& Ux, const double& Uy, const double& Th)
-{ return (h>epsilon && !is_isothermal ? Th*Uy/h*0. : 0.); }
+{ return (h>epsilon && !is_isothermal ? Th*Uy/h : 0.); }
 
 
 
