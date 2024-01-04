@@ -950,7 +950,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     const auto flux_on_the_node_h  = Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii]; //incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  +        Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
     const auto flux_on_the_node_Ux = incr_anti_diff[ordUx(index_quadrant)][ii]*phi_cell_Ux;
     const auto flux_on_the_node_Uy = incr_anti_diff[ordUy(index_quadrant)][ii]*phi_cell_Uy;
-    const auto flux_on_the_node_Th = Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii]; //incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
+    const auto flux_on_the_node_Th = T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii]; //incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
 
     if (! quadrant->is_hanging (ii)){
 
@@ -1048,45 +1048,45 @@ double
 TG2_scheme::h_flux_formula_x (const double& h, const double& Ux, const double& Uy)
 { 
   // A flux-limiting wetting–drying method for finite-element shallow-water models, with application to the Scheldt Estuary
-  return (h>epsilon ? Ux : 0.); 
+  return (h>epsilon ? Ux : 0.)*0.; 
 }
 
 double
 TG2_scheme::h_flux_formula_y (const double& h, const double& Ux, const double& Uy)
 { 
   // A flux-limiting wetting–drying method for finite-element shallow-water models, with application to the Scheldt Estuary
-  return (h>epsilon ? Uy : 0.); 
+  return (h>epsilon ? Uy : 0.)*0.; 
 }
 
 double
 TG2_scheme::Ux_flux_formula_x (const double& h, const double& Ux, const double& Uy)
 { 
   const auto vel_x = h>epsilon ? Ux/h : 0.;
-  return (Ux*vel_x + grav*h*h/2.); 
+  return (Ux*vel_x + grav*h*h/2.)*0.; 
 }
  
 double
 TG2_scheme::Ux_flux_formula_y (const double& h, const double& Ux, const double& Uy)
-{ return (h>epsilon ? Uy*Ux/h : 0.); }
+{ return (h>epsilon ? Uy*Ux/h : 0.)*0.; }
 
 double
 TG2_scheme::Uy_flux_formula_x (const double& h, const double& Ux, const double& Uy)
-{ return (h>epsilon ? Uy*Ux/h : 0.); }
+{ return (h>epsilon ? Uy*Ux/h : 0.)*0.; }
 
 double
 TG2_scheme::Uy_flux_formula_y (const double& h, const double& Ux, const double& Uy)
 { 
   const auto vel_y = h>epsilon ? Uy/h : 0.;
-  return (Uy*vel_y + grav*h*h/2.); 
+  return (Uy*vel_y + grav*h*h/2.)*0.; 
 }
 
 double
 TG2_scheme::Th_flux_formula_x (const double& h, const double& Ux, const double& Uy, const double& Th)
-{ return (h>epsilon && !is_isothermal ? Th*Ux/h : 0.); }
+{ return (h>epsilon && !is_isothermal ? Th*Ux/h*0. : 0.); }
 
 double
 TG2_scheme::Th_flux_formula_y (const double& h, const double& Ux, const double& Uy, const double& Th)
-{ return (h>epsilon && !is_isothermal ? Th*Uy/h : 0.); }
+{ return (h>epsilon && !is_isothermal ? Th*Uy/h*0. : 0.); }
 
 
 
