@@ -127,6 +127,20 @@ double dem_fun (const double& xx, const double& yy)
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return(-xx+L);
   double z = 0.;
+  const double r = std::sqrt((xx-100)*(xx-100) + (yy-100)*(yy-100));
+  if (r<=20)
+  {
+    z = 50;
+  }
+  else if (r>20 && r<=50)
+  {
+    z = -r + 70.;
+  }
+  else
+  {
+    z = 0.;
+  }
+/*
   if (xx<50)
   {
     z = -xx + 100.;
@@ -138,7 +152,7 @@ double dem_fun (const double& xx, const double& yy)
   if (xx<100 && xx>60 && yy>80 && yy<120)
   {
     z = 80.;
-  }
+  }*/
   return(z);
 
   return(raster_value(xx,yy,dem));
