@@ -139,11 +139,12 @@ double dem_fun (const double& xx, const double& yy)
   else
   {
     z = 0.;
-  }
-/*
+  }/*
+  const double alfa = std::tan(20*M_PI/180);
+  const double beta = 50.*(1.+alfa);
   if (xx<50)
   {
-    z = -xx + 100.;
+    z = -alfa*xx + beta;
   }
   else 
   {
