@@ -235,8 +235,8 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   // add source term for the momentum
   const auto & h_onehalf_updated = sol_onehalf[ordh    (index_quadrant_global)];
 
-  //sol_onehalf[ordUx   (index_quadrant_global)] /= 1. - dt*.5*Ux_src_formula(h_onehalf_updated, 1., 0., Th_cell_average);
-  //sol_onehalf[ordUy   (index_quadrant_global)] /= 1. - dt*.5*Uy_src_formula(h_onehalf_updated, 0., 1., Th_cell_average);
+  sol_onehalf[ordUx   (index_quadrant_global)] = sol_onehalf[ordUx   (index_quadrant_global)]/(1. - dt*.5*Ux_src_formula(h_onehalf_updated, 1., 0., Th_cell_average));
+  sol_onehalf[ordUy   (index_quadrant_global)] = sol_onehalf[ordUy   (index_quadrant_global)]/(1. - dt*.5*Uy_src_formula(h_onehalf_updated, 0., 1., Th_cell_average));
   
 
   // add the vent contribution,
@@ -1011,8 +1011,8 @@ TG2_scheme::solve_non_lin(const int& kk)
   h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
   h_c *= (h_c>0.);
 
-  Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1];
-  Uy_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2];
+  Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old);
+  Uy_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old);
 
   //Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old) )/(1.-dt*.5*Ux_src_formula(h_c, 1., 0., Th_c_old));
   //Uy_c = (Uy_c + dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old) )/(1.-dt*.5*Uy_src_formula(h_c, 0., 1., Th_c_old));
