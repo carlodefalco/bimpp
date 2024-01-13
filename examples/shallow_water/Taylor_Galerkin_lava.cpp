@@ -401,11 +401,11 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
           double Z_cell_nei = is_owned_quadrant ? Z_onehalf[index_quadrant_nei_global] : (Z_node_nei[0]+Z_node_nei[1]+Z_node_nei[2]+Z_node_nei[3])*.25;
           
           // .5 salta fuori dall'integrazione per trapezi tra 0 e 1 in coordinata \xi (è il valore in LHS da metter qui sotto!)
-          contr_x[i_1] += .5*signum(outward_normal_edge[0])*grav*h_cell*(Z_cell_nei - Z_cell)*isdof_or_hanging[i_1];
-          contr_x[i_2] += .5*signum(outward_normal_edge[0])*grav*h_cell*(Z_cell_nei - Z_cell)*isdof_or_hanging[i_2];
+          contr_x[i_1] += h_cell>epsilon ? .5*signum(outward_normal_edge[0])*grav*h_cell*(Z_cell_nei - Z_cell)*isdof_or_hanging[i_1] : 0.;
+          contr_x[i_2] += h_cell>epsilon ? .5*signum(outward_normal_edge[0])*grav*h_cell*(Z_cell_nei - Z_cell)*isdof_or_hanging[i_2] : 0.;
 
-          contr_y[i_1] += .5*signum(outward_normal_edge[1])*grav*h_cell*(Z_cell_nei - Z_cell)*isdof_or_hanging[i_1];
-          contr_y[i_2] += .5*signum(outward_normal_edge[1])*grav*h_cell*(Z_cell_nei - Z_cell)*isdof_or_hanging[i_2];
+          contr_y[i_1] += h_cell>epsilon ? .5*signum(outward_normal_edge[1])*grav*h_cell*(Z_cell_nei - Z_cell)*isdof_or_hanging[i_1] : 0.;
+          contr_y[i_2] += h_cell>epsilon ? .5*signum(outward_normal_edge[1])*grav*h_cell*(Z_cell_nei - Z_cell)*isdof_or_hanging[i_2] : 0.;
 
           //break; // this just goes outside the jEdge cycle 
         }
@@ -1069,7 +1069,7 @@ double
 TG2_scheme::Ux_flux_formula_x (const double& h, const double& Ux, const double& Uy)
 { 
   const auto vel_x = h>epsilon ? Ux/h : 0.;
-  return (Ux*vel_x + grav*h*h/2.); 
+  return (h>epsilon ? Ux*vel_x + grav*h*h/2. : 0.); 
 }
  
 double
@@ -1084,7 +1084,7 @@ double
 TG2_scheme::Uy_flux_formula_y (const double& h, const double& Ux, const double& Uy)
 { 
   const auto vel_y = h>epsilon ? Uy/h : 0.;
-  return (Uy*vel_y + grav*h*h/2.); 
+  return (h>epsilon ? Uy*vel_y + grav*h*h/2. : 0.); 
 }
 
 double
