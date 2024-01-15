@@ -924,7 +924,7 @@ main (int argc, char **argv)
     }
     max_dt = REDCDT * stp.dt;
 
-    stp.g_coeff = 1./(1.-stp.Fr*stp.Fr);
+    stp.g_coeff = 1.; //1./(1.-stp.Fr*stp.Fr);
 
     stp.set_dt(max_dt); // deltat max
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
