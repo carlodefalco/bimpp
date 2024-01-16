@@ -317,7 +317,14 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   vel_rusanov_cell_x /= 4.;
   vel_rusanov_cell_y /= 4.; 
 
-  const std::array<double,4> eta_vec = {hdof[0]+Z_node[0]*g_coeff, hdof[1]+Z_node[1]*g_coeff, hdof[2]+Z_node[2]*g_coeff, hdof[3]+Z_node[3]*g_coeff};
+  //Fr = hdof[ii]>epsilon ? vel_abs/std::sqrt(grav*hdof[ii]) : 0.
+  //g_coeff = 1./(1.-Fr*Fr);
+
+  const std::array<double,4> eta_vec = {hdof[0]+Z_node[0]*1./(1.-(hdof[0]*hdof[0]*hdof[0]>epsilon ? (Uxdof[0]*Uxdof[0] + Uydof[0]*Uydof[0])/(grav*hdof[0]*hdof[0]*hdof[0]) : 0. )), 
+                                        hdof[1]+Z_node[1]*1./(1.-(hdof[1]*hdof[1]*hdof[1]>epsilon ? (Uxdof[1]*Uxdof[1] + Uydof[1]*Uydof[1])/(grav*hdof[1]*hdof[1]*hdof[1]) : 0. )), 
+                                        hdof[2]+Z_node[2]*1./(1.-(hdof[2]*hdof[2]*hdof[2]>epsilon ? (Uxdof[2]*Uxdof[2] + Uydof[2]*Uydof[2])/(grav*hdof[2]*hdof[2]*hdof[2]) : 0. )), 
+                                        hdof[3]+Z_node[3]*1./(1.-(hdof[3]*hdof[3]*hdof[3]>epsilon ? (Uxdof[3]*Uxdof[3] + Uydof[3]*Uydof[3])/(grav*hdof[3]*hdof[3]*hdof[3]) : 0. ))};
+  //const std::array<double,4> eta_vec = {hdof[0]+Z_node[0]*g_coeff, hdof[1]+Z_node[1]*g_coeff, hdof[2]+Z_node[2]*g_coeff, hdof[3]+Z_node[3]*g_coeff};
 
   grad_cell_Z    = {.5 * ( (Z_node [3] - Z_node [2]) + (Z_node [1] - Z_node [0]) ), .5 * ( (Z_node [2] - Z_node [0]) + (Z_node [3] - Z_node [1]) )};
   grad_cell_eta  = {.5 * ( (eta_vec[3] - eta_vec[2]) + (eta_vec[1] - eta_vec[0]) ), .5 * ( (eta_vec[2] - eta_vec[0]) + (eta_vec[3] - eta_vec[1]) )};
@@ -788,7 +795,8 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       
     }
 
-    etadof     [ii] = hdof_c>epsilon ? hdof_c+Z_node[ii]*g_coeff : hdof_c;
+    // g_coeff
+    etadof     [ii] = hdof_c>epsilon ? hdof_c+Z_node[ii]*1./(1.-(hdof_c*hdof_c*hdof_c>epsilon ? (Uxdof_c*Uxdof_c + Uydof_c*Uydof_c)/(grav*hdof_c*hdof_c*hdof_c) : 0. )) : hdof_c;
     hdof       [ii] = hdof_c;
     Uxdof      [ii] = Uxdof_c;
     Uydof      [ii] = Uydof_c;
@@ -869,7 +877,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
                                     sol [ordTh (quadrant_nei->gparent(1,jj))]);
           }
 
-          eta_current_cell = h_current_cell>epsilon ? h_current_cell+Z_current_cell*g_coeff : h_current_cell;
+          eta_current_cell = h_current_cell>epsilon ? h_current_cell+Z_current_cell*1./(1.-(h_current_cell*h_current_cell*h_current_cell>epsilon ? (Ux_current_cell*Ux_current_cell + Uy_current_cell*Uy_current_cell)/(grav*h_current_cell*h_current_cell*h_current_cell) : 0. )) : h_current_cell;
 
           h_min[ii]  = std::min(h_min[ii],  eta_current_cell);
           h_max[ii]  = std::max(h_max[ii],  eta_current_cell);
