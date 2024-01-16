@@ -128,11 +128,11 @@ double dem_fun (const double& xx, const double& yy)
   //return(-xx+L);
   double z = 0.;
   const double r = std::sqrt((xx-100)*(xx-100) + (yy-100)*(yy-100));
-  if (r<=20)
+  if (r<=10)
   {
-    z = 50;
+    z = 60;
   }
-  else if (r>20 && r<=50)
+  else if (r>10 && r<=50)
   {
     z = -r + 70.;
   }
@@ -167,9 +167,9 @@ using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;    
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  return(0.);
+  //return(0.);
   //return(xx/L*1500);
-  //return(std::abs(xx-L/2.)<=10. && std::abs(yy-H/2.)<=10. ? 1. : 0.  );
+  return(std::abs(xx-L/2.)<=5. && std::abs(yy-H/2.)<=5. ? 3. : 0.  );
   //return (xx<=L/2. && xx>=L/4. ? 3. : 0.);
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+1.*std::exp(-0.5*( std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
@@ -924,7 +924,7 @@ main (int argc, char **argv)
     }
     max_dt = REDCDT * stp.dt;
 
-    stp.g_coeff = 1.; //1./(1.-stp.Fr*stp.Fr);
+    stp.g_coeff = 1./(1.-stp.Fr*stp.Fr);
 
     stp.set_dt(max_dt); // deltat max
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
