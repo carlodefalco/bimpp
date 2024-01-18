@@ -169,7 +169,7 @@ double h0_fun (const double& xx, const double& yy)
 {
   //return(0.);
   //return(xx/L*1500);
-  return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=7.5 ? 3. : 0.  );
+  return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=7.5 ? 30. : 0.  );
   //return (xx<=L/2. && xx>=L/4. ? 3. : 0.);
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 1.+1.*std::exp(-0.5*( std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );

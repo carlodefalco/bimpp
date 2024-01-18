@@ -951,14 +951,14 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
   std::array<double, 2> contrx = {Dx*std::sqrt(M_PI)/2.*(std::erf(extr_x_b) - std::erf(extr_x_a))*std::sqrt(2.*sigma_vent) - common_contr_x, common_contr_x};
   std::array<double, 2> contry = {Dy*std::sqrt(M_PI)/2.*(std::erf(extr_y_b) - std::erf(extr_y_a))*std::sqrt(2.*sigma_vent) - common_contr_y, common_contr_y};
-    
+
 
   for (int ii = 0; ii < 4; ++ii){
 
     const int ii_1 = ii%2;
     const int ii_2 = ii/2;
 
-    const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  + Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii]; //incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  +        Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
+    const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  +        Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii]; //incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  +        Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
     const auto flux_on_the_node_Ux = incr_anti_diff[ordUx(index_quadrant)][ii]*phi_cell_Ux;
     const auto flux_on_the_node_Uy = incr_anti_diff[ordUy(index_quadrant)][ii]*phi_cell_Uy;
     const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii]; //incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
@@ -1022,17 +1022,17 @@ TG2_scheme::solve_non_lin(const int& kk)
   h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
   h_c *= (h_c>0.);
 
-  Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old);
-  Uy_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old);
+  Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1];// + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old);
+  Uy_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2];// + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old);
   
-  Ux_c = h_c>epsilon ? Ux_c/(1.-dt*.5*Ux_src_formula(h_c, 1., 0., Th_c_old)) : 0.;
-  Uy_c = h_c>epsilon ? Uy_c/(1.-dt*.5*Uy_src_formula(h_c, 0., 1., Th_c_old)) : 0.;
+  //Ux_c = h_c>epsilon ? Ux_c/(1.-dt*.5*Ux_src_formula(h_c, 1., 0., Th_c_old)) : 0.;
+  //Uy_c = h_c>epsilon ? Uy_c/(1.-dt*.5*Uy_src_formula(h_c, 0., 1., Th_c_old)) : 0.;
 
   //Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old) )/(1.-dt*.5*Ux_src_formula(h_c, 1., 0., Th_c_old));
   //Uy_c = (Uy_c + dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old) )/(1.-dt*.5*Uy_src_formula(h_c, 0., 1., Th_c_old));
 
   Th_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3];// + dt*.5*Th_src_formula (h_c_old, Ux_c_old, Uy_c_old, Th_c_old);
-  Th_c *= (h_c>epsilon);
+  //Th_c *= (h_c>epsilon);
 
   //Uy_c = 0.;
 
