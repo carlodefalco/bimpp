@@ -167,7 +167,7 @@ using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;    
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  //return(0.);
+  return(0.);
   //return(xx/L*1500);
   return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=7.5 ? 30. : 0.  );
   //return (xx<=L/2. && xx>=L/4. ? 3. : 0.);
