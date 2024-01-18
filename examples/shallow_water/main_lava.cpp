@@ -123,7 +123,7 @@ raster_value(const double& x,
 
 double dem_fun (const double& xx, const double& yy)
 { 
-  //return(0);
+  return(0);
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return(-xx+L);
   double z = 0.;
@@ -167,8 +167,9 @@ using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;    
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 double h0_fun (const double& xx, const double& yy) 
 {
-  return(0.);
+  //return(0.);
   //return(xx/L*1500);
+  return( std::abs(xx-L/2.)<=7. && std::abs(yy-H/2.)<=7.5 ? 30 : 0. );
   return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=7.5 ? 30. : 0.  );
   //return (xx<=L/2. && xx>=L/4. ? 3. : 0.);
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
