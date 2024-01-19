@@ -127,14 +127,14 @@ double dem_fun (const double& xx, const double& yy)
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return(-xx+L);
   double z = 0.;
-  const double rx = std::abs(xx-L/2.);
-  const double ry = std::abs(yy-H/2.); 
+  //const double rx = std::abs(xx-L/2.);
+  //const double ry = std::abs(yy-H/2.); 
   const double r = std::sqrt((xx-L/2.)*(xx-L/2.) + (yy-H/2.)*(yy-H/2.));
-  if (rx<=10 && ry<= 10)
+  if (r<=10 && r<= 10)
   {
     z = 60;
   }
-  else if (rx>10 && rx<=50 && ry>10 && ry<=50)
+  else if (r>10 && r<=50 && r>10 && r<=50)
   {
     z = -r + 70.;
   }
