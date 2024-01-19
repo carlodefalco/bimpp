@@ -595,11 +595,11 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   }
   
 
-  const auto diff_term_h_x  = h_cell>epsilon ? grad_cell_eta[0]*vel_rusanov_cell_y*.5 : grad_cell_h[0]*vel_rusanov_cell_y*.5;
-  const auto diff_term_h_y  = h_cell>epsilon ? grad_cell_eta[1]*vel_rusanov_cell_x*.5 : grad_cell_h[1]*vel_rusanov_cell_x*.5;
+  //const auto diff_term_h_x  = h_cell>epsilon ? grad_cell_eta[0]*vel_rusanov_cell_y*.5 : grad_cell_h[0]*vel_rusanov_cell_y*.5;
+  //const auto diff_term_h_y  = h_cell>epsilon ? grad_cell_eta[1]*vel_rusanov_cell_x*.5 : grad_cell_h[1]*vel_rusanov_cell_x*.5;
 
-  //const auto diff_term_h_x  = grad_cell_eta[0]*vel_rusanov_cell_y*.5;
-  //const auto diff_term_h_y  = grad_cell_eta[1]*vel_rusanov_cell_x*.5;
+  const auto diff_term_h_x  = grad_cell_h[0]*vel_rusanov_cell_y*.5;
+  const auto diff_term_h_y  = grad_cell_h[1]*vel_rusanov_cell_x*.5;
 
   const auto diff_term_Ux_x = grad_cell_Ux [0]*vel_rusanov_cell_y*.5;
   const auto diff_term_Ux_y = grad_cell_Ux [1]*vel_rusanov_cell_x*.5;
@@ -796,7 +796,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     }
 
     // g_coeff
-    etadof     [ii] = hdof_c; //hdof_c>epsilon ? hdof_c+Z_node[ii]*g_coeff : hdof_c;
+    etadof     [ii] = hdof_c>epsilon ? hdof_c+Z_node[ii]*g_coeff : hdof_c;
     //etadof     [ii] = hdof_c>epsilon ? hdof_c+Z_node[ii]*1./(1.-(hdof_c*hdof_c*hdof_c>epsilon ? (Uxdof_c*Uxdof_c + Uydof_c*Uydof_c)/(grav*hdof_c*hdof_c*hdof_c) : 0. )) : hdof_c;
     hdof       [ii] = hdof_c;
     Uxdof      [ii] = Uxdof_c;
@@ -879,7 +879,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
           }
 
           // g_coeff
-          eta_current_cell = h_current_cell; //h_current_cell>epsilon ? h_current_cell+Z_current_cell*g_coeff : h_current_cell;
+          eta_current_cell = h_current_cell>epsilon ? h_current_cell+Z_current_cell*g_coeff : h_current_cell;
           //eta_current_cell = h_current_cell>epsilon ? h_current_cell+Z_current_cell*1./(1.-(h_current_cell*h_current_cell*h_current_cell>epsilon ? (Ux_current_cell*Ux_current_cell + Uy_current_cell*Uy_current_cell)/(grav*h_current_cell*h_current_cell*h_current_cell) : 0. )) : h_current_cell;
 
           h_min[ii]  = std::min(h_min[ii],  eta_current_cell);
