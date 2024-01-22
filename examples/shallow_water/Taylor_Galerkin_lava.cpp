@@ -1025,8 +1025,8 @@ TG2_scheme::solve_non_lin(const int& kk)
   Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old);
   Uy_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old);
   
-  Ux_c = Ux_c/(1.-dt*.5*Ux_src_formula(h_c_old, 1., 0., Th_c_old));
-  Uy_c = Uy_c/(1.-dt*.5*Uy_src_formula(h_c_old, 0., 1., Th_c_old));
+  Ux_c = Ux_c/(1.-dt*.5*Ux_src_formula(h_c, h_c_old, 1., 0., Th_c_old));
+  Uy_c = Uy_c/(1.-dt*.5*Uy_src_formula(h_c, h_c_old, 0., 1., Th_c_old));
 
   //Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old) )/(1.-dt*.5*Ux_src_formula(h_c, 1., 0., Th_c_old));
   //Uy_c = (Uy_c + dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old) )/(1.-dt*.5*Uy_src_formula(h_c, 0., 1., Th_c_old));
@@ -1129,6 +1129,26 @@ double
 TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th)
 {
   const double T = h>epsilon ? Th/h : 0.;
+  const double uy = h>epsilon ? Uy/h : 0.;
+  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*std::exp(-b_exp_coeff*(T-T_ref)) : 0.; 
+
+  return ( - gamma_fric_over_h*uy);
+}
+
+double
+TG2_scheme::Ux_src_formula (const double& h, const double& hold, const double& Ux, const double& Uy, const double& Th)
+{
+  const double T = hold>epsilon ? Th/hold : 0.;
+  const double ux = h>epsilon ? Ux/h : 0.;
+  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*std::exp(-b_exp_coeff*(T-T_ref)) : 0.; 
+
+  return ( - gamma_fric_over_h*ux);
+}
+
+double
+TG2_scheme::Uy_src_formula (const double& h, const double& hold, const double& Ux, const double& Uy, const double& Th)
+{
+  const double T = hold>epsilon ? Th/hold : 0.;
   const double uy = h>epsilon ? Uy/h : 0.;
   const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*std::exp(-b_exp_coeff*(T-T_ref)) : 0.; 
 
