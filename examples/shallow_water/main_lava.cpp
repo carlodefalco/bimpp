@@ -1073,7 +1073,7 @@ main (int argc, char **argv)
 
 
     // Save solution
-    if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) 
+    //if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) 
     {
       //TIC();
       if (rank == 0)
