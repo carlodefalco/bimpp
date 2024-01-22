@@ -598,8 +598,8 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   //const auto diff_term_h_x  = h_cell>epsilon ? grad_cell_eta[0]*vel_rusanov_cell_y*.5 : grad_cell_h[0]*vel_rusanov_cell_y*.5;
   //const auto diff_term_h_y  = h_cell>epsilon ? grad_cell_eta[1]*vel_rusanov_cell_x*.5 : grad_cell_h[1]*vel_rusanov_cell_x*.5;
 
-  const auto diff_term_h_x  = grad_cell_eta[0]>epsilon ? grad_cell_h[0]*vel_rusanov_cell_y*.5 : grad_cell_eta[0]*vel_rusanov_cell_y*.5;
-  const auto diff_term_h_y  = grad_cell_eta[0]>epsilon ? grad_cell_h[1]*vel_rusanov_cell_x*.5 : grad_cell_eta[1]*vel_rusanov_cell_x*.5;
+  const auto diff_term_h_x  = std::abs(grad_cell_eta[0])>epsilon ? grad_cell_h[0]*vel_rusanov_cell_y*.5 : grad_cell_eta[0]*vel_rusanov_cell_y*.5;
+  const auto diff_term_h_y  = std::abs(grad_cell_eta[1])>epsilon ? grad_cell_h[1]*vel_rusanov_cell_x*.5 : grad_cell_eta[1]*vel_rusanov_cell_x*.5;
 
   const auto diff_term_Ux_x = grad_cell_Ux [0]*vel_rusanov_cell_y*.5;
   const auto diff_term_Ux_y = grad_cell_Ux [1]*vel_rusanov_cell_x*.5;
