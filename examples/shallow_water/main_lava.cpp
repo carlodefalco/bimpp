@@ -140,7 +140,7 @@ double dem_fun (const double& xx, const double& yy)
   }
   else
   {
-    z = 0.;
+    z = 15.;
   }/*
   const double alfa = std::tan(20*M_PI/180);
   const double beta = 50.*(1.+alfa);
@@ -671,7 +671,7 @@ main (int argc, char **argv)
 
     tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, tolerance_space_adapt, 6, 0, 0);
     //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1);
-    tmsh.metrics_refine (1e7);  // RAFFINAMENTO (arg is max element)
+    tmsh.metrics_refine (1e6);  // RAFFINAMENTO (arg is max element)
 
     // tmsh.set_coarsen_marker (coarsen_function);
     // tmsh.set_refine_marker  (refine_function);
@@ -1226,7 +1226,7 @@ main (int argc, char **argv)
 
       tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, tolerance_space_adapt, 6, 0, 0);
       //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1); 
-      tmsh.metrics_refine (1e7);  // RAFFINAMENTO (arg is max element)
+      tmsh.metrics_refine (1e6);  // RAFFINAMENTO (arg is max element)
 
       // tmsh.set_coarsen_marker (coarsen_function);
       // tmsh.set_refine_marker  (refine_function);
