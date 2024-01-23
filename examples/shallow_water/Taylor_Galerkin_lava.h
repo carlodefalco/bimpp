@@ -39,6 +39,7 @@ public:
              const double& nu_ref,
              const double& T_ref,
              const double& b_exp_coeff,
+             const double& saturation_coeff,
              const double& density,
              const double& x_v,
              const double& y_v,
@@ -269,6 +270,7 @@ private:
   const double& nu_ref;
   const double& T_ref;
   const double& b_exp_coeff;
+  const double& saturation_coeff;
   const double& density;
   const double& x_v;
   const double& y_v;

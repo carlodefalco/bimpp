@@ -399,6 +399,7 @@ main (int argc, char **argv)
   const double & density                                  = input_data["material density"];
   const double & tolerance_space_adapt                    = input_data["tolerance space adaptation"];
   const double & sigma_vent                               = input_data["area discrete vent"];
+  const double & saturation_coeff                         = input_data["saturation coefficient"];
   const double & x_v                                      = input_data["x vent location"];
   const double & y_v                                      = input_data["y vent location"];
   const double & Q_vent                                   = input_data["lava vent discharge"];
@@ -813,6 +814,7 @@ main (int argc, char **argv)
                  nu_ref, 
                  T_ref, 
                  b_exp_coeff,
+                 saturation_coeff,
                  density, 
                  x_v, 
                  y_v, 
