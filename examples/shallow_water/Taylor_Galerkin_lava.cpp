@@ -1045,8 +1045,8 @@ TG2_scheme::solve_non_lin(const int& kk)
 
   //Th_c *= (h_c>epsilon);
 
-  //if (std::isnan(Ux_c) || std::isnan(Uy_c))
-  //std::cout << h_c << " " << Ux_c << " " << Uy_c << " " << Th_c << std::endl;
+  if (std::isnan(Th_c) || std::isnan(h_c) || std::isnan(Ux_c) || std::isnan(Uy_c))
+  std::cout << h_c << " " << Ux_c << " " << Uy_c << " " << Th_c << std::endl;
 
   //Uy_c = 0.;
 
