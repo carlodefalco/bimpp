@@ -130,7 +130,7 @@ public:
   get_dt ();
   
   
-  double dt, dt_old;
+  double dt, dt_old, dt_22, dt_33, dt_21, dt_31, dt_32;
   
   double Dx, Dy, area;
   
