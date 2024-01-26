@@ -247,10 +247,11 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   sol_onehalf[ordTh   (index_quadrant_global)] += dt*.5* Q_vent/area*T_vent*( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
 
   // add source term for the momentum
-  const auto & h_onehalf_updated = sol_onehalf[ordh    (index_quadrant_global)];
+  const auto & h_onehalf_updated  = sol_onehalf[ordh     (index_quadrant_global)];
+  const auto & Th_onehalf_updated = sol_onehalf[ordTh    (index_quadrant_global)];
 
-  sol_onehalf[ordUx   (index_quadrant_global)] = sol_onehalf[ordUx   (index_quadrant_global)]/(1. - dt*.5*Ux_src_formula(h_onehalf_updated, 1., 0., Th_cell_average));
-  sol_onehalf[ordUy   (index_quadrant_global)] = sol_onehalf[ordUy   (index_quadrant_global)]/(1. - dt*.5*Uy_src_formula(h_onehalf_updated, 0., 1., Th_cell_average));
+  sol_onehalf[ordUx   (index_quadrant_global)] = sol_onehalf[ordUx   (index_quadrant_global)]/(1. - dt*.5*Ux_src_formula(h_onehalf_updated, 1., 0., Th_onehalf_updated));
+  sol_onehalf[ordUy   (index_quadrant_global)] = sol_onehalf[ordUy   (index_quadrant_global)]/(1. - dt*.5*Uy_src_formula(h_onehalf_updated, 0., 1., Th_onehalf_updated));
 } 
 
 
