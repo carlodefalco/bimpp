@@ -1159,7 +1159,7 @@ TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy,
   const double ux = h>epsilon ? Ux/h : 0.;
   double exp_contr = std::exp(-b_exp_coeff*(T-T_ref));
   //exp_contr = std::min(exp_contr, saturation_coeff);
-  const double gamma_fric_over_h = (h*h)>epsilon ? 3.*nu_ref/h*exp_contr : 0.; 
+  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*exp_contr : 0.; 
 
   return ( - gamma_fric_over_h*ux);
 }
@@ -1171,7 +1171,7 @@ TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy,
   const double uy = h>epsilon ? Uy/h : 0.;
   double exp_contr = std::exp(-b_exp_coeff*(T-T_ref));
   //exp_contr = std::min(exp_contr, saturation_coeff);
-  const double gamma_fric_over_h = (h*h)>epsilon ? 3.*nu_ref/h*exp_contr : 0.;
+  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*exp_contr : 0.;
 
   return ( - gamma_fric_over_h*uy);
 }
