@@ -1032,7 +1032,7 @@ TG2_scheme::solve_non_lin(const int& kk)
   h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
   h_c *= (h_c>0.);
 
-  Th_c += h_c>epsilon ? dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] : 0.;// + dt*.5*Th_src_formula (h_c_old, Ux_c_old, Uy_c_old, Th_c_old);
+  Th_c = h_c>epsilon ? Th_c+dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] : 0.;// + dt*.5*Th_src_formula (h_c_old, Ux_c_old, Uy_c_old, Th_c_old);
 
   Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt_31*Ux_src_formula(h_c, Ux_c_old, 0., Th_c);
   Uy_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt_31*Uy_src_formula(h_c, 0., Uy_c_old, Th_c);
@@ -1046,7 +1046,10 @@ TG2_scheme::solve_non_lin(const int& kk)
   //Th_c *= (h_c>epsilon);
 
   if (std::isnan(Th_c) || std::isnan(h_c) || std::isnan(Ux_c) || std::isnan(Uy_c))
-  std::cout << "is nan  " << h_c << " " << Ux_c << " " << Uy_c << " " << Th_c << std::endl;
+  {
+    std::cout << h_c << " " << Ux_c << " " << Uy_c << " " << Th_c << " " << Ux_src_formula(h_c, Ux_c_old, 0., Th_c) << " " << Uy_src_formula(h_c, 0., Uy_c_old, Th_c) << std::endl;
+    exit(1);
+  }
 
   //Uy_c = 0.;
 
@@ -1156,7 +1159,7 @@ TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy,
   const double ux = h>epsilon ? Ux/h : 0.;
   double exp_contr = std::exp(-b_exp_coeff*(T-T_ref));
   //exp_contr = std::min(exp_contr, saturation_coeff);
-  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*exp_contr : 0.; 
+  const double gamma_fric_over_h = (h*h)>epsilon ? 3.*nu_ref/h*exp_contr : 0.; 
 
   return ( - gamma_fric_over_h*ux);
 }
@@ -1168,31 +1171,7 @@ TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy,
   const double uy = h>epsilon ? Uy/h : 0.;
   double exp_contr = std::exp(-b_exp_coeff*(T-T_ref));
   //exp_contr = std::min(exp_contr, saturation_coeff);
-  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*exp_contr : 0.;
-
-  return ( - gamma_fric_over_h*uy);
-}
-
-double
-TG2_scheme::Ux_src_formula (const double& h, const double& hold, const double& Ux, const double& Uy, const double& Th)
-{
-  const double T = hold>epsilon ? Th/hold : 0.;
-  const double ux = h>epsilon ? Ux/h : 0.;
-  double exp_contr = std::exp(-b_exp_coeff*(T-T_ref));
-  //exp_contr = std::min(exp_contr, saturation_coeff);
-  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*exp_contr : 0.; 
-
-  return ( - gamma_fric_over_h*ux);
-}
-
-double
-TG2_scheme::Uy_src_formula (const double& h, const double& hold, const double& Ux, const double& Uy, const double& Th)
-{
-  const double T = hold>epsilon ? Th/hold : 0.;
-  const double uy = h>epsilon ? Uy/h : 0.;
-  double exp_contr = std::exp(-b_exp_coeff*(T-T_ref));
-  //exp_contr = std::min(exp_contr, saturation_coeff);
-  const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*exp_contr : 0.; 
+  const double gamma_fric_over_h = (h*h)>epsilon ? 3.*nu_ref/h*exp_contr : 0.;
 
   return ( - gamma_fric_over_h*uy);
 }

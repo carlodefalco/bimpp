@@ -224,12 +224,6 @@ public:
   double
   Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th);
 
-  double
-  Ux_src_formula (const double& h, const double& hold, const double& Ux, const double& Uy, const double& Th);
-  
-  double
-  Uy_src_formula (const double& h, const double& hold, const double& Ux, const double& Uy, const double& Th);
-
   void
   prepare_IMEXRKC_coefficients (const int& s);
 
