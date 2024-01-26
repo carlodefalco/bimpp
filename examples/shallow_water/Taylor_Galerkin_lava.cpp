@@ -1063,21 +1063,23 @@ TG2_scheme::set_dt (const double dt_)
 { 
   dt = dt_; 
 
-  /*
+  
   // A-stable second-order Additive RK.2.A.2
   dt_22 = dt*.5;
   dt_33 = dt_22;
   dt_21 = 0.;
   dt_31 = dt_22;
   dt_32 = 0.;
-  */
+  
 
+/*
   // L-stable second-order Additive RK.2.L.1
   dt_22 = dt*(1.-std::sqrt(2.)*.5);
   dt_33 = dt_22;
   dt_21 = dt*(-1.+std::sqrt(2.))*.5;
   dt_31 = dt_22;
   dt_32 = dt*(std::sqrt(2.)-1.);
+  */
 }
 
 void
