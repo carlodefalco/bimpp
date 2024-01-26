@@ -1023,16 +1023,17 @@ TG2_scheme::solve_non_lin(const int& kk)
   h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
   h_c *= (h_c>0.);
 
-  Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old);
-  Uy_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old);
+  Th_c += h_c>epsilon ? dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] : 0.;// + dt*.5*Th_src_formula (h_c_old, Ux_c_old, Uy_c_old, Th_c_old);
+
+  Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c, Ux_c_old, 0., Th_c);
+  Uy_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c, 0., Uy_c_old, Th_c);
   
-  Ux_c = h_c>epsilon ? Ux_c/(1.-dt*.5*Ux_src_formula(h_c_old, h_c_old, 1., 0., Th_c_old)) : 0.;
-  Uy_c = h_c>epsilon ? Uy_c/(1.-dt*.5*Uy_src_formula(h_c_old, h_c_old, 0., 1., Th_c_old)) : 0.;
+  Ux_c = h_c>epsilon ? Ux_c/(1.-dt*.5*Ux_src_formula(h_c, 1., 0., Th_c)) : 0.;
+  Uy_c = h_c>epsilon ? Uy_c/(1.-dt*.5*Uy_src_formula(h_c, 0., 1., Th_c)) : 0.;
 
   //Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old) )/(1.-dt*.5*Ux_src_formula(h_c, 1., 0., Th_c_old));
   //Uy_c = (Uy_c + dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old) )/(1.-dt*.5*Uy_src_formula(h_c, 0., 1., Th_c_old));
 
-  Th_c += h_c>epsilon ? dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] : 0.;// + dt*.5*Th_src_formula (h_c_old, Ux_c_old, Uy_c_old, Th_c_old);
   //Th_c *= (h_c>epsilon);
 
   //if (std::isnan(Ux_c) || std::isnan(Uy_c))
