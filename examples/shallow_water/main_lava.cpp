@@ -27,11 +27,11 @@ using json = nlohmann::json;
 // mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
 
 static constexpr char VARNAME_1[255] = "dem"; 
-static constexpr char VARNAME_2[255] = "mask_in";  
+//static constexpr char VARNAME_2[255] = "mask_in";  
 
 
 static std::vector<double> dem;
-static std::vector<double> basin_mask;
+//static std::vector<double> basin_mask;
 
 double h_min, L, H, res;
 int NUM_REFINEMENTS, Nx, Ny;
@@ -126,6 +126,7 @@ double dem_fun (const double& xx, const double& yy)
   //return(0);
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return(-xx+L);
+  return(raster_value(xx,yy,dem));
   double z = 0.;
   //const double rx = std::abs(xx-L/2.);
   //const double ry = std::abs(yy-H/2.); 
@@ -158,7 +159,7 @@ double dem_fun (const double& xx, const double& yy)
   }*/
   return(z);
 
-  return(raster_value(xx,yy,dem));
+  //return(raster_value(xx,yy,dem));
 }
 
 
@@ -200,9 +201,9 @@ double h0_fun (const double& xx, const double& yy)
   //return(1.);
   //return(10. - dem_fun(xx,yy));
 
-  return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38. : 0.);
+  //return(basin_mask[global_coord_2_raster(xx,yy)[0]]==1 ? 38. : 0.);
   //return (xx<=L/2. ? 70 : 7.); //(xx<=L/2. ? 70 : 0.);
-  return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
+  //return ( 1.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return ( 0.+1.*std::exp(-0.5*( std::pow(xx-L/2.,2.)+std::pow(yy-H/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
 
   
@@ -416,7 +417,7 @@ main (int argc, char **argv)
 
   const std::string & SAVE_DIR    = input_data["home saving directory, i.e., where we can find the directory results"];
   const std::string & DEM_DIR     = input_data["dem file, complete path"]; 
-  const std::string & MASK_DIR    = input_data["mask file, complete path"];
+  //const std::string & MASK_DIR    = input_data["mask file, complete path"];
 
   L = res*(Nx-1);
   H = res*(Ny-1);
@@ -525,7 +526,7 @@ main (int argc, char **argv)
   Matrix M = v.matrix_value ();
   dem.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), dem.begin ());
-
+/*
   str = std::string(MASK_DIR); 
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
@@ -534,7 +535,7 @@ main (int argc, char **argv)
   octave_load (VARNAME_2, v);
   M = v.matrix_value ();
   basin_mask.resize (M.numel ());
-  std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask.begin ());
+  std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), basin_mask.begin ());*/
   TOC("Load data matrix");
 
 
@@ -546,7 +547,7 @@ main (int argc, char **argv)
        ++quadrant)
   {
     double xx_c=quadrant->centroid(0);
-    double yy_c=quadrant->centroid(1); 
+    double yy_c=quadrant->centroid(1);
     
 
     for (int ii = 0; ii < 4; ++ii)
