@@ -62,14 +62,13 @@ hanging_refinement (tmesh::quadrant_iterator quadrant)
 }
 
 
-static int
+inline static int
 raster_2_vector(const double& i_x,
                 const double& i_y)
 {
-  static int ii;
-  ii = i_y + Ny*i_x;
-  
-  return(ii);
+  //static int ii;
+  //ii = i_y + Ny*i_x;
+  return(i_y + Ny*i_x);
 }
 
 static std::array<int,3>
@@ -91,11 +90,20 @@ global_coord_2_raster(const double& x,
 }
 
 
-static double
+inline static double
 raster_value(const double& x,
-             const double& y,
-             std::vector<double> DD)
+             const double& y)
 {
+  /*
+  // constant interpolation,
+  const double ix = x/res;
+  const double iy = -y/res + (Ny-1);
+  
+  const auto ix_nearest = std::round(ix);
+  const auto iy_nearest = std::round(iy);
+  return(dem[raster_2_vector(ix_nearest, iy_nearest)]);
+*/
+
   // bilinear interp.
   const double ix = x/res;
   const double iy = -y/res + (Ny-1);
@@ -111,7 +119,7 @@ raster_value(const double& x,
   {
     for (int j=0; j<2; j++)
     {
-      gamma[i+j*2] = DD[raster_2_vector(ix_q[(i+1)%2],iy_q[(j+1)%2])];
+      gamma[i+j*2] = dem[raster_2_vector(ix_q[(i+1)%2],iy_q[(j+1)%2])];
 
       gamma[i+j*2] *= Dx_adi!= 0 ? std::abs(ix_q[i]-ix)/Dx_adi : .5;
       gamma[i+j*2] *= Dy_adi!= 0 ? std::abs(iy_q[j]-iy)/Dy_adi : .5;
@@ -119,14 +127,17 @@ raster_value(const double& x,
   }
   
   return(gamma[0]+gamma[1]+gamma[2]+gamma[3]);
+
 }
 
-double dem_fun (const double& xx, const double& yy)
-{ 
+inline double dem_fun (const double& xx, const double& yy)
+{
+
   //return(0);
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return(-xx+L);
-  return(raster_value(xx,yy,dem));
+  return(raster_value(xx,yy));
+
   double z = 0.;
   //const double rx = std::abs(xx-L/2.);
   //const double ry = std::abs(yy-H/2.); 
@@ -168,7 +179,7 @@ using Q1  = q1_vec<distributed_vector>;  // Typedef for distributed q_1 vector
 using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;         // Typedef for local q_0 vector // distributed_vector
 
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
-double h0_fun (const double& xx, const double& yy) 
+inline double h0_fun (const double& xx, const double& yy) 
 {
   return(0.);
   //return(xx/L*1500);
@@ -220,7 +231,7 @@ double h0_fun (const double& xx, const double& yy)
 //  }
   return 0.;
 } 
-double Ux0_fun (double xx, double yy) 
+inline double Ux0_fun (double xx, double yy) 
 { 
   //const double Ux_l = 1.;
   //const double Ux_r = .5;
@@ -232,13 +243,13 @@ double Ux0_fun (double xx, double yy)
   //return( xx<=L/2. ? 2. : 1. ); // shock-shock solution
   return 0.; 
 }
-double Uy0_fun (double xx, double yy) 
+inline double Uy0_fun (double xx, double yy) 
 { 
   //return( yy<=H/2. ? 2. : 1. ); // shock-shock solution
   return 0.; 
 }
 
-double Th0_fun (double xx, double yy)
+inline double Th0_fun (double xx, double yy)
 {
   return 0.;
 }
@@ -526,7 +537,8 @@ main (int argc, char **argv)
   Matrix M = v.matrix_value ();
   dem.resize (M.numel ());
   std::copy (M.fortran_vec (), M.fortran_vec () + M.numel (), dem.begin ());
-/*
+
+  /*
   str = std::string(MASK_DIR); 
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
@@ -582,6 +594,7 @@ main (int argc, char **argv)
     }
   }
 
+  //std::cout << "hereee " << std::endl;
 
   // bim2a_solution_with_ghosts in quad_operators.cpp
   bim2a_solution_with_ghosts (tmsh, sol, replace_op, ordh,  false);
@@ -596,7 +609,6 @@ main (int argc, char **argv)
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordUy, false);
   bim2a_solution_with_ghosts (tmsh, incr, replace_op, ordTh);
 
-  
 
   if (is_initial_refinement)
   {
