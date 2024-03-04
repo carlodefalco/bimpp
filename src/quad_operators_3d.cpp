@@ -479,9 +479,9 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
     {
       tree_idx = quadrant->get_tree_idx ();
 
-      for (int i = 0; i < 8; ++i)
-        {
-          boundary_idx = quadrant->e (i);
+      for (int boundary_idx = 0; boundary_idx < 6; ++boundary_idx) {
+        auto facenodes = quadrant->ef(boundary_idx);
+        for (int i : facenodes) {
           row = ord (quadrant->gt (i));
 
           // If current node is on boundary and has not
@@ -509,6 +509,7 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                   }
             }
         }
+    }
     }
 }
 
