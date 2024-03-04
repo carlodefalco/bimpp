@@ -327,6 +327,58 @@ tmesh_3d::quadrant_t::e (idx_t i)
   return retval;
 };
 
+const std::vector<tmesh_3d::idx_t> &
+tmesh_3d::quadrant_t::ef (idx_t i)
+{
+  assert (i < 6);
+  
+  p8est_quadrant_t first_node, last_node;
+  p8est_quadrant_corner_node (this->the_quadrant, 0, &first_node);
+  p8est_quadrant_corner_node (this->the_quadrant, 7, &last_node);
+
+  switch (i) {
+    case 4 :
+      if (first_node.z == 0)
+       return face_nodes[4];
+      else 
+        return face_nodes[6];
+      break;
+    case 5 :
+      if (last_node.z == P8EST_ROOT_LEN)
+       return face_nodes[5];
+      else 
+        return face_nodes[6];
+      break;
+    case 2 :
+      if (first_node.y == 0)
+       return face_nodes[2];
+      else 
+        return face_nodes[6];
+      break;
+    case 3 :
+      if (last_node.y == P8EST_ROOT_LEN)
+       return face_nodes[3];
+      else 
+        return face_nodes[6];
+      break;
+    case 0 :
+      if (first_node.x == 0)
+       return face_nodes[0];
+      else 
+        return face_nodes[6];
+      break;
+    case 1 :
+      if (last_node.x == P8EST_ROOT_LEN)
+       return face_nodes[1];
+      else 
+        return face_nodes[6];
+      break;
+    default :
+      break;
+  }
+  return face_nodes[6];
+};
+
 tmesh_3d::neighbor_iterator
 tmesh_3d::quadrant_t::begin_neighbor_sweep ()
 {
