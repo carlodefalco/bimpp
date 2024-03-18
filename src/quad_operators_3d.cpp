@@ -2096,7 +2096,7 @@ xformw (const double *x, const double w)
 
 
 // Approximate integral of fun on [x[0], x[1]] x [y[0], y[1]] x [z[0], z[1]].
-static double
+double
 quad_integral (const double *x, const double *y, const double *z,
                std::function<double (double, double, double)> fun)
 {
@@ -2122,7 +2122,7 @@ quad_integral (const double *x, const double *y, const double *z,
 // Evaluate Nedelec x-gradient of u
 // (on quadrant [x[0], x[1]] x [y[0], y[1]] x [z[0], z[1]])
 // at (X, Y, Z).
-static double
+double
 dudx (double X, double Y, double Z, const double *x,
       const double *y, const double *z, const double *u)
 {
@@ -2145,7 +2145,7 @@ dudx (double X, double Y, double Z, const double *x,
 // Evaluate Nedelec y-gradient of u
 // (on quadrant [x[0], x[1]] x [y[0], y[1]] x [z[0], z[1]])
 // at (X, Y, Z).
-static double
+double
 dudy (double X, double Y, double Z, const double *x,
       const double *y, const double *z, const double *u)
 {
@@ -2168,7 +2168,7 @@ dudy (double X, double Y, double Z, const double *x,
 // Evaluate Nedelec z-gradient of u
 // (on quadrant [x[0], x[1]] x [y[0], y[1]] x [z[0], z[1]])
 // at (X, Y, Z).
-static double
+double
 dudz (double X, double Y, double Z, const double *x,
       const double *y, const double *z, const double *u)
 {
