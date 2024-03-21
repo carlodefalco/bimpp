@@ -465,25 +465,25 @@ bim3a_reaction_frac (tmesh_3d& mesh,
   std::array<double,12> frac;
   std::array<double,3> h;
   double hx, hy, hz;
+  
 
-  std::array<std::array<int, 3>, 8> nodes2edges = {0,3,8, 
-                                                   0,1,9, 
-                                                   2,3,11, 
-                                                   2,1,10,
-                                                   4,7,8,
-                                                   4,5,9, 
-                                                   6,7,11, 
-                                                   6,5,10};
+  std::array<int, 24> nodes2edges = {0,3,8, 
+                                     0,1,9, 
+                                     2,3,11, 
+                                     2,1,10,
+                                     4,7,8,
+                                     4,5,9, 
+                                     6,7,11, 
+                                     6,5,10};
 
-  std::array<std::array<int, 3>, 8> nodes2edges_dir = { 1, 1, 1, 
-                                                       -1, 1, 1, 
-                                                        1,-1, 1,
-                                                       -1,-1, 1,
-                                                        1, 1,-1,
-                                                       -1, 1,-1, 
-                                                        1,-1,-1,
-                                                       -1,-1,-1};   
-
+  std::array<int, 24> nodes2edges_dir = { 1, 1, 1, 
+                                         -1, 1, 1, 
+                                          1,-1, 1,
+                                         -1,-1, 1,
+                                          1, 1,-1,
+                                         -1, 1,-1, 
+                                          1,-1,-1,
+                                         -1,-1,-1};  
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
@@ -498,9 +498,9 @@ bim3a_reaction_frac (tmesh_3d& mesh,
       {
         rows.clear();
         z_loc = 0;
-        hx = h[0]*(1.0 +nodes2edges_dir[i][0]*(frac[nodes2edges[i][0]] - 0.5));
-        hy = h[1]*(1.0 +nodes2edges_dir[i][1]*(frac[nodes2edges[i][1]] - 0.5));
-        hz = h[2]*(1.0 +nodes2edges_dir[i][2]*(frac[nodes2edges[i][2]] - 0.5));
+        hx = h[0]*(1.0 +nodes2edges_dir[3*i  ]*(frac[nodes2edges[3*i  ]] - 0.5));
+        hy = h[1]*(1.0 +nodes2edges_dir[3*i+1]*(frac[nodes2edges[3*i+1]] - 0.5));
+        hz = h[2]*(1.0 +nodes2edges_dir[3*i+2]*(frac[nodes2edges[3*i+2]] - 0.5));
         if (!quadrant->is_hanging (i))
           {
             rows.push_back (quadrant->gt (i));
@@ -590,16 +590,30 @@ bim3a_rhs_frac (tmesh_3d& mesh,
 
   std::array<double,12> frac;
   std::array<double,3> h;
+  
+  std::array<int, 24> nodes2edges = {0,3,8, 
+                                     0,1,9, 
+                                     2,3,11, 
+                                     2,1,10,
+                                     4,7,8,
+                                     4,5,9, 
+                                     6,7,11, 
+                                     6,5,10};
 
+  std::array<int, 24> nodes2edges_dir = { 1, 1, 1, 
+                                         -1, 1, 1, 
+                                          1,-1, 1,
+                                         -1,-1, 1,
+                                          1, 1,-1,
+                                         -1, 1,-1, 
+                                          1,-1,-1,
+                                         -1,-1,-1};
+                                         
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
     {
       frac = fract(quadrant);
-      // for (int j = 0; j < 12; ++j)
-      // {
-      //   frac[j] = std::abs(frac[j]);
-      // }
 
       h[0] = quadrant->p(0, 7) - quadrant->p(0, 0);
       h[1] = quadrant->p(1, 7) - quadrant->p(1, 0);
@@ -609,9 +623,9 @@ bim3a_rhs_frac (tmesh_3d& mesh,
         {
           rows.clear ();
           g_loc = 0;
-          hx = h[0]*(1.0 +nodes2edges_dir[i][0]*(frac[nodes2edges[i][0]] - 0.5));
-          hy = h[1]*(1.0 +nodes2edges_dir[i][1]*(frac[nodes2edges[i][1]] - 0.5));
-          hz = h[2]*(1.0 +nodes2edges_dir[i][2]*(frac[nodes2edges[i][2]] - 0.5));
+          hx = h[0]*(1.0 +nodes2edges_dir[3*i  ]*(frac[nodes2edges[3*i  ]] - 0.5));
+          hy = h[1]*(1.0 +nodes2edges_dir[3*i+1]*(frac[nodes2edges[3*i+1]] - 0.5));
+          hz = h[2]*(1.0 +nodes2edges_dir[3*i+2]*(frac[nodes2edges[3*i+2]] - 0.5));
           if (! quadrant->is_hanging (i))
             {
               rows.push_back (quadrant->gt (i));
