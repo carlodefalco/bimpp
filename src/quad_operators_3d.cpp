@@ -10,8 +10,6 @@
 static
 std::array<std::array<double, 8>, 8> Aloc;
 
-static
-std::array<double, 8> alpha_loc;
 
 
 
@@ -224,7 +222,7 @@ bim3a_laplacian_eafe (tmesh_3d & mesh,
   for (auto row : Aloc)
     row.fill (0.0);
 
-  // std::array<double, 8> alpha_loc;
+  std::array<double, 8> alpha_loc;
   std::array<double,12> fraction {0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5};
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
@@ -253,7 +251,9 @@ bim3a_laplacian_frac (tmesh_3d & mesh,
 {
   for (auto row : Aloc)
     row.fill (0.0);
-
+  
+  std::array<double, 8> alpha_loc;
+  
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
@@ -432,30 +432,7 @@ bim3a_reaction (tmesh_3d& mesh,
                 (delta[iel] * z_loc * hx * hy * hz / 8) / rows.size ();
         }
     }
-}
-
-static constexpr
-std::array<std::array<int, 3>, 12> edges = {0,1,0, 1,3,1, 2,3,0, 0,2,1,
-                                            4,5,0, 5,7,1, 6,7,0, 4,6,1,
-                                            0,4,2, 1,5,2, 3,7,2, 2,6,2};
-static constexpr
-std::array<std::array<int, 3>, 8> nodes2edges = {0,3,8, 
-                                                 0,1,9, 
-                                                 2,3,11, 
-                                                 2,1,10,
-                                                 4,7,8,
-                                                 4,5,9, 
-                                                 6,7,11, 
-                                                 6,5,10};
-static constexpr
-std::array<std::array<int, 3>, 8> nodes2edges_dir = { 1, 1, 1, 
-                                                     -1, 1, 1, 
-                                                      1,-1, 1,
-                                                     -1,-1, 1,
-                                                      1, 1,-1,
-                                                     -1, 1,-1, 
-                                                      1,-1,-1,
-                                                     -1,-1,-1};                                                
+}                                             
 
 void
 bim3a_reaction_frac (tmesh_3d& mesh,
@@ -488,6 +465,24 @@ bim3a_reaction_frac (tmesh_3d& mesh,
   std::array<double,12> frac;
   std::array<double,3> h;
   double hx, hy, hz;
+
+  std::array<std::array<int, 3>, 8> nodes2edges = {0,3,8, 
+                                                   0,1,9, 
+                                                   2,3,11, 
+                                                   2,1,10,
+                                                   4,7,8,
+                                                   4,5,9, 
+                                                   6,7,11, 
+                                                   6,5,10};
+
+  std::array<std::array<int, 3>, 8> nodes2edges_dir = { 1, 1, 1, 
+                                                       -1, 1, 1, 
+                                                        1,-1, 1,
+                                                       -1,-1, 1,
+                                                        1, 1,-1,
+                                                       -1, 1,-1, 
+                                                        1,-1,-1,
+                                                       -1,-1,-1};   
 
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
