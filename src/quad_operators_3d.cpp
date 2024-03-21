@@ -608,7 +608,7 @@ bim3a_rhs_frac (tmesh_3d& mesh,
                                          -1, 1,-1, 
                                           1,-1,-1,
                                          -1,-1,-1};
-                                         
+
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
@@ -798,9 +798,9 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
 
                     // Evaluate bc at current node
                     value = (std::get<2> (bcs[bc]))
-                    		      (quadrant->p (0, i),
-                    		       quadrant->p (1, i),
-                    		       quadrant->p (2, i));
+                              (quadrant->p (0, i),
+                               quadrant->p (1, i),
+                               quadrant->p (2, i));
 
                     bim3a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
                   }
