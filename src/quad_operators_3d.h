@@ -52,14 +52,7 @@ bim3a_laplacian (tmesh_3d & mesh,
                  const ordering& ordr = default_ord,
                  const ordering& ordc = default_ord);
 
-// template <class T>
-// void
-// bim3a_laplacian_eafe (tmesh_3d& mesh,
-//                       const std::vector<double>& D,
-//                       const T& alpha,
-//                       sparse_matrix& A,
-//                       const ordering& ordr,
-//                       const ordering& ordc);
+
 
 void
 bim3a_laplacian_eafe (tmesh_3d & mesh,
@@ -68,13 +61,7 @@ bim3a_laplacian_eafe (tmesh_3d & mesh,
                       const ordering& ordr = default_ord,
                       const ordering& ordc = default_ord);
 
-// void
-// bim3a_laplacian_frac (tmesh_3d & mesh,
-//                       distributed_vector& alpha,
-//                       sparse_matrix& A,
-//                       std::function<std::array<double,12> (double, double, double, double, double, double)> fract,
-//                       const ordering& ordr = default_ord,
-//                       const ordering& ordc = default_ord);
+
 
 void
 bim3a_laplacian_frac (tmesh_3d & mesh,

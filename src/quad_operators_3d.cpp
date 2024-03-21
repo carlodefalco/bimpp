@@ -263,7 +263,7 @@ bim3a_laplacian_eafe (tmesh_3d & mesh,
 
 
 static inline double
-wha (const double& a, const double& b, const double& frac)
+wha (double a, double b, double frac)
 { return 1.0/(frac/a + (1-frac)/b); }
 
 void
