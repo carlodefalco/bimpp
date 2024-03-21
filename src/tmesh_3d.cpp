@@ -295,9 +295,9 @@ tmesh_3d::quadrant_t::gparent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
       assert (pbuff[4 * in + ip] >= 0);
 
       return p8est_lnodes_global_index
-	(the_tmesh->lnodes,
-	 static_cast<p4est_locidx_t>
-	 (tbuff[pbuff[4 * in + ip]]));
+                (the_tmesh->lnodes,
+                 static_cast<p4est_locidx_t>
+                 (tbuff[pbuff[4 * in + ip]]));
     }
   else
     return pbuff[4 * in + ip];
@@ -331,7 +331,7 @@ const std::vector<tmesh_3d::idx_t> &
 tmesh_3d::quadrant_t::ef (idx_t i)
 {
   assert (i < 6);
-  
+
   p8est_quadrant_t first_node, last_node;
   p8est_quadrant_corner_node (this->the_quadrant, 0, &first_node);
   p8est_quadrant_corner_node (this->the_quadrant, 7, &last_node);
@@ -1312,68 +1312,76 @@ tmesh_3d::set_interpolation_matrix (tmesh_3d::quadrant_iterator & q)
 };
 
 
+// void
+// make_connectivity_3d (const p4est_topidx_t num_trees[3],
+// 		      const double step[3],
+// 		      double *& p,
+// 		      p4est_topidx_t & num_vertices,
+// 		      p4est_topidx_t *& t,
+// 		      p4est_topidx_t & total_num_trees,
+// 		      std::vector<std::pair<p4est_topidx_t, p4est_topidx_t>> &bcells) {
 void
 make_connectivity_3d (const p4est_topidx_t num_trees[3],
-		      const double step[3],
-		      double *& p,
-		      p4est_topidx_t & num_vertices,
-		      p4est_topidx_t *& t,
-		      p4est_topidx_t & total_num_trees,
-		      std::vector<std::pair<p4est_topidx_t, p4est_topidx_t>> &bcells) {
+          const double step[3],
+          std::unique_ptr<double[]> & p,
+          p4est_topidx_t & num_vertices,
+          std::unique_ptr<p4est_topidx_t[]> & t,
+          p4est_topidx_t & total_num_trees,
+          std::vector<std::pair<p4est_topidx_t, p4est_topidx_t>> &bcells) {
 
 
   num_vertices = (num_trees[0]+1)*(num_trees[1]+1)*(num_trees[2]+1);
   total_num_trees = num_trees[0]*num_trees[1]*num_trees[2];
 
-  p = new double[num_vertices*3];
-  t = new p4est_topidx_t[total_num_trees*9];
-
-  /*
-  std::cout << " size (p) = " << num_vertices*3 << std::endl;
-  std::cout << " size (t) = " << total_num_trees*9 << std::endl;
-  */
+  // p = new double[num_vertices*3];
+  // t = new p4est_topidx_t[total_num_trees*9];
+  p = std::make_unique<double[]> (num_vertices*3);
+  t = std::make_unique<p4est_topidx_t[]> (total_num_trees*9);
 
   double x = 0, y = 0, z = 0;
+
+
   for (p4est_topidx_t ix = 0; ix <= num_trees[0]; ++ix){
     x = step[0] * ix;
     for (p4est_topidx_t iy = 0; iy <= num_trees[1]; ++iy) {
       y = step[1] * iy;
       for (p4est_topidx_t iz = 0; iz <= num_trees[2]; ++iz) {
-	z = step[2] * iz;
-	auto start = 3 * (iz + (num_trees[2]+1) * (iy + (num_trees[1]+1) * ix));
-	//std::cout << "start = " << start << std::endl;
-	p[start++] = x;
-	p[start++] = y;
-	p[start]   = z;
+      	z = step[2] * iz;
+      	auto start = 3 * (iz + (num_trees[2]+1) * (iy + (num_trees[1]+1) * ix));
+      	//std::cout << "start = " << start << std::endl;
+      	p[start++] = x;
+      	p[start++] = y;
+      	p[start]   = z;
       }
     }
   }
-
 
   for (p4est_topidx_t ix = 0; ix < num_trees[0]; ++ix) {
     for (p4est_topidx_t iy = 0; iy < num_trees[1]; ++iy) {
       for (p4est_topidx_t iz = 0; iz < num_trees[2]; ++iz) {
-	auto blf = iz + (num_trees[2]+1) * (iy + (num_trees[1]+1) * ix);
-	auto idx = 9 * (iz + num_trees[2] * (iy + num_trees[1] * ix));
-	//std::cout << "idx = " << idx << std::endl;
-	t[idx++] = blf + 1;
-	t[idx++] = blf + 1 + (num_trees[2]+1) * (num_trees[1]+1);
-	t[idx++] = blf + 1 + (num_trees[2]+1);
-	t[idx++] = blf + 1 +(num_trees[2]+1) * (num_trees[1]+1) + (num_trees[2]+1);
-	t[idx++] = blf + 1 + 1;
-	t[idx++] = blf + 1 + (num_trees[2]+1) * (num_trees[1]+1) + 1;
-	t[idx++] = blf + 1 + (num_trees[2]+1) + 1;
-	t[idx++] = blf + 1 + (num_trees[2]+1) * (num_trees[1]+1) + (num_trees[2]+1) + 1;
-	t[idx++] = 1;
+      	auto blf = iz + (num_trees[2]+1) * (iy + (num_trees[1]+1) * ix);
+      	auto idx = 9 * (iz + num_trees[2] * (iy + num_trees[1] * ix));
+      	//std::cout << "idx = " << idx << std::endl;
+      	t[idx++] = blf + 1;
+      	t[idx++] = blf + 1 + (num_trees[2]+1) * (num_trees[1]+1);
+      	t[idx++] = blf + 1 + (num_trees[2]+1);
+      	t[idx++] = blf + 1 +(num_trees[2]+1) * (num_trees[1]+1) + (num_trees[2]+1);
+      	t[idx++] = blf + 1 + 1;
+      	t[idx++] = blf + 1 + (num_trees[2]+1) * (num_trees[1]+1) + 1;
+      	t[idx++] = blf + 1 + (num_trees[2]+1) + 1;
+      	t[idx++] = blf + 1 + (num_trees[2]+1) * (num_trees[1]+1) + (num_trees[2]+1) + 1;
+      	t[idx++] = 1;
       }
     }
   }
 
-  // Sides 4 and 5
+  
   bcells.clear ();
+
+  // Sides 4 and 5
   for (p4est_topidx_t ix = 0; ix < num_trees[0]; ++ix) {
     for (p4est_topidx_t iy = 0; iy < num_trees[1]; ++iy) {
-	    p4est_topidx_t iz = 0;
+      p4est_topidx_t iz = 0;
       auto idx = (iz + num_trees[2] * (iy + num_trees[1] * ix));
       bcells.push_back(std::make_pair(idx, 4));
       iz = num_trees[2]-1;
@@ -1390,7 +1398,7 @@ make_connectivity_3d (const p4est_topidx_t num_trees[3],
         bcells.push_back(std::make_pair(idx, 2));
         iy = num_trees[1]-1;
         idx = (iz + num_trees[2] * (iy + num_trees[1] * ix));
-	      bcells.push_back(std::make_pair(idx, 3));  
+        bcells.push_back(std::make_pair(idx, 3));  
     }
   }
 
@@ -1398,14 +1406,19 @@ make_connectivity_3d (const p4est_topidx_t num_trees[3],
     for (p4est_topidx_t iy = 0; iy < num_trees[1]; ++iy) {
       for (p4est_topidx_t iz = 0; iz < num_trees[2]; ++iz) {
         p4est_topidx_t ix = 0;
-	      auto idx = (iz + num_trees[2] * (iy + num_trees[1] * ix));
-	      bcells.push_back(std::make_pair(idx, 0));
+        auto idx = (iz + num_trees[2] * (iy + num_trees[1] * ix));
+        bcells.push_back(std::make_pair(idx, 0));
         ix = num_trees[0]-1;
-	      idx = (iz + num_trees[2] * (iy + num_trees[1] * ix));
-	      bcells.push_back(std::make_pair(idx, 1));      
+        idx = (iz + num_trees[2] * (iy + num_trees[1] * ix));
+        bcells.push_back(std::make_pair(idx, 1));      
     }
   }
   
+  
+  
+  
+  
+
 };
 
 

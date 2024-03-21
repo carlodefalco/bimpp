@@ -10,6 +10,11 @@
 static
 std::array<std::array<double, 8>, 8> Aloc;
 
+static
+std::array<double, 8> alpha_loc;
+
+
+
 static void
 assemble (tmesh_3d::quadrant_iterator& quadrant,
           const std::array<std::array<double, 8>, 8>& locmat,
@@ -140,6 +145,223 @@ bim3a_laplacian (tmesh_3d& mesh,
        ++quadrant)
     {
       bim3a_laplacian_loc (quadrant, alpha[quadrant->get_forest_quad_idx ()], Aloc);
+      assemble (quadrant, Aloc, A, ordr, ordc);
+    }
+}
+
+double sha( double alfa1, double alfa2)
+{
+  return 2.0/(1.0/alfa1 + 1.0/alfa2);
+}
+
+double saa( double alfa1, double alfa2)
+{
+  return 0.5*(alfa1+alfa2);
+}
+
+void
+bim3a_laplacian_loc_eafe
+(tmesh_3d::quadrant_iterator& quadrant,
+ const std::array<double,8>& alpha,
+ std::array<std::array<double,8>,8>& locmat)
+{
+  double
+    hx = quadrant->p(0, 7) - quadrant->p(0, 0),
+    hy = quadrant->p(1, 7) - quadrant->p(1, 0),
+    hz = quadrant->p(2, 7) - quadrant->p(2, 0);
+  double edge01, edge02, edge04, edge13, edge15, edge23,
+         edge26, edge37, edge45, edge46, edge57, edge67;
+
+  // edge01 = saa(alpha[0],alpha[1]) * 0.25 * hz * hy / hx;
+  // edge02 = saa(alpha[0],alpha[2]) * 0.25 * hz * hx / hy;
+  // edge04 = saa(alpha[0],alpha[4]) * 0.25 * hy * hx / hz;
+
+  // edge13 = saa(alpha[1],alpha[3]) * 0.25 * hz * hx / hy;
+  // edge15 = saa(alpha[1],alpha[5]) * 0.25 * hy * hx / hz;
+
+  // edge23 = saa(alpha[2],alpha[3]) * 0.25 * hz * hy / hx;
+  // edge26 = saa(alpha[2],alpha[6]) * 0.25 * hy * hx / hz;
+  
+  // edge37 = saa(alpha[3],alpha[7]) * 0.25 * hy * hx / hz;
+  
+  // edge45 = saa(alpha[4],alpha[5]) * 0.25 * hz * hy / hx;
+  // edge46 = saa(alpha[4],alpha[6]) * 0.25 * hz * hx / hy;
+
+  // edge57 = saa(alpha[5],alpha[7]) * 0.25 * hz * hx / hy;
+
+  // edge67 = saa(alpha[6],alpha[7]) * 0.25 * hz * hy / hx;
+
+  edge01 = sha(alpha[0],alpha[1]) * 0.25 * hz * hy / hx;
+  edge02 = sha(alpha[0],alpha[2]) * 0.25 * hz * hx / hy;
+  edge04 = sha(alpha[0],alpha[4]) * 0.25 * hy * hx / hz;
+
+  edge13 = sha(alpha[1],alpha[3]) * 0.25 * hz * hx / hy;
+  edge15 = sha(alpha[1],alpha[5]) * 0.25 * hy * hx / hz;
+
+  edge23 = sha(alpha[2],alpha[3]) * 0.25 * hz * hy / hx;
+  edge26 = sha(alpha[2],alpha[6]) * 0.25 * hy * hx / hz;
+
+  edge37 = sha(alpha[3],alpha[7]) * 0.25 * hy * hx / hz;
+  
+  edge45 = sha(alpha[4],alpha[5]) * 0.25 * hz * hy / hx;
+  edge46 = sha(alpha[4],alpha[6]) * 0.25 * hz * hx / hy;
+
+  edge57 = sha(alpha[5],alpha[7]) * 0.25 * hz * hx / hy;
+
+  edge67 = sha(alpha[6],alpha[7]) * 0.25 * hz * hy / hx;
+
+
+
+  double diag0, diag1, diag2, diag3,
+         diag4, diag5, diag6, diag7;
+
+  diag0 = edge01 + edge02 + edge04; 
+  diag1 = edge01 + edge13 + edge15; 
+  diag2 = edge02 + edge23 + edge26; 
+  diag3 = edge23 + edge13 + edge37; 
+  diag4 = edge04 + edge45 + edge46; 
+  diag5 = edge15 + edge45 + edge57; 
+  diag6 = edge26 + edge46 + edge67; 
+  diag7 = edge57 + edge37 + edge67; 
+
+  locmat[0] = {  diag0, -edge01, -edge02,    0   , -edge04,    0   ,    0   ,    0   };
+  locmat[1] = {-edge01,   diag1,    0   , -edge13,    0   , -edge15,    0   ,    0   };
+  locmat[2] = {-edge02,    0   ,   diag2, -edge23,    0   ,    0   , -edge26,    0   };
+  locmat[3] = {   0   , -edge13, -edge23,   diag3,    0   ,    0   ,    0   , -edge37};
+  locmat[4] = {-edge04,    0   ,    0   ,    0   ,   diag4, -edge45, -edge46,    0   };
+  locmat[5] = {   0   , -edge15,    0   ,    0   , -edge45,   diag5,    0   , -edge57};
+  locmat[6] = {   0   ,    0   , -edge26,    0   , -edge46,    0   ,   diag6, -edge67};
+  locmat[7] = {   0   ,    0   ,    0   , -edge37,    0   , -edge57, -edge67,   diag7};
+
+}
+
+
+void
+bim3a_laplacian_eafe (tmesh_3d & mesh,
+                      distributed_vector& alpha,
+                      sparse_matrix& A,
+                      const ordering& ordr,
+                      const ordering& ordc)
+{
+  for (auto row : Aloc)
+    row.fill (0.0);
+
+  // std::array<double, 8> alpha_loc;
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      for (int ii = 0; ii < 8; ++ii)
+      {
+        alpha_loc[ii] = alpha[quadrant->gt (ii)];
+      }
+      bim3a_laplacian_loc_eafe (quadrant, alpha_loc, Aloc);
+      assemble (quadrant, Aloc, A, ordr, ordc);
+    }
+}
+
+
+static inline double
+wha (const double& a, const double& b, const double& frac)
+{ return 1.0/(frac/a + (1-frac)/b); }
+
+void
+bim3a_laplacian_loc_frac
+(tmesh_3d::quadrant_iterator& quadrant,
+ const std::array<double,8>& alpha,
+ const std::array<double,12>& frac,
+ std::array<std::array<double,8>,8>& locmat)
+{
+  double
+    hx = quadrant->p(0, 7) - quadrant->p(0, 0),
+    hy = quadrant->p(1, 7) - quadrant->p(1, 0),
+    hz = quadrant->p(2, 7) - quadrant->p(2, 0);
+  double edge01, edge02, edge04, edge13, edge15, edge23,
+         edge26, edge37, edge45, edge46, edge57, edge67;
+
+  edge01 = wha(alpha[0],alpha[1],frac[0]) * 0.25 * hz * hy / hx;
+  edge02 = wha(alpha[0],alpha[2],frac[3]) * 0.25 * hz * hx / hy;
+  edge04 = wha(alpha[0],alpha[4],frac[8]) * 0.25 * hy * hx / hz;
+
+  edge13 = wha(alpha[1],alpha[3],frac[1]) * 0.25 * hz * hx / hy;
+  edge15 = wha(alpha[1],alpha[5],frac[9]) * 0.25 * hy * hx / hz;
+
+  edge23 = wha(alpha[2],alpha[3],frac[2]) * 0.25 * hz * hy / hx;
+  edge26 = wha(alpha[2],alpha[6],frac[11]) * 0.25 * hy * hx / hz;
+
+  edge37 = wha(alpha[3],alpha[7],frac[10]) * 0.25 * hy * hx / hz;
+  
+  edge45 = wha(alpha[4],alpha[5],frac[4]) * 0.25 * hz * hy / hx;
+  edge46 = wha(alpha[4],alpha[6],frac[7]) * 0.25 * hz * hx / hy;
+
+  edge57 = wha(alpha[5],alpha[7],frac[5]) * 0.25 * hz * hx / hy;
+
+  edge67 = wha(alpha[6],alpha[7],frac[6]) * 0.25 * hz * hy / hx;
+
+
+
+  double diag0, diag1, diag2, diag3,
+         diag4, diag5, diag6, diag7;
+
+  diag0 = edge01 + edge02 + edge04; 
+  diag1 = edge01 + edge13 + edge15; 
+  diag2 = edge02 + edge23 + edge26; 
+  diag3 = edge23 + edge13 + edge37; 
+  diag4 = edge04 + edge45 + edge46; 
+  diag5 = edge15 + edge45 + edge57; 
+  diag6 = edge26 + edge46 + edge67; 
+  diag7 = edge57 + edge37 + edge67; 
+
+  locmat[0] = {  diag0, -edge01, -edge02,    0   , -edge04,    0   ,    0   ,    0   };
+  locmat[1] = {-edge01,   diag1,    0   , -edge13,    0   , -edge15,    0   ,    0   };
+  locmat[2] = {-edge02,    0   ,   diag2, -edge23,    0   ,    0   , -edge26,    0   };
+  locmat[3] = {   0   , -edge13, -edge23,   diag3,    0   ,    0   ,    0   , -edge37};
+  locmat[4] = {-edge04,    0   ,    0   ,    0   ,   diag4, -edge45, -edge46,    0   };
+  locmat[5] = {   0   , -edge15,    0   ,    0   , -edge45,   diag5,    0   , -edge57};
+  locmat[6] = {   0   ,    0   , -edge26,    0   , -edge46,    0   ,   diag6, -edge67};
+  locmat[7] = {   0   ,    0   ,    0   , -edge37,    0   , -edge57, -edge67,   diag7};
+
+}
+
+
+
+void
+bim3a_laplacian_frac (tmesh_3d & mesh,
+                      distributed_vector& alpha,
+                      sparse_matrix& A,
+                      std::function<std::array<double,12> (tmesh_3d::quadrant_iterator&)> fract,
+                      const ordering& ordr,
+                      const ordering& ordc)
+{
+  for (auto row : Aloc)
+    row.fill (0.0);
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      
+      std::array<double,12> fraction;
+      fraction = fract(quadrant);
+      // for (int j = 0; j < 12; ++j)
+      // {
+      //   fraction[j] = std::abs(fraction[j]);
+      // }
+      
+      for (int ii = 0; ii < 8; ++ii)
+      {
+        alpha_loc[ii] = 0.0;
+        if (! quadrant->is_hanging (ii))
+          alpha_loc[ii] = alpha[quadrant->gt (ii)];
+        else {
+          int num_par = quadrant->num_parents (ii);
+          for (int jj = 0; jj < num_par; ++jj) {
+            alpha_loc[ii] += alpha [quadrant->gparent (jj, ii)]/ num_par;
+          }
+        }
+      }
+      bim3a_laplacian_loc_frac (quadrant, alpha_loc, fraction, Aloc);
       assemble (quadrant, Aloc, A, ordr, ordc);
     }
 }
@@ -299,6 +521,105 @@ bim3a_reaction (tmesh_3d& mesh,
     }
 }
 
+static constexpr
+std::array<std::array<int, 3>, 12> edges = {0,1,0, 1,3,1, 2,3,0, 0,2,1,
+                                            4,5,0, 5,7,1, 6,7,0, 4,6,1,
+                                            0,4,2, 1,5,2, 3,7,2, 2,6,2};
+static constexpr
+std::array<std::array<int, 3>, 8> nodes2edges = {0,3,8, 
+                                                 0,1,9, 
+                                                 2,3,11, 
+                                                 2,1,10,
+                                                 4,7,8,
+                                                 4,5,9, 
+                                                 6,7,11, 
+                                                 6,5,10};
+static constexpr
+std::array<std::array<int, 3>, 8> nodes2edges_dir = { 1, 1, 1, 
+                                                     -1, 1, 1, 
+                                                      1,-1, 1,
+                                                     -1,-1, 1,
+                                                      1, 1,-1,
+                                                     -1, 1,-1, 
+                                                      1,-1,-1,
+                                                     -1,-1,-1};                                                
+
+void
+bim3a_reaction_frac (tmesh_3d& mesh,
+                     const distributed_vector& delta,
+                     const distributed_vector& zeta,
+                     sparse_matrix& A,
+                     std::function<std::array<double,12> (tmesh_3d::quadrant_iterator&)> fract,
+                     const ordering& ordr,
+                     const ordering& ordc)
+
+ //             v6_________e6_________v7
+  //             /|                  /|
+  //         e7 / |                 / |
+  //           /  |             e5 /  |
+  //          /   | e11           /   | e10
+  //       v4/____|_____e4_______/v5  |
+  //         |    |              |    |
+  //         |  v2|______e2______|____|v3
+  //     e8  |   /               |   /   
+  //         |  /            e9  |  / 
+  //         | /  e3             | / e1
+  //         |/                  |/
+  //       v0/_________e0________/v1
+
+{  
+  std::vector<unsigned int> rows;
+  rows.reserve(4);
+
+  double z_loc = 0;
+  std::array<double,12> frac;
+  std::array<double,3> h;
+  double hx, hy, hz;
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      frac = fract(quadrant);
+      // for (int j = 0; j < 12; ++j)
+      // {
+      //   frac[j] = std::abs(frac[j]);
+      // }
+
+      h[0] = quadrant->p(0, 7) - quadrant->p(0, 0);
+      h[1] = quadrant->p(1, 7) - quadrant->p(1, 0);
+      h[2] = quadrant->p(2, 7) - quadrant->p(2, 0);
+      
+      for (int i = 0; i < 8; ++i)
+      {
+        rows.clear();
+        z_loc = 0;
+        hx = h[0]*(1.0 +nodes2edges_dir[i][0]*(frac[nodes2edges[i][0]] - 0.5));
+        hy = h[1]*(1.0 +nodes2edges_dir[i][1]*(frac[nodes2edges[i][1]] - 0.5));
+        hz = h[2]*(1.0 +nodes2edges_dir[i][2]*(frac[nodes2edges[i][2]] - 0.5));
+        if (!quadrant->is_hanging (i))
+          {
+            rows.push_back (quadrant->gt (i));
+            z_loc = zeta[quadrant->gt (i)];
+          }
+        else
+          for (int pp = 0; pp < quadrant->num_parents (i); ++pp)
+            {
+              rows.push_back (quadrant->gparent (pp, i));
+              z_loc += zeta[quadrant->gparent (pp, i)] /
+                quadrant->num_parents (i);
+            }
+
+        for (int r = 0; r < rows.size (); ++r)
+          if (delta[quadrant->gt (i)] * z_loc != .0 )
+            A[ordr (rows[r])][ordc (rows[r])] +=
+              (delta[quadrant->gt (i)] * z_loc * hx * hy * hz / 8) / rows.size ();
+      }
+      
+    }
+}
+
+
 template <class T>
 void
 bim3a_rhs (tmesh_3d& mesh,
@@ -344,6 +665,65 @@ bim3a_rhs (tmesh_3d& mesh,
           for (int r = 0; r < rows.size(); ++r)
             rhs[ord (rows[r])] +=
               (f[iel] * g_loc * hx * hy *hz / 8) / rows.size ();
+        }
+    }
+}
+
+void
+bim3a_rhs_frac (tmesh_3d& mesh,
+                const distributed_vector& f,
+                const distributed_vector& g, 
+                distributed_vector& rhs,
+                std::function<std::array<double,12> (tmesh_3d::quadrant_iterator&)> fract,
+                const ordering& ord)
+{
+  double hx, hy, hz;
+
+  std::vector<unsigned int> rows;
+  rows.reserve (4);
+
+  double g_loc = 0;
+
+  std::array<double,12> frac;
+  std::array<double,3> h;
+
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      frac = fract(quadrant);
+      // for (int j = 0; j < 12; ++j)
+      // {
+      //   frac[j] = std::abs(frac[j]);
+      // }
+
+      h[0] = quadrant->p(0, 7) - quadrant->p(0, 0);
+      h[1] = quadrant->p(1, 7) - quadrant->p(1, 0);
+      h[2] = quadrant->p(2, 7) - quadrant->p(2, 0);
+
+      for(int i = 0; i < 8; ++i)
+        {
+          rows.clear ();
+          g_loc = 0;
+          hx = h[0]*(1.0 +nodes2edges_dir[i][0]*(frac[nodes2edges[i][0]] - 0.5));
+          hy = h[1]*(1.0 +nodes2edges_dir[i][1]*(frac[nodes2edges[i][1]] - 0.5));
+          hz = h[2]*(1.0 +nodes2edges_dir[i][2]*(frac[nodes2edges[i][2]] - 0.5));
+          if (! quadrant->is_hanging (i))
+            {
+              rows.push_back (quadrant->gt (i));
+              g_loc = g[quadrant->gt (i)];
+            }
+          else
+            for (int pp = 0; pp < quadrant->num_parents (i); ++pp)
+              {
+                rows.push_back (quadrant->gparent (pp, i));
+                g_loc += g[quadrant->gparent (pp, i)] /
+                  quadrant->num_parents (i);
+              }
+
+          for (int r = 0; r < rows.size(); ++r)
+            rhs[ord (rows[r])] +=
+              (f[quadrant->gt (i)] * g_loc * hx * hy *hz / 8) / rows.size ();
         }
     }
 }
@@ -486,8 +866,7 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
 
           // If current node is on boundary and has not
           // been handled before.
-          if (boundary_idx != tmesh_3d::quadrant_t::NOT_ON_BOUNDARY
-              && marked.count(row) == 0)
+          if (marked.count(row) == 0)
             {
               // Loop over all the boundary conditions.
               for (size_t bc = 0; bc < bcs.size (); ++bc)
@@ -501,16 +880,16 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
 
                     // Evaluate bc at current node
                     value = (std::get<2> (bcs[bc]))
-		      (quadrant->p (0, i),
-		       quadrant->p (1, i),
-		       quadrant->p (2, i));
+                    		      (quadrant->p (0, i),
+                    		       quadrant->p (1, i),
+                    		       quadrant->p (2, i));
 
                     bim3a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
                   }
             }
         }
-    }
-    }
+      }
+    } 
 }
 
 template <class T>
@@ -533,15 +912,14 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
     {
       tree_idx = quadrant->get_tree_idx ();
 
-      for (int i = 0; i < 8; ++i)
-        {
-          boundary_idx = quadrant->e (i);
+      for (int boundary_idx = 0; boundary_idx < 6; ++boundary_idx) {
+        auto facenodes = quadrant->ef(boundary_idx);
+        for (int i : facenodes) {
           row = ord (quadrant->gt (i));
 
           // If current node is on boundary and has not
           // been handled before.
-          if (boundary_idx != tmesh_3d::quadrant_t::NOT_ON_BOUNDARY
-              && marked.count(row) == 0)
+          if (marked.count(row) == 0)
             {
               // Loop over all the boundary conditions.
               for (size_t bc = 0; bc < bcs.size (); ++bc)
@@ -561,6 +939,7 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3_quad& bcs,
                   }
             }
         }
+      }
     }
 }
 
@@ -630,9 +1009,9 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                     marked.insert (row);
                     // Evaluate bc at current node
                     value = (std::get<2> (bcs[bc]))
-		      (quadrant->p (0, i),
-		       quadrant->p (1, i),
-		       quadrant->p (2, i));
+		                                        (quadrant->p (0, i),
+		                                         quadrant->p (1, i),
+		                                         quadrant->p (2, i));
                     bim3a_dirichlet_bc_loc (A, rhs, row, col, value, only_rhs);
                   }
             }
@@ -2122,7 +2501,7 @@ quad_integral (const double *x, const double *y, const double *z,
 // Evaluate Nedelec x-gradient of u
 // (on quadrant [x[0], x[1]] x [y[0], y[1]] x [z[0], z[1]])
 // at (X, Y, Z).
-static double
+ double
 dudx (double X, double Y, double Z, const double *x,
       const double *y, const double *z, const double *u)
 {
@@ -2145,7 +2524,7 @@ dudx (double X, double Y, double Z, const double *x,
 // Evaluate Nedelec y-gradient of u
 // (on quadrant [x[0], x[1]] x [y[0], y[1]] x [z[0], z[1]])
 // at (X, Y, Z).
-static double
+ double
 dudy (double X, double Y, double Z, const double *x,
       const double *y, const double *z, const double *u)
 {
@@ -2168,7 +2547,7 @@ dudy (double X, double Y, double Z, const double *x,
 // Evaluate Nedelec z-gradient of u
 // (on quadrant [x[0], x[1]] x [y[0], y[1]] x [z[0], z[1]])
 // at (X, Y, Z).
-static double
+ double
 dudz (double X, double Y, double Z, const double *x,
       const double *y, const double *z, const double *u)
 {

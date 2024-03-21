@@ -195,23 +195,22 @@ public:
     idx_t
     e (idx_t i);
 
-   /// face_nodes[ii] is the list of vertices
+    /// face_nodes[ii] is the list of vertices
    //  on the ii-th face of a quadrant,in local
    //  numbering.
-   static const std::array<std::vector<idx_t>, 6> 
-   face_nodes = {{0, 2, 4, 6}, 
-                 {1, 3, 5, 7}, 
-                 {0, 1, 4, 5}, 
-                 {2, 3, 6, 7}, 
-                 {0, 1, 2, 3}, 
-                 {4, 5, 6, 7},
-                 {}};
-   
+   const std::array<std::vector<idx_t>, 7> 
+   face_nodes  {std::vector<idx_t>{0, 2, 4, 6}, 
+                 std::vector<idx_t>{1, 3, 5, 7}, 
+                 std::vector<idx_t>{0, 1, 4, 5}, 
+                 std::vector<idx_t>{2, 3, 6, 7}, 
+                 std::vector<idx_t>{0, 1, 2, 3}, 
+                 std::vector<idx_t>{4, 5, 6, 7},
+                 std::vector<idx_t>{}};
+
     /// List of the nodes of the current quadrant
     //  that lie on the i-th face of the tree.
     const std::vector<idx_t> &
     ef (idx_t i);
-
 
     /// Get an iterator to the first neighbor
     /// of the current quadrant.
@@ -561,12 +560,19 @@ private:
 };
 
 
+// void
+// make_connectivity_3d (const p4est_topidx_t num_trees[3], const double step[3],
+// 		      double *& p, p4est_topidx_t & num_vertices,
+// 		      p4est_topidx_t *& t, p4est_topidx_t & total_num_trees,
+// 		      std::vector<std::pair<p4est_topidx_t, p4est_topidx_t>> & bcells);
 void
-make_connectivity_3d (const p4est_topidx_t num_trees[3], const double step[3],
-		      double *& p, p4est_topidx_t & num_vertices,
-		      p4est_topidx_t *& t, p4est_topidx_t & total_num_trees,
-		      std::vector<std::pair<p4est_topidx_t, p4est_topidx_t>> & bcells);
-
+make_connectivity_3d (const p4est_topidx_t num_trees[3],
+          const double step[3],
+          std::unique_ptr<double[]> & p,
+          p4est_topidx_t & num_vertices,
+          std::unique_ptr<p4est_topidx_t[]> & t,
+          p4est_topidx_t & total_num_trees,
+          std::vector<std::pair<p4est_topidx_t, p4est_topidx_t>> &bcells);
 
 #endif /* TMESH_3D_H */
 

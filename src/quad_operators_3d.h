@@ -52,14 +52,37 @@ bim3a_laplacian (tmesh_3d & mesh,
                  const ordering& ordr = default_ord,
                  const ordering& ordc = default_ord);
 
-template <class T>
+// template <class T>
+// void
+// bim3a_laplacian_eafe (tmesh_3d& mesh,
+//                       const std::vector<double>& D,
+//                       const T& alpha,
+//                       sparse_matrix& A,
+//                       const ordering& ordr,
+//                       const ordering& ordc);
+
 void
-bim3a_laplacian_eafe (tmesh_3d& mesh,
-                      const std::vector<double>& D,
-                      const T& alpha,
+bim3a_laplacian_eafe (tmesh_3d & mesh,
+                      distributed_vector& alpha,
                       sparse_matrix& A,
-                      const ordering& ordr,
-                      const ordering& ordc);
+                      const ordering& ordr = default_ord,
+                      const ordering& ordc = default_ord);
+
+// void
+// bim3a_laplacian_frac (tmesh_3d & mesh,
+//                       distributed_vector& alpha,
+//                       sparse_matrix& A,
+//                       std::function<std::array<double,12> (double, double, double, double, double, double)> fract,
+//                       const ordering& ordr = default_ord,
+//                       const ordering& ordc = default_ord);
+
+void
+bim3a_laplacian_frac (tmesh_3d & mesh,
+                      distributed_vector& alpha,
+                      sparse_matrix& A,
+                      std::function<std::array<double,12> (tmesh_3d::quadrant_iterator&)> fract,
+                      const ordering& ordr = default_ord,
+                      const ordering& ordc = default_ord);
 
 template <class T>
 void
@@ -89,12 +112,30 @@ bim3a_reaction (tmesh_3d& mesh,
                 const ordering& ordr = default_ord,
                 const ordering& ordc = default_ord);
 
+
+void
+bim3a_reaction_frac (tmesh_3d& mesh,
+                const distributed_vector& delta,
+                const distributed_vector& zeta,
+                sparse_matrix& A,
+                std::function<std::array<double,12> (tmesh_3d::quadrant_iterator&)> fract,
+                const ordering& ordr = default_ord,
+                const ordering& ordc = default_ord);
+
 template <class T>
 void
 bim3a_rhs (tmesh_3d& mesh,
            const std::vector<double>& f,
            const T& g, T& rhs,
            const ordering& ord = default_ord);
+
+void
+bim3a_rhs_frac (tmesh_3d& mesh,
+                const distributed_vector& f,
+                const distributed_vector& g, 
+                distributed_vector& rhs,
+                std::function<std::array<double,12> (tmesh_3d::quadrant_iterator&)> fract,
+                const ordering& ord= default_ord);
 
 void
 bim3a_solution_with_ghosts (tmesh_3d& mesh,
@@ -149,8 +190,15 @@ interpolate_vector (tmesh_3d & mesh,
 
 
 
-
-
+ double
+dudx (double X, double Y, double Z, const double *x,
+      const double *y, const double *z, const double *u);
+ double
+dudy (double X, double Y, double Z, const double *x,
+      const double *y, const double *z, const double *u);
+ double
+dudz (double X, double Y, double Z, const double *x,
+      const double *y, const double *z, const double *u);
 
 
 
