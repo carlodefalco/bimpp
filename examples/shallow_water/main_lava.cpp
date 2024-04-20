@@ -135,7 +135,7 @@ inline double dem_fun (const double& xx, const double& yy)
 
   //return(0);
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
-  //return(-xx+L);
+  //return(-std::tan(2.5*M_PI/180)*xx+L);
   return(raster_value(xx,yy));
 
   double z = 0.;
@@ -880,7 +880,7 @@ main (int argc, char **argv)
   double time_oldd = 0.0;
 
   
-  stp.set_dt (DELTAT);
+  stp.set_dt (DELTAT*1e-2);
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
   {
