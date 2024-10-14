@@ -397,6 +397,7 @@ main (int argc, char **argv)
   const double & SPACE_ADAPTDT                            = input_data["space adaptation procedure interval in seconds"];
   const double & SAVEDT                                   = input_data["saving interval in seconds"];
   const double & DELTAT                                   = input_data["maximum time step allowed"];
+  const double & initial_delta_t 			  = input_data["initial time step"];
   const double & mesh_size_dry                            = input_data["desired resolution in meters of the mesh size in dry regions"];
   const double & mesh_size_wet                            = input_data["minimum resolution in meters of the mesh size in wet regions"];
   const double & mesh_size_interface                      = input_data["desired resolution in meters of the mesh size in wet-dry interface regions"];
@@ -409,8 +410,12 @@ main (int argc, char **argv)
                  h_min                                    = input_data["minimum material height threshold"];
   const double & grav                                     = input_data["gravitational field"];
   const double & density                                  = input_data["material density"];
+  const double & T_env                                    = input_data["environment temperature"];
+  const double & specific_heat_pressure                   = input_data["specific heat at constant pressure"];
+  const double & convective_coeff                         = input_data["convection coefficient"];
   const double & tolerance_space_adapt                    = input_data["tolerance space adaptation"];
   const double & sigma_vent                               = input_data["area discrete vent"];
+  const double & mesh_size_vent 			  = input_data["mesh size vent"];
   const double & saturation_coeff                         = input_data["saturation coefficient"];
   const double & x_v                                      = input_data["x vent location"];
   const double & y_v                                      = input_data["y vent location"];
@@ -422,7 +427,6 @@ main (int argc, char **argv)
   //const double & E_coeff                                  = input_data["E coefficient"];
   const double & b_exp_coeff                              = input_data["b coefficient"];
   const double & T_ref                                    = input_data["T_ref"];
-  //const double & T_env                                    = input_data["T_env"];
   //const double & T_c                                      = input_data["T_c"];
   const double & nu_ref                                   = input_data["nu reference"];
 
@@ -683,7 +687,7 @@ main (int argc, char **argv)
     };
 
 
-    tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, tolerance_space_adapt, 6, 0, 0);
+    tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, tolerance_space_adapt, x_v, y_v, mesh_size_vent, 6, 0, 0);
     //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1);
     tmsh.metrics_refine (1e6);  // RAFFINAMENTO (arg is max element)
 
@@ -829,6 +833,9 @@ main (int argc, char **argv)
                  b_exp_coeff,
                  saturation_coeff,
                  density, 
+		 T_env,
+                 specific_heat_pressure,
+                 convective_coeff,
                  x_v, 
                  y_v, 
                  Q_vent, 
@@ -880,13 +887,15 @@ main (int argc, char **argv)
   double time_oldd = 0.0;
 
   
-  stp.set_dt (DELTAT*1e-2);
+  stp.set_dt (DELTAT);
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
   {
     stp.compute_dt(quadrant);
   }
-  double max_dt = REDCDT * stp.dt;
+  double max_dt = std::min(initial_delta_t, REDCDT * stp.dt);
+  //std::cout << max_dt << " " << initial_delta_t << std::endl;
+
   MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&max_dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
   stp.set_dt(max_dt);
   stp.set_old_dt(0.);
@@ -1053,7 +1062,8 @@ main (int argc, char **argv)
       for (int ii = 0; ii < 4; ++ii)
       {
         if (! quadrant->is_hanging (ii) && sol_dyn [ordh    (quadrant->gt (ii))]<0){
-          sol_dyn [ordh    (quadrant->gt (ii))] = 0.; //h_min; //0.;
+          sol_dyn [ordh     (quadrant->gt (ii))] = 0.; //h_min; //0.;
+	  sol_dyn [ordTh    (quadrant->gt (ii))] = 0.;
         }
       }
     }
@@ -1239,7 +1249,8 @@ main (int argc, char **argv)
       };
 
 
-      tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, tolerance_space_adapt, 6, 0, 0);
+      tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, tolerance_space_adapt, x_v, y_v, mesh_size_vent, 6, 0, 0);
+      //tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, tolerance_space_adapt, 6, 0, 0);
       //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1); 
       tmsh.metrics_refine (1e6);  // RAFFINAMENTO (arg is max element)
 
