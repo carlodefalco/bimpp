@@ -887,7 +887,7 @@ main (int argc, char **argv)
   double time_oldd = 0.0;
 
   
-  stp.Fr = 0.;
+  //stp.Fr = 0.;
   stp.set_dt (DELTAT);
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -899,7 +899,7 @@ main (int argc, char **argv)
 
   MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&max_dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
   stp.set_dt(max_dt);
-  stp.g_coeff = 1./(1.-stp.Fr*stp.Fr);
+  //stp.g_coeff = 1./(1.-stp.Fr*stp.Fr);
   stp.set_old_dt(0.);
   time_old  -= stp.dt;
   time_oldd -= 2*stp.dt;
@@ -918,12 +918,6 @@ main (int argc, char **argv)
   {
     std::cout << "start loop" << std::endl;
   }
-
-  // Print current time
-  if(rank==0)
-  {
-    std::cout << "MAXIMUM TIME STEP = " << stp.dt << std::endl;
-  }   
 
   int counter_savings = 0, tot_number_savings = std::round(T/SAVEDT);
   
