@@ -887,6 +887,7 @@ main (int argc, char **argv)
   double time_oldd = 0.0;
 
   
+  stp.Fr = 0.;
   stp.set_dt (DELTAT);
   for (auto quadrant = tmsh.begin_quadrant_sweep ();
        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -898,6 +899,7 @@ main (int argc, char **argv)
 
   MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&max_dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
   stp.set_dt(max_dt);
+  stp.g_coeff = 1./(1.-stp.Fr*stp.Fr);
   stp.set_old_dt(0.);
   time_old  -= stp.dt;
   time_oldd -= 2*stp.dt;
@@ -937,7 +939,84 @@ main (int argc, char **argv)
     //TOC("Reset");
     //TIC();
     
-  
+    
+    // first step!
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    {
+      stp.first_step(quadrant);
+    }
+
+
+    // 
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    {
+      stp.compute_nodal_anti_diffusive_fluxes(quadrant);
+    }
+    incr_dyn.assemble ();
+    P_plus_dyn.assemble ();
+    P_minus_dyn.assemble ();
+
+
+
+    stp.set_times(time, time_old, time_oldd);
+    soldd_dyn = sold_dyn;
+    sold_dyn  = sol_dyn;
+    
+
+    // low order solution
+    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
+    {
+      sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
+    }
+    sol_dyn.assemble(replace_op); 
+
+
+
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep ();
+         ++quadrant)
+    {
+      for (int ii = 0; ii < 4; ++ii)
+      {
+        if (! quadrant->is_hanging (ii) && sol_dyn [ordh    (quadrant->gt (ii))]<0){
+          sol_dyn [ordh     (quadrant->gt (ii))] = 0.; //h_min; //0.;
+	  sol_dyn [ordTh    (quadrant->gt (ii))] = 0.;
+        }
+      }
+    }
+    //sol_dyn.assemble (replace_op);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordh,  false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUx, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUy, false);
+    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordTh);
+
+    incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
+    incr_dyn.assemble (replace_op);
+
+
+    
+    // second order correction
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    {
+      stp.second_step(quadrant);
+    }
+    incr_dyn.assemble ();
+    //TOC("Compute step");
+    
+
+    //TIC();
+    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=4)
+    {
+      stp.solve_non_lin(kk);
+    }
+    sol_dyn.assemble (replace_op);
+    //TOC("Apply increment");
+
+
+
     // compute time step, 
     stp.Fr = 0.;
     stp.set_dt (DELTAT);
@@ -1016,85 +1095,6 @@ main (int argc, char **argv)
       std::cout << "TIME = " << time << ", dt = " << stp.dt << std::endl;
       full_time_vector.push_back (time);
     }
-    
-    //std::cout << (time<T) << " " << time << " " << T << " " << time-T << std::endl;
-    
-    
-    
-    // first step!
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.first_step(quadrant);
-    }
-
-
-    // 
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.compute_nodal_anti_diffusive_fluxes(quadrant);
-    }
-    incr_dyn.assemble ();
-    P_plus_dyn.assemble ();
-    P_minus_dyn.assemble ();
-
-
-
-    stp.set_times(time, time_old, time_oldd);
-    soldd_dyn = sold_dyn;
-    sold_dyn  = sol_dyn;
-    
-
-    // low order solution
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
-    {
-      sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
-    }
-    sol_dyn.assemble(replace_op); 
-
-
-
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep ();
-         ++quadrant)
-    {
-      for (int ii = 0; ii < 4; ++ii)
-      {
-        if (! quadrant->is_hanging (ii) && sol_dyn [ordh    (quadrant->gt (ii))]<0){
-          sol_dyn [ordh     (quadrant->gt (ii))] = 0.; //h_min; //0.;
-	  sol_dyn [ordTh    (quadrant->gt (ii))] = 0.;
-        }
-      }
-    }
-    //sol_dyn.assemble (replace_op);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordh,  false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUx, false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUy, false);
-    bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordTh);
-
-    incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
-    incr_dyn.assemble (replace_op);
-
-
-    
-    // second order correction
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.second_step(quadrant);
-    }
-    incr_dyn.assemble ();
-    //TOC("Compute step");
-    
-
-    //TIC();
-    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=4)
-    {
-      stp.solve_non_lin(kk);
-    }
-    sol_dyn.assemble (replace_op);
-    //TOC("Apply increment");
 
 
     // Save solution
