@@ -26,7 +26,10 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& T_ref,
                        const double& b_exp_coeff,
                        const double& saturation_coeff,
-                       const double& density, 
+                       const double& density,
+		       const double& T_env, 
+		       const double& specific_heat_pressure,
+		       const double& convective_coeff,
                        const double& x_v, 
                        const double& y_v, 
                        const double& Q_vent, 
@@ -34,7 +37,7 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& sigma_vent)
 : sol(sol), sold(sold), soldd(soldd), incr(incr), incr_anti_diff(incr_anti_diff), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass), 
   ordh(oh), ordUx(oUx), ordUy(oUy), ordTh(oTh), Z(Z), Z_onehalf(Z_onehalf), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), grav(grav), nu_ref(nu_ref), T_ref(T_ref),
-  density(density), is_isothermal(is_isothermal), b_exp_coeff(b_exp_coeff), saturation_coeff(saturation_coeff), x_v(x_v), y_v(y_v), Q_vent(Q_vent), T_vent(T_vent), sigma_vent(sigma_vent)
+  density(density), is_isothermal(is_isothermal), b_exp_coeff(b_exp_coeff), T_env(T_env), specific_heat_pressure(specific_heat_pressure), convective_coeff(convective_coeff), saturation_coeff(saturation_coeff), x_v(x_v), y_v(y_v), Q_vent(Q_vent), T_vent(T_vent), sigma_vent(sigma_vent)
 { }
  
  
@@ -246,17 +249,22 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   sol_onehalf[ordh    (index_quadrant_global)] += dt*.5* Q_vent/area*       ( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
   sol_onehalf[ordTh   (index_quadrant_global)] += dt*.5* Q_vent/area*T_vent*( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
 
-  // add source term for the momentum
+
+  // add friction term for the momentum and eventual heat exchange for the temperature eqn.
   const auto & h_onehalf_updated  = sol_onehalf[ordh     (index_quadrant_global)];
-  const auto & Th_onehalf_updated = sol_onehalf[ordTh    (index_quadrant_global)];
+        auto & Th_onehalf_updated = sol_onehalf[ordTh    (index_quadrant_global)];
         auto & Ux_onehalf_updated = sol_onehalf[ordUx    (index_quadrant_global)];
         auto & Uy_onehalf_updated = sol_onehalf[ordUy    (index_quadrant_global)];
+
+  Th_onehalf_updated = Th_onehalf_updated + dt_21*Th_src_formula(h_cell_average, Ux_cell_average, Uy_cell_average, Th_cell_average, T_env);
 
   Ux_onehalf_updated = Ux_cell_average - dt*.5 * (div_FUx_cell/area - src_slope_formula (h_cell_average, slope_x_c)) + dt_21*Ux_src_formula(h_cell_average, Ux_cell_average, 0., Th_cell_average);
   Uy_onehalf_updated = Uy_cell_average - dt*.5 * (div_FUy_cell/area - src_slope_formula (h_cell_average, slope_y_c)) + dt_21*Uy_src_formula(h_cell_average, 0., Uy_cell_average, Th_cell_average);
 
   Ux_onehalf_updated = Ux_onehalf_updated/(1. - dt_22*Ux_src_formula(h_onehalf_updated, 1., 0., Th_onehalf_updated));
   Uy_onehalf_updated = Uy_onehalf_updated/(1. - dt_22*Uy_src_formula(h_onehalf_updated, 0., 1., Th_onehalf_updated));
+
+  Th_onehalf_updated = (Th_onehalf_updated + dt_22*Th_src_formula(h_onehalf_updated, Ux_onehalf_updated, Uy_onehalf_updated, 0., T_env))/(1. - dt_22*Th_src_formula(h_onehalf_updated, Ux_onehalf_updated, Uy_onehalf_updated, 1., 0.));
 } 
 
 
@@ -971,7 +979,7 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  +        Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii]; //incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  +        Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
     const auto flux_on_the_node_Ux = incr_anti_diff[ordUx(index_quadrant)][ii]*phi_cell_Ux + dt_32*Ux_src_formula(h_cell, Ux_cell, 0., Th_cell)/dt*area/4*isdof_or_hanging[ii];
     const auto flux_on_the_node_Uy = incr_anti_diff[ordUy(index_quadrant)][ii]*phi_cell_Uy + dt_32*Uy_src_formula(h_cell, 0., Uy_cell, Th_cell)/dt*area/4*isdof_or_hanging[ii];
-    const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii]; //incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
+    const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii] + dt_32*Th_src_formula(h_cell, Ux_cell, Uy_cell, Th_cell, T_env)/dt*area/4*isdof_or_hanging[ii]; //incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
 
     if (! quadrant->is_hanging (ii)){
 
@@ -1032,13 +1040,17 @@ TG2_scheme::solve_non_lin(const int& kk)
   h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
   h_c *= (h_c>0.);
 
-  Th_c = h_c>epsilon ? Th_c+dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] : 0.;// + dt*.5*Th_src_formula (h_c_old, Ux_c_old, Uy_c_old, Th_c_old);
+  Th_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + dt_31*Th_src_formula(h_c_old, Ux_c_old, Uy_c_old, Th_c_old, T_env);// + dt*.5*Th_src_formula (h_c_old, Ux_c_old, Uy_c_old, Th_c_old);
+  Th_c *= (Th_c>0.);
 
   Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt_31*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c);
   Uy_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt_31*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c);
   
   Ux_c = h_c>epsilon ? Ux_c/(1.-dt_33*Ux_src_formula(h_c, 1., 0., Th_c)) : 0.;
   Uy_c = h_c>epsilon ? Uy_c/(1.-dt_33*Uy_src_formula(h_c, 0., 1., Th_c)) : 0.;
+
+  Th_c = h_c>epsilon ? (Th_c + dt_33*Th_src_formula(h_c, Ux_c, Uy_c, 0., T_env))/(1.-dt_33*Th_src_formula(h_c, Ux_c, Uy_c, 1., 0.)) : 0.;
+  Th_c *= (Th_c>0);
 
   //Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old) )/(1.-dt*.5*Ux_src_formula(h_c, 1., 0., Th_c_old));
   //Uy_c = (Uy_c + dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old) )/(1.-dt*.5*Uy_src_formula(h_c, 0., 1., Th_c_old));
@@ -1176,6 +1188,13 @@ TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy,
   return ( - gamma_fric_over_h*uy);
 }
 
+double
+TG2_scheme::Th_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th, const double& T_enva)
+{
+  const double T = h>epsilon ? Th/h : 0.;
+
+  return (h>epsilon ? convective_coeff/density/specific_heat_pressure*(T - T_enva) : 0.);
+}
 
 double 
 TG2_scheme::src_slope_formula (const double& h, const double& S)

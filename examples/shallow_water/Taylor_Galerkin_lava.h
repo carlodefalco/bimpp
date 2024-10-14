@@ -41,6 +41,9 @@ public:
              const double& b_exp_coeff,
              const double& saturation_coeff,
              const double& density,
+	     const double& T_env,
+             const double& specific_heat_pressure,
+             const double& convective_coeff,
              const double& x_v,
              const double& y_v,
              const double& Q_vent, 
@@ -224,6 +227,9 @@ public:
   double
   Uy_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th);
 
+  double
+  Th_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th, const double& T_enva);
+
   void
   prepare_IMEXRKC_coefficients (const int& s);
 
@@ -266,6 +272,9 @@ private:
   const double& b_exp_coeff;
   const double& saturation_coeff;
   const double& density;
+  const double& T_env;                     
+  const double& specific_heat_pressure;
+  const double& convective_coeff;
   const double& x_v;
   const double& y_v;
   const double& Q_vent;

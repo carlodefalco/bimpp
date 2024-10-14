@@ -424,6 +424,15 @@ public:
                                int n_refine = 0,      
                                int n_coarsen = 0);
 
+  void
+  set_metrics_marker_flux_lim (std::function<double (quadrant_iterator)>,
+                               std::function<double (quadrant_iterator)>,
+                               std::function<double (quadrant_iterator)>,
+                               double, double, double,
+                               double, double, double, double, int max_depth = 5,
+                               int n_refine = 0,
+                               int n_coarsen = 0);
+
   /// Set functor to replace quadrants while being
   /// refined or coarsened.
   void
