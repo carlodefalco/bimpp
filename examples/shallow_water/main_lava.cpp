@@ -894,7 +894,7 @@ main (int argc, char **argv)
   {
     stp.compute_dt(quadrant);
   }
-  double max_dt = std::min(initial_delta_t, REDCDT * stp.dt);
+  double max_dt = REDCDT * stp.dt; 
   //std::cout << max_dt << " " << initial_delta_t << std::endl;
 
   MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&max_dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
@@ -919,6 +919,12 @@ main (int argc, char **argv)
     std::cout << "start loop" << std::endl;
   }
 
+  // Print current time
+  if(rank==0)
+  {
+    std::cout << "MAXIMUM TIME STEP = " << stp.dt << std::endl;
+  }   
+
   int counter_savings = 0, tot_number_savings = std::round(T/SAVEDT);
   
   TIC();
@@ -939,6 +945,85 @@ main (int argc, char **argv)
     //TOC("Reset");
     //TIC();
     
+
+    // compute time step, 
+    stp.Fr = 0.;
+    stp.set_dt (DELTAT);
+    if (is_max_time_step_from_CFL)
+    {
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+       quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+      {
+        stp.compute_dt(quadrant);
+      }
+    }
+    max_dt = REDCDT * stp.dt;
+
+    stp.g_coeff = 1./(1.-stp.Fr*stp.Fr);
+
+    stp.set_dt(time==0 ? initial_delta_t : max_dt); // deltat max
+    MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
+ 
+    // Print current time
+    if(rank==0)
+    {
+      std::cout << "MAXIMUM TIME STEP = " << stp.dt << std::endl;
+    }   
+
+    // time adaptivity
+    if (is_time_adaptivity)
+    { 
+    
+      stp.nu_htot = 0.;
+      for (auto quadrant = tmsh.begin_quadrant_sweep ();
+        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+      {
+        stp.compute_dt_adaptive(quadrant);
+      }
+      MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
+
+      const double local_estimator_time_tolerance = 1e-5;//5e-3*(stp.time-stp.timed)*std::sqrt(stp.time-stp.timed)/std::sqrt(stp.nu_htot);
+
+      const double candidate_dt = local_estimator_time_tolerance/std::sqrt(stp.nu_htot)*(stp.time-stp.timed);
+      stp.set_dt( (stp.nu_htot>0 && candidate_dt<stp.dt) ? candidate_dt : stp.dt );
+      //stp.set_dt( (stp.nu_htot>0 && candidate_dt<stp.dt) ? std::max(candidate_dt, stp.dt/2.) : stp.dt ); // we set a minimum dt (std::max(,)), stp.dt/2.
+    }
+
+    
+
+    if (stp.dt == 0 && rank == 0)
+    {
+      std::cout << "dt has gone to zero, sorry, STOP!" << std::endl;
+      exit( -1. );
+    }
+
+    // check save with given frequency
+    //std::cout << (savecount) << " " << stp.dt << " " << (savecount+stp.dt)/SAVEDT << " " << (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) << std::endl;
+    // stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1))-SAVEDT : stp.dt);
+    //stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) : stp.dt);
+    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? SAVEDT-savecount : stp.dt);
+    //stp.set_dt((time+stp.dt)>T ? T-(time+stp.dt) : stp.dt);
+
+
+
+    time_oldd = time_old;
+    time_old = time;
+    time += stp.dt; 
+    savecount += stp.dt;
+    space_adapt_count += stp.dt;
+
+    // credo questi qui non servano
+    // MPI_Bcast (static_cast<void*> (&time),              1, MPI_DOUBLE, 0, tmsh.comm);
+    // MPI_Bcast (static_cast<void*> (&savecount),         1, MPI_DOUBLE, 0, tmsh.comm);
+    // MPI_Bcast (static_cast<void*> (&space_adapt_count), 1, MPI_DOUBLE, 0, tmsh.comm);
+    // MPI_Barrier (tmsh.comm); // tmsh.comm = MPI_COMM_WORLD
+    
+    // Print current time
+    if(rank==0) 
+    {
+      std::cout << "TIME = " << time << ", dt = " << stp.dt << std::endl;
+      full_time_vector.push_back (time);
+    }
     
     // first step!
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -1015,86 +1100,6 @@ main (int argc, char **argv)
     sol_dyn.assemble (replace_op);
     //TOC("Apply increment");
 
-
-
-    // compute time step, 
-    stp.Fr = 0.;
-    stp.set_dt (DELTAT);
-    if (is_max_time_step_from_CFL)
-    {
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-       quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-      {
-        stp.compute_dt(quadrant);
-      }
-    }
-    max_dt = REDCDT * stp.dt;
-
-    stp.g_coeff = 1./(1.-stp.Fr*stp.Fr);
-
-    stp.set_dt(max_dt); // deltat max
-    MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
- 
-    // Print current time
-    if(rank==0)
-    {
-      std::cout << "MAXIMUM TIME STEP = " << stp.dt << std::endl;
-    }   
-
-    // time adaptivity
-    if (is_time_adaptivity)
-    { 
-    
-      stp.nu_htot = 0.;
-      for (auto quadrant = tmsh.begin_quadrant_sweep ();
-        quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-      {
-        stp.compute_dt_adaptive(quadrant);
-      }
-      MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.nu_htot), 1, MPI_DOUBLE, MPI_SUM, tmsh.comm);
-
-      const double local_estimator_time_tolerance = 1e-5;//5e-3*(stp.time-stp.timed)*std::sqrt(stp.time-stp.timed)/std::sqrt(stp.nu_htot);
-
-      const double candidate_dt = local_estimator_time_tolerance/std::sqrt(stp.nu_htot)*(stp.time-stp.timed);
-      stp.set_dt( (stp.nu_htot>0 && candidate_dt<stp.dt) ? candidate_dt : stp.dt );
-      //stp.set_dt( (stp.nu_htot>0 && candidate_dt<stp.dt) ? std::max(candidate_dt, stp.dt/2.) : stp.dt ); // we set a minimum dt (std::max(,)), stp.dt/2.
-    }
-
-    
-
-    if (stp.dt == 0 && rank == 0)
-    {
-      std::cout << "dt has gone to zero, sorry, STOP!" << std::endl;
-      exit( -1. );
-    }
-
-    // check save with given frequency
-    //std::cout << (savecount) << " " << stp.dt << " " << (savecount+stp.dt)/SAVEDT << " " << (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) << std::endl;
-    // stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1))-SAVEDT : stp.dt);
-    //stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? (stp.dt - std::fmod(savecount+stp.dt,SAVEDT) - SAVEDT*(std::floor(savecount+stp.dt/SAVEDT)-1)) : stp.dt);
-    stp.set_dt((savecount+stp.dt)/SAVEDT>1 ? SAVEDT-savecount : stp.dt);
-    //stp.set_dt((time+stp.dt)>T ? T-(time+stp.dt) : stp.dt);
-
-
-
-    time_oldd = time_old;
-    time_old = time;
-    time += stp.dt; 
-    savecount += stp.dt;
-    space_adapt_count += stp.dt;
-
-    // credo questi qui non servano
-    // MPI_Bcast (static_cast<void*> (&time),              1, MPI_DOUBLE, 0, tmsh.comm);
-    // MPI_Bcast (static_cast<void*> (&savecount),         1, MPI_DOUBLE, 0, tmsh.comm);
-    // MPI_Bcast (static_cast<void*> (&space_adapt_count), 1, MPI_DOUBLE, 0, tmsh.comm);
-    // MPI_Barrier (tmsh.comm); // tmsh.comm = MPI_COMM_WORLD
-    
-    // Print current time
-    if(rank==0) 
-    {
-      std::cout << "TIME = " << time << ", dt = " << stp.dt << std::endl;
-      full_time_vector.push_back (time);
-    }
 
 
     // Save solution
