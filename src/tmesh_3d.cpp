@@ -824,7 +824,7 @@ tmesh_3d::set_metrics_marker
   for (auto quadrant = this->begin_quadrant_sweep ();
        quadrant != this->end_quadrant_sweep (); ++quadrant)
     {
-      set_interpolation_matrix (quadrant);
+      // set_interpolation_matrix (quadrant);
 
       hxhat_hx = static_cast<int> (std::round(std::log2 (estimator (quadrant)
 							 * std::sqrt (this->num_global_quadrants ()) / tol)));
@@ -1155,21 +1155,21 @@ tmesh_3d::user_data_replace (std::vector<tmesh_3d::data_t *> old_user_data,
 	    old_user_data[0]->refine_count - 1;
 
 	  // Determine interpolation indices.
-	  new_user_data[i].interp_idx =
-	    old_user_data[0]->interp_idx;
+	  // new_user_data[i].interp_idx =
+	  //   old_user_data[0]->interp_idx;
 
-	  // Compute local interpolation matrix and
-	  // multiply by parent interpolation matrix.
-	  new_user_data[i].interp_coeff = {0};
+	  // // Compute local interpolation matrix and
+	  // // multiply by parent interpolation matrix.
+	  // new_user_data[i].interp_coeff = {0};
 
-	  const int eight = 8;
-	  const double one = 1.0;
-	  const double zero = .0;
-	  dgemm ("N", "N", &eight, &eight, &eight, &one,
-		 &(loc_interp[i][0][0]),
-		 &eight, &(old_user_data[0]->interp_coeff[0][0]),
-		 &eight, &zero, &(new_user_data[i].interp_coeff[0][0]),
-		 &eight);
+	  // const int eight = 8;
+	  // const double one = 1.0;
+	  // const double zero = .0;
+	  // dgemm ("N", "N", &eight, &eight, &eight, &one,
+	  // 	 &(loc_interp[i][0][0]),
+	  // 	 &eight, &(old_user_data[0]->interp_coeff[0][0]),
+	  // 	 &eight, &zero, &(new_user_data[i].interp_coeff[0][0]),
+	  // 	 &eight);
 
 	  // Alternatively use the following if
 	  // lapack does not work
@@ -1198,21 +1198,21 @@ tmesh_3d::user_data_replace (std::vector<tmesh_3d::data_t *> old_user_data,
 			    old_user_data.end (), comp))->refine_count + 1;
 
       // Replace interpolation matrix.
-      new_user_data[0].interp_coeff = {0};
+      // new_user_data[0].interp_coeff = {0};
 
-      for (row = 0; row < 8; ++row)
-	// If coarsening, then (due to balancing)
-	// the parent indices have a "1" entry.
-	for (col = 0; col < 8; ++col)
-	  if (old_user_data[row]->interp_coeff[row][col] == 1)
-	    {
-	      new_user_data[0].interp_idx[row] =
-		old_user_data[row]->interp_idx[col];
+      // for (row = 0; row < 8; ++row)
+      // 	// If coarsening, then (due to balancing)
+      // 	// the parent indices have a "1" entry.
+      // 	for (col = 0; col < 8; ++col)
+      // 	  if (old_user_data[row]->interp_coeff[row][col] == 1)
+      // 	    {
+      // 	      new_user_data[0].interp_idx[row] =
+      // 		old_user_data[row]->interp_idx[col];
 
-	      // Insert diagonal entry.
-	      new_user_data[0].interp_coeff[row][row] = 1;
-	      break;
-	    }
+      // 	      // Insert diagonal entry.
+      // 	      new_user_data[0].interp_coeff[row][row] = 1;
+      // 	      break;
+      // 	    }
 
     }
 
@@ -1270,46 +1270,46 @@ tmesh_3d::replace_callback (p8est_t * p8,
   return;
 };
 
-void
-tmesh_3d::set_interpolation_matrix (tmesh_3d::quadrant_iterator & q)
-{
-  // Create interpolation map.
-  std::map<idx_t,
-	   std::vector<std::pair<int, double>>> interp_map;
+// void
+// tmesh_3d::set_interpolation_matrix (tmesh_3d::quadrant_iterator & q)
+// {
+//   // Create interpolation map.
+//   std::map<idx_t,
+// 	   std::vector<std::pair<int, double>>> interp_map;
 
-  for (int node = 0; node < 8; ++node)
-    {
-      if (! q->is_hanging (node))
-	interp_map[q->gt (node)].push_back
-	  (std::make_pair(node, 1));
-      else
-	{
-	  int np = q->num_parents(node);
-	  for (int pp = 0; pp < np; ++pp)
-	    interp_map[q->gparent (pp, node)].push_back
-	      (std::make_pair(node, 1/np));
-	}
-    }
+//   for (int node = 0; node < 8; ++node)
+//     {
+//       if (! q->is_hanging (node))
+// 	interp_map[q->gt (node)].push_back
+// 	  (std::make_pair(node, 1));
+//       else
+// 	{
+// 	  int np = q->num_parents(node);
+// 	  for (int pp = 0; pp < np; ++pp)
+// 	    interp_map[q->gparent (pp, node)].push_back
+// 	      (std::make_pair(node, 1/np));
+// 	}
+//     }
 
-  // Copy interp_map into user_data.
-  tmesh_3d::data_t * data =
-    static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
+//   // Copy interp_map into user_data.
+//   tmesh_3d::data_t * data =
+//     static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
 
-  data->interp_idx = {0};
-  data->interp_coeff = {0};
+//   data->interp_idx = {0};
+//   data->interp_coeff = {0};
 
-  int col = 0;
-  for (auto map_el = interp_map.begin ();
-       map_el != interp_map.end ();
-       ++col, ++map_el)
-    {
-      data->interp_idx[col] =
-	map_el->first;
+//   int col = 0;
+//   for (auto map_el = interp_map.begin ();
+//        map_el != interp_map.end ();
+//        ++col, ++map_el)
+//     {
+//       data->interp_idx[col] =
+// 	map_el->first;
 
-      for (auto vec_entry : map_el->second)
-	data->interp_coeff[vec_entry.first][col] = vec_entry.second;
-    }
-};
+//       for (auto vec_entry : map_el->second)
+// 	data->interp_coeff[vec_entry.first][col] = vec_entry.second;
+//     }
+// };
 
 
 // void

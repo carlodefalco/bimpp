@@ -1,5 +1,6 @@
 #include <mosfet_connectivity_2d.h>
 #include <octave_file_io.h>
+#include <cassert>
 
 int
 write_example_connectivity (const char* filename)

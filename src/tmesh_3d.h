@@ -301,10 +301,10 @@ public:
 
     /// Interpolation indices, i.e. the indices
     /// associated to interp_coeff columns.
-    std::array<tmesh_3d::idx_t, 8> interp_idx;
+    // std::array<tmesh_3d::idx_t, 8> interp_idx;
 
     /// Interpolation coefficients at the eight vertices.
-    std::array<std::array<double, 8>, 8> interp_coeff;
+    //  std::array<std::array<double, 8>, 8> interp_coeff;
   };
 
   /// Default constructor, set all pointers to nullptr.
@@ -400,7 +400,7 @@ public:
 	 q != this->end_quadrant_sweep ();
 	 ++q)
       {
-	set_interpolation_matrix (q);
+	// set_interpolation_matrix (q);
 
 	val = fun (q);
 	if (val)
@@ -423,7 +423,7 @@ public:
 	 q != this->end_quadrant_sweep ();
 	 ++q)
       {
-	set_interpolation_matrix (q);
+	// set_interpolation_matrix (q);
 
 	val = fun (q);
 	if (val)
@@ -553,8 +553,8 @@ private:
 		    int, p8est_quadrant_t* [],
 		    int, p8est_quadrant_t* []);
 
-  void
-  set_interpolation_matrix (tmesh_3d::quadrant_iterator &);
+  // void
+  // set_interpolation_matrix (tmesh_3d::quadrant_iterator &);
 
   int metrics_max_depth;
 };

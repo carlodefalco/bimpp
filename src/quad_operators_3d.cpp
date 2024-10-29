@@ -1020,101 +1020,101 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
 }
 
 // Specialization.
-template <>
-void
-interpolate_vector (tmesh_3d & mesh,
-                    std::vector<double> & vec_in,
-                    std::vector<double> & vec_out,
-                    const ordering & ord)
-{
-  tmesh_3d::data_t * data;
+// template <>
+// void
+// interpolate_vector (tmesh_3d & mesh,
+//                     std::vector<double> & vec_in,
+//                     std::vector<double> & vec_out,
+//                     const ordering & ord)
+// {
+//   tmesh_3d::data_t * data;
 
-  size_t start = mesh.lnodes->global_offset;
-  size_t end = start + mesh.num_owned_nodes ();
+//   size_t start = mesh.lnodes->global_offset;
+//   size_t end = start + mesh.num_owned_nodes ();
 
-  for (auto quadrant = mesh.begin_quadrant_sweep ();
-       quadrant != mesh.end_quadrant_sweep ();
-       ++quadrant)
-    {
-      data = static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
+//   for (auto quadrant = mesh.begin_quadrant_sweep ();
+//        quadrant != mesh.end_quadrant_sweep ();
+//        ++quadrant)
+//     {
+//       data = static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
 
-      for (int node = 0; node < 8; ++node)
-        {
-          // If current node is owned.
-          if (! quadrant->is_hanging (node) &&
-              vec_out[ord (quadrant->gt (node))] == 0 &&
-              quadrant->gt (node) >= start && quadrant->gt (node) < end)
-            {
-              // Multiply by interpolation matrix.
-              for (int i = 0; i < 8; ++i)
-                vec_out[ord (quadrant->gt (node))] +=
-                  data->interp_coeff[node][i] *
-                  vec_in[ord (data->interp_idx[i])];
-            }
-        }
-    }
-}
+//       for (int node = 0; node < 8; ++node)
+//         {
+//           // If current node is owned.
+//           if (! quadrant->is_hanging (node) &&
+//               vec_out[ord (quadrant->gt (node))] == 0 &&
+//               quadrant->gt (node) >= start && quadrant->gt (node) < end)
+//             {
+//               // Multiply by interpolation matrix.
+//               for (int i = 0; i < 8; ++i)
+//                 vec_out[ord (quadrant->gt (node))] +=
+//                   data->interp_coeff[node][i] *
+//                   vec_in[ord (data->interp_idx[i])];
+//             }
+//         }
+//     }
+// }
 
 // Specialization.
-template <>
-void
-interpolate_vector (tmesh_3d & mesh,
-                    distributed_vector & vec_in,
-                    distributed_vector & vec_out,
-                    const ordering & ord)
-{
-  tmesh_3d::data_t * data;
+// template <>
+// void
+// interpolate_vector (tmesh_3d & mesh,
+//                     distributed_vector & vec_in,
+//                     distributed_vector & vec_out,
+//                     const ordering & ord)
+// {
+//   tmesh_3d::data_t * data;
 
-  // Assemble indices related to interpolation matrices.
-  vec_in.clear_non_local ();
+//   // Assemble indices related to interpolation matrices.
+//   vec_in.clear_non_local ();
 
-  for (auto quadrant = mesh.begin_quadrant_sweep ();
-       quadrant != mesh.end_quadrant_sweep ();
-       ++quadrant)
-    {
-      data = static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
+//   for (auto quadrant = mesh.begin_quadrant_sweep ();
+//        quadrant != mesh.end_quadrant_sweep ();
+//        ++quadrant)
+//     {
+//       data = static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
 
-      for (int node = 0; node < 8; ++node)
-        {
-          if (! quadrant->is_hanging (node))
-            {
-              // Multiply by interpolation matrix.
-              for (int i = 0; i < 8; ++i)
-                vec_in[ord (data->interp_idx[i])] += 0;
-            }
-        }
-    }
+//       for (int node = 0; node < 8; ++node)
+//         {
+//           if (! quadrant->is_hanging (node))
+//             {
+//               // Multiply by interpolation matrix.
+//               for (int i = 0; i < 8; ++i)
+//                 vec_in[ord (data->interp_idx[i])] += 0;
+//             }
+//         }
+//     }
 
-  vec_in.assemble (replace_op);
+//   vec_in.assemble (replace_op);
 
-  for (auto quadrant = mesh.begin_quadrant_sweep ();
-       quadrant != mesh.end_quadrant_sweep ();
-       ++quadrant)
-    {
-      data = static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
+//   for (auto quadrant = mesh.begin_quadrant_sweep ();
+//        quadrant != mesh.end_quadrant_sweep ();
+//        ++quadrant)
+//     {
+//       data = static_cast<tmesh_3d::data_t *> (quadrant->the_quadrant->p.user_data);
 
-      for (int node = 0; node < 8; ++node)
-        {
-          if (! quadrant->is_hanging (node))
-            {
-              if (vec_out[ord (quadrant->gt (node))] == 0)
-                {
-                  // Multiply by interpolation matrix.
-                  for (int i = 0; i < 8; ++i)
-                    vec_out[ord (quadrant->gt (node))] +=
-                      data->interp_coeff[node][i] *
-                      vec_in[ord (data->interp_idx[i])];
-                }
-            }
-          // Assemble parents.
-          else
-            {
-              for (int pp = 0; pp < quadrant->num_parents(node); ++pp)
-                vec_out[ord (quadrant->gparent (pp, node))] += 0;
-            }
-        }
-    }
-}
+//       for (int node = 0; node < 8; ++node)
+//         {
+//           if (! quadrant->is_hanging (node))
+//             {
+//               if (vec_out[ord (quadrant->gt (node))] == 0)
+//                 {
+//                   // Multiply by interpolation matrix.
+//                   for (int i = 0; i < 8; ++i)
+//                     vec_out[ord (quadrant->gt (node))] +=
+//                       data->interp_coeff[node][i] *
+//                       vec_in[ord (data->interp_idx[i])];
+//                 }
+//             }
+//           // Assemble parents.
+//           else
+//             {
+//               for (int pp = 0; pp < quadrant->num_parents(node); ++pp)
+//                 vec_out[ord (quadrant->gparent (pp, node))] += 0;
+//             }
+//         }
+//     }
+// }
 
 /// Edge ordering:
 ///

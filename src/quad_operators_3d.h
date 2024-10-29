@@ -181,12 +181,12 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                     const ordering& ordc,
                     const bool& only_rhs = false);
 
-template <class T>
-void
-interpolate_vector (tmesh_3d & mesh,
-                    T & vec_in,
-                    T & vec_out,
-                    const ordering & ord = default_ord);
+// template <class T>
+// void
+// interpolate_vector (tmesh_3d & mesh,
+//                     T & vec_in,
+//                     T & vec_out,
+//                     const ordering & ord = default_ord);
 
 
 
