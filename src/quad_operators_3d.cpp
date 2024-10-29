@@ -10,8 +10,6 @@
 static
 std::array<std::array<double, 8>, 8> Aloc;
 
-static
-std::array<double, 8> alpha_loc;
 
 
 
@@ -149,121 +147,10 @@ bim3a_laplacian (tmesh_3d& mesh,
     }
 }
 
-double sha( double alfa1, double alfa2)
-{
-  return 2.0/(1.0/alfa1 + 1.0/alfa2);
-}
-
-double saa( double alfa1, double alfa2)
-{
-  return 0.5*(alfa1+alfa2);
-}
-
-void
-bim3a_laplacian_loc_eafe
-(tmesh_3d::quadrant_iterator& quadrant,
- const std::array<double,8>& alpha,
- std::array<std::array<double,8>,8>& locmat)
-{
-  double
-    hx = quadrant->p(0, 7) - quadrant->p(0, 0),
-    hy = quadrant->p(1, 7) - quadrant->p(1, 0),
-    hz = quadrant->p(2, 7) - quadrant->p(2, 0);
-  double edge01, edge02, edge04, edge13, edge15, edge23,
-         edge26, edge37, edge45, edge46, edge57, edge67;
-
-  // edge01 = saa(alpha[0],alpha[1]) * 0.25 * hz * hy / hx;
-  // edge02 = saa(alpha[0],alpha[2]) * 0.25 * hz * hx / hy;
-  // edge04 = saa(alpha[0],alpha[4]) * 0.25 * hy * hx / hz;
-
-  // edge13 = saa(alpha[1],alpha[3]) * 0.25 * hz * hx / hy;
-  // edge15 = saa(alpha[1],alpha[5]) * 0.25 * hy * hx / hz;
-
-  // edge23 = saa(alpha[2],alpha[3]) * 0.25 * hz * hy / hx;
-  // edge26 = saa(alpha[2],alpha[6]) * 0.25 * hy * hx / hz;
-  
-  // edge37 = saa(alpha[3],alpha[7]) * 0.25 * hy * hx / hz;
-  
-  // edge45 = saa(alpha[4],alpha[5]) * 0.25 * hz * hy / hx;
-  // edge46 = saa(alpha[4],alpha[6]) * 0.25 * hz * hx / hy;
-
-  // edge57 = saa(alpha[5],alpha[7]) * 0.25 * hz * hx / hy;
-
-  // edge67 = saa(alpha[6],alpha[7]) * 0.25 * hz * hy / hx;
-
-  edge01 = sha(alpha[0],alpha[1]) * 0.25 * hz * hy / hx;
-  edge02 = sha(alpha[0],alpha[2]) * 0.25 * hz * hx / hy;
-  edge04 = sha(alpha[0],alpha[4]) * 0.25 * hy * hx / hz;
-
-  edge13 = sha(alpha[1],alpha[3]) * 0.25 * hz * hx / hy;
-  edge15 = sha(alpha[1],alpha[5]) * 0.25 * hy * hx / hz;
-
-  edge23 = sha(alpha[2],alpha[3]) * 0.25 * hz * hy / hx;
-  edge26 = sha(alpha[2],alpha[6]) * 0.25 * hy * hx / hz;
-
-  edge37 = sha(alpha[3],alpha[7]) * 0.25 * hy * hx / hz;
-  
-  edge45 = sha(alpha[4],alpha[5]) * 0.25 * hz * hy / hx;
-  edge46 = sha(alpha[4],alpha[6]) * 0.25 * hz * hx / hy;
-
-  edge57 = sha(alpha[5],alpha[7]) * 0.25 * hz * hx / hy;
-
-  edge67 = sha(alpha[6],alpha[7]) * 0.25 * hz * hy / hx;
-
-
-
-  double diag0, diag1, diag2, diag3,
-         diag4, diag5, diag6, diag7;
-
-  diag0 = edge01 + edge02 + edge04; 
-  diag1 = edge01 + edge13 + edge15; 
-  diag2 = edge02 + edge23 + edge26; 
-  diag3 = edge23 + edge13 + edge37; 
-  diag4 = edge04 + edge45 + edge46; 
-  diag5 = edge15 + edge45 + edge57; 
-  diag6 = edge26 + edge46 + edge67; 
-  diag7 = edge57 + edge37 + edge67; 
-
-  locmat[0] = {  diag0, -edge01, -edge02,    0   , -edge04,    0   ,    0   ,    0   };
-  locmat[1] = {-edge01,   diag1,    0   , -edge13,    0   , -edge15,    0   ,    0   };
-  locmat[2] = {-edge02,    0   ,   diag2, -edge23,    0   ,    0   , -edge26,    0   };
-  locmat[3] = {   0   , -edge13, -edge23,   diag3,    0   ,    0   ,    0   , -edge37};
-  locmat[4] = {-edge04,    0   ,    0   ,    0   ,   diag4, -edge45, -edge46,    0   };
-  locmat[5] = {   0   , -edge15,    0   ,    0   , -edge45,   diag5,    0   , -edge57};
-  locmat[6] = {   0   ,    0   , -edge26,    0   , -edge46,    0   ,   diag6, -edge67};
-  locmat[7] = {   0   ,    0   ,    0   , -edge37,    0   , -edge57, -edge67,   diag7};
-
-}
-
-
-void
-bim3a_laplacian_eafe (tmesh_3d & mesh,
-                      distributed_vector& alpha,
-                      sparse_matrix& A,
-                      const ordering& ordr,
-                      const ordering& ordc)
-{
-  for (auto row : Aloc)
-    row.fill (0.0);
-
-  // std::array<double, 8> alpha_loc;
-
-  for (auto quadrant = mesh.begin_quadrant_sweep ();
-       quadrant != mesh.end_quadrant_sweep ();
-       ++quadrant)
-    {
-      for (int ii = 0; ii < 8; ++ii)
-      {
-        alpha_loc[ii] = alpha[quadrant->gt (ii)];
-      }
-      bim3a_laplacian_loc_eafe (quadrant, alpha_loc, Aloc);
-      assemble (quadrant, Aloc, A, ordr, ordc);
-    }
-}
 
 
 static inline double
-wha (const double& a, const double& b, const double& frac)
+wha (double a, double b, double frac)
 { return 1.0/(frac/a + (1-frac)/b); }
 
 void
@@ -325,6 +212,34 @@ bim3a_laplacian_loc_frac
 }
 
 
+void
+bim3a_laplacian_eafe (tmesh_3d & mesh,
+                      distributed_vector& alpha,
+                      sparse_matrix& A,
+                      const ordering& ordr,
+                      const ordering& ordc)
+{
+  for (auto row : Aloc)
+    row.fill (0.0);
+
+  std::array<double, 8> alpha_loc;
+  std::array<double,12> fraction {0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5};
+  for (auto quadrant = mesh.begin_quadrant_sweep ();
+       quadrant != mesh.end_quadrant_sweep ();
+       ++quadrant)
+    {
+      for (int ii = 0; ii < 8; ++ii)
+      {
+        alpha_loc[ii] = alpha[quadrant->gt (ii)];
+      }
+      bim3a_laplacian_loc_frac (quadrant, alpha_loc, fraction, Aloc);
+      assemble (quadrant, Aloc, A, ordr, ordc);
+    }
+}
+
+
+
+
 
 void
 bim3a_laplacian_frac (tmesh_3d & mesh,
@@ -336,7 +251,9 @@ bim3a_laplacian_frac (tmesh_3d & mesh,
 {
   for (auto row : Aloc)
     row.fill (0.0);
-
+  
+  std::array<double, 8> alpha_loc;
+  
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
@@ -344,10 +261,6 @@ bim3a_laplacian_frac (tmesh_3d & mesh,
       
       std::array<double,12> fraction;
       fraction = fract(quadrant);
-      // for (int j = 0; j < 12; ++j)
-      // {
-      //   fraction[j] = std::abs(fraction[j]);
-      // }
       
       for (int ii = 0; ii < 8; ++ii)
       {
@@ -519,30 +432,7 @@ bim3a_reaction (tmesh_3d& mesh,
                 (delta[iel] * z_loc * hx * hy * hz / 8) / rows.size ();
         }
     }
-}
-
-static constexpr
-std::array<std::array<int, 3>, 12> edges = {0,1,0, 1,3,1, 2,3,0, 0,2,1,
-                                            4,5,0, 5,7,1, 6,7,0, 4,6,1,
-                                            0,4,2, 1,5,2, 3,7,2, 2,6,2};
-static constexpr
-std::array<std::array<int, 3>, 8> nodes2edges = {0,3,8, 
-                                                 0,1,9, 
-                                                 2,3,11, 
-                                                 2,1,10,
-                                                 4,7,8,
-                                                 4,5,9, 
-                                                 6,7,11, 
-                                                 6,5,10};
-static constexpr
-std::array<std::array<int, 3>, 8> nodes2edges_dir = { 1, 1, 1, 
-                                                     -1, 1, 1, 
-                                                      1,-1, 1,
-                                                     -1,-1, 1,
-                                                      1, 1,-1,
-                                                     -1, 1,-1, 
-                                                      1,-1,-1,
-                                                     -1,-1,-1};                                                
+}                                             
 
 void
 bim3a_reaction_frac (tmesh_3d& mesh,
@@ -575,16 +465,30 @@ bim3a_reaction_frac (tmesh_3d& mesh,
   std::array<double,12> frac;
   std::array<double,3> h;
   double hx, hy, hz;
+  
 
+  std::array<int, 24> nodes2edges = {0,3,8, 
+                                     0,1,9, 
+                                     2,3,11, 
+                                     2,1,10,
+                                     4,7,8,
+                                     4,5,9, 
+                                     6,7,11, 
+                                     6,5,10};
+
+  std::array<int, 24> nodes2edges_dir = { 1, 1, 1, 
+                                         -1, 1, 1, 
+                                          1,-1, 1,
+                                         -1,-1, 1,
+                                          1, 1,-1,
+                                         -1, 1,-1, 
+                                          1,-1,-1,
+                                         -1,-1,-1};  
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
     {
       frac = fract(quadrant);
-      // for (int j = 0; j < 12; ++j)
-      // {
-      //   frac[j] = std::abs(frac[j]);
-      // }
 
       h[0] = quadrant->p(0, 7) - quadrant->p(0, 0);
       h[1] = quadrant->p(1, 7) - quadrant->p(1, 0);
@@ -594,9 +498,9 @@ bim3a_reaction_frac (tmesh_3d& mesh,
       {
         rows.clear();
         z_loc = 0;
-        hx = h[0]*(1.0 +nodes2edges_dir[i][0]*(frac[nodes2edges[i][0]] - 0.5));
-        hy = h[1]*(1.0 +nodes2edges_dir[i][1]*(frac[nodes2edges[i][1]] - 0.5));
-        hz = h[2]*(1.0 +nodes2edges_dir[i][2]*(frac[nodes2edges[i][2]] - 0.5));
+        hx = h[0]*(1.0 +nodes2edges_dir[3*i  ]*(frac[nodes2edges[3*i  ]] - 0.5));
+        hy = h[1]*(1.0 +nodes2edges_dir[3*i+1]*(frac[nodes2edges[3*i+1]] - 0.5));
+        hz = h[2]*(1.0 +nodes2edges_dir[3*i+2]*(frac[nodes2edges[3*i+2]] - 0.5));
         if (!quadrant->is_hanging (i))
           {
             rows.push_back (quadrant->gt (i));
@@ -686,16 +590,30 @@ bim3a_rhs_frac (tmesh_3d& mesh,
 
   std::array<double,12> frac;
   std::array<double,3> h;
+  
+  std::array<int, 24> nodes2edges = {0,3,8, 
+                                     0,1,9, 
+                                     2,3,11, 
+                                     2,1,10,
+                                     4,7,8,
+                                     4,5,9, 
+                                     6,7,11, 
+                                     6,5,10};
+
+  std::array<int, 24> nodes2edges_dir = { 1, 1, 1, 
+                                         -1, 1, 1, 
+                                          1,-1, 1,
+                                         -1,-1, 1,
+                                          1, 1,-1,
+                                         -1, 1,-1, 
+                                          1,-1,-1,
+                                         -1,-1,-1};
 
   for (auto quadrant = mesh.begin_quadrant_sweep ();
        quadrant != mesh.end_quadrant_sweep ();
        ++quadrant)
     {
       frac = fract(quadrant);
-      // for (int j = 0; j < 12; ++j)
-      // {
-      //   frac[j] = std::abs(frac[j]);
-      // }
 
       h[0] = quadrant->p(0, 7) - quadrant->p(0, 0);
       h[1] = quadrant->p(1, 7) - quadrant->p(1, 0);
@@ -705,9 +623,9 @@ bim3a_rhs_frac (tmesh_3d& mesh,
         {
           rows.clear ();
           g_loc = 0;
-          hx = h[0]*(1.0 +nodes2edges_dir[i][0]*(frac[nodes2edges[i][0]] - 0.5));
-          hy = h[1]*(1.0 +nodes2edges_dir[i][1]*(frac[nodes2edges[i][1]] - 0.5));
-          hz = h[2]*(1.0 +nodes2edges_dir[i][2]*(frac[nodes2edges[i][2]] - 0.5));
+          hx = h[0]*(1.0 +nodes2edges_dir[3*i  ]*(frac[nodes2edges[3*i  ]] - 0.5));
+          hy = h[1]*(1.0 +nodes2edges_dir[3*i+1]*(frac[nodes2edges[3*i+1]] - 0.5));
+          hz = h[2]*(1.0 +nodes2edges_dir[3*i+2]*(frac[nodes2edges[3*i+2]] - 0.5));
           if (! quadrant->is_hanging (i))
             {
               rows.push_back (quadrant->gt (i));
@@ -880,9 +798,9 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
 
                     // Evaluate bc at current node
                     value = (std::get<2> (bcs[bc]))
-                    		      (quadrant->p (0, i),
-                    		       quadrant->p (1, i),
-                    		       quadrant->p (2, i));
+                              (quadrant->p (0, i),
+                               quadrant->p (1, i),
+                               quadrant->p (2, i));
 
                     bim3a_dirichlet_bc_loc (A, rhs, row, value, only_rhs);
                   }

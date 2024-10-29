@@ -234,7 +234,7 @@ tmesh_3d::quadrant_t::update (p4est_topidx_t tree,
 	      tbuff[i] = ln->element_nodes[8 * forest_quad_idx + i];
 	      hbuff[i] = 0;
 	      for (j = 0; j < 4; ++j)
-		pbuff[4 * i + j] = -1;
+        pbuff[4 * i + j] = -1;
 	    }
 
 	  bool any_hanging =
@@ -295,9 +295,9 @@ tmesh_3d::quadrant_t::gparent (tmesh_3d::idx_t ip, tmesh_3d::idx_t in)
       assert (pbuff[4 * in + ip] >= 0);
 
       return p8est_lnodes_global_index
-                (the_tmesh->lnodes,
-                 static_cast<p4est_locidx_t>
-                 (tbuff[pbuff[4 * in + ip]]));
+        (the_tmesh->lnodes,
+         static_cast<p4est_locidx_t>
+         (tbuff[pbuff[4 * in + ip]]));
     }
   else
     return pbuff[4 * in + ip];
