@@ -132,6 +132,43 @@ tmesh_3d::quadrant_iterator::operator++ ()
 
 };
 
+
+void
+tmesh_3d::quadrant_iterator::operator[] (int ii)
+{
+
+  p8est_t *p8 = data->the_tmesh->p8est;
+
+  // data->forest_quad_idx=0;
+  // data->tree_quad_idx=ii;
+
+  data->forest_quad_idx=ii;
+  data->tree_quad_idx=ii;
+
+  if (data->tree_quad_idx >= data->num_quadrants) {
+    data->tree_idx++;
+
+    if ((data->tree_idx) > (p8->last_local_tree)) {
+      this->data = nullptr;
+      return;
+    }
+
+    data->tree_quad_idx = 0;
+
+    data->tree = p8est_tree_array_index (p8->trees, data->tree_idx);
+    data->tquadrants = & (data->tree)->quadrants;
+
+    data->num_quadrants =
+      (p4est_locidx_t) data->tquadrants->elem_count;
+  }
+
+  auto tmp = p8est_quadrant_array_index (data->tquadrants,
+                                         data->tree_quad_idx);
+  data->update (data->tree_idx, tmp);
+
+};
+
+
 void
 tmesh_3d::neighbor_iterator::operator++ ()
 {

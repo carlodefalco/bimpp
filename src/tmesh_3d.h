@@ -14,6 +14,8 @@
 #include <p8est_lnodes.h>
 #include <p8est_mesh.h>
 #include <p8est_vtk.h>
+#include <p8est_search.h>
+
 
 #include <bim_distributed_vector.h>
 #include <bim_ordering.h>
@@ -46,6 +48,10 @@ public:
     /// Get next quadrant.
     void
     operator++ ();
+
+    /// set quadrant.
+    void
+    operator[] (int ii);
 
     /// Dereference.
     quadrant_t&
