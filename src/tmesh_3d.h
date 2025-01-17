@@ -24,6 +24,8 @@
 #include <array>
 #include <utility>
 #include <vector>
+#include <memory>
+
 
 /// C++ interface class for p4est 3d quadrant meshes.
 class
