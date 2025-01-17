@@ -11,6 +11,8 @@
 #include <functional>
 #include <tuple>
 #include <vector>
+#include <memory>
+
 
 // CDF : FIXME : ORDERINGS ARE PASSED BUT NOT ACTUALLY USED !!!
 
