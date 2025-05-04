@@ -147,22 +147,21 @@ interpolate_vector (tmesh_3d & mesh,
                     T & vec_out,
                     const ordering & ord = default_ord);
 
+double
+quad_integral (const double *x, const double *y, const double *z,
+               std::function<double (double, double, double)> fun);
 
+double
+dudx (double X, double Y, double Z, const double *x,
+      const double *y, const double *z, const double *u);
 
+double
+dudy (double X, double Y, double Z, const double *x,
+      const double *y, const double *z, const double *u);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+double
+dudz (double X, double Y, double Z, const double *x,
+      const double *y, const double *z, const double *u);
 
 template <class T>
 static double
