@@ -5,7 +5,9 @@
 TG2_scheme::TG2_scheme(Q1& sol,
                        Q1& sold,
                        Q1& soldd, 
+                       Q1& sol_2,
                        Q1& incr,
+                       Q1& incr_second,
                        std::vector<std::array<double,4>>& incr_anti_diff,
                        Q1& P_plus,
                        Q1& P_minus,
@@ -27,15 +29,15 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& b_exp_coeff,
                        const double& saturation_coeff,
                        const double& density,
-		       const double& T_env, 
-		       const double& specific_heat_pressure,
-		       const double& convective_coeff,
+		                   const double& T_env, 
+		                   const double& specific_heat_pressure,
+		                   const double& convective_coeff,
                        const double& x_v, 
                        const double& y_v, 
                        const double& Q_vent, 
                        const double& T_vent,
                        const double& sigma_vent)
-: sol(sol), sold(sold), soldd(soldd), incr(incr), incr_anti_diff(incr_anti_diff), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass), 
+: sol(sol), sold(sold), soldd(soldd), sol_2(sol_2), incr(incr), incr_second(incr_second), incr_anti_diff(incr_anti_diff), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass), 
   ordh(oh), ordUx(oUx), ordUy(oUy), ordTh(oTh), Z(Z), Z_onehalf(Z_onehalf), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), grav(grav), nu_ref(nu_ref), T_ref(T_ref),
   density(density), is_isothermal(is_isothermal), b_exp_coeff(b_exp_coeff), T_env(T_env), specific_heat_pressure(specific_heat_pressure), convective_coeff(convective_coeff), saturation_coeff(saturation_coeff), x_v(x_v), y_v(y_v), Q_vent(Q_vent), T_vent(T_vent), sigma_vent(sigma_vent)
 { }
@@ -130,7 +132,6 @@ TG2_scheme::compute_dt_adaptive (tmesh::quadrant_iterator quadrant)
     b_coeff = - (h1*(time+timed) + h2*(time+timedd) + h3*(timed+timedd));
     
     Nu_hmean_cell += (1./3.*a_coeff*a_coeff*(time*time+time*timed+timed*timed) + a_coeff*(b_coeff-dh_t)*(time+timed) + (b_coeff-dh_t)*(b_coeff-dh_t));
-    
   }
   Nu_hmean_cell /= 4.;
   nu_htot += Nu_hmean_cell*(time-timed)*(time-timed); // the dimension is length^2, this is eta^2
@@ -230,11 +231,10 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const auto slope_x_c = ((Z_node[1] - Z_node[0]) + (Z_node[3] - Z_node[2]))/Dx/2.;
   const auto slope_y_c = ((Z_node[2] - Z_node[0]) + (Z_node[3] - Z_node[1]))/Dy/2.;
 
-
   Z_onehalf[index_quadrant_global] = (Z_node[0]+Z_node[1]+Z_node[2]+Z_node[3])*.25;
   
-  sol_onehalf[ordh    (index_quadrant_global)] = h_cell_average  - dt*.5 *  div_Fh_cell /area;
-  sol_onehalf[ordTh   (index_quadrant_global)] = Th_cell_average - dt*.5 *  div_FTh_cell/area;
+  sol_onehalf[ordh    (index_quadrant_global)] = h_cell_average  - dt_expl_21 *  div_Fh_cell /area;
+  sol_onehalf[ordTh   (index_quadrant_global)] = Th_cell_average - dt_expl_21 *  div_FTh_cell/area;
   
   // add the vent contribution,
   const double delta_x_vc = x_c - x_v;
@@ -246,8 +246,8 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const double extr_y_a = (-Dy/2.+delta_y_vc)/std::sqrt(2.*sigma_vent);
   const double extr_y_b = (+Dy/2.+delta_y_vc)/std::sqrt(2.*sigma_vent);
 
-  sol_onehalf[ordh    (index_quadrant_global)] += dt*.5* Q_vent/area*       ( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
-  sol_onehalf[ordTh   (index_quadrant_global)] += dt*.5* Q_vent/area*T_vent*( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
+  sol_onehalf[ordh    (index_quadrant_global)] += dt_expl_21* Q_vent/area*       ( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
+  sol_onehalf[ordTh   (index_quadrant_global)] += dt_expl_21* Q_vent/area*T_vent*( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
 
 
   // add friction term for the momentum and eventual heat exchange for the temperature eqn.
@@ -258,8 +258,8 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
 
   Th_onehalf_updated = Th_onehalf_updated + dt_21*Th_src_formula(h_cell_average, Ux_cell_average, Uy_cell_average, Th_cell_average, T_env);
 
-  Ux_onehalf_updated = Ux_cell_average - dt*.5 * (div_FUx_cell/area - src_slope_formula (h_cell_average, slope_x_c)) + dt_21*Ux_src_formula(h_cell_average, Ux_cell_average, 0., Th_cell_average);
-  Uy_onehalf_updated = Uy_cell_average - dt*.5 * (div_FUy_cell/area - src_slope_formula (h_cell_average, slope_y_c)) + dt_21*Uy_src_formula(h_cell_average, 0., Uy_cell_average, Th_cell_average);
+  Ux_onehalf_updated = Ux_cell_average - dt_expl_21 * (div_FUx_cell/area - src_slope_formula (h_cell_average, slope_x_c)) + dt_21*Ux_src_formula(h_cell_average, Ux_cell_average, 0., Th_cell_average);
+  Uy_onehalf_updated = Uy_cell_average - dt_expl_21 * (div_FUy_cell/area - src_slope_formula (h_cell_average, slope_y_c)) + dt_21*Uy_src_formula(h_cell_average, 0., Uy_cell_average, Th_cell_average);
 
   Ux_onehalf_updated = Ux_onehalf_updated/(1. - dt_22*Ux_src_formula(h_onehalf_updated, 1., 0., Th_onehalf_updated));
   Uy_onehalf_updated = Uy_onehalf_updated/(1. - dt_22*Uy_src_formula(h_onehalf_updated, 0., 1., Th_onehalf_updated));
@@ -828,7 +828,6 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
 
     P_plus_Th_dof [ii] = P_plus_Th_c;
     P_minus_Th_dof[ii] = P_minus_Th_c;
-
   }
   
   
@@ -976,10 +975,16 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     const int ii_1 = ii%2;
     const int ii_2 = ii/2;
 
-    const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  +        Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii]; //incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h  +        Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
-    const auto flux_on_the_node_Ux = incr_anti_diff[ordUx(index_quadrant)][ii]*phi_cell_Ux + dt_32*Ux_src_formula(h_cell, Ux_cell, 0., Th_cell)/dt*area/4*isdof_or_hanging[ii];
-    const auto flux_on_the_node_Uy = incr_anti_diff[ordUy(index_quadrant)][ii]*phi_cell_Uy + dt_32*Uy_src_formula(h_cell, 0., Uy_cell, Th_cell)/dt*area/4*isdof_or_hanging[ii];
-    const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii] + dt_32*Th_src_formula(h_cell, Ux_cell, Uy_cell, Th_cell, T_env)/dt*area/4*isdof_or_hanging[ii]; //incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
+    const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h + Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
+    const auto flux_on_the_node_Ux = incr_anti_diff[ordUx(index_quadrant)][ii]*phi_cell_Ux;
+    const auto flux_on_the_node_Uy = incr_anti_diff[ordUy(index_quadrant)][ii]*phi_cell_Uy;
+    const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
+
+    // define the second increment vector
+    const auto flux_on_the_node_h_second  = 0.; 
+    const auto flux_on_the_node_Ux_second = Ux_src_formula(h_cell, Ux_cell, 0.,      Th_cell       )*area/4*isdof_or_hanging[ii];
+    const auto flux_on_the_node_Uy_second = Uy_src_formula(h_cell, 0.,      Uy_cell, Th_cell       )*area/4*isdof_or_hanging[ii];
+    const auto flux_on_the_node_Th_second = Th_src_formula(h_cell, Ux_cell, Uy_cell, Th_cell, T_env)*area/4*isdof_or_hanging[ii]; 
 
     if (! quadrant->is_hanging (ii)){
 
@@ -987,6 +992,11 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       incr [ordUx (quadrant->gt (ii))] += flux_on_the_node_Ux;
       incr [ordUy (quadrant->gt (ii))] += flux_on_the_node_Uy;
       incr [ordTh (quadrant->gt (ii))] += flux_on_the_node_Th;
+
+      incr_second [ordh  (quadrant->gt (ii))] += flux_on_the_node_h_second;
+      incr_second [ordUx (quadrant->gt (ii))] += flux_on_the_node_Ux_second;
+      incr_second [ordUy (quadrant->gt (ii))] += flux_on_the_node_Uy_second;
+      incr_second [ordTh (quadrant->gt (ii))] += flux_on_the_node_Th_second;
 
     } else {
 
@@ -1002,18 +1012,28 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       incr [ordTh (quadrant->gparent(0,ii))] += flux_on_the_node_Th;
       incr [ordTh (quadrant->gparent(1,ii))] += flux_on_the_node_Th;
 
+      // store now the second increment vector
+      incr_second [ordh  (quadrant->gparent(0,ii))] += flux_on_the_node_h_second; 
+      incr_second [ordh  (quadrant->gparent(1,ii))] += flux_on_the_node_h_second;
+      
+      incr_second [ordUx (quadrant->gparent(0,ii))] += flux_on_the_node_Ux_second;
+      incr_second [ordUx (quadrant->gparent(1,ii))] += flux_on_the_node_Ux_second;
+      
+      incr_second [ordUy (quadrant->gparent(0,ii))] += flux_on_the_node_Uy_second;
+      incr_second [ordUy (quadrant->gparent(1,ii))] += flux_on_the_node_Uy_second;
+
+      incr_second [ordTh (quadrant->gparent(0,ii))] += flux_on_the_node_Th_second;
+      incr_second [ordTh (quadrant->gparent(1,ii))] += flux_on_the_node_Th_second;
+
     }
-
   }
-
-
 }
 
 void
 TG2_scheme::flux_limiter(const double& Q_min, const double& Q_max, const double& Q_dof, const double& P_plus_Q, const double& P_minus_Q, const double& flux_on_the_node, const double& vel_square_rusanov_cell, double& phi_cell_Q)
 {
-  const auto Q_plus  = (Q_max-Q_dof)*dt*vel_square_rusanov_cell;
-  const auto Q_minus = (Q_min-Q_dof)*dt*vel_square_rusanov_cell;
+  const auto Q_plus  = (Q_max-Q_dof)*dt_expl_32*vel_square_rusanov_cell;
+  const auto Q_minus = (Q_min-Q_dof)*dt_expl_32*vel_square_rusanov_cell;
 
   const auto R_plus  = P_plus_Q ==0 ? 1. : std::min(1., Q_plus /P_plus_Q );
   const auto R_minus = P_minus_Q==0 ? 1. : std::min(1., Q_minus/P_minus_Q);
@@ -1030,32 +1050,39 @@ TG2_scheme::solve_non_lin(const int& kk)
   auto & Uy_c = sol.get_owned_data ()[kk+2];
   auto & Th_c = sol.get_owned_data ()[kk+3];
 
+  auto & h2_c  = sol_2.get_owned_data ()[kk  ];
+  auto & Ux2_c = sol_2.get_owned_data ()[kk+1];
+  auto & Uy2_c = sol_2.get_owned_data ()[kk+2];
+  auto & Th2_c = sol_2.get_owned_data ()[kk+3];
+
   const auto & h_c_old  = sold.get_owned_data ()[kk  ];
   const auto & Ux_c_old = sold.get_owned_data ()[kk+1];
   const auto & Uy_c_old = sold.get_owned_data ()[kk+2];
   const auto & Th_c_old = sold.get_owned_data ()[kk+3];
 
+  // save here the nodal contributions coming from the second step,
+  h2_c  = h_c  + dt_expl_32*incr.get_owned_data ()[kk  ]/mass.get_owned_data ()[kk  ] + dt_32*incr_second.get_owned_data ()[kk  ]/mass.get_owned_data ()[kk  ] - h_c_old;
+  Ux2_c = Ux_c + dt_expl_32*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt_32*incr_second.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] - Ux_c_old;
+  Uy2_c = Uy_c + dt_expl_32*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt_32*incr_second.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] - Uy_c_old;
+  Th2_c = Th_c + dt_expl_32*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + dt_32*incr_second.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] - Th_c_old;
 
-  // solve non-linearities like the first step of the TG2 method to get the complete low order solution,
-  h_c += dt*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk];
+
+  // compute here the q3 solution,
+  h_c += dt_expl_32*incr.get_owned_data ()[kk]/mass.get_owned_data ()[kk]; // there is no stiff source term in the mass equation
   h_c *= (h_c>0.);
 
-  Th_c += dt*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + dt_31*Th_src_formula(h_c_old, Ux_c_old, Uy_c_old, Th_c_old, T_env);// + dt*.5*Th_src_formula (h_c_old, Ux_c_old, Uy_c_old, Th_c_old);
+  Th_c += dt_expl_32*incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + dt_32*incr_second.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3] + dt_31*Th_src_formula(h_c_old, Ux_c_old, Uy_c_old, Th_c_old, T_env);
   Th_c *= (Th_c>0.);
 
-  Ux_c += dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt_31*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c);
-  Uy_c += dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt_31*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c);
-  
+  Ux_c += dt_expl_32*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt_32*incr_second.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt_31*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c);
+  Uy_c += dt_expl_32*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt_32*incr_second.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt_31*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c);
+
   Ux_c = h_c>epsilon ? Ux_c/(1.-dt_33*Ux_src_formula(h_c, 1., 0., Th_c)) : 0.;
   Uy_c = h_c>epsilon ? Uy_c/(1.-dt_33*Uy_src_formula(h_c, 0., 1., Th_c)) : 0.;
 
   Th_c = h_c>epsilon ? (Th_c + dt_33*Th_src_formula(h_c, Ux_c, Uy_c, 0., T_env))/(1.-dt_33*Th_src_formula(h_c, Ux_c, Uy_c, 1., 0.)) : 0.;
   Th_c *= (Th_c>0);
 
-  //Ux_c = (Ux_c + dt*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt*.5*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c_old) )/(1.-dt*.5*Ux_src_formula(h_c, 1., 0., Th_c_old));
-  //Uy_c = (Uy_c + dt*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt*.5*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c_old) )/(1.-dt*.5*Uy_src_formula(h_c, 0., 1., Th_c_old));
-
-  //Th_c *= (h_c>epsilon);
 
   if (std::isnan(Th_c) || std::isnan(h_c) || std::isnan(Ux_c) || std::isnan(Uy_c))
   {
@@ -1069,7 +1096,103 @@ TG2_scheme::solve_non_lin(const int& kk)
 
 }
 
+void
+TG2_scheme::compute_updated_sol(tmesh::quadrant_iterator quadrant)
+{
 
+  for (int ii = 0; ii < 4; ++ii) {
+    if (! quadrant->is_hanging (ii)){
+      hdof [ii] = sol [ordh  (quadrant->gt (ii))];
+      Uxdof[ii] = sol [ordUx (quadrant->gt (ii))];
+      Uydof[ii] = sol [ordUy (quadrant->gt (ii))];
+      Thdof[ii] = sol [ordTh (quadrant->gt (ii))];
+
+      isdof_or_hanging[ii] = 1.;
+    } else {
+      hdof[ii]  = .5 * (sol [ordh  (quadrant->gparent(0,ii))] +
+                        sol [ordh  (quadrant->gparent(1,ii))]);
+      Uxdof[ii] = .5 * (sol [ordUx (quadrant->gparent(0,ii))] +
+                        sol [ordUx (quadrant->gparent(1,ii))]);
+      Uydof[ii] = .5 * (sol [ordUy (quadrant->gparent(0,ii))] +
+                        sol [ordUy (quadrant->gparent(1,ii))]);     
+      Thdof[ii] = .5 * (sol [ordTh (quadrant->gparent(0,ii))] +
+                        sol [ordTh (quadrant->gparent(1,ii))]);
+
+      isdof_or_hanging[ii] = .5;
+    }
+  }
+
+  grad_cell_h  = {.5 * ( (hdof   [3] - hdof   [2]) + (hdof   [1] - hdof   [0]) ), .5 * ( (hdof   [2] - hdof   [0]) + (hdof   [3] - hdof   [1]) )};
+  grad_cell_Ux = {.5 * ( (Uxdof  [3] - Uxdof  [2]) + (Uxdof  [1] - Uxdof  [0]) ), .5 * ( (Uxdof  [2] - Uxdof  [0]) + (Uxdof  [3] - Uxdof  [1]) )};
+  grad_cell_Uy = {.5 * ( (Uydof  [3] - Uydof  [2]) + (Uydof  [1] - Uydof  [0]) ), .5 * ( (Uydof  [2] - Uydof  [0]) + (Uydof  [3] - Uydof  [1]) )};
+  grad_cell_Th = {.5 * ( (Thdof  [3] - Thdof  [2]) + (Thdof  [1] - Thdof  [0]) ), .5 * ( (Thdof  [2] - Thdof  [0]) + (Thdof  [3] - Thdof  [1]) )};
+
+
+  for (int ii = 0; ii < 4; ++ii){
+
+    const auto flux_on_the_node_h  = (grad_cell_h [0]+grad_cell_h [1])*area/4*isdof_or_hanging[ii];
+    const auto flux_on_the_node_Ux = (grad_cell_Ux[0]+grad_cell_Ux[1])*area/4*isdof_or_hanging[ii];
+    const auto flux_on_the_node_Uy = (grad_cell_Uy[0]+grad_cell_Uy[1])*area/4*isdof_or_hanging[ii];
+    const auto flux_on_the_node_Th = (grad_cell_Th[0]+grad_cell_Th[1])*area/4*isdof_or_hanging[ii];
+
+    if (! quadrant->is_hanging (ii)){ 
+      incr [ordh  (quadrant->gt (ii))] += flux_on_the_node_h;
+      incr [ordUx (quadrant->gt (ii))] += flux_on_the_node_Ux;
+      incr [ordUy (quadrant->gt (ii))] += flux_on_the_node_Uy;
+      incr [ordTh (quadrant->gt (ii))] += flux_on_the_node_Th;
+    } else {
+      incr [ordh  (quadrant->gparent(0,ii))] += flux_on_the_node_h; 
+      incr [ordh  (quadrant->gparent(1,ii))] += flux_on_the_node_h;
+      
+      incr [ordUx (quadrant->gparent(0,ii))] += flux_on_the_node_Ux;
+      incr [ordUx (quadrant->gparent(1,ii))] += flux_on_the_node_Ux;
+      
+      incr [ordUy (quadrant->gparent(0,ii))] += flux_on_the_node_Uy;
+      incr [ordUy (quadrant->gparent(1,ii))] += flux_on_the_node_Uy;
+
+      incr [ordTh (quadrant->gparent(0,ii))] += flux_on_the_node_Th;
+      incr [ordTh (quadrant->gparent(1,ii))] += flux_on_the_node_Th;
+    }
+  }
+
+}
+
+void
+TG2_scheme::compute_updated_sol(const int& kk)
+{
+  auto & h_c  = sol.get_owned_data ()[kk  ];
+  auto & Ux_c = sol.get_owned_data ()[kk+1];
+  auto & Uy_c = sol.get_owned_data ()[kk+2];
+  auto & Th_c = sol.get_owned_data ()[kk+3];
+
+  const auto h3_c  = h_c;
+  const auto Ux3_c = Ux_c;
+  const auto Uy3_c = Uy_c;
+  const auto Th3_c = Th_c;
+
+  const auto & h2_c  = sol_2.get_owned_data ()[kk  ];
+  const auto & Ux2_c = sol_2.get_owned_data ()[kk+1];
+  const auto & Uy2_c = sol_2.get_owned_data ()[kk+2];
+  const auto & Th2_c = sol_2.get_owned_data ()[kk+3];
+
+  const auto & h_c_old  = sold.get_owned_data ()[kk  ];
+  const auto & Ux_c_old = sold.get_owned_data ()[kk+1];
+  const auto & Uy_c_old = sold.get_owned_data ()[kk+2];
+  const auto & Th_c_old = sold.get_owned_data ()[kk+3];
+
+  // compute now the updated solution,
+#if SET_COEFFICIENTS>=3
+  h_c  = h_c_old  + b_2*h2_c /dt + b_3*(                                                 + incr.get_owned_data ()[kk  ]/mass.get_owned_data ()[kk  ]);
+  Ux_c = Ux_c_old + b_2*Ux2_c/dt + b_3*(Ux_src_formula(h3_c, Ux3_c, Uy3_c, Th3_c       ) + incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1]);
+  Uy_c = Uy_c_old + b_2*Uy2_c/dt + b_3*(Uy_src_formula(h3_c, Ux3_c, Uy3_c, Th3_c       ) + incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]);
+  Th_c = Th_c_old + b_2*Th2_c/dt + b_3*(Th_src_formula(h3_c, Ux3_c, Uy3_c, Th3_c, T_env) + incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3]);
+#else
+  h_c  = h3_c;
+  Ux_c = Ux3_c;
+  Uy_c = Uy3_c;
+  Th_c = Th3_c;
+#endif
+}
 
 
 
@@ -1078,23 +1201,91 @@ TG2_scheme::set_dt (const double dt_)
 { 
   dt = dt_; 
 
-  /*
-  // A-stable second-order Additive RK.2.A.2
+#if SET_COEFFICIENTS == 1 // 10.1016/j.jcp.2024.112798
+  // set the implicit part coefficients
   dt_22 = dt*.5;
   dt_33 = dt_22;
   dt_21 = 0.;
   dt_31 = dt_22;
   dt_32 = 0.;
-  */
 
+  // set the explicit coefficients
+  dt_expl_21 = dt_22;
+  dt_expl_32 = dt;
 
-  // L-stable second-order Additive RK.2.L.1
+  // set the b coefficients, explicit
+  b_expl_1 = 0;
+  b_expl_2 = dt_expl_32;
+  b_expl_3 = 0;
+
+  // set the b coefficients, implicit
+  b_1 = dt_31;
+  b_2 = dt_32;
+  b_3 = dt_33;
+#elif SET_COEFFICIENTS == 2 // 10.1016/j.camwa.2025.02.014
+  // set the implicit part coefficients
   dt_22 = dt*(1.-std::sqrt(2.)*.5);
   dt_33 = dt_22;
   dt_21 = dt*(-1.+std::sqrt(2.))*.5;
   dt_31 = dt_22;
   dt_32 = dt*(std::sqrt(2.)-1.);
-  
+
+  // set the explicit part coefficients
+  dt_expl_21 = dt*.5;
+  dt_expl_32 = dt;
+
+  // set the b coefficients, explicit
+  b_expl_1 = 0;
+  b_expl_2 = dt_expl_32;
+  b_expl_3 = 0;
+
+  // set the b coefficients, implicit
+  b_1 = dt_31;
+  b_2 = dt_32;
+  b_3 = dt_33;
+#elif SET_COEFFICIENTS == 3 // Table 2
+  // set the implicit part coefficients
+  dt_22 = dt*(1.-std::sqrt(2.)*.5);
+  dt_33 = dt_22;
+  dt_21 = 0;
+  dt_31 = 0;
+  dt_32 = dt*std::sqrt(2.)*.5;
+
+  // set the explicit part coefficients
+  dt_expl_21 = dt_22;
+  dt_expl_32 = dt;
+
+  // set the b coefficients, explicit
+  b_expl_1 = 0;
+  b_expl_2 = dt_32;
+  b_expl_3 = dt_22;
+
+  // set the b coefficients, implicit
+  b_1 = 0;
+  b_2 = dt_32;
+  b_3 = dt_22;
+#elif SET_COEFFICIENTS == 4 // Table 3
+  // set the implicit part coefficients
+  dt_22 = dt*(1.-std::sqrt(2.)*.5);
+  dt_33 = dt_22;
+  dt_21 = 0;
+  dt_31 = 0;
+  dt_32 = dt*std::sqrt(2.)*.5;
+
+  // set the explicit part coefficients
+  dt_expl_21 = dt_32*.5;
+  dt_expl_32 = dt*(std::sqrt(2.)-1.)/(3.*std::sqrt(2.)-4.)*.5;
+
+  // set the b coefficients, explicit
+  b_expl_1 = 0;
+  b_expl_2 = dt_32;
+  b_expl_3 = dt_22;
+
+  // set the b coefficients, implicit
+  b_1 = 0;
+  b_2 = dt_32;
+  b_3 = dt_22;
+#endif
 }
 
 void
@@ -1172,7 +1363,6 @@ TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy,
   double exp_contr = std::exp(-b_exp_coeff*(T-T_ref));
   //exp_contr = std::min(exp_contr, saturation_coeff);
   const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*exp_contr : 0.; 
-
   return ( - gamma_fric_over_h*ux);
 }
 
@@ -1184,7 +1374,6 @@ TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy,
   double exp_contr = std::exp(-b_exp_coeff*(T-T_ref));
   //exp_contr = std::min(exp_contr, saturation_coeff);
   const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*exp_contr : 0.;
-
   return ( - gamma_fric_over_h*uy);
 }
 
@@ -1192,7 +1381,6 @@ double
 TG2_scheme::Th_src_formula (const double& h, const double& Ux, const double& Uy, const double& Th, const double& T_enva)
 {
   const double T = h>epsilon ? Th/h : 0.;
-
   return (h>epsilon ? convective_coeff/density/specific_heat_pressure*(T - T_enva) : 0.);
 }
 

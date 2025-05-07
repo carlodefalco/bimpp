@@ -6,8 +6,8 @@
 #include <tmesh.h>
 #include <quad_operators.h>
 
- 
 
+#define SET_COEFFICIENTS 2
 
 class TG2_scheme  
 {
@@ -19,7 +19,9 @@ public:
   TG2_scheme(Q1& sol,
              Q1& sold,
              Q1& soldd,
+             Q1& sol_2,
              Q1& incr,
+             Q1& incr_second,
              std::vector<std::array<double,4>>& incr_anti_diff,
              Q1& P_plus,
              Q1& P_minus,
@@ -41,7 +43,7 @@ public:
              const double& b_exp_coeff,
              const double& saturation_coeff,
              const double& density,
-	     const double& T_env,
+	           const double& T_env,
              const double& specific_heat_pressure,
              const double& convective_coeff,
              const double& x_v,
@@ -133,7 +135,7 @@ public:
   get_dt ();
   
   
-  double dt, dt_old, dt_22, dt_33, dt_21, dt_31, dt_32;
+  double dt, dt_old, dt_22, dt_33, dt_21, dt_31, dt_32, dt_expl_21, dt_expl_32, b_1, b_2, b_3, b_expl_1, b_expl_2, b_expl_3;
   
   double Dx, Dy, area;
   
@@ -216,6 +218,12 @@ public:
   void
   solve_non_lin(const int& kk);
 
+  void
+  compute_updated_sol(tmesh::quadrant_iterator quadrant);
+
+  void
+  compute_updated_sol(const int& kk);
+
   
   // source terms
   double
@@ -244,7 +252,9 @@ public:
   Q1& sol;
   Q1& sold;
   Q1& soldd;
+  Q1& sol_2;
   Q1& incr;
+  Q1& incr_second;
   std::vector<std::array<double,4>>& incr_anti_diff;
   Q1& P_plus;
   Q1& P_minus;

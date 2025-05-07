@@ -22,7 +22,7 @@
 
 using json = nlohmann::json;
 
-// mpirun -np 4 main_TG2IMEXRKC glisX_input_tg2RKC_Bindo.json >out_TG2RKC.txt
+// mpirun -np 1 main_TG2IMEXRKC glisX_input-lava.json >out_lava.txt
 // mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
 // mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
 
@@ -528,7 +528,7 @@ main (int argc, char **argv)
   char filename[255]="", arr[255]="";
 
   TIC();
-  str = std::string(DEM_DIR); 
+  str = std::string(DEM_DIR);
   strcpy(arr, str.c_str());
   sprintf(filename, arr, 0);
 
@@ -737,7 +737,7 @@ main (int argc, char **argv)
          ++quadrant)
     {
       double xx_c=quadrant->centroid(0);
-      double yy_c=quadrant->centroid(1); 
+      double yy_c=quadrant->centroid(1);
 
       for (int ii = 0; ii < 4; ++ii)
       {
@@ -797,7 +797,9 @@ main (int argc, char **argv)
   Q1 sol_dyn                 = sol;
   Q1 sold_dyn                = sol;
   Q1 soldd_dyn               = sol;
+  Q1 sol_2_dyn               = sol;
   Q1 incr_dyn                = incr;
+  Q1 incr_second_dyn         = incr;
   Q1 P_plus_dyn              = incr;
   Q1 P_minus_dyn             = incr;  
   Q1 mass_dyn                = mass;
@@ -811,7 +813,9 @@ main (int argc, char **argv)
   TG2_scheme stp(sol_dyn, 
                  sold_dyn, 
                  soldd_dyn, 
+                 sol_2_dyn,
                  incr_dyn,
+                 incr_second_dyn,
                  incr_anti_diff_dyn,
                  P_plus_dyn, 
                  P_minus_dyn, 
@@ -833,7 +837,7 @@ main (int argc, char **argv)
                  b_exp_coeff,
                  saturation_coeff,
                  density, 
-		 T_env,
+		             T_env,
                  specific_heat_pressure,
                  convective_coeff,
                  x_v, 
@@ -929,6 +933,9 @@ main (int argc, char **argv)
     //TIC();
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
+
+    incr_second_dyn.get_owned_data ().assign (incr_second_dyn.get_owned_data ().size (), 0.0);
+    incr_second_dyn.assemble (replace_op);
 
     P_plus_dyn.get_owned_data ().assign (P_plus_dyn.get_owned_data ().size (), 0.0);
     P_plus_dyn.assemble (replace_op);
@@ -1047,10 +1054,9 @@ main (int argc, char **argv)
     // low order solution
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
     {
-      sol_dyn.get_owned_data ()[kk] += stp.dt*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
+      sol_dyn.get_owned_data ()[kk] += stp.dt_expl_32*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
     }
     sol_dyn.assemble(replace_op); 
-
 
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -1061,7 +1067,7 @@ main (int argc, char **argv)
       {
         if (! quadrant->is_hanging (ii) && sol_dyn [ordh    (quadrant->gt (ii))]<0){
           sol_dyn [ordh     (quadrant->gt (ii))] = 0.; //h_min; //0.;
-	  sol_dyn [ordTh    (quadrant->gt (ii))] = 0.;
+	        sol_dyn [ordTh    (quadrant->gt (ii))] = 0.;
         }
       }
     }
@@ -1073,8 +1079,6 @@ main (int argc, char **argv)
 
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
-
-
     
     // second order correction
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
@@ -1083,6 +1087,7 @@ main (int argc, char **argv)
       stp.second_step(quadrant);
     }
     incr_dyn.assemble ();
+    incr_second_dyn.assemble ();
     //TOC("Compute step");
     
 
@@ -1091,8 +1096,26 @@ main (int argc, char **argv)
     {
       stp.solve_non_lin(kk);
     }
+    sol_2_dyn.assemble(replace_op);
     sol_dyn.assemble (replace_op);
     //TOC("Apply increment");
+    
+    // solution update
+    incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
+    incr_dyn.assemble (replace_op);
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    {
+      stp.compute_updated_sol(quadrant);
+    }
+    incr_dyn.assemble ();
+
+    for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=4)
+    {
+      stp.compute_updated_sol(kk);
+    }
+    sol_dyn.assemble (replace_op);
+
 
 
 
@@ -1303,7 +1326,7 @@ main (int argc, char **argv)
       interpolate_vector (tmsh, soldd_dyn, soldd, ordUy);
       interpolate_vector (tmsh, soldd_dyn, soldd, ordTh);
       soldd.assemble (replace_op);
-      
+
       
       Q1 incr (ln_nodes * 4);
       incr.get_owned_data ().assign (incr.get_owned_data ().size(), 0.0);
@@ -1361,6 +1384,7 @@ main (int argc, char **argv)
       sol_dyn                 = sol;
       sold_dyn                = sold;
       soldd_dyn               = soldd;
+      sol_2_dyn               = soldd;
       incr_dyn                = incr;
       incr_anti_diff_dyn      = incr_anti_diff;
       P_plus_dyn              = incr;
