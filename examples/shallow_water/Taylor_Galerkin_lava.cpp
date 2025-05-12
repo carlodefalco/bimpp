@@ -1181,7 +1181,7 @@ TG2_scheme::compute_updated_sol(const int& kk)
   const auto & Th_c_old = sold.get_owned_data ()[kk+3];
 
   // compute now the updated solution,
-#if SET_COEFFICIENTS>=3
+#if SET_COEFFICIENTS >= 3
   h_c  = h_c_old  + b_2*h2_c /dt + b_3*(                                                 + incr.get_owned_data ()[kk  ]/mass.get_owned_data ()[kk  ]);
   Ux_c = Ux_c_old + b_2*Ux2_c/dt + b_3*(Ux_src_formula(h3_c, Ux3_c, Uy3_c, Th3_c       ) + incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1]);
   Uy_c = Uy_c_old + b_2*Uy2_c/dt + b_3*(Uy_src_formula(h3_c, Ux3_c, Uy3_c, Th3_c       ) + incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]);

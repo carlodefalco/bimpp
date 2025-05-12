@@ -22,9 +22,9 @@
 
 using json = nlohmann::json;
 
-// mpirun -np 1 main_TG2IMEXRKC glisX_input-lava.json >out_lava.txt
-// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
-// mpirun -np 1 main_TG2IMEXRKC $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
+// mpirun -np 1 main_lava glisX_input-lava-travelling-vortex.json >out_lava.txt
+// mpirun -np 1 main_lava $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
+// mpirun -np 1 main_lava $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
 
 static constexpr char VARNAME_1[255] = "dem"; 
 //static constexpr char VARNAME_2[255] = "mask_in";  
@@ -35,6 +35,8 @@ static std::vector<double> dem;
 
 double h_min, L, H, res;
 int NUM_REFINEMENTS, Nx, Ny;
+
+#define SET_TEST 1
 
 
 // Refinement rule
@@ -179,9 +181,32 @@ using Q1  = q1_vec<distributed_vector>;  // Typedef for distributed q_1 vector
 using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;         // Typedef for local q_0 vector // distributed_vector
 
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
-inline double h0_fun (const double& xx, const double& yy) 
+inline double h0_fun (const double& xx, const double& yy, const double& g) 
 {
-  return(0.);
+  double h_ini = 0;
+
+#if SET_TEST == 1 
+  double h0    = 1;
+  double hh_min = .9;
+  double x0    = .5;
+  double y0    = .5;
+  double r     = std::sqrt((xx-x0)*(xx-x0) + (yy-y0)*(yy-y0));
+  double r0    = .25;
+  double rho   = M_PI*r/r0;
+  double Gamma = M_PI/2./r0*std::sqrt((g*(h0-hh_min))/(3.*M_PI*M_PI/64.-1./4.));
+  double omega = 2*Gamma*std::cos(rho/2.)*std::cos(rho/2.);
+  double corr  = 4;
+
+  auto H_vortex = [](int s) { 
+    return std::cos(2.*s)/8. + s*std::sin(2.*s)/4. + std::cos(2.*s)*std::cos(2.*s)/64. + 3.*s*s/16. + s*std::cos(2.*s)*std::sin(2.*s)/16.;
+    //return s*std::cos(s)*std::sin(s)/4*(std::cos(s)*std::cos(s) + 3./2.) + std::cos(s)*std::cos(s)*(3./(4.*4.) + std::cos(s)*std::cos(s)/16.) + 3./4./2.*s*s/2.;
+  };
+ 
+       h_ini = h0 - (r<=r0 ? 1./g*(2.*Gamma*r0/M_PI)*(2.*Gamma*r0/M_PI)*(H_vortex(M_PI/2.) - H_vortex(rho/2.)) : 0.);
+#endif
+
+  return (h_ini);
+
   //return(xx/L*1500);
   //return( std::abs(xx-L/2.)<=7. && std::abs(yy-H/2.)<=7.5 ? 3 : 0. );
   //return(std::sqrt(std::pow(xx-L/2.,2.) + std::pow(yy-H/2.,2.))<=7.5 ? 3. : 0.  );
@@ -231,7 +256,7 @@ inline double h0_fun (const double& xx, const double& yy)
 //  }
   return 0.;
 } 
-inline double Ux0_fun (double xx, double yy) 
+inline double Ux0_fun (const double& xx, const double& yy, const double& g)  
 { 
   //const double Ux_l = 1.;
   //const double Ux_r = .5;
@@ -241,12 +266,45 @@ inline double Ux0_fun (double xx, double yy)
   //return( (Ux_r+Ux_l)*.5 - (Ux_l-Ux_r)*.5*std::tanh((Ux_l-Ux_r)*.5/coeff*(xx-x0)) );
 
   //return( xx<=L/2. ? 2. : 1. ); // shock-shock solution
-  return 0.; 
+
+  double U_ini = 0.;
+
+#if SET_TEST == 1 
+  double u_infty = 6;
+  double x0      = .5;
+  double y0      = .5;
+  double h0      = 1;
+  double hh_min  = .9;
+  double r       = std::sqrt((xx-x0)*(xx-x0) + (yy-y0)*(yy-y0));
+  double r0      = .25;
+  double rho     = M_PI*r/r0;
+  double Gamma   = M_PI/2./r0*std::sqrt((g*(h0-hh_min))/(3.*M_PI*M_PI/64.-1./4.));
+  double omega   = 2*Gamma*std::cos(rho/2.)*std::cos(rho/2.);
+         U_ini   = h0_fun(xx,yy,g)*(u_infty - (yy - y0)*omega);
+#endif
+
+  return (U_ini);
 }
-inline double Uy0_fun (double xx, double yy) 
+inline double Uy0_fun (const double& xx, const double& yy, const double& g) 
 { 
   //return( yy<=H/2. ? 2. : 1. ); // shock-shock solution
-  return 0.; 
+
+  double V_ini = 0.;
+
+#if SET_TEST == 1 
+  double x0      = .5;
+  double y0      = .5;
+  double h0      = 1;
+  double hh_min  = .9;
+  double r       = std::sqrt((xx-x0)*(xx-x0) + (yy-y0)*(yy-y0));
+  double r0      = .25;
+  double rho     = M_PI*r/r0;
+  double Gamma   = M_PI/2./r0*std::sqrt((g*(h0-hh_min))/(3.*M_PI*M_PI/64.-1./4.));
+  double omega   = 2*Gamma*std::cos(rho/2.)*std::cos(rho/2.);
+         V_ini   = h0_fun(xx,yy,g)*(xx - x0)*omega;
+#endif
+
+  return (V_ini);
 }
 
 inline double Th0_fun (double xx, double yy)
@@ -382,7 +440,6 @@ quadrant_marker_list (tmesh::quadrant_iterator& q,
 int
 main (int argc, char **argv)
 {
-
   // parse input file,
   MPI_Init (&argc, &argv);
   std::ifstream input_file(argv[1]);
@@ -397,7 +454,7 @@ main (int argc, char **argv)
   const double & SPACE_ADAPTDT                            = input_data["space adaptation procedure interval in seconds"];
   const double & SAVEDT                                   = input_data["saving interval in seconds"];
   const double & DELTAT                                   = input_data["maximum time step allowed"];
-  const double & initial_delta_t 			  = input_data["initial time step"];
+  const double & initial_delta_t 			                    = input_data["initial time step"];
   const double & mesh_size_dry                            = input_data["desired resolution in meters of the mesh size in dry regions"];
   const double & mesh_size_wet                            = input_data["minimum resolution in meters of the mesh size in wet regions"];
   const double & mesh_size_interface                      = input_data["desired resolution in meters of the mesh size in wet-dry interface regions"];
@@ -415,7 +472,7 @@ main (int argc, char **argv)
   const double & convective_coeff                         = input_data["convection coefficient"];
   const double & tolerance_space_adapt                    = input_data["tolerance space adaptation"];
   const double & sigma_vent                               = input_data["area discrete vent"];
-  const double & mesh_size_vent 			  = input_data["mesh size vent"];
+  const double & mesh_size_vent 			                    = input_data["mesh size vent"];
   const double & saturation_coeff                         = input_data["saturation coefficient"];
   const double & x_v                                      = input_data["x vent location"];
   const double & y_v                                      = input_data["y vent location"];
@@ -436,7 +493,6 @@ main (int argc, char **argv)
 
   L = res*(Nx-1);
   H = res*(Ny-1);
-
 
   // Connectivity of local element
   constexpr p4est_topidx_t simple_conn_num_vertices = 4;
@@ -572,9 +628,9 @@ main (int argc, char **argv)
         double xx=quadrant->p(0,ii);
         double yy=quadrant->p(1,ii); 
         
-        sol [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy);
-        sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
-        sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
+        sol [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy, grav);
+        sol [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy, grav);
+        sol [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy, grav);
         sol [ordTh    (quadrant->gt (ii))] = Th0_fun (xx, yy);
         
         Z           [quadrant->gt (ii)] = dem_fun(xx,yy); 
@@ -745,9 +801,9 @@ main (int argc, char **argv)
           double xx=quadrant->p(0,ii);
           double yy=quadrant->p(1,ii);
           
-          sol_ [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy);
-          sol_ [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy);
-          sol_ [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy);
+          sol_ [ordh     (quadrant->gt (ii))] = h0_fun  (xx, yy, grav);
+          sol_ [ordUx    (quadrant->gt (ii))] = Ux0_fun (xx, yy, grav);
+          sol_ [ordUy    (quadrant->gt (ii))] = Uy0_fun (xx, yy, grav);
           sol_ [ordTh    (quadrant->gt (ii))] = Th0_fun (xx, yy);
 
           Z_[quadrant->gt (ii)] = dem_fun(xx,yy);
@@ -962,7 +1018,7 @@ main (int argc, char **argv)
 
     stp.g_coeff = 1./(1.-stp.Fr*stp.Fr);
 
-    stp.set_dt(time==0 ? initial_delta_t : max_dt); // deltat max
+    stp.set_dt(time==0 ? std::min(initial_delta_t, max_dt) : max_dt); // deltat max
     MPI_Allreduce (MPI_IN_PLACE, static_cast<void*> (&stp.dt), 1, MPI_DOUBLE, MPI_MIN, tmsh.comm);
  
     // Print current time
