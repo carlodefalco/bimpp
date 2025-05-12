@@ -23,6 +23,7 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& h_min,
                        const bool& is_non_reflBC,
                        const bool& is_isothermal,
+                       const bool& is_limiter,
                        const double& grav,
                        const double& nu_ref,
                        const double& T_ref,
@@ -39,7 +40,7 @@ TG2_scheme::TG2_scheme(Q1& sol,
                        const double& sigma_vent)
 : sol(sol), sold(sold), soldd(soldd), sol_2(sol_2), incr(incr), incr_second(incr_second), incr_anti_diff(incr_anti_diff), P_plus(P_plus), P_minus(P_minus), sol_onehalf(sol_onehalf), mass(mass), 
   ordh(oh), ordUx(oUx), ordUy(oUy), ordTh(oTh), Z(Z), Z_onehalf(Z_onehalf), DELTAT(DELTAT), epsilon(h_min), is_non_reflBC(is_non_reflBC), grav(grav), nu_ref(nu_ref), T_ref(T_ref),
-  density(density), is_isothermal(is_isothermal), b_exp_coeff(b_exp_coeff), T_env(T_env), specific_heat_pressure(specific_heat_pressure), convective_coeff(convective_coeff), saturation_coeff(saturation_coeff), x_v(x_v), y_v(y_v), Q_vent(Q_vent), T_vent(T_vent), sigma_vent(sigma_vent)
+  density(density), is_isothermal(is_isothermal), is_limiter(is_limiter), b_exp_coeff(b_exp_coeff), T_env(T_env), specific_heat_pressure(specific_heat_pressure), convective_coeff(convective_coeff), saturation_coeff(saturation_coeff), x_v(x_v), y_v(y_v), Q_vent(Q_vent), T_vent(T_vent), sigma_vent(sigma_vent)
 { }
  
  
@@ -942,7 +943,9 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     flux_limiter(Th_min[ii], Th_max[ii], Thdof [ii], P_plus_Th_dof[ii], P_minus_Th_dof [ii], flux_on_the_node_Th, vel_square_rusanov_cell, phi_cell_Th);
   }
 
-  //phi_cell_h = 0., phi_cell_Ux = 0., phi_cell_Uy = 0.;
+  if(!is_limiter) {
+    phi_cell_h = 1., phi_cell_Ux = 1., phi_cell_Uy = 1., phi_cell_Th = 1.;
+  }
 
   const double & h_cell    = sol_onehalf[ordh    (index_quadrant_global)];
   const double & Ux_cell   = sol_onehalf[ordUx   (index_quadrant_global)];

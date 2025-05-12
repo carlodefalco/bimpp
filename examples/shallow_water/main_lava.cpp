@@ -463,6 +463,7 @@ main (int argc, char **argv)
   const bool   & is_space_adaptivity                      = input_data["do you want the space adaptation with interface tracking?"];
   const bool   & is_non_reflBC                            = input_data["do you want non reflecting BC?"];
   const bool   & is_isothermal                            = input_data["do you want an isothermal simulation?"];
+  const bool   & is_limiter                               = input_data["do you want the FCT limiting?"];
   const bool   & is_max_time_step_from_CFL                = input_data["do you want the maximum time step given by CFL condition for the transport term?"];
                  h_min                                    = input_data["minimum material height threshold"];
   const double & grav                                     = input_data["gravitational field"];
@@ -887,6 +888,7 @@ main (int argc, char **argv)
                  h_min, 
                  is_non_reflBC, 
                  is_isothermal, 
+                 is_limiter,
                  grav, 
                  nu_ref, 
                  T_ref, 

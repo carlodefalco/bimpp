@@ -37,6 +37,7 @@ public:
              const double& h_min,
              const bool& is_non_reflBC,
              const bool& is_isothermal,
+             const bool& is_limiter,
              const double& grav,
              const double& nu_ref,
              const double& T_ref,
@@ -276,6 +277,7 @@ private:
   const double& epsilon;
   const bool& is_non_reflBC;
   const bool& is_isothermal;
+  const bool& is_limiter;
   const double& grav;
   const double& nu_ref;
   const double& T_ref;
