@@ -1,0 +1,3 @@
+#define SET_COEFFICIENTS 3
+#define FLUX_MODEL 2
+#define SET_TEST 2
