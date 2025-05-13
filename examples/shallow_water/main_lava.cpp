@@ -194,16 +194,18 @@ inline double h0_fun (const double& xx, const double& yy, const double& g)
   double r0    = .25;
   double rho   = M_PI*r/r0;
   double Gamma = M_PI/2./r0*std::sqrt((g*(h0-hh_min))/(3.*M_PI*M_PI/64.-1./4.));
-  double omega = 2*Gamma*std::cos(rho/2.)*std::cos(rho/2.);
+  double omega = r<=r0 ? 2*Gamma*std::cos(rho/2.)*std::cos(rho/2.) : 0.;
   double corr  = 4;
 
-  auto H_vortex = [](int s) { 
+  auto H_vortex = [](double s) { 
     return std::cos(2.*s)/8. + s*std::sin(2.*s)/4. + std::cos(2.*s)*std::cos(2.*s)/64. + 3.*s*s/16. + s*std::cos(2.*s)*std::sin(2.*s)/16.;
     //return s*std::cos(s)*std::sin(s)/4*(std::cos(s)*std::cos(s) + 3./2.) + std::cos(s)*std::cos(s)*(3./(4.*4.) + std::cos(s)*std::cos(s)/16.) + 3./4./2.*s*s/2.;
   };
  
-       h_ini = h0 - (r<=r0 ? 1./g*(2.*Gamma*r0/M_PI)*(2.*Gamma*r0/M_PI)*(H_vortex(M_PI/2.) - H_vortex(rho/2.)) : 0.);
+       h_ini = h0 - (r<=r0 ? 1./g*(2.*Gamma*r0/M_PI)*(2.*Gamma*r0/M_PI)*(H_vortex(M_PI/2.) - H_vortex(rho/2.))*corr : 0.); //H_vortex(rho/2.);//std::cos(rho)/8. + rho/2.*std::sin(rho)/4. + std::cos(rho)*std::cos(rho)/64. + 3.*rho/2.*rho/2./16. + rho/2.*std::cos(rho)*std::sin(rho)/16.; //h0 - (r<=r0 ? 1./g*(2.*Gamma*r0/M_PI)*(2.*Gamma*r0/M_PI)*(H_vortex(M_PI/2.) - H_vortex(rho/2.))*corr : 0.);
 #endif
+
+  //std::cout << h_ini << std::endl;
 
   return (h_ini);
 
@@ -279,7 +281,7 @@ inline double Ux0_fun (const double& xx, const double& yy, const double& g)
   double r0      = .25;
   double rho     = M_PI*r/r0;
   double Gamma   = M_PI/2./r0*std::sqrt((g*(h0-hh_min))/(3.*M_PI*M_PI/64.-1./4.));
-  double omega   = 2*Gamma*std::cos(rho/2.)*std::cos(rho/2.);
+  double omega   = r<=r0 ? 2*Gamma*std::cos(rho/2.)*std::cos(rho/2.) : 0.;
          U_ini   = h0_fun(xx,yy,g)*(u_infty - (yy - y0)*omega);
 #endif
 
@@ -297,10 +299,10 @@ inline double Uy0_fun (const double& xx, const double& yy, const double& g)
   double h0      = 1;
   double hh_min  = .9;
   double r       = std::sqrt((xx-x0)*(xx-x0) + (yy-y0)*(yy-y0));
-  double r0      = .25;
+  double r0      = .25; 
   double rho     = M_PI*r/r0;
   double Gamma   = M_PI/2./r0*std::sqrt((g*(h0-hh_min))/(3.*M_PI*M_PI/64.-1./4.));
-  double omega   = 2*Gamma*std::cos(rho/2.)*std::cos(rho/2.);
+  double omega   = r<=r0 ? 2*Gamma*std::cos(rho/2.)*std::cos(rho/2.) : 0.;
          V_ini   = h0_fun(xx,yy,g)*(xx - x0)*omega;
 #endif
 
@@ -477,7 +479,7 @@ main (int argc, char **argv)
   const double & saturation_coeff                         = input_data["saturation coefficient"];
   const double & x_v                                      = input_data["x vent location"];
   const double & y_v                                      = input_data["y vent location"];
-  const double & Q_vent                                   = input_data["lava vent discharge"];
+  const double & Q_vent                                   = input_data["lava vent discharge"]; 
   const double & T_vent                                   = input_data["lava vent effusion temperature"];
   //const double & W_coeff                                  = input_data["W coefficient"];
   //const double & C_coeff_sin_h                            = input_data["C coefficient without h"];
@@ -1091,7 +1093,6 @@ main (int argc, char **argv)
       stp.first_step(quadrant);
     }
 
-
     // 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -1101,8 +1102,6 @@ main (int argc, char **argv)
     incr_dyn.assemble ();
     P_plus_dyn.assemble ();
     P_minus_dyn.assemble ();
-
-
 
     stp.set_times(time, time_old, time_oldd);
     soldd_dyn = sold_dyn;
@@ -1115,7 +1114,6 @@ main (int argc, char **argv)
       sol_dyn.get_owned_data ()[kk] += stp.dt_expl_32*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
     }
     sol_dyn.assemble(replace_op); 
-
 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep ();
@@ -1137,7 +1135,8 @@ main (int argc, char **argv)
 
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
-    
+
+
     // second order correction
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -1444,6 +1443,7 @@ main (int argc, char **argv)
       soldd_dyn               = soldd;
       sol_2_dyn               = soldd;
       incr_dyn                = incr;
+      incr_second_dyn         = incr;
       incr_anti_diff_dyn      = incr_anti_diff;
       P_plus_dyn              = incr;
       P_minus_dyn             = incr;

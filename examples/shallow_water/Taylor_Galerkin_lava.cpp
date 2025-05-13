@@ -972,7 +972,6 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   std::array<double, 2> contrx = {Dx*std::sqrt(M_PI)/2.*(std::erf(extr_x_b) - std::erf(extr_x_a))*std::sqrt(2.*sigma_vent) - common_contr_x, common_contr_x};
   std::array<double, 2> contry = {Dy*std::sqrt(M_PI)/2.*(std::erf(extr_y_b) - std::erf(extr_y_a))*std::sqrt(2.*sigma_vent) - common_contr_y, common_contr_y};
 
-
   for (int ii = 0; ii < 4; ++ii){
 
     const int ii_1 = ii%2;
@@ -1104,6 +1103,14 @@ TG2_scheme::compute_updated_sol(tmesh::quadrant_iterator quadrant)
 {
 
   for (int ii = 0; ii < 4; ++ii) {
+    xn[ii] = quadrant->p(0, ii);
+    yn[ii] = quadrant->p(1, ii);
+  }
+  Dx = xn[1]-xn[0];
+  Dy = yn[2]-yn[0];
+  area = Dx * Dy;
+
+  for (int ii = 0; ii < 4; ++ii) {
     if (! quadrant->is_hanging (ii)){
       hdof [ii] = sol [ordh  (quadrant->gt (ii))];
       Uxdof[ii] = sol [ordUx (quadrant->gt (ii))];
@@ -1125,10 +1132,17 @@ TG2_scheme::compute_updated_sol(tmesh::quadrant_iterator quadrant)
     }
   }
 
-  grad_cell_h  = {.5 * ( (hdof   [3] - hdof   [2]) + (hdof   [1] - hdof   [0]) ), .5 * ( (hdof   [2] - hdof   [0]) + (hdof   [3] - hdof   [1]) )};
-  grad_cell_Ux = {.5 * ( (Uxdof  [3] - Uxdof  [2]) + (Uxdof  [1] - Uxdof  [0]) ), .5 * ( (Uxdof  [2] - Uxdof  [0]) + (Uxdof  [3] - Uxdof  [1]) )};
-  grad_cell_Uy = {.5 * ( (Uydof  [3] - Uydof  [2]) + (Uydof  [1] - Uydof  [0]) ), .5 * ( (Uydof  [2] - Uydof  [0]) + (Uydof  [3] - Uydof  [1]) )};
-  grad_cell_Th = {.5 * ( (Thdof  [3] - Thdof  [2]) + (Thdof  [1] - Thdof  [0]) ), .5 * ( (Thdof  [2] - Thdof  [0]) + (Thdof  [3] - Thdof  [1]) )};
+  grad_cell_h    = {.5 * ( (h_flux_formula_x(hdof[3], Uxdof[3], Uydof[3]) - h_flux_formula_x(hdof[2], Uxdof[2], Uydof[2])) + (h_flux_formula_x(hdof[1], Uxdof[1], Uydof[1]) - h_flux_formula_x(hdof[0], Uxdof[0], Uydof[0])) ) / Dx, 
+                    .5 * ( (h_flux_formula_y(hdof[2], Uxdof[2], Uydof[2]) - h_flux_formula_y(hdof[0], Uxdof[0], Uydof[0])) + (h_flux_formula_y(hdof[3], Uxdof[3], Uydof[3]) - h_flux_formula_y(hdof[1], Uxdof[1], Uydof[1])) ) / Dy};
+
+  grad_cell_Ux   = {.5 * ( (Ux_flux_formula_x(hdof[3], Uxdof[3], Uydof[3]) - Ux_flux_formula_x(hdof[2], Uxdof[2], Uydof[2])) + (Ux_flux_formula_x(hdof[1], Uxdof[1], Uydof[1]) - Ux_flux_formula_x(hdof[0], Uxdof[0], Uydof[0])) ) / Dx, 
+                    .5 * ( (Ux_flux_formula_y(hdof[2], Uxdof[2], Uydof[2]) - Ux_flux_formula_y(hdof[0], Uxdof[0], Uydof[0])) + (Ux_flux_formula_y(hdof[3], Uxdof[3], Uydof[3]) - Ux_flux_formula_y(hdof[1], Uxdof[1], Uydof[1])) ) / Dy};
+
+  grad_cell_Uy   = {.5 * ( (Uy_flux_formula_x(hdof[3], Uxdof[3], Uydof[3]) - Uy_flux_formula_x(hdof[2], Uxdof[2], Uydof[2])) + (Uy_flux_formula_x(hdof[1], Uxdof[1], Uydof[1]) - Uy_flux_formula_x(hdof[0], Uxdof[0], Uydof[0])) ) / Dx, 
+                    .5 * ( (Uy_flux_formula_y(hdof[2], Uxdof[2], Uydof[2]) - Uy_flux_formula_y(hdof[0], Uxdof[0], Uydof[0])) + (Uy_flux_formula_y(hdof[3], Uxdof[3], Uydof[3]) - Uy_flux_formula_y(hdof[1], Uxdof[1], Uydof[1])) ) / Dy};
+
+  grad_cell_Th   = {.5 * ( (Th_flux_formula_x(hdof[3], Uxdof[3], Uydof[3], Thdof[3]) - Th_flux_formula_x(hdof[2], Uxdof[2], Uydof[2], Thdof[2])) + (Th_flux_formula_x(hdof[1], Uxdof[1], Uydof[1], Thdof[1]) - Th_flux_formula_x(hdof[0], Uxdof[0], Uydof[0], Thdof[0])) ) / Dx, 
+                    .5 * ( (Th_flux_formula_y(hdof[2], Uxdof[2], Uydof[2], Thdof[2]) - Th_flux_formula_y(hdof[0], Uxdof[0], Uydof[0], Thdof[0])) + (Th_flux_formula_y(hdof[3], Uxdof[3], Uydof[3], Thdof[3]) - Th_flux_formula_y(hdof[1], Uxdof[1], Uydof[1], Thdof[1])) ) / Dy};
 
 
   for (int ii = 0; ii < 4; ++ii){
@@ -1185,10 +1199,10 @@ TG2_scheme::compute_updated_sol(const int& kk)
 
   // compute now the updated solution,
 #if SET_COEFFICIENTS >= 3
-  h_c  = h_c_old  + b_2*h2_c /dt + b_3*(                                                 + incr.get_owned_data ()[kk  ]/mass.get_owned_data ()[kk  ]);
-  Ux_c = Ux_c_old + b_2*Ux2_c/dt + b_3*(Ux_src_formula(h3_c, Ux3_c, Uy3_c, Th3_c       ) + incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1]);
-  Uy_c = Uy_c_old + b_2*Uy2_c/dt + b_3*(Uy_src_formula(h3_c, Ux3_c, Uy3_c, Th3_c       ) + incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]);
-  Th_c = Th_c_old + b_2*Th2_c/dt + b_3*(Th_src_formula(h3_c, Ux3_c, Uy3_c, Th3_c, T_env) + incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3]);
+  h_c  = h_c_old  + b_2*h2_c /dt + b_3*(                                                 - incr.get_owned_data ()[kk  ]/mass.get_owned_data ()[kk  ]);
+  Ux_c = Ux_c_old + b_2*Ux2_c/dt + b_3*(Ux_src_formula(h3_c, Ux3_c, Uy3_c, Th3_c       ) - incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1]);
+  Uy_c = Uy_c_old + b_2*Uy2_c/dt + b_3*(Uy_src_formula(h3_c, Ux3_c, Uy3_c, Th3_c       ) - incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]);
+  Th_c = Th_c_old + b_2*Th2_c/dt + b_3*(Th_src_formula(h3_c, Ux3_c, Uy3_c, Th3_c, T_env) - incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3]);
 #else
   h_c  = h3_c;
   Ux_c = Ux3_c;
@@ -1394,9 +1408,7 @@ TG2_scheme::src_slope_formula (const double& h, const double& S)
   return (-grav*S*h);
 }
 
-
 double
 TG2_scheme::signum (const double& x)
 { return ((x > 0) ? 1.0 : (x < 0) ? -1.0 : 0.0); }
-
 

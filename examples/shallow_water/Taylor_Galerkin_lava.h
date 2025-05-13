@@ -7,7 +7,7 @@
 #include <quad_operators.h>
 
 
-#define SET_COEFFICIENTS 2
+#define SET_COEFFICIENTS 3
 
 class TG2_scheme  
 {
