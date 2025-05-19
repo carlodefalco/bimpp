@@ -36,8 +36,6 @@ static std::vector<double> dem;
 double h_min, L, H, res;
 int NUM_REFINEMENTS, Nx, Ny;
 
-#define SET_TEST 1
-
 
 // Refinement rule
 static int
@@ -203,6 +201,9 @@ inline double h0_fun (const double& xx, const double& yy, const double& g)
   };
  
        h_ini = h0 - (r<=r0 ? 1./g*(2.*Gamma*r0/M_PI)*(2.*Gamma*r0/M_PI)*(H_vortex(M_PI/2.) - H_vortex(rho/2.))*corr : 0.); //H_vortex(rho/2.);//std::cos(rho)/8. + rho/2.*std::sin(rho)/4. + std::cos(rho)*std::cos(rho)/64. + 3.*rho/2.*rho/2./16. + rho/2.*std::cos(rho)*std::sin(rho)/16.; //h0 - (r<=r0 ? 1./g*(2.*Gamma*r0/M_PI)*(2.*Gamma*r0/M_PI)*(H_vortex(M_PI/2.) - H_vortex(rho/2.))*corr : 0.);
+
+#elif SET_TEST == 2
+       h_ini = 1. + 3.*std::exp(-0.5*10*( (xx-L/4.)*(xx-L/4.) )/(0.2*L/2.)/(0.2*L/2.));
 #endif
 
   //std::cout << h_ini << std::endl;
@@ -1093,6 +1094,12 @@ main (int argc, char **argv)
       stp.first_step(quadrant);
     }
 
+    //for (auto quadrant = tmsh.begin_quadrant_sweep ();
+    //     quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    //{
+    //  stp.print_func_cen(quadrant, sol_onehalf_dyn);
+    //}
+
     // 
     for (auto quadrant = tmsh.begin_quadrant_sweep ();
          quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
@@ -1147,15 +1154,16 @@ main (int argc, char **argv)
     incr_second_dyn.assemble ();
     //TOC("Compute step");
     
-
+    // Compute here the second step solution!
     //TIC();
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk+=4)
     {
       stp.solve_non_lin(kk);
     }
     sol_2_dyn.assemble(replace_op);
-    sol_dyn.assemble (replace_op);
+    sol_dyn  .assemble(replace_op);
     //TOC("Apply increment");
+
     
     // solution update
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
@@ -1173,8 +1181,14 @@ main (int argc, char **argv)
     }
     sol_dyn.assemble (replace_op);
 
+    for (auto quadrant = tmsh.begin_quadrant_sweep ();
+         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    {
+      stp.print_func(quadrant, sol_dyn);
+    }
 
-
+    std::cout << "stop here!" << std::endl;
+    return 0;
 
     // Save solution
     if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) 

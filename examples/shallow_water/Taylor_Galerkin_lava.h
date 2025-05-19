@@ -5,9 +5,7 @@
 #include <bim_distributed_vector.h>
 #include <tmesh.h>
 #include <quad_operators.h>
-
-
-#define SET_COEFFICIENTS 3
+#include "lava_macro_input.h"
 
 class TG2_scheme  
 {
@@ -244,6 +242,12 @@ public:
 
   double
   signum (const double& x);
+
+  void
+  print_func    (tmesh::quadrant_iterator quadrant, Q1& ss);
+
+  void
+  print_func_cen(tmesh::quadrant_iterator quadrant, Q0& ss);
   
   double time, timed, timedd;
   double nu_htot = 0.;
