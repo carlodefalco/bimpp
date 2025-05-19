@@ -1181,14 +1181,11 @@ main (int argc, char **argv)
     }
     sol_dyn.assemble (replace_op);
 
-    for (auto quadrant = tmsh.begin_quadrant_sweep ();
-         quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
-    {
-      stp.print_func(quadrant, sol_dyn);
-    }
-
-    std::cout << "stop here!" << std::endl;
-    return 0;
+    //for (auto quadrant = tmsh.begin_quadrant_sweep ();
+    //     quadrant != tmsh.end_quadrant_sweep (); ++quadrant)
+    //{
+    //  stp.print_func(quadrant, sol_dyn); 
+    //}
 
     // Save solution
     if ((savecount-SAVEDT) >= -std::numeric_limits<double>::epsilon()*SAVEDT) 
