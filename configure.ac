@@ -243,6 +243,20 @@ AS_IF([test "x$with_octave_file_io" != xno],
         ])
 AM_CONDITIONAL([HAVE_OCTAVE_FILE_IO], test x$with_octave_file_io = xyes)
 
+AC_ARG_ENABLE([3d-interpolation],
+            [AS_HELP_STRING([--disable-3d-interpolation],
+            [Disable 3d interpolation])],
+            [],
+            [enable_3d_interpolation=yes])
+
+AS_IF([test "x$enable_3d_interpolation" != xno],
+      [
+         AC_DEFINE([ENABLE_3D_INTERPOLATION],[1],[Define if you want 3d interpolation])
+      ])
+
+AM_CONDITIONAL([ENABLE_3D_INTERPOLATION], test x$enable_3d_interpolation = xyes)
+
+
 LIBS=$save_LIBS
 CPPFLAGS=$save_CPPFLAGS
 LDFLAGS=$save_LDFLAGS

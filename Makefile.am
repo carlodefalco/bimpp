@@ -6,3 +6,4 @@ SUBDIRS = src data test examples/bgs \
 	  examples/shallow_water
 
 dist_doc_DATA = README COPYING
+include_HEADERS = src/bim_config.h src/bim_config_pre.h

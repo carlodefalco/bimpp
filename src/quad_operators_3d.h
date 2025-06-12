@@ -4,6 +4,7 @@
 #include "bimutils.h"
 #include <tmesh_3d.h>
 #include <bim_distributed_vector.h>
+#include <bim_config.h>
 #include <bim_ordering.h>
 #include <bim_sparse.h>
 
@@ -169,14 +170,16 @@ bim3a_dirichlet_bc (tmesh_3d& mesh, const dirichlet_bcs3& bcs,
                     const ordering& ordc,
                     const bool& only_rhs = false);
 
-// template <class T>
-// void
-// interpolate_vector (tmesh_3d & mesh,
-//                     T & vec_in,
-//                     T & vec_out,
-//                     const ordering & ord = default_ord);
+                    
+#ifdef ENABLE_3D_INTERPOLATION
+template <class T>
+void
+interpolate_vector (tmesh_3d & mesh,
+                    T & vec_in,
+                    T & vec_out,
+                    const ordering & ord = default_ord);
 
-
+#endif
 
  double
 dudx (double X, double Y, double Z, const double *x,

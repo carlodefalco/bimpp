@@ -19,6 +19,7 @@
 
 #include <bim_distributed_vector.h>
 #include <bim_ordering.h>
+#include <bim_config.h>
 
 #include <functional>
 #include <array>
@@ -306,13 +307,16 @@ public:
     /// Number of refinement steps to be performed.
     /// A negative number is used to mark for coarsening.
     int refine_count;
+    
+    #ifdef ENABLE_3D_INTERPOLATION
 
     /// Interpolation indices, i.e. the indices
     /// associated to interp_coeff columns.
-    // std::array<tmesh_3d::idx_t, 8> interp_idx;
+    std::array<tmesh_3d::idx_t, 8> interp_idx;
 
     /// Interpolation coefficients at the eight vertices.
-    //  std::array<std::array<double, 8>, 8> interp_coeff;
+     std::array<std::array<double, 8>, 8> interp_coeff;
+    #endif
   };
 
   /// Default constructor, set all pointers to nullptr.
@@ -408,14 +412,16 @@ public:
 	 q != this->end_quadrant_sweep ();
 	 ++q)
       {
-	// set_interpolation_matrix (q);
+        #ifdef ENABLE_3D_INTERPOLATION
+          set_interpolation_matrix (q);
+        #endif
 
-	val = fun (q);
-	if (val)
-	  {
-	    data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
-	    data->refine_count = std::abs (val);
-	  }
+        val = fun (q);
+        if (val)
+          {
+            data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
+            data->refine_count = std::abs (val);
+          }
       }
   };
 
@@ -431,14 +437,16 @@ public:
 	 q != this->end_quadrant_sweep ();
 	 ++q)
       {
-	// set_interpolation_matrix (q);
+        #ifdef ENABLE_3D_INTERPOLATION
+          set_interpolation_matrix (q);
+        #endif
 
-	val = fun (q);
-	if (val)
-	  {
-	    data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
-	    data->refine_count = -std::abs (val);
-	  }
+        val = fun (q);
+        if (val)
+          {
+            data = static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
+            data->refine_count = -std::abs (val);
+          }
       }
   };
 
@@ -560,10 +568,12 @@ private:
   replace_callback (p8est_t*, p4est_topidx_t,
 		    int, p8est_quadrant_t* [],
 		    int, p8est_quadrant_t* []);
-
-  // void
-  // set_interpolation_matrix (tmesh_3d::quadrant_iterator &);
-
+  
+  #ifdef ENABLE_3D_INTERPOLATION
+    void
+    set_interpolation_matrix (tmesh_3d::quadrant_iterator &);
+  #endif
+  
   int metrics_max_depth;
 };
 

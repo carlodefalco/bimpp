@@ -7,6 +7,8 @@
 #include <octave_file_io.h>
 
 #include <tmesh_3d.h>
+#include <bim_config.h>
+
 
 #define dgemm dgemm_
 #define DGEMM dgemm_
@@ -861,7 +863,9 @@ tmesh_3d::set_metrics_marker
   for (auto quadrant = this->begin_quadrant_sweep ();
        quadrant != this->end_quadrant_sweep (); ++quadrant)
     {
-      // set_interpolation_matrix (quadrant);
+      #ifdef ENABLE_3D_INTERPOLATION
+        set_interpolation_matrix (quadrant);
+      #endif
 
       hxhat_hx = static_cast<int> (std::round(std::log2 (estimator (quadrant)
 							 * std::sqrt (this->num_global_quadrants ()) / tol)));
@@ -1186,40 +1190,40 @@ tmesh_3d::user_data_replace (std::vector<tmesh_3d::data_t *> old_user_data,
       new_user_data.resize (8);
 
       for (size_t i = 0; i < new_user_data.size (); ++i)
-	{
-	  // Decrease refine_count.
-	  new_user_data[i].refine_count =
-	    old_user_data[0]->refine_count - 1;
+        {
+          // Decrease refine_count.
+          new_user_data[i].refine_count =
+            old_user_data[0]->refine_count - 1;
+          #ifdef ENABLE_3D_INTERPOLATION
+          // Determine interpolation indices.
+            new_user_data[i].interp_idx =
+              old_user_data[0]->interp_idx;
 
-	  // Determine interpolation indices.
-	  // new_user_data[i].interp_idx =
-	  //   old_user_data[0]->interp_idx;
+            // Compute local interpolation matrix and
+            // multiply by parent interpolation matrix.
+            new_user_data[i].interp_coeff = {0};
 
-	  // // Compute local interpolation matrix and
-	  // // multiply by parent interpolation matrix.
-	  // new_user_data[i].interp_coeff = {0};
+            const int eight = 8;
+            const double one = 1.0;
+            const double zero = .0;
+            dgemm ("N", "N", &eight, &eight, &eight, &one,
+              &(loc_interp[i][0][0]),
+              &eight, &(old_user_data[0]->interp_coeff[0][0]),
+              &eight, &zero, &(new_user_data[i].interp_coeff[0][0]),
+              &eight);
+          #endif
 
-	  // const int eight = 8;
-	  // const double one = 1.0;
-	  // const double zero = .0;
-	  // dgemm ("N", "N", &eight, &eight, &eight, &one,
-	  // 	 &(loc_interp[i][0][0]),
-	  // 	 &eight, &(old_user_data[0]->interp_coeff[0][0]),
-	  // 	 &eight, &zero, &(new_user_data[i].interp_coeff[0][0]),
-	  // 	 &eight);
+          // Alternatively use the following if
+          // lapack does not work
+          //
+          //std::array<std::array<double, 8>, 8> tmp = {0};
+          // for (row = 0; row < 8; ++row)
+          //   for (col = 0; col < 8; ++col)
+          //     for (k = 0; k < 8; ++k)
+          //       new_user_data[i].interp_coeff[row][col] +=
+          //         loc_interp[i][row][k] * old_user_data[0]->interp_coeff[k][col];
 
-	  // Alternatively use the following if
-	  // lapack does not work
-	  //
-	  //std::array<std::array<double, 8>, 8> tmp = {0};
-	  // for (row = 0; row < 8; ++row)
-	  //   for (col = 0; col < 8; ++col)
-	  //     for (k = 0; k < 8; ++k)
-	  //       new_user_data[i].interp_coeff[row][col] +=
-	  //         loc_interp[i][row][k] * old_user_data[0]->interp_coeff[k][col];
-
-
-	}
+        }
     }
   // Coarsening.
   else if (old_user_data.size () == 8)
@@ -1228,28 +1232,30 @@ tmesh_3d::user_data_replace (std::vector<tmesh_3d::data_t *> old_user_data,
 
       // Increase refine_count.
       auto comp = [] (tmesh_3d::data_t *d0, tmesh_3d::data_t *d1)
-	{ return (d0->refine_count < d1->refine_count); };
+	      { return (d0->refine_count < d1->refine_count); };
 
       new_user_data[0].refine_count =
-	(*std::max_element (old_user_data.begin (),
-			    old_user_data.end (), comp))->refine_count + 1;
+        (*std::max_element (old_user_data.begin (),
+                old_user_data.end (), comp))->refine_count + 1;
 
+      #ifdef ENABLE_3D_INTERPOLATION
       // Replace interpolation matrix.
-      // new_user_data[0].interp_coeff = {0};
+      new_user_data[0].interp_coeff = {0};
 
-      // for (row = 0; row < 8; ++row)
-      // 	// If coarsening, then (due to balancing)
-      // 	// the parent indices have a "1" entry.
-      // 	for (col = 0; col < 8; ++col)
-      // 	  if (old_user_data[row]->interp_coeff[row][col] == 1)
-      // 	    {
-      // 	      new_user_data[0].interp_idx[row] =
-      // 		old_user_data[row]->interp_idx[col];
+      for (row = 0; row < 8; ++row)
+      	// If coarsening, then (due to balancing)
+      	// the parent indices have a "1" entry.
+      	for (col = 0; col < 8; ++col)
+      	  if (old_user_data[row]->interp_coeff[row][col] == 1)
+      	    {
+      	      new_user_data[0].interp_idx[row] =
+      		old_user_data[row]->interp_idx[col];
 
-      // 	      // Insert diagonal entry.
-      // 	      new_user_data[0].interp_coeff[row][row] = 1;
-      // 	      break;
-      // 	    }
+      	      // Insert diagonal entry.
+      	      new_user_data[0].interp_coeff[row][row] = 1;
+      	      break;
+      	    }
+      #endif
 
     }
 
@@ -1307,47 +1313,48 @@ tmesh_3d::replace_callback (p8est_t * p8,
   return;
 };
 
-// void
-// tmesh_3d::set_interpolation_matrix (tmesh_3d::quadrant_iterator & q)
-// {
-//   // Create interpolation map.
-//   std::map<idx_t,
-// 	   std::vector<std::pair<int, double>>> interp_map;
+#ifdef ENABLE_3D_INTERPOLATION
+void
+tmesh_3d::set_interpolation_matrix (tmesh_3d::quadrant_iterator & q)
+{
+  // Create interpolation map.
+  std::map<idx_t,
+	   std::vector<std::pair<int, double>>> interp_map;
 
-//   for (int node = 0; node < 8; ++node)
-//     {
-//       if (! q->is_hanging (node))
-// 	interp_map[q->gt (node)].push_back
-// 	  (std::make_pair(node, 1));
-//       else
-// 	{
-// 	  int np = q->num_parents(node);
-// 	  for (int pp = 0; pp < np; ++pp)
-// 	    interp_map[q->gparent (pp, node)].push_back
-// 	      (std::make_pair(node, 1/np));
-// 	}
-//     }
+  for (int node = 0; node < 8; ++node)
+    {
+      if (! q->is_hanging (node))
+	interp_map[q->gt (node)].push_back
+	  (std::make_pair(node, 1));
+      else
+	{
+	  int np = q->num_parents(node);
+	  for (int pp = 0; pp < np; ++pp)
+	    interp_map[q->gparent (pp, node)].push_back
+	      (std::make_pair(node, 1/np));
+	}
+    }
 
-//   // Copy interp_map into user_data.
-//   tmesh_3d::data_t * data =
-//     static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
+  // Copy interp_map into user_data.
+  tmesh_3d::data_t * data =
+    static_cast<tmesh_3d::data_t *> (q->the_quadrant->p.user_data);
 
-//   data->interp_idx = {0};
-//   data->interp_coeff = {0};
+  data->interp_idx = {0};
+  data->interp_coeff = {0};
 
-//   int col = 0;
-//   for (auto map_el = interp_map.begin ();
-//        map_el != interp_map.end ();
-//        ++col, ++map_el)
-//     {
-//       data->interp_idx[col] =
-// 	map_el->first;
+  int col = 0;
+  for (auto map_el = interp_map.begin ();
+       map_el != interp_map.end ();
+       ++col, ++map_el)
+    {
+      data->interp_idx[col] =
+	map_el->first;
 
-//       for (auto vec_entry : map_el->second)
-// 	data->interp_coeff[vec_entry.first][col] = vec_entry.second;
-//     }
-// };
-
+      for (auto vec_entry : map_el->second)
+	data->interp_coeff[vec_entry.first][col] = vec_entry.second;
+    }
+};
+#endif
 
 // void
 // make_connectivity_3d (const p4est_topidx_t num_trees[3],
