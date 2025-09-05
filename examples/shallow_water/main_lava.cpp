@@ -22,9 +22,7 @@
 
 using json = nlohmann::json;
 
-// mpirun -np 1 main_lava glisX_input-lava-travelling-vortex.json >out_lava.txt
-// mpirun -np 1 main_lava $PWD inputs/dem_riemann.octbin.gz inputs/mask_in_vladi.octbin.gz 
-// mpirun -np 1 main_lava $PWD inputs/dem_acheron.octbin.gz inputs/mask_in_acheron.octbin.gz
+// mpirun -np 4 main_lava glisX_input-lava-travelling-vortex.json >out_lava.txt
 
 static constexpr char VARNAME_1[255] = "dem"; 
 //static constexpr char VARNAME_2[255] = "mask_in";  
@@ -133,41 +131,46 @@ raster_value(const double& x,
 inline double dem_fun (const double& xx, const double& yy)
 {
 
-  //return(0);
+  // return(0);
   //return ( 1.+.1*std::exp(-0.5*( std::pow(xx-L/2.,2.) )/std::pow(0.2*L/2.,2.) ) );
   //return(-std::tan(2.5*M_PI/180)*xx+L);
-  return(raster_value(xx,yy));
+  // return(raster_value(xx,yy));
 
-  double z = 0.;
   //const double rx = std::abs(xx-L/2.);
   //const double ry = std::abs(yy-H/2.); 
-  const double r = std::sqrt((xx-L/2.)*(xx-L/2.) + (yy-H/2.)*(yy-H/2.));
-  if (r<=10 && r<= 10)
-  {
-    z = 60;
-  }
-  else if (r>10 && r<=50 && r>10 && r<=50)
-  {
-    z = -r + 70.;
-  }
-  else
-  {
-    z = 15.;
-  }/*
-  const double alfa = std::tan(20*M_PI/180);
-  const double beta = 50.*(1.+alfa);
-  if (xx<50)
-  {
-    z = -alfa*xx + beta;
-  }
-  else 
-  {
-    z = 50.;
-  }
-  if (xx<100 && xx>60 && yy>80 && yy<120)
-  {
-    z = 80.;
-  }*/
+
+  double z = 0.;
+  // const double r = std::sqrt((xx-L/2.)*(xx-L/2.) + (yy-H/2.)*(yy-H/2.));
+  // if (r<=10 && r<= 10)
+  // {
+  //   z = 60;
+  // }
+  // else if (r>10 && r<=50 && r>10 && r<=50)
+  // {
+  //   z = -r + 70.;
+  // }
+  // else
+  // {
+  //   z = 15.;
+  // }
+
+  // const double alfa = std::tan(15.*M_PI/180);
+  // const double beta = L*alfa;
+  // z = -alfa*xx + beta;
+
+  // if (xx<50)
+  // {
+  //   z = -alfa*xx + beta;
+  // }
+  // else 
+  // {
+  //   z = 50.;
+  // }
+  // if (xx<100 && xx>60 && yy>80 && yy<120)
+  // {
+  //   z = 80.;
+  // }
+
   return(z);
 
   //return(raster_value(xx,yy,dem));
@@ -178,31 +181,91 @@ inline double dem_fun (const double& xx, const double& yy)
 using Q1  = q1_vec<distributed_vector>;  // Typedef for distributed q_1 vector
 using Q0  = distributed_vector; //distributed_vector; //std::vector<double>;         // Typedef for local q_0 vector // distributed_vector
 
+
+#if SET_TEST == 1 
+// Parameters
+static const double h0     = 1.0;
+static const double hmin   = 0.9;
+static const double x_0    = 0.5;
+static const double y_0    = 0.5;
+static const double r0     = 0.25;
+static const double u_inf  = 6.0;
+
+//
+auto Gamma = [](double g) {
+  return M_PI/2./r0*std::sqrt((g*(h0-hmin))/(3.*M_PI*M_PI/64.-1./4.));
+  // return M_PI/4./r0*std::sqrt((g*(h0-hmin))/(35.*M_PI*M_PI/1024.-2./9.));
+};
+
+// 
+auto omega = [](double r, double g, double rho) -> double {
+  return 2*Gamma(g)*std::cos(rho/2.)*std::cos(rho/2.)*(r<=r0);
+  // return 4.*Gamma(g)*std::cos(rho/2.)*std::cos(rho/2.)*std::cos(rho/2.)*std::cos(rho/2.)*(r<=r0);
+};
+#endif
+
+
 //double h0_fun (const double& xx, const double& yy)  { return std::max (0., (8. - std::sin (M_PI * xx / 2. / 400.) - dem[global_coord_2_raster(xx,yy)[0]])); }
 inline double h0_fun (const double& xx, const double& yy, const double& g) 
 {
   double h_ini = 0;
 
 #if SET_TEST == 1 
-  double h0    = 1;
-  double hh_min = .9;
-  double x0    = .5;
-  double y0    = .5;
-  double r     = std::sqrt((xx-x0)*(xx-x0) + (yy-y0)*(yy-y0));
-  double r0    = .25;
-  double rho   = M_PI*r/r0;
-  double Gamma = M_PI/2./r0*std::sqrt((g*(h0-hh_min))/(3.*M_PI*M_PI/64.-1./4.));
-  double omega = r<=r0 ? 2*Gamma*std::cos(rho/2.)*std::cos(rho/2.) : 0.;
-  double corr  = 4;
-
+  double r     = std::sqrt((xx-x_0)*(xx-x_0) + (yy-y_0)*(yy-y_0));
+  double rho   = M_PI*r/r0; 
+  double corr = 4.;
   auto H_vortex = [](double s) { 
     return std::cos(2.*s)/8. + s*std::sin(2.*s)/4. + std::cos(2.*s)*std::cos(2.*s)/64. + 3.*s*s/16. + s*std::cos(2.*s)*std::sin(2.*s)/16.;
     //return s*std::cos(s)*std::sin(s)/4*(std::cos(s)*std::cos(s) + 3./2.) + std::cos(s)*std::cos(s)*(3./(4.*4.) + std::cos(s)*std::cos(s)/16.) + 3./4./2.*s*s/2.;
   };
- 
-       h_ini = h0 - (r<=r0 ? 1./g*(2.*Gamma*r0/M_PI)*(2.*Gamma*r0/M_PI)*(H_vortex(M_PI/2.) - H_vortex(rho/2.))*corr : 0.); //H_vortex(rho/2.);//std::cos(rho)/8. + rho/2.*std::sin(rho)/4. + std::cos(rho)*std::cos(rho)/64. + 3.*rho/2.*rho/2./16. + rho/2.*std::cos(rho)*std::sin(rho)/16.; //h0 - (r<=r0 ? 1./g*(2.*Gamma*r0/M_PI)*(2.*Gamma*r0/M_PI)*(H_vortex(M_PI/2.) - H_vortex(rho/2.))*corr : 0.);
+//   auto H_vortex = [](double x) {
+//     return (35.0 * std::cos(2.0 * x)) / 384.0
+//          + (35.0 * x * std::sin(2.0 * x)) / 192.0
+//          + std::pow(std::cos(x), 6) * (std::pow(std::cos(x), 2) / 64.0 + 7.0 / 288.0)
+//          + (35.0 * std::pow(std::cos(2.0 * x), 2)) / 3072.0
+//          + (35.0 * std::pow(x, 2)) / 256.0
+//          + (35.0 * x * std::cos(2.0 * x) * std::sin(2.0 * x)) / 768.0
+//          + (x * std::pow(std::cos(x), 5) * std::sin(x) * (std::pow(std::cos(x), 2) + 7.0 / 6.0)) / 8.0;
+// };
 
-#elif SET_TEST == 2
+ 
+  // h_ini = h0 - (r<=r0 ? 1./g*(4.*Gamma(g)*r0/M_PI)*(4.*Gamma(g)*r0/M_PI)*(H_vortex(M_PI/2.) - H_vortex(rho/2.))*corr : 0.); //H_vortex(rho/2.);//std::cos(rho)/8. + rho/2.*std::sin(rho)/4. + std::cos(rho)*std::cos(rho)/64. + 3.*rho/2.*rho/2./16. + rho/2.*std::cos(rho)*std::sin(rho)/16.; //h0 - (r<=r0 ? 1./g*(2.*Gamma*r0/M_PI)*(2.*Gamma*r0/M_PI)*(H_vortex(M_PI/2.) - H_vortex(rho/2.))*corr : 0.);
+
+  // h_ini = h0 - (r<=r0)*1./g*(4.*Gamma(g)*r0/M_PI)*(4.*Gamma(g)*r0/M_PI)*(H_vortex(M_PI/2.) - H_vortex(rho/2.));
+  h_ini = h0 - (r<=r0)*1./g*(2.*Gamma(g)*r0/M_PI)*(2.*Gamma(g)*r0/M_PI)*(H_vortex(M_PI/2.) - H_vortex(rho/2.))*corr;
+
+
+    // const int N = 64;                 // increase if you want more accuracy
+    // const double R = std::min(r, r0);
+    // double sum = 0.0;
+    // // Simple Simpson’s rule on [0,R]
+    // if (R == 0.0) return h0;
+    // double dr = R / N;
+    // for (int i = 0; i <= N; ++i) {
+    //     double s  = i * dr;
+    //     double w  = (i == 0 || i == N) ? 1.0 : (i % 2 ? 4.0 : 2.0);
+    //     double om = omega(s,g,rho);
+    //     sum += w * (om * om) * s;
+    // }
+    // double integral = (dr / 3.0) * sum;
+    // // add the constant outside support (same value at r >= r0)
+    // // integral up to r0 if r > r0
+    // if (r > r0) {
+    //     // compute once up to r0 for consistency
+    //     // could cache this value; here we recompute simply by setting R=r0
+    //     integral = 0.0;
+    //     double dr0 = r0 / N;
+    //     for (int i = 0; i <= N; ++i) {
+    //         double s  = i * dr0;
+    //         double w  = (i == 0 || i == N) ? 1.0 : (i % 2 ? 4.0 : 2.0);
+    //         double om = omega(s,g,rho);
+    //         integral += w * (om * om) * s;
+    //     }
+    //     integral = (dr0 / 3.0) * integral;
+    // }
+    // h_ini = h0 - (1.0 / g) * integral;
+
+#elif SET_TEST == 2 
        h_ini = 1. + 3.*std::exp(-0.5*10*( (xx-L/4.)*(xx-L/4.) )/(0.2*L/2.)/(0.2*L/2.));
 #endif
 
@@ -273,17 +336,11 @@ inline double Ux0_fun (const double& xx, const double& yy, const double& g)
   double U_ini = 0.;
 
 #if SET_TEST == 1 
-  double u_infty = 6;
-  double x0      = .5;
-  double y0      = .5;
-  double h0      = 1;
-  double hh_min  = .9;
-  double r       = std::sqrt((xx-x0)*(xx-x0) + (yy-y0)*(yy-y0));
-  double r0      = .25;
+  double r       = std::sqrt((xx-x_0)*(xx-x_0) + (yy-y_0)*(yy-y_0));
   double rho     = M_PI*r/r0;
-  double Gamma   = M_PI/2./r0*std::sqrt((g*(h0-hh_min))/(3.*M_PI*M_PI/64.-1./4.));
-  double omega   = r<=r0 ? 2*Gamma*std::cos(rho/2.)*std::cos(rho/2.) : 0.;
-         U_ini   = h0_fun(xx,yy,g)*(u_infty - (yy - y0)*omega);
+         U_ini   = h0_fun(xx,yy,g)*(u_inf - (yy - y_0)*omega(r,g,rho));
+
+
 #endif
 
   return (U_ini);
@@ -295,16 +352,10 @@ inline double Uy0_fun (const double& xx, const double& yy, const double& g)
   double V_ini = 0.;
 
 #if SET_TEST == 1 
-  double x0      = .5;
-  double y0      = .5;
-  double h0      = 1;
-  double hh_min  = .9;
-  double r       = std::sqrt((xx-x0)*(xx-x0) + (yy-y0)*(yy-y0));
-  double r0      = .25; 
+  double r       = std::sqrt((xx-x_0)*(xx-x_0) + (yy-y_0)*(yy-y_0));
   double rho     = M_PI*r/r0;
-  double Gamma   = M_PI/2./r0*std::sqrt((g*(h0-hh_min))/(3.*M_PI*M_PI/64.-1./4.));
-  double omega   = r<=r0 ? 2*Gamma*std::cos(rho/2.)*std::cos(rho/2.) : 0.;
-         V_ini   = h0_fun(xx,yy,g)*(xx - x0)*omega;
+         V_ini   = h0_fun(xx,yy,g)*(xx - x_0)*omega(r,g,rho);
+
 #endif
 
   return (V_ini);
@@ -1107,6 +1158,7 @@ main (int argc, char **argv)
       stp.compute_nodal_anti_diffusive_fluxes(quadrant);
     }
     incr_dyn.assemble ();
+    incr_second_dyn.assemble ();
     P_plus_dyn.assemble ();
     P_minus_dyn.assemble ();
 
@@ -1118,7 +1170,8 @@ main (int argc, char **argv)
     // low order solution
     for (auto kk = 0; kk < incr_dyn.get_owned_data ().size (); kk++)
     {
-      sol_dyn.get_owned_data ()[kk] += stp.dt_expl_32*incr_dyn.get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk];
+      sol_dyn.get_owned_data ()[kk] += stp.dt_expl_32*incr_dyn       .get_owned_data ()[kk]/mass_dyn.get_owned_data ()[kk] 
+                                     + 0*stp.dt_32     *incr_second_dyn.get_owned_data ()[kk]/mass_dyn    .get_owned_data ()[kk];
     }
     sol_dyn.assemble(replace_op); 
 
@@ -1140,6 +1193,7 @@ main (int argc, char **argv)
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordUy, false);
     bim2a_solution_with_ghosts (tmsh, sol_dyn, replace_op, ordTh);
 
+
     incr_dyn.get_owned_data ().assign (incr_dyn.get_owned_data ().size (), 0.0);
     incr_dyn.assemble (replace_op);
 
@@ -1150,8 +1204,7 @@ main (int argc, char **argv)
     {
       stp.second_step(quadrant);
     }
-    incr_dyn.assemble ();
-    incr_second_dyn.assemble ();
+    incr_dyn       .assemble ();
     //TOC("Compute step");
     
     // Compute here the second step solution!
@@ -1339,8 +1392,8 @@ main (int argc, char **argv)
       };
 
 
-      tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, tolerance_space_adapt, x_v, y_v, mesh_size_vent, 6, 0, 0);
-      //tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, tolerance_space_adapt, 6, 0, 0);
+      // tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, tolerance_space_adapt, x_v, y_v, mesh_size_vent, 6, 0, 0);
+      tmsh.set_metrics_marker_flux_lim (estimator, estimator_flux, dry_function, mesh_size_dry, mesh_size_wet, mesh_size_interface, tolerance_space_adapt, 6, 0, 0);
       //tmsh.set_metrics_marker (estimator, 1e-5, 4, 3, 1); 
       tmsh.metrics_refine (1e6);  // RAFFINAMENTO (arg is max element)
 
@@ -1431,7 +1484,7 @@ main (int argc, char **argv)
           if (! quadrant->is_hanging (ii)){
             double xx=quadrant->p(0,ii);
             double yy=quadrant->p(1,ii);
-            Z           [quadrant->gt (ii)] = dem_fun(xx,yy); 
+            Z[quadrant->gt (ii)] = dem_fun(xx,yy); 
           }
            
           else
@@ -1467,6 +1520,42 @@ main (int argc, char **argv)
       space_adapt_count = 0.0;
 
       
+
+//       if (rank == 0)
+//         std::cout << "savecount = " << savecount << std::endl;
+//       count++;
+//       save_time_vector.push_back (time);
+
+     
+//       str = std::string(SAVE_DIR) + "/results/swe_h_%4.4d";
+//       strcpy(arr, str.c_str());
+//       sprintf(filename, arr,   count);
+//       tmsh.octbin_export (filename, sol_dyn, ordh);
+      
+//       str = std::string(SAVE_DIR) + "/results/swe_Ux_%4.4d";
+//       strcpy(arr, str.c_str());
+//       sprintf(filename, arr,  count);
+//       tmsh.octbin_export (filename, sol_dyn, ordUx);
+      
+//       str = std::string(SAVE_DIR) + "/results/swe_Uy_%4.4d";
+//       strcpy(arr, str.c_str());
+//       sprintf(filename, arr,  count);
+//       tmsh.octbin_export (filename, sol_dyn, ordUy);
+
+//       str = std::string(SAVE_DIR) + "/results/swe_Th_%4.4d";
+//       strcpy(arr, str.c_str());
+//       sprintf(filename, arr,  count);
+//       tmsh.octbin_export (filename, sol_dyn, ordTh);
+      
+//       str = std::string(SAVE_DIR) + "/results/swe_Z_%4.4d";
+//       strcpy(arr, str.c_str());
+//       sprintf(filename, arr,  count);
+//       tmsh.octbin_export (filename, Z_dyn);
+      
+// exit(1);
+
+
+
       //TOC ("Interpolation");
       
     }

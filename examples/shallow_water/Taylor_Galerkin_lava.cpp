@@ -61,13 +61,13 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
   {
     if (! quadrant->is_hanging (ii) )
     {
-      hdof[ii]  = sol [ordh  (quadrant->gt (ii) )];
+      hdof [ii] = sol [ordh  (quadrant->gt (ii) )];
       Uxdof[ii] = sol [ordUx (quadrant->gt (ii) )];
       Uydof[ii] = sol [ordUy (quadrant->gt (ii) )]; 
     }
     else
     {
-      hdof[ii]  = .5 * (sol [ordh  (quadrant->gparent (0, ii) )] +
+      hdof [ii] = .5 * (sol [ordh  (quadrant->gparent (0, ii) )] +
                         sol [ordh  (quadrant->gparent (1, ii) )]);
       Uxdof[ii] = .5 * (sol [ordUx (quadrant->gparent (0, ii) )] +
                         sol [ordUx (quadrant->gparent (1, ii) )]);
@@ -85,9 +85,9 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
   for (int ii = 0; ii < 4; ++ii){
     const auto& hpoint = hdof[ii];
     const auto celerity = std::sqrt(grav*hpoint);
-    
-    const auto vel_rusanov_cell_x = hpoint>epsilon ? std::abs(Uxdof[ii]/hpoint)+celerity : 0.;
-    const auto vel_rusanov_cell_y = hpoint>epsilon ? std::abs(Uydof[ii]/hpoint)+celerity : 0.;
+
+    const auto vel_rusanov_cell_x = compute_max_eigenvalue(hpoint, Uxdof[ii], celerity); 
+    const auto vel_rusanov_cell_y = compute_max_eigenvalue(hpoint, Uydof[ii], celerity); 
     
     const auto dtoptx = hpoint>epsilon ? Dx/vel_rusanov_cell_x : DELTAT;
     const auto dtopty = hpoint>epsilon ? Dy/vel_rusanov_cell_y : DELTAT;
@@ -99,6 +99,17 @@ TG2_scheme::compute_dt (tmesh::quadrant_iterator quadrant)
     
   }
 }
+
+double
+TG2_scheme::compute_max_eigenvalue(const double& h, const double& U, const double& celerity)
+{
+#if FLUX_MODEL == 1
+  return (h>epsilon ? std::abs(U/h)+celerity : 0.);
+#elif FLUX_MODEL == 2
+  return 6;
+#endif
+}
+
 
 void
 TG2_scheme::compute_dt_adaptive (tmesh::quadrant_iterator quadrant)
@@ -247,8 +258,10 @@ TG2_scheme::first_step (tmesh::quadrant_iterator quadrant)
   const double extr_y_a = (-Dy/2.+delta_y_vc)/std::sqrt(2.*sigma_vent);
   const double extr_y_b = (+Dy/2.+delta_y_vc)/std::sqrt(2.*sigma_vent);
 
-  sol_onehalf[ordh    (index_quadrant_global)] += dt_expl_21* Q_vent/area*       ( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
-  sol_onehalf[ordTh   (index_quadrant_global)] += dt_expl_21* Q_vent/area*T_vent*( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
+  const auto stage_time = timed + c_expl_2;
+
+  sol_onehalf[ordh    (index_quadrant_global)] += dt_expl_21* Q_vent_fun(stage_time)/area*       ( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
+  sol_onehalf[ordTh   (index_quadrant_global)] += dt_expl_21* Q_vent_fun(stage_time)/area*T_vent*( std::erf(extr_x_b) - std::erf(extr_x_a) )/2.*( std::erf(extr_y_b) - std::erf(extr_y_a) )/2.;
 
 
   // add friction term for the momentum and eventual heat exchange for the temperature eqn.
@@ -326,8 +339,8 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   for (int ii = 0; ii < 4; ++ii){
     const auto& hpoint = hdof[ii];
     const auto celerity = std::sqrt(grav*hpoint);
-    vel_rusanov_cell_x += hpoint>epsilon ? std::abs(Uxdof[ii]/hpoint)+celerity : 0.;
-    vel_rusanov_cell_y += hpoint>epsilon ? std::abs(Uydof[ii]/hpoint)+celerity : 0.;
+    vel_rusanov_cell_x += compute_max_eigenvalue(hpoint, Uxdof[ii], celerity); //hpoint>epsilon ? std::abs(Uxdof[ii]/hpoint)+celerity : 0.;
+    vel_rusanov_cell_y += compute_max_eigenvalue(hpoint, Uydof[ii], celerity); //hpoint>epsilon ? std::abs(Uydof[ii]/hpoint)+celerity : 0.;
   }
   vel_rusanov_cell_x /= 4.;
   vel_rusanov_cell_y /= 4.; 
@@ -613,17 +626,32 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   //const auto diff_term_h_x  = h_cell>epsilon ? grad_cell_eta[0]*vel_rusanov_cell_y*.5 : grad_cell_h[0]*vel_rusanov_cell_y*.5;
   //const auto diff_term_h_y  = h_cell>epsilon ? grad_cell_eta[1]*vel_rusanov_cell_x*.5 : grad_cell_h[1]*vel_rusanov_cell_x*.5;
 
-  const auto diff_term_h_x  = std::abs(grad_cell_eta[0])>epsilon ? grad_cell_h[0]*vel_rusanov_cell_y*.5 : grad_cell_eta[0]*vel_rusanov_cell_y*.5;
-  const auto diff_term_h_y  = std::abs(grad_cell_eta[1])>epsilon ? grad_cell_h[1]*vel_rusanov_cell_x*.5 : grad_cell_eta[1]*vel_rusanov_cell_x*.5;
+  const double coeff_diff = .5;
 
-  const auto diff_term_Ux_x = grad_cell_Ux [0]*vel_rusanov_cell_y*.5;
-  const auto diff_term_Ux_y = grad_cell_Ux [1]*vel_rusanov_cell_x*.5;
+  const auto diff_term_h_x  = std::abs(grad_cell_eta[0])>epsilon ? grad_cell_h[0]*vel_rusanov_cell_y*coeff_diff : grad_cell_eta[0]*vel_rusanov_cell_y*coeff_diff;
+  const auto diff_term_h_y  = std::abs(grad_cell_eta[1])>epsilon ? grad_cell_h[1]*vel_rusanov_cell_x*coeff_diff : grad_cell_eta[1]*vel_rusanov_cell_x*coeff_diff;
 
-  const auto diff_term_Uy_x = grad_cell_Uy [0]*vel_rusanov_cell_y*.5;
-  const auto diff_term_Uy_y = grad_cell_Uy [1]*vel_rusanov_cell_x*.5;
+  const auto diff_term_Ux_x = grad_cell_Ux [0]*vel_rusanov_cell_y*coeff_diff;
+  const auto diff_term_Ux_y = grad_cell_Ux [1]*vel_rusanov_cell_x*coeff_diff;
 
-  const auto diff_term_Th_x = grad_cell_Th [0]*vel_rusanov_cell_y*.5;
-  const auto diff_term_Th_y = grad_cell_Th [1]*vel_rusanov_cell_x*.5;
+  const auto diff_term_Uy_x = grad_cell_Uy [0]*vel_rusanov_cell_y*coeff_diff;
+  const auto diff_term_Uy_y = grad_cell_Uy [1]*vel_rusanov_cell_x*coeff_diff;
+
+  const auto diff_term_Th_x = grad_cell_Th [0]*vel_rusanov_cell_y*coeff_diff;
+  const auto diff_term_Th_y = grad_cell_Th [1]*vel_rusanov_cell_x*coeff_diff;
+
+
+  // const auto diff_term_h_x  = std::abs(grad_cell_eta[0])>epsilon ? grad_cell_h[0]*vel_rusanov_cell_x*coeff_diff : grad_cell_eta[0]*vel_rusanov_cell_x*coeff_diff;
+  // const auto diff_term_h_y  = std::abs(grad_cell_eta[1])>epsilon ? grad_cell_h[1]*vel_rusanov_cell_y*coeff_diff : grad_cell_eta[1]*vel_rusanov_cell_y*coeff_diff;
+
+  // const auto diff_term_Ux_x = grad_cell_Ux [0]*vel_rusanov_cell_x*coeff_diff;
+  // const auto diff_term_Ux_y = grad_cell_Ux [1]*vel_rusanov_cell_y*coeff_diff;
+
+  // const auto diff_term_Uy_x = grad_cell_Uy [0]*vel_rusanov_cell_x*coeff_diff;
+  // const auto diff_term_Uy_y = grad_cell_Uy [1]*vel_rusanov_cell_y*coeff_diff;
+
+  // const auto diff_term_Th_x = grad_cell_Th [0]*vel_rusanov_cell_x*coeff_diff;
+  // const auto diff_term_Th_y = grad_cell_Th [1]*vel_rusanov_cell_y*coeff_diff;
 
 
 
@@ -641,19 +669,32 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
   const auto F_star_Th_y = Th_flux_formula_y(h_cell, Ux_cell, Uy_cell, Th_cell) - diff_term_Th_y;
 
 
+  // define the second increment vector
+  auto flux_on_the_node_h_second  = 0.; 
+  auto flux_on_the_node_Ux_second = Ux_src_formula(h_cell, Ux_cell, 0.,      Th_cell       )*area/4;
+  auto flux_on_the_node_Uy_second = Uy_src_formula(h_cell, 0.,      Uy_cell, Th_cell       )*area/4;
+  auto flux_on_the_node_Th_second = Th_src_formula(h_cell, Ux_cell, Uy_cell, Th_cell, T_env)*area/4; 
+
   for (int ii = 0; ii < 4; ++ii){
 
     const auto h_    = der_coeffs_x[ii]*F_star_h_x +der_coeffs_y[ii]*F_star_h_y;
-    const auto Ux_   = der_coeffs_x[ii]*F_star_Ux_x+der_coeffs_y[ii]*F_star_Ux_y - .5*Dy*contr_x[ii];// + .25*area*src_slope_formula(h_cell, slope_x_cell);
-    const auto Uy_   = der_coeffs_x[ii]*F_star_Uy_x+der_coeffs_y[ii]*F_star_Uy_y - .5*Dx*contr_y[ii];// + .25*area*src_slope_formula(h_cell, slope_y_cell);
+    const auto Ux_   = der_coeffs_x[ii]*F_star_Ux_x+der_coeffs_y[ii]*F_star_Ux_y - .5*Dy*contr_x[ii]; // + .25*area*src_slope_formula(h_cell, slope_x_cell);
+    const auto Uy_   = der_coeffs_x[ii]*F_star_Uy_x+der_coeffs_y[ii]*F_star_Uy_y - .5*Dx*contr_y[ii]; // + .25*area*src_slope_formula(h_cell, slope_y_cell);
     const auto Th_   = der_coeffs_x[ii]*F_star_Th_x+der_coeffs_y[ii]*F_star_Th_y;
 
-    const auto h_al  = der_coeffs_x[ii]*diff_term_h_x  + der_coeffs_y[ii]*diff_term_h_y; 
+    const auto h_al  = der_coeffs_x[ii]*diff_term_h_x  + der_coeffs_y[ii]*diff_term_h_y ; 
     const auto Ux_al = der_coeffs_x[ii]*diff_term_Ux_x + der_coeffs_y[ii]*diff_term_Ux_y;
     const auto Uy_al = der_coeffs_x[ii]*diff_term_Uy_x + der_coeffs_y[ii]*diff_term_Uy_y;
     const auto Th_al = der_coeffs_x[ii]*diff_term_Th_x + der_coeffs_y[ii]*diff_term_Th_y;
 
-    incr_anti_diff[ordh (index_quadrant)][ii] = h_al;
+    // define the second increment vector
+    flux_on_the_node_h_second  *= isdof_or_hanging[ii]; 
+    flux_on_the_node_Ux_second *= isdof_or_hanging[ii];
+    flux_on_the_node_Uy_second *= isdof_or_hanging[ii];
+    flux_on_the_node_Th_second *= isdof_or_hanging[ii]; 
+
+
+    incr_anti_diff[ordh (index_quadrant)][ii] = h_al ;
     incr_anti_diff[ordUx(index_quadrant)][ii] = Ux_al;
     incr_anti_diff[ordUy(index_quadrant)][ii] = Uy_al;
     incr_anti_diff[ordTh(index_quadrant)][ii] = Th_al;
@@ -661,7 +702,7 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
     if (! quadrant->is_hanging (ii)){
 
-      incr [ordh  (quadrant->gt (ii))] += h_;
+      incr [ordh  (quadrant->gt (ii))] += h_ ;
       incr [ordUx (quadrant->gt (ii))] += Ux_;
       incr [ordUy (quadrant->gt (ii))] += Uy_;
       incr [ordTh (quadrant->gt (ii))] += Th_;
@@ -675,7 +716,11 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
       P_minus [ordUx (quadrant->gt (ii))] += std::min(0., Ux_al);
       P_minus [ordUy (quadrant->gt (ii))] += std::min(0., Uy_al);
       P_minus [ordTh (quadrant->gt (ii))] += std::min(0., Th_al);
-      
+
+      incr_second [ordh  (quadrant->gt (ii))] += flux_on_the_node_h_second ;
+      incr_second [ordUx (quadrant->gt (ii))] += flux_on_the_node_Ux_second;
+      incr_second [ordUy (quadrant->gt (ii))] += flux_on_the_node_Uy_second;
+      incr_second [ordTh (quadrant->gt (ii))] += flux_on_the_node_Th_second;
       
     } else {
 
@@ -719,6 +764,21 @@ TG2_scheme::compute_nodal_anti_diffusive_fluxes (tmesh::quadrant_iterator quadra
 
       P_minus [ordTh (quadrant->gparent(0,ii))] += std::min(0., Th_al);
       P_minus [ordTh (quadrant->gparent(1,ii))] += std::min(0., Th_al);
+
+
+
+      // store now the second increment vector
+      incr_second [ordh  (quadrant->gparent(0,ii))] += flux_on_the_node_h_second ; 
+      incr_second [ordh  (quadrant->gparent(1,ii))] += flux_on_the_node_h_second ;
+      
+      incr_second [ordUx (quadrant->gparent(0,ii))] += flux_on_the_node_Ux_second;
+      incr_second [ordUx (quadrant->gparent(1,ii))] += flux_on_the_node_Ux_second;
+      
+      incr_second [ordUy (quadrant->gparent(0,ii))] += flux_on_the_node_Uy_second;
+      incr_second [ordUy (quadrant->gparent(1,ii))] += flux_on_the_node_Uy_second;
+
+      incr_second [ordTh (quadrant->gparent(0,ii))] += flux_on_the_node_Th_second;
+      incr_second [ordTh (quadrant->gparent(1,ii))] += flux_on_the_node_Th_second;
       
     }
   }
@@ -899,14 +959,14 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
           h_min[ii]  = std::min(h_min[ii],  eta_current_cell);
           h_max[ii]  = std::max(h_max[ii],  eta_current_cell);
 
-          Ux_min[ii] = std::min(Ux_min[ii], Ux_current_cell);
-          Ux_max[ii] = std::max(Ux_max[ii], Ux_current_cell);
+          Ux_min[ii] = std::min(Ux_min[ii], Ux_current_cell );
+          Ux_max[ii] = std::max(Ux_max[ii], Ux_current_cell );
 
-          Uy_min[ii] = std::min(Uy_min[ii], Uy_current_cell);
-          Uy_max[ii] = std::max(Uy_max[ii], Uy_current_cell);
+          Uy_min[ii] = std::min(Uy_min[ii], Uy_current_cell );
+          Uy_max[ii] = std::max(Uy_max[ii], Uy_current_cell );
 
-          Th_min[ii] = std::min(Th_min[ii], Th_current_cell);
-          Th_max[ii] = std::max(Th_max[ii], Th_current_cell);
+          Th_min[ii] = std::min(Th_min[ii], Th_current_cell );
+          Th_max[ii] = std::max(Th_max[ii], Th_current_cell );
 
         }
 
@@ -932,10 +992,10 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
     const auto hpoint = hdof[ii];
 
     const auto celerity = std::sqrt(grav*hpoint);
-    const auto vel_rusanov_cell_x = hpoint>epsilon ? (std::abs(Uxdof[ii]/hpoint)+celerity) : 0.;
-    const auto vel_rusanov_cell_y = hpoint>epsilon ? (std::abs(Uydof[ii]/hpoint)+celerity) : 0.;
+    const auto vel_rusanov_cell_x = compute_max_eigenvalue(hpoint, Uxdof[ii], celerity); //hpoint>epsilon ? (std::abs(Uxdof[ii]/hpoint)+celerity) : 0.;
+    const auto vel_rusanov_cell_y = compute_max_eigenvalue(hpoint, Uydof[ii], celerity); //hpoint>epsilon ? (std::abs(Uydof[ii]/hpoint)+celerity) : 0.;
 
-    const auto vel_square_rusanov_cell = vel_rusanov_cell_x * vel_rusanov_cell_y;
+    const auto vel_square_rusanov_cell = vel_rusanov_cell_x * vel_rusanov_cell_y; //vel_rusanov_cell_x * vel_rusanov_cell_y; //Dx/dt_expl_32 * Dy/dt_expl_32;//vel_rusanov_cell_x * vel_rusanov_cell_y;
 
     flux_limiter(h_min [ii], h_max [ii], etadof[ii], P_plus_h_dof [ii], P_minus_h_dof  [ii], flux_on_the_node_h,  vel_square_rusanov_cell, phi_cell_h );
     flux_limiter(Ux_min[ii], Ux_max[ii], Uxdof [ii], P_plus_Ux_dof[ii], P_minus_Ux_dof [ii], flux_on_the_node_Ux, vel_square_rusanov_cell, phi_cell_Ux);
@@ -944,8 +1004,12 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   }
 
   if (!is_limiter) {
+    
     phi_cell_h = 1., phi_cell_Ux = 1., phi_cell_Uy = 1., phi_cell_Th = 1.;
+    
   }
+
+  // phi_cell_h = 0., phi_cell_Ux = 0., phi_cell_Uy = 0., phi_cell_Th = 0.;
 
   const double & h_cell    = sol_onehalf[ordh    (index_quadrant_global)];
   const double & Ux_cell   = sol_onehalf[ordUx   (index_quadrant_global)];
@@ -972,38 +1036,40 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
   std::array<double, 2> contrx = {Dx*std::sqrt(M_PI)/2.*(std::erf(extr_x_b) - std::erf(extr_x_a))*std::sqrt(2.*sigma_vent) - common_contr_x, common_contr_x};
   std::array<double, 2> contry = {Dy*std::sqrt(M_PI)/2.*(std::erf(extr_y_b) - std::erf(extr_y_a))*std::sqrt(2.*sigma_vent) - common_contr_y, common_contr_y};
 
+  const auto stage_time = timed + c_expl_3;
+
   for (int ii = 0; ii < 4; ++ii){
 
     const int ii_1 = ii%2;
     const int ii_2 = ii/2;
 
-    const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h + Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
+    const auto flux_on_the_node_h  = incr_anti_diff[ordh (index_quadrant)][ii]*phi_cell_h + Q_vent_fun(stage_time)*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
     const auto flux_on_the_node_Ux = incr_anti_diff[ordUx(index_quadrant)][ii]*phi_cell_Ux;
     const auto flux_on_the_node_Uy = incr_anti_diff[ordUy(index_quadrant)][ii]*phi_cell_Uy;
-    const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
+    const auto flux_on_the_node_Th = incr_anti_diff[ordTh(index_quadrant)][ii]*phi_cell_Th + T_vent*Q_vent_fun(stage_time)*contrx[ii_1]*contry[ii_2]/area/(2.*M_PI*sigma_vent)*isdof_or_hanging[ii];
 
-    // define the second increment vector
-    const auto flux_on_the_node_h_second  = 0.; 
-    const auto flux_on_the_node_Ux_second = Ux_src_formula(h_cell, Ux_cell, 0.,      Th_cell       )*area/4*isdof_or_hanging[ii];
-    const auto flux_on_the_node_Uy_second = Uy_src_formula(h_cell, 0.,      Uy_cell, Th_cell       )*area/4*isdof_or_hanging[ii];
-    const auto flux_on_the_node_Th_second = Th_src_formula(h_cell, Ux_cell, Uy_cell, Th_cell, T_env)*area/4*isdof_or_hanging[ii]; 
+    // // define the second increment vector
+    // const auto flux_on_the_node_h_second  = 0.; 
+    // const auto flux_on_the_node_Ux_second = Ux_src_formula(h_cell, Ux_cell, 0.,      Th_cell       )*area/4*isdof_or_hanging[ii];
+    // const auto flux_on_the_node_Uy_second = Uy_src_formula(h_cell, 0.,      Uy_cell, Th_cell       )*area/4*isdof_or_hanging[ii];
+    // const auto flux_on_the_node_Th_second = Th_src_formula(h_cell, Ux_cell, Uy_cell, Th_cell, T_env)*area/4*isdof_or_hanging[ii]; 
 
     if (! quadrant->is_hanging (ii)){
 
-      incr [ordh  (quadrant->gt (ii))] += flux_on_the_node_h;
+      incr [ordh  (quadrant->gt (ii))] += flux_on_the_node_h ;
       incr [ordUx (quadrant->gt (ii))] += flux_on_the_node_Ux;
       incr [ordUy (quadrant->gt (ii))] += flux_on_the_node_Uy;
       incr [ordTh (quadrant->gt (ii))] += flux_on_the_node_Th;
 
-      incr_second [ordh  (quadrant->gt (ii))] += flux_on_the_node_h_second;
-      incr_second [ordUx (quadrant->gt (ii))] += flux_on_the_node_Ux_second;
-      incr_second [ordUy (quadrant->gt (ii))] += flux_on_the_node_Uy_second;
-      incr_second [ordTh (quadrant->gt (ii))] += flux_on_the_node_Th_second;
+      // incr_second [ordh  (quadrant->gt (ii))] += flux_on_the_node_h_second ;
+      // incr_second [ordUx (quadrant->gt (ii))] += flux_on_the_node_Ux_second;
+      // incr_second [ordUy (quadrant->gt (ii))] += flux_on_the_node_Uy_second;
+      // incr_second [ordTh (quadrant->gt (ii))] += flux_on_the_node_Th_second;
 
     } else {
 
-      incr [ordh  (quadrant->gparent(0,ii))] += flux_on_the_node_h; 
-      incr [ordh  (quadrant->gparent(1,ii))] += flux_on_the_node_h;
+      incr [ordh  (quadrant->gparent(0,ii))] += flux_on_the_node_h ; 
+      incr [ordh  (quadrant->gparent(1,ii))] += flux_on_the_node_h ;
       
       incr [ordUx (quadrant->gparent(0,ii))] += flux_on_the_node_Ux;
       incr [ordUx (quadrant->gparent(1,ii))] += flux_on_the_node_Ux;
@@ -1014,18 +1080,18 @@ TG2_scheme::second_step (tmesh::quadrant_iterator quadrant)
       incr [ordTh (quadrant->gparent(0,ii))] += flux_on_the_node_Th;
       incr [ordTh (quadrant->gparent(1,ii))] += flux_on_the_node_Th;
 
-      // store now the second increment vector
-      incr_second [ordh  (quadrant->gparent(0,ii))] += flux_on_the_node_h_second; 
-      incr_second [ordh  (quadrant->gparent(1,ii))] += flux_on_the_node_h_second;
+      // // store now the second increment vector
+      // incr_second [ordh  (quadrant->gparent(0,ii))] += flux_on_the_node_h_second ; 
+      // incr_second [ordh  (quadrant->gparent(1,ii))] += flux_on_the_node_h_second ;
       
-      incr_second [ordUx (quadrant->gparent(0,ii))] += flux_on_the_node_Ux_second;
-      incr_second [ordUx (quadrant->gparent(1,ii))] += flux_on_the_node_Ux_second;
+      // incr_second [ordUx (quadrant->gparent(0,ii))] += flux_on_the_node_Ux_second;
+      // incr_second [ordUx (quadrant->gparent(1,ii))] += flux_on_the_node_Ux_second;
       
-      incr_second [ordUy (quadrant->gparent(0,ii))] += flux_on_the_node_Uy_second;
-      incr_second [ordUy (quadrant->gparent(1,ii))] += flux_on_the_node_Uy_second;
+      // incr_second [ordUy (quadrant->gparent(0,ii))] += flux_on_the_node_Uy_second;
+      // incr_second [ordUy (quadrant->gparent(1,ii))] += flux_on_the_node_Uy_second;
 
-      incr_second [ordTh (quadrant->gparent(0,ii))] += flux_on_the_node_Th_second;
-      incr_second [ordTh (quadrant->gparent(1,ii))] += flux_on_the_node_Th_second;
+      // incr_second [ordTh (quadrant->gparent(0,ii))] += flux_on_the_node_Th_second;
+      // incr_second [ordTh (quadrant->gparent(1,ii))] += flux_on_the_node_Th_second;
 
     }
   }
@@ -1078,6 +1144,16 @@ TG2_scheme::solve_non_lin(const int& kk)
   Ux_c += dt_expl_32*incr.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt_32*incr_second.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] + dt_31*Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c);
   Uy_c += dt_expl_32*incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt_32*incr_second.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2] + dt_31*Uy_src_formula(h_c_old, 0., Uy_c_old, Th_c);
 
+  const double T = h_c_old>epsilon ? Th_c/h_c_old : 0.;
+  double exp_contr = std::exp(-b_exp_coeff*(T-T_ref));
+
+  if (std::isnan(Th_c) || std::isnan(h_c) || std::isnan(Ux_c) || std::isnan(Uy_c))
+  {
+    std::cout << h_c << " " << Ux_c << " " << Uy_c << " " << Th_c << " " << Ux_src_formula(h_c, 1., 0., Th_c) << " " << Uy_src_formula(h_c, 0., 1., Th_c) << " " << Ux_c_old << " " << Ux_src_formula(h_c_old, Ux_c_old, 0., Th_c) << " " << exp_contr << " " << h_c_old << " " << -b_exp_coeff*(T-T_ref) << std::endl;
+    std::cout << "Stop in solve_non_lin " << std::endl;
+    exit(1);
+  }
+
   Ux_c = h_c>epsilon ? Ux_c/(1.-dt_33*Ux_src_formula(h_c, 1., 0., Th_c)) : 0.;
   Uy_c = h_c>epsilon ? Uy_c/(1.-dt_33*Uy_src_formula(h_c, 0., 1., Th_c)) : 0.;
 
@@ -1085,11 +1161,12 @@ TG2_scheme::solve_non_lin(const int& kk)
   Th_c *= (Th_c>0);
 
 
-  if (std::isnan(Th_c) || std::isnan(h_c) || std::isnan(Ux_c) || std::isnan(Uy_c))
-  {
-    std::cout << h_c << " " << Ux_c << " " << Uy_c << " " << Th_c << " " << Ux_src_formula(h_c, Ux_c_old, 0., Th_c) << " " << Uy_src_formula(h_c, 0., Uy_c_old, Th_c) << std::endl;
-    exit(1);
-  }
+  // if (std::isnan(Th_c) || std::isnan(h_c) || std::isnan(Ux_c) || std::isnan(Uy_c))
+  // {
+  //   std::cout << h_c << " " << Ux_c << " " << Uy_c << " " << Th_c << " " << Ux_src_formula(h_c, 1., 0., Th_c) << " " << Uy_src_formula(h_c, 0., 1., Th_c) << " " << incr_second.get_owned_data ()[kk+1]/mass.get_owned_data ()[kk+1] << std::endl;
+  //   std::cout << "Stop in solve_non_lin " << std::endl;
+  //   exit(1);
+  // }
 
   //Uy_c = 0.;
 
@@ -1203,7 +1280,7 @@ TG2_scheme::compute_updated_sol(const int& kk)
   Uy_c = Uy_c_old + b_2*Uy2_c + b_3*(Uy_src_formula(h3_c, Ux3_c, Uy3_c, Th3_c       ) - incr.get_owned_data ()[kk+2]/mass.get_owned_data ()[kk+2]);
   Th_c = Th_c_old + b_2*Th2_c + b_3*(Th_src_formula(h3_c, Ux3_c, Uy3_c, Th3_c, T_env) - incr.get_owned_data ()[kk+3]/mass.get_owned_data ()[kk+3]);
 #else
-  h_c  = h3_c;
+  h_c  = h3_c ;
   Ux_c = Ux3_c;
   Uy_c = Uy3_c;
   Th_c = Th3_c;
@@ -1229,6 +1306,10 @@ TG2_scheme::set_dt (const double dt_)
   dt_expl_21 = dt_22;
   dt_expl_32 = dt;
 
+  // set the c coefficients, explicit
+  c_expl_2 = dt_expl_21;
+  c_expl_3 = dt_expl_32;
+  
   // set the b coefficients, explicit
   b_expl_1 = 0;
   b_expl_2 = dt_expl_32;
@@ -1249,6 +1330,10 @@ TG2_scheme::set_dt (const double dt_)
   // set the explicit part coefficients
   dt_expl_21 = dt*.5;
   dt_expl_32 = dt;
+
+  // set the c coefficients, explicit
+  c_expl_2 = dt_expl_21;
+  c_expl_3 = dt_expl_32;
 
   // set the b coefficients, explicit
   b_expl_1 = 0;
@@ -1271,6 +1356,10 @@ TG2_scheme::set_dt (const double dt_)
   dt_expl_21 = dt_22;
   dt_expl_32 = dt;
 
+  // set the c coefficients, explicit
+  c_expl_2 = dt_expl_21;
+  c_expl_3 = dt_expl_32;
+
   // set the b coefficients, explicit
   b_expl_1 = 0;
   b_expl_2 = dt_32;
@@ -1291,6 +1380,10 @@ TG2_scheme::set_dt (const double dt_)
   // set the explicit part coefficients
   dt_expl_21 = dt_32*.5;
   dt_expl_32 = dt*(std::sqrt(2.)-1.)/(3.*std::sqrt(2.)-4.)*.5;
+
+  // set the c coefficients, explicit
+  c_expl_2 = dt_expl_21;
+  c_expl_3 = dt_expl_32;
 
   // set the b coefficients, explicit
   b_expl_1 = 0;
@@ -1353,6 +1446,13 @@ double
 TG2_scheme::get_dt ()
 { return dt; }
 
+double
+TG2_scheme::Q_vent_fun(const double stage_time) 
+{
+  const auto candidate_output = std::max(0., Q_vent*std::cos(stage_time*1));
+  return Q_vent; //candidate_output;
+}
+
 
 #if FLUX_MODEL == 1
 
@@ -1407,7 +1507,7 @@ TG2_scheme::get_dt ()
   double
   TG2_scheme::h_flux_formula_x (const double& h, const double& Ux, const double& Uy)
   { 
-    return 6*h; 
+    return compute_max_eigenvalue(h,h,h)*h; 
   }
 
   double
@@ -1420,7 +1520,7 @@ TG2_scheme::get_dt ()
   double
   TG2_scheme::Ux_flux_formula_x (const double& h, const double& Ux, const double& Uy)
   { 
-    return 6*Ux; 
+    return compute_max_eigenvalue(h,h,h)*Ux; 
   }
    
   double
@@ -1429,7 +1529,7 @@ TG2_scheme::get_dt ()
 
   double
   TG2_scheme::Uy_flux_formula_x (const double& h, const double& Ux, const double& Uy)
-  { return 6*Uy; }
+  { return compute_max_eigenvalue(h,h,h)*Uy; }
 
   double
   TG2_scheme::Uy_flux_formula_y (const double& h, const double& Ux, const double& Uy)
@@ -1462,7 +1562,7 @@ TG2_scheme::Ux_src_formula (const double& h, const double& Ux, const double& Uy,
   const double T = h>epsilon ? Th/h : 0.;
   const double ux = h>epsilon ? Ux/h : 0.;
   double exp_contr = std::exp(-b_exp_coeff*(T-T_ref));
-  //exp_contr = std::min(exp_contr, saturation_coeff);
+  exp_contr = std::min(exp_contr, saturation_coeff);
   const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*exp_contr : 0.; 
   return ( - gamma_fric_over_h*ux);
 }
@@ -1473,7 +1573,7 @@ TG2_scheme::Uy_src_formula (const double& h, const double& Ux, const double& Uy,
   const double T = h>epsilon ? Th/h : 0.;
   const double uy = h>epsilon ? Uy/h : 0.;
   double exp_contr = std::exp(-b_exp_coeff*(T-T_ref));
-  //exp_contr = std::min(exp_contr, saturation_coeff);
+  exp_contr = std::min(exp_contr, saturation_coeff);
   const double gamma_fric_over_h = h>epsilon ? 3.*nu_ref/h*exp_contr : 0.;
   return ( - gamma_fric_over_h*uy);
 }

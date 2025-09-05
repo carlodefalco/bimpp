@@ -132,9 +132,12 @@ public:
   
   double
   get_dt ();
+
+  double
+  Q_vent_fun(const double stage_time);
   
   
-  double dt, dt_old, dt_22, dt_33, dt_21, dt_31, dt_32, dt_expl_21, dt_expl_32, b_1, b_2, b_3, b_expl_1, b_expl_2, b_expl_3;
+  double dt, dt_old, dt_22, dt_33, dt_21, dt_31, dt_32, dt_expl_21, dt_expl_32, b_1, b_2, b_3, b_expl_1, b_expl_2, b_expl_3, c_expl_2, c_expl_3;
   
   double Dx, Dy, area;
   
@@ -248,6 +251,9 @@ public:
 
   void
   print_func_cen(tmesh::quadrant_iterator quadrant, Q0& ss);
+
+  double
+  compute_max_eigenvalue(const double& h, const double& U, const double& celerity);
   
   double time, timed, timedd;
   double nu_htot = 0.;
