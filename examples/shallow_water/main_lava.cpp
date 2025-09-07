@@ -23,6 +23,7 @@
 using json = nlohmann::json;
 
 // mpirun -np 4 main_lava glisX_input-lava-travelling-vortex.json >out_lava.txt
+// mpirun -np 4 main_lava glisX_input-lava-pouring.json
 
 static constexpr char VARNAME_1[255] = "dem"; 
 //static constexpr char VARNAME_2[255] = "mask_in";  
@@ -136,6 +137,11 @@ inline double dem_fun (const double& xx, const double& yy)
   //return(-std::tan(2.5*M_PI/180)*xx+L);
   // return(raster_value(xx,yy));
 
+  // return (yy>3 && yy<7) ? 1 : 0; 
+  return (xx>3 && xx<7 && yy>3 && yy<7) ? 1 : 0; 
+
+  return 5.0 * std::exp(-2.0/5.0 * (std::pow(xx-L/2.0,2) + std::pow(yy-H/2.0,2)));;
+
   //const double rx = std::abs(xx-L/2.);
   //const double ry = std::abs(yy-H/2.); 
 
@@ -209,6 +215,8 @@ auto omega = [](double r, double g, double rho) -> double {
 inline double h0_fun (const double& xx, const double& yy, const double& g) 
 {
   double h_ini = 0;
+
+  return(10. - dem_fun(xx,yy));
 
 #if SET_TEST == 1 
   double r     = std::sqrt((xx-x_0)*(xx-x_0) + (yy-y_0)*(yy-y_0));
