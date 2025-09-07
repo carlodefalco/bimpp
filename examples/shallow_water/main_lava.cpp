@@ -138,9 +138,9 @@ inline double dem_fun (const double& xx, const double& yy)
   // return(raster_value(xx,yy));
 
   // return (yy>3 && yy<7) ? 1 : 0; 
-  return (xx>3 && xx<7 && yy>3 && yy<7) ? 1 : 0; 
+  // return (xx>3 && xx<7 && yy>3 && yy<7) ? 5.0 * std::exp(-2.0/5.0 * (std::pow(xx-L/2.0,2) + std::pow(yy-H/2.0,2))) : 0; 
 
-  return 5.0 * std::exp(-2.0/5.0 * (std::pow(xx-L/2.0,2) + std::pow(yy-H/2.0,2)));;
+  // return 5.0 * std::exp(-2.0/5.0 * (std::pow(xx-L/2.0,2) + std::pow(yy-H/2.0,2)));
 
   //const double rx = std::abs(xx-L/2.);
   //const double ry = std::abs(yy-H/2.); 
@@ -216,7 +216,7 @@ inline double h0_fun (const double& xx, const double& yy, const double& g)
 {
   double h_ini = 0;
 
-  return(10. - dem_fun(xx,yy));
+  // return(10. - dem_fun(xx,yy));
 
 #if SET_TEST == 1 
   double r     = std::sqrt((xx-x_0)*(xx-x_0) + (yy-y_0)*(yy-y_0));
