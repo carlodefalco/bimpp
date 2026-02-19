@@ -146,20 +146,21 @@ inline double dem_fun (const double& xx, const double& yy)
   //const double ry = std::abs(yy-H/2.); 
 
   double z = 0.;
-  // const double r = std::sqrt((xx-L/2.)*(xx-L/2.) + (yy-H/2.)*(yy-H/2.));
-  // if (r<=10 && r<= 10)
-  // {
-  //   z = 60;
-  // }
-  // else if (r>10 && r<=50 && r>10 && r<=50)
-  // {
-  //   z = -r + 70.;
-  // }
-  // else
-  // {
-  //   z = 15.;
-  // }
-
+  /*
+  const double r = std::sqrt((xx-L/2.)*(xx-L/2.) + (yy-H/2.)*(yy-H/2.));
+  if (r<=10 && r<= 10)
+  {
+    z = 60;
+  }
+  else if (r>10 && r<=50 && r>10 && r<=50)
+  {
+    z = -r + 70.;
+  }
+  else
+  {
+    z = 15.;
+  }
+*/
   // const double alfa = std::tan(15.*M_PI/180);
   // const double beta = L*alfa;
   // z = -alfa*xx + beta;
