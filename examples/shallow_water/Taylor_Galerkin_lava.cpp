@@ -1484,11 +1484,26 @@ double
 TG2_scheme::get_dt ()
 { return dt; }
 
+/*
 double
 TG2_scheme::Q_vent_fun(const double stage_time) 
 {
   const auto candidate_output = std::max(0., Q_vent*std::cos(stage_time*1));
-  return Q_vent; //candidate_output;
+  return candidate_output; //Q_vent; //candidate_output;
+}
+*/
+
+double TG2_scheme::Q_vent_fun(const double stage_time)
+{
+  // This will particularly highlight c \ne \tilde{c} differences
+  const double stiff_factor = 25.0; // Makes it very stiff
+  const double fast_oscillation = std::cos(stiff_factor * stage_time);
+  const double slow_modulation = 0.5 * (1.0 + std::sin(0.5 * stage_time));
+
+  // Add a small discontinuity to really test the schemes
+  const double discontinuity = (std::fmod(stage_time, 5.0) > 2.5) ? 1.2 : 1.0;
+
+  return std::max(0., Q_vent * discontinuity * slow_modulation * fast_oscillation);
 }
 
 
