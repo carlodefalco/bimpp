@@ -1,9 +1,3 @@
-/*
-  Copyright (C) 2020 Carlo de Falco
-  This software is distributed under the terms
-  the terms of the GNU/GPL licence v3
-*/
-
 #include <cassert>
 #include <iostream>
 #include <cmath>
