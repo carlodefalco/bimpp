@@ -26,7 +26,7 @@ sparse_matrix::extract_block_pointer (const std::vector<int> &rows,
 {
   size_t  ii, jj;
   int jcol;
-  std::map<int, double> *irow;
+  boost::container::flat_map<int, double> *irow;
   out.resize (rows.size ());
   
   // copy the vector with the
@@ -72,7 +72,7 @@ sparse_matrix::extract_block_pointer_keep_cols
 {
   size_t  ii, jj;
   int jcol;
-  std::map<int, double> *irow;  
+  boost::container::flat_map<int, double> *irow;  
   out.resize (rows.size ());
   
   // same algorithm as for extract_block_pointer

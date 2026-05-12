@@ -819,7 +819,7 @@ bim2a_dirichlet_bc_loc (sparse_matrix& A,
          A[row].end (),
          0.0,
          [] (double sum,
-             const std::map<int, double>::value_type & p)
+             const auto & p)
          {
            return (sum + std::abs (p.second));
          }
@@ -850,7 +850,7 @@ bim2a_dirichlet_bc_loc (sparse_matrix& A,
          A[row].end (),
          0.0,
          [] (double sum,
-             const std::map<int, double>::value_type & p)
+             const auto & p)
          {
            return (sum + std::abs (p.second));
          }
