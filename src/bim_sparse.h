@@ -14,18 +14,19 @@
 #include <iostream>
 #include <iomanip>
 #include <cassert>
+#include <boost/container/flat_map.hpp>
 
 //namespace bim
 //{
 
 /// Templated class for sparse row-oriented matrix.
 template <class T>
-class sparse_matrix_template : public std::vector< std::map<int, T> >
+class sparse_matrix_template : public std::vector< boost::container::flat_map<int, T> >
 {
 private:
 
-  typedef std::map<int, T>                col_type;
-  typedef std::vector< std::map<int, T> > row_type;
+  typedef boost::container::flat_map<int, T>                col_type;
+  typedef std::vector< boost::container::flat_map<int, T> > row_type;
 
 public:
 

@@ -7,6 +7,7 @@
 #ifndef HAVE_BIM_SPARSE_DISTRIBUTED_H
 #define HAVE_BIM_SPARSE_DISTRIBUTED_H 1
 
+#include <map>
 #include <mpi.h>
 #include <bim_sparse.h>
 
